@@ -4,6 +4,7 @@ import { formatAddress } from "../utils/utils";
 
 const CCA_FACTORY_V1 = "0x0000ccaDF55C911a2FbC0BB9d2942Aa77c6FAa1D";
 const CCA_FACTORY_V1_1 = "0xCCccCcCAE7503Cac057829BF2811De42E16e0bD5";
+const CCA_FACTORY_V1_2 = "0x000000001F26a0044BaA66024e7b6599c61963F8";
 
 const AUCTION_CREATED = "event AuctionCreated(address indexed auction, address indexed token, uint256 amount, bytes configData)";
 const BID_SUBMITTED_V1 = "event BidSubmitted(uint256 indexed id, address indexed owner, uint256 price, uint128 amount)";
@@ -25,6 +26,7 @@ const CONFIGS: Record<string, ChainConfig> = {
     factories: [
       { address: CCA_FACTORY_V1, fromBlock: 23780787 },
       { address: CCA_FACTORY_V1_1, fromBlock: 24321671 },
+      { address: CCA_FACTORY_V1_2, fromBlock: 25503401 },
     ],
   },
   [CHAIN.UNICHAIN]: {
@@ -32,6 +34,7 @@ const CONFIGS: Record<string, ChainConfig> = {
     factories: [
       { address: CCA_FACTORY_V1, fromBlock: 32316559 },
       { address: CCA_FACTORY_V1_1, fromBlock: 38733234 },
+      { address: CCA_FACTORY_V1_2, fromBlock: 52952712 },
     ],
   },
   [CHAIN.BASE]: {
@@ -39,6 +42,7 @@ const CONFIGS: Record<string, ChainConfig> = {
     factories: [
       { address: CCA_FACTORY_V1, fromBlock: 38441212 },
       { address: CCA_FACTORY_V1_1, fromBlock: 41336767 },
+      { address: CCA_FACTORY_V1_2, fromBlock: 48455862 },
     ],
   },
   [CHAIN.ARBITRUM]: {
@@ -46,6 +50,7 @@ const CONFIGS: Record<string, ChainConfig> = {
     factories: [
       { address: CCA_FACTORY_V1, fromBlock: 411868855 },
       { address: CCA_FACTORY_V1_1, fromBlock: 425561184 },
+      { address: CCA_FACTORY_V1_2, fromBlock: 482439583 },
     ],
   },
 };

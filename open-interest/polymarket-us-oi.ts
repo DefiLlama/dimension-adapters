@@ -23,17 +23,15 @@ function parseCSVLine(line: string): string[] {
     return result;
 }
 
-function parseEndOfDayReportCSV(csv: string): { openInterest: number; price: number }[] {
+function parseEndOfDayReportCSV(csv: string): number[] {
     const lines = csv.trim().split('\n');
-    const endOfDayReportData: { openInterest: number; price: number }[] = [];
+    const openInterests: number[] = [];
 
     for (let i = 1; i < lines.length; i++) {
         const columns = parseCSVLine(lines[i]);
-        const openInterest = parseFloat(columns[7]) || 0;
-        const price = parseFloat(columns[20]) || 0;
-        endOfDayReportData.push({ openInterest, price });
+        openInterests.push(parseFloat(columns[7]) || 0);
     }
-    return endOfDayReportData;
+    return openInterests;
 }
 
 async function fetch(options: FetchOptions) {
@@ -49,8 +47,8 @@ async function fetch(options: FetchOptions) {
     const csvResponse = await fetchURL(`${BASE_URL}/${todaysData.filename}`);
     const endOfDayReportData = parseEndOfDayReportCSV(csvResponse);
 
-    for (const data of endOfDayReportData) {
-        openInterestAtEnd.addUSDValue(data.openInterest * data.price);
+    for (const openInterest of endOfDayReportData) {
+        openInterestAtEnd.addUSDValue(openInterest);
     }
 
     return { openInterestAtEnd };

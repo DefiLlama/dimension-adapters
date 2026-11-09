@@ -15,8 +15,18 @@ interface withdrawalLog {
 const abi = {
   token: "address:token",
   fee: "uint64:treasuryFee",
+  decimals: "erc20:decimals",
   withdrawals: "event TreasuryFeeWithdrawn(address to, uint64 amountSD)"
 };
+
+const SHARED_DECIMALS = 6n;
+const NATIVE_DECIMALS = 18n;
+
+function toLocalDecimals(amountSD: bigint, localDecimals: bigint) {
+  return localDecimals >= SHARED_DECIMALS
+    ? amountSD * 10n ** (localDecimals - SHARED_DECIMALS)
+    : amountSD / 10n ** (SHARED_DECIMALS - localDecimals);
+}
 
 const contracts: IAddress = {
   [CHAIN.ETHEREUM]: [
@@ -25,6 +35,7 @@ const contracts: IAddress = {
     "0x933597a323Eb81cAe705C5bC29985172fd5A3973",
     "0xcDafB1b2dB43f366E48e6F614b8DCCBFeeFEEcD3",
     "0x268Ca24DAefF1FaC2ed883c598200CcbB79E931D",
+    "0x783129e4d7bA0Af0c896C239E57c06DF379aAE8C",
   ],
   [CHAIN.BSC]: [
     "0x138EB30f73BC423c6455C53df6D89CB01d9eBc63",
@@ -97,7 +108,7 @@ const contracts: IAddress = {
     ADDRESSES.fuse.WETH_3
   ],
   [CHAIN.SONIC]: [
-    "0x45d417612e177672958dC0537C45a8f8d754Ac2E"
+    "0xa272FFe20cFFe769CDFc4b63088DCD2C82A2D8f9"
   ],
   [CHAIN.SONEIUM]:[
     "0x45f1A95A4D3f3836523F5c83673c797f4d4d263B",
@@ -108,6 +119,13 @@ const contracts: IAddress = {
   ],
   [CHAIN.SWELLCHAIN]:[
     "0xCc0587aeBDa397146cc828b445dB130a94486e74"
+  ],
+  [CHAIN.CORE]: [
+    ADDRESSES.fuse.WETH_3,
+    "0x45f1A95A4D3f3836523F5c83673c797f4d4d263B",
+  ],
+  [CHAIN.DOMA]: [
+    "0x5d46805bBFACa875a96eBbD22aAa3dE4a81180F5"
   ]
 };  
 
@@ -130,12 +148,18 @@ async function getPoolFees(
        ? contracts.map(() => [])
        : getLogs({ targets: contracts, eventAbi: abi.withdrawals, flatten: false })
   ]);
+  const erc20Assets = assets.filter((asset: string) => asset && asset !== ADDRESSES.null);
+  const erc20Decimals = await api.multiCall({ calls: erc20Assets, abi: abi.decimals });
+  const decimalsByAsset: Record<string, bigint> = {};
+  erc20Assets.forEach((asset: string, i: number) => decimalsByAsset[asset] = BigInt(erc20Decimals[i]));
   assets.forEach((asset, index) => {
     const prevFee = prevFees[index];
     const currFee = currFees[index];
     if (prevFee == null || currFee == null) return;
     const withdrawn = (withdrawals[index] || []).reduce((acc: bigint, log: withdrawalLog) => acc + log.amountSD, 0n);
-    dailyFees.add(asset, BigInt(currFee) - BigInt(prevFee) + withdrawn);
+    const amountSD = BigInt(currFee) - BigInt(prevFee) + withdrawn;
+    const decimals = asset === ADDRESSES.null ? NATIVE_DECIMALS : decimalsByAsset[asset];
+    dailyFees.add(asset, toLocalDecimals(amountSD, decimals));
   });
   return { dailyFees, dailyRevenue: dailyFees };
 }

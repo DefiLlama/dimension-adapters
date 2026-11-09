@@ -3,10 +3,42 @@ import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from '../../helpers/prices';
 import { METRIC } from '../../helpers/metrics';
 
-const CONFIG = {
-  factory: '0x73DC984D9490286E735548f61dfCCec67Af82ed9',
-  voter: '0x2F80F810a114223AC69E34E84E735CaD515dAD67',
-  gaugeFactory: '0xeD2ED418f104E18B1D11eA5C26236A1caa675839'
+const CONFIG: Record<string, { factory: string, voter: string, gaugeFactory: string, fromBlock: number, start: string }> = {
+  [CHAIN.BSC]: {
+    factory: '0x73DC984D9490286E735548f61dfCCec67Af82ed9',
+    voter: '0x2F80F810a114223AC69E34E84E735CaD515dAD67',
+    gaugeFactory: '0xeD2ED418f104E18B1D11eA5C26236A1caa675839',
+    fromBlock: 98741567,
+    start: '2026-05-16',
+  },
+  [CHAIN.ROBINHOOD]: {
+    factory: '0xaa5865dC3A60b25D305226d66fd573021f0D8fFB',
+    voter: '0xb509071a8a33fC2184B169dfc029B3dE3CF5172B',
+    gaugeFactory: '0xc99B3e03e8dE70318f705155a3195c18d6344dFE',
+    fromBlock: 60743041,
+    start: '2026-09-12',
+  },
+  [CHAIN.BASE]: {
+    factory: '0xaa5865dC3A60b25D305226d66fd573021f0D8fFB',
+    voter: '0xb509071a8a33fC2184B169dfc029B3dE3CF5172B',
+    gaugeFactory: '0xc99B3e03e8dE70318f705155a3195c18d6344dFE',
+    fromBlock: 51195798,
+    start: '2026-09-12',
+  },
+  [CHAIN.ETHEREUM]: {
+    factory: '0xaa5865dC3A60b25D305226d66fd573021f0D8fFB',
+    voter: '0xb509071a8a33fC2184B169dfc029B3dE3CF5172B',
+    gaugeFactory: '0xc99B3e03e8dE70318f705155a3195c18d6344dFE',
+    fromBlock: 25958707,
+    start: '2026-09-12',
+  },
+  [CHAIN.ARC]: {
+    factory: '0xaa5865dC3A60b25D305226d66fd573021f0D8fFB',
+    voter: '0xb509071a8a33fC2184B169dfc029B3dE3CF5172B',
+    gaugeFactory: '0xc99B3e03e8dE70318f705155a3195c18d6344dFE',
+    fromBlock: 21097908,
+    start: '2026-09-16',
+  },
 }
 
 const eventAbis = {
@@ -23,11 +55,12 @@ const abis = {
 
 const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const { api, createBalances, chain, getLogs } = fetchOptions
+  const config = CONFIG[chain]
 
   const dailyVolume = createBalances()
   const dailyFeesProxy = createBalances();
 
-  const rawPools = await getLogs({ target: CONFIG.factory, fromBlock: 98741567, eventAbi: eventAbis.event_poolCreated, cacheInCloud: true, })
+  const rawPools = await getLogs({ target: config.factory, fromBlock: config.fromBlock, eventAbi: eventAbis.event_poolCreated, cacheInCloud: true, })
   const _pools = rawPools.map((i: any) => i.pool.toLowerCase())
   const fees = await api.multiCall({ abi: abis.fee, calls: _pools })
 
@@ -40,12 +73,12 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     aeroPoolSet.add(pool)
   })
 
-  const swapLogs = await getLogs({
+  const swapLogs = rawPools.length ? await getLogs({
     targets: _pools,
     eventAbi: eventAbis.event_swap,
     entireLog: true,
     parseLog: true,
-  })
+  }) : []
 
   swapLogs.forEach((log: any) => {
     const pool = log.address.toLowerCase()
@@ -62,15 +95,15 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   const dailyFees = dailyFeesProxy.clone(1, METRIC.SWAP_FEES);
   const dailyHoldersRevenue = dailyFeesProxy.clone(1, 'Swap Fees To veTOPAZ voters');
 
-  const gaugeCreatedLogs = await getLogs({ target: CONFIG.voter, fromBlock: 98741567, eventAbi: eventAbis.event_gaugeCreated, cacheInCloud: true, })
+  const gaugeCreatedLogs = await getLogs({ target: config.voter, fromBlock: config.fromBlock, eventAbi: eventAbis.event_gaugeCreated, cacheInCloud: true, })
 
   if (gaugeCreatedLogs.length) {
     const bribes_contract: string[] = gaugeCreatedLogs
-      .filter((log) => log.gaugeFactory.toLowerCase() === CONFIG.gaugeFactory.toLowerCase())
+      .filter((log) => log.gaugeFactory.toLowerCase() === config.gaugeFactory.toLowerCase())
       .map((log) => log.bribeVotingReward.toLowerCase())
     const bribeSet = new Set(bribes_contract)
 
-    const logs = await getLogs({ targets: Array.from(bribeSet), eventAbi: eventAbis.event_notify_reward })
+    const logs = bribeSet.size ? await getLogs({ targets: Array.from(bribeSet), eventAbi: eventAbis.event_notify_reward }) : []
     logs.forEach((log: any) => {
       dailyFees.add(log.reward, log.amount, "Bribes")
       dailyHoldersRevenue.add(log.reward, log.amount, "Bribes To veTOPAZ voters")
@@ -113,9 +146,7 @@ const breakdownMethodology = {
 
 const adapters: SimpleAdapter = {
   version: 2,
-  fetch,
-  chains: [CHAIN.BSC],
-  start: '2026-05-16',
+  adapter: Object.fromEntries(Object.entries(CONFIG).map(([chain, { start }]) => [chain, { fetch, start }])),
   pullHourly: true,
   methodology,
   breakdownMethodology,

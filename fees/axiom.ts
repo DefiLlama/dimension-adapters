@@ -2,6 +2,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import ADDRESSES from '../helpers/coreAssets.json';
 import { queryDuneSql } from '../helpers/dune';
+import { assertDuneSolanaIndexed } from '../helpers/duneSolanaDex';
 
 const LABELS = {
   TRADING_FEES: 'Trading Fees',
@@ -14,6 +15,8 @@ const LABELS = {
 const chainConfig = {
   [CHAIN.SOLANA]: {
     start: '2025-01-21',
+    // Axiom's own router: 97.9% of fee-paying txs invoke it, 99.4% of its txs pay a fee wallet.
+    routerProgram: 'FLASHX8DrLbgeR8FcfNV1F5krxYcYMUdBkrP1EPBtxB9',
     referralVaultProgram: 'VAULTkV5rgY9WqZtvaMHvctrKMwQw8bCfSJF4nga2D4',
     cashbackWallets: [
       'AxiomRXZAq1Jgjj9pHmNqVP7Lhu67wLXZJZbaK87TTSk',
@@ -43,15 +46,93 @@ const chainConfig = {
     ],
   },
   [CHAIN.BSC]: {
-    start: '2026-01-25',
-    tradeContract: '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e',
+    start: '2025-12-25',
+    // Ordered by first fee paid. Axiom rotates trade contracts, and old ones keep trading for a
+    // while after a new one is live.
+    tradeContracts: [
+      '0x5da7dd96efa6127e68c8ab06f125124c3c05d18d', // 2025-12-25 to 2026-01-30
+      '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e', // old trade contract
+      '0x05701DC0b8F6711f6DE3B282f46B10c813AFb02d', // new trade contract
+      '0x9689992f5b5C09447f15906d8d11214944488341', // new trade contract
+    ],
     feeReceiver: '0xdec29d79e8cdf009d2fa33e0558cb5648481cac3',
+    supplySideExcludedReceiver: '0x43d2a6763fcdb002328c2754a2bad82ec24b35fc',
+  },
+  [CHAIN.ROBINHOOD]: {
+    start: '2026-07-10',
+    duneChain: 'robinhood',
+    // Axiom rotates trade contracts often; every one so far pays its native ETH fee into the same
+    // fee distributor below. Ordered by first fee paid.
+    tradeContracts: [
+      '0xcda14e87628317e4f90077750fbe9634b896a24f', // 2026-07-10
+      '0x76a0e120631735845769e3de2606924af7716150', // 2026-07-10
+      '0xc6cdc85a225236013ee9b3b47dd05c07aed1fabc', // 2026-07-11
+      '0x105358a03c47706ad4697e227d5a8ddfacf85448', // 2026-07-12
+      '0xe3dc74b2d5b83916a1682777f1de8b2155ddfc38', // 2026-07-13
+      '0xd9fc1771672f08f3abce96d033cc21d1e5a3ac7f', // 2026-07-14
+      '0x578980d6cac7ab262c40dfca650b1d2d259c1cca', // 2026-07-16
+      '0x4a86009a36fcec5aa341ffceb3205a911fcf6f60', // 2026-07-17
+      '0x9689992f5b5c09447f15906d8d11214944488341', // 2026-09-06
+    ],
+    feeReceiver: '0x6fb4460e4bebf662fcd9bfa5ce6d6231732bb86c',
+    // Axiom's cross-chain revenue consolidation EOA, the same address as the BSC excluded
+    // receiver. Everything else flowing out of the distributor is user cashback/referral.
+    supplySideExcludedReceiver: '0x43d2a6763fcdb002328c2754a2bad82ec24b35fc',
+  },
+  // On these chains the trade contracts pay one shared fee distributor, 0xcbbccdfc, with the same claim function as the
+  // Robinhood one, and it consolidates into the same EOA. Base trade 0x7a027c0b0359c21de75e28477c72b2a3a7246dc9add9a49b4962b16afccf989c,
+  // Base sweep 0xfd2db3686cbd14121b082bbd646abaa97cc830e295450501ca9b4a9f3b19d255.
+  [CHAIN.ETHEREUM]: {
+    start: '2026-04-28',
+    duneChain: 'ethereum',
+    tradeContracts: [
+      '0xe44f80d8b61762fdb03dc754247c0b2d3ddf456b', // 2026-04-28 to 2026-09-08
+      '0x9689992f5b5c09447f15906d8d11214944488341', // 2026-09-09
+    ],
+    feeReceiver: '0xcbbccdfcd209deca1b564436060fff13fa2db59c',
+    supplySideExcludedReceiver: '0x43d2a6763fcdb002328c2754a2bad82ec24b35fc',
+  },
+  [CHAIN.BASE]: {
+    start: '2026-09-09',
+    duneChain: 'base',
+    tradeContracts: ['0x9689992f5b5c09447f15906d8d11214944488341'],
+    feeReceiver: '0xcbbccdfcd209deca1b564436060fff13fa2db59c',
+    supplySideExcludedReceiver: '0x43d2a6763fcdb002328c2754a2bad82ec24b35fc',
+  },
+  [CHAIN.HYPERLIQUID]: {
+    start: '2026-09-11',
+    duneChain: 'hyperevm',
+    tradeContracts: ['0x9689992f5b5c09447f15906d8d11214944488341'],
+    feeReceiver: '0xcbbccdfcd209deca1b564436060fff13fa2db59c',
+    supplySideExcludedReceiver: '0x43d2a6763fcdb002328c2754a2bad82ec24b35fc',
+  },
+  [CHAIN.ARC]: {
+    start: '2026-09-15',
+    duneChain: 'arc',
+    tradeContracts: ['0x9689992f5b5c09447f15906d8d11214944488341'],
+    feeReceiver: '0xcbbccdfcd209deca1b564436060fff13fa2db59c',
+    supplySideExcludedReceiver: '0x43d2a6763fcdb002328c2754a2bad82ec24b35fc',
+  },
+  [CHAIN.INK]: {
+    start: '2026-09-09',
+    duneChain: 'ink',
+    tradeContracts: ['0x9689992f5b5c09447f15906d8d11214944488341'],
+    feeReceiver: '0xcbbccdfcd209deca1b564436060fff13fa2db59c',
     supplySideExcludedReceiver: '0x43d2a6763fcdb002328c2754a2bad82ec24b35fc',
   },
 } as const;
 
+type TransferChainConfig = {
+  start: string;
+  duneChain: string; // Dune's blockchain name in tokens.transfers
+  tradeContracts: readonly string[];
+  feeReceiver: string;
+  supplySideExcludedReceiver: string;
+};
+
+const transferChains = Object.values(chainConfig).filter((config) => 'duneChain' in config) as TransferChainConfig[];
+
 const formatAddresses = (addresses: readonly string[]) => addresses.map((address) => `'${address}'`).join(', ');
-const containsAnyAccount = (addresses: readonly string[]) => addresses.map((address) => `CONTAINS(account_keys, '${address}')`).join(' OR ');
 
 async function fetchSolana(options: FetchOptions) {
   const solanaConfig = chainConfig[CHAIN.SOLANA];
@@ -72,13 +153,13 @@ async function fetchSolana(options: FetchOptions) {
   const formattedFeeWallets = formatAddresses(solanaConfig.feeWallets);
   const formattedReferralPayoutExcludedAccounts = formatAddresses(REFERRAL_PAYOUT_EXCLUDED_ACCOUNTS);
   const formattedCashbackPayoutExcludedAccounts = formatAddresses(CASHBACK_PAYOUT_EXCLUDED_ACCOUNTS);
-  const cashbackWalletFilter = containsAnyAccount(solanaConfig.cashbackWallets);
+  const formattedCashbackWallets = formatAddresses(solanaConfig.cashbackWallets);
 
   const query = `WITH
     allFeePayments AS (
         SELECT
           tx_id,
-          balance_change AS fee_token_amount
+          SUM(balance_change) AS fee_token_amount
         FROM
           solana.account_activity
         WHERE
@@ -88,20 +169,21 @@ async function fetchSolana(options: FetchOptions) {
             ${formattedFeeWallets}
           )
           AND balance_change > 0
+        GROUP BY tx_id
+    ),
+    routerTxs AS (
+      SELECT id
+      FROM solana.transactions
+      WHERE TIME_RANGE
+        AND success = true
+        AND CONTAINS(account_keys, '${solanaConfig.routerProgram}')
     ),
     botTrades AS (
       SELECT
-        trades.tx_id,
-        MAX(fee_token_amount) AS fee
+        feePayments.fee_token_amount AS fee
       FROM
-        dex_solana.trades AS trades
-        JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
-      WHERE
-        TIME_RANGE
-        AND trades.trader_id NOT IN (
-            ${formattedFeeWallets}
-          )
-      GROUP BY trades.tx_id
+        allFeePayments AS feePayments
+        JOIN routerTxs ON routerTxs.id = feePayments.tx_id
     ),
     referral_payout_txs AS (
       SELECT
@@ -110,23 +192,9 @@ async function fetchSolana(options: FetchOptions) {
         pre_balances,
         post_balances
       FROM solana.transactions
-      WHERE block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.endTimestamp}))
-        AND TIME_RANGE
+      WHERE TIME_RANGE
         AND success = true
         AND CONTAINS(account_keys, '${solanaConfig.referralVaultProgram}')
-    ),
-    cashback_payout_txs AS (
-      SELECT
-        id,
-        account_keys,
-        pre_balances,
-        post_balances
-      FROM solana.transactions
-      WHERE block_date BETWEEN date(from_unixtime(${options.startTimestamp})) AND date(from_unixtime(${options.endTimestamp}))
-        AND TIME_RANGE
-        AND success = true
-        AND (${cashbackWalletFilter})
-        AND NOT CONTAINS(account_keys, '${solanaConfig.referralVaultProgram}')
     ),
     referral_payouts AS (
       SELECT
@@ -136,13 +204,17 @@ async function fetchSolana(options: FetchOptions) {
       WHERE post_balances[i] > pre_balances[i]
         AND account_keys[i] NOT IN (${formattedReferralPayoutExcludedAccounts})
     ),
+    -- Cashback is counted per transfer: SOL the cashback wallets send to non-Axiom accounts in system-program
+    -- transfers (the decoded table holds successful calls only). Rent returned to users when these wallets
+    -- close token accounts is not a transfer from them, so it is not counted; it is not a fee.
     cashback_payouts AS (
       SELECT
-        COALESCE(SUM(post_balances[i] - pre_balances[i]), 0) AS payout_lamports
-      FROM cashback_payout_txs
-      CROSS JOIN UNNEST(SEQUENCE(1, CARDINALITY(account_keys))) AS u(i)
-      WHERE post_balances[i] > pre_balances[i]
-        AND account_keys[i] NOT IN (${formattedCashbackPayoutExcludedAccounts})
+        COALESCE(SUM(CAST(lamports AS BIGINT)), 0) AS payout_lamports
+      FROM system_program_solana.system_program_call_Transfer
+      WHERE call_block_time >= from_unixtime(${options.startTimestamp})
+        AND call_block_time < from_unixtime(${options.endTimestamp})
+        AND account_from IN (${formattedCashbackWallets})
+        AND account_to NOT IN (${formattedCashbackPayoutExcludedAccounts})
     )
     SELECT
       (SELECT SUM(fee) FROM botTrades) AS fee,
@@ -154,11 +226,17 @@ async function fetchSolana(options: FetchOptions) {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
+  // Referral vaults are paid inside the swap, outside the fee wallets, so referral claims add to fees.
+  // The cashback wallets are refilled from the fee wallets, so cashback is already inside the fee-wallet
+  // inflow: it is deducted from revenue and not added to fees again (as on BNB Chain and Robinhood Chain).
   dailyFees.add(ADDRESSES.solana.SOL, result[0].fee, LABELS.TRADING_FEES);
   dailyFees.add(ADDRESSES.solana.SOL, result[0].referral_payout_lamports, LABELS.TRADING_FEES);
-  dailyFees.add(ADDRESSES.solana.SOL, result[0].cashback_payout_lamports, LABELS.TRADING_FEES);
+
+  const dailyCashback = options.createBalances();
+  dailyCashback.add(ADDRESSES.solana.SOL, result[0].cashback_payout_lamports);
 
   dailyRevenue.add(ADDRESSES.solana.SOL, result[0].fee, LABELS.TRADING_FEES_TO_PROTOCOL);
+  dailyRevenue.subtract(dailyCashback, LABELS.TRADING_FEES_TO_PROTOCOL);
 
   dailySupplySideRevenue.add(ADDRESSES.solana.SOL, result[0].referral_payout_lamports, LABELS.REFERRAL_PAYOUTS);
   dailySupplySideRevenue.add(ADDRESSES.solana.SOL, result[0].cashback_payout_lamports, LABELS.CASHBACK_PAYOUTS);
@@ -167,6 +245,11 @@ async function fetchSolana(options: FetchOptions) {
 }
 
 
+// EVM chains: the trade contracts take the full 1% fee at swap time and pay it into a fee
+// distributor, which splits it itself. Sweeps to the consolidation EOA are the protocol's net cut,
+// every other outflow is cashback/referral. Trade fees are the distributor's only inflow, so those
+// payouts are funded from the fees already counted: Fees is the inflow alone and Revenue is inflow
+// minus payouts. Adding the payouts on top would double count them.
 async function fetchBsc(options: FetchOptions) {
   const bscConfig = chainConfig[CHAIN.BSC];
   const dailyFees = options.createBalances();
@@ -176,7 +259,7 @@ async function fetchBsc(options: FetchOptions) {
   const [{ fees_amount, supply_side_amount }] = await queryDuneSql(options, `
     SELECT
       COALESCE(SUM(CASE
-        WHEN "from" = ${bscConfig.tradeContract}
+        WHEN "from" in (${bscConfig.tradeContracts.map((contract) => `${contract}`).join(',')})
          AND "to" = ${bscConfig.feeReceiver}
         THEN value
         ELSE 0
@@ -193,16 +276,74 @@ async function fetchBsc(options: FetchOptions) {
       AND success = true
       AND value > 0
       AND (
-        ("from" = ${bscConfig.tradeContract} AND "to" = ${bscConfig.feeReceiver})
+        ("from" in (${bscConfig.tradeContracts.map((contract) => `${contract}`).join(',')}) AND "to" = ${bscConfig.feeReceiver})
         OR
         ("from" = ${bscConfig.feeReceiver} AND "to" <> ${bscConfig.supplySideExcludedReceiver})
       )
   `);
 
   dailyFees.addGasToken(fees_amount, LABELS.TRADING_FEES);
-  dailyFees.addGasToken(supply_side_amount, LABELS.TRADING_FEES);
   dailySupplySideRevenue.addGasToken(supply_side_amount, LABELS.CASHBACK_PAYOUTS);
-  dailyRevenue.addGasToken(fees_amount, LABELS.TRADING_FEES_TO_PROTOCOL);
+  dailyRevenue.addGasToken(BigInt(fees_amount) - BigInt(supply_side_amount), LABELS.TRADING_FEES_TO_PROTOCOL);
+
+  return {
+    dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
+  };
+}
+
+async function prefetch(options: FetchOptions) {
+  assertDuneSolanaIndexed(options);
+  const chains = transferChains.filter((config) => Date.parse(config.start) / 1000 < options.toTimestamp);
+  if (!chains.length) return [];
+
+  const feeTransfer = chains
+    .map((c) => `(blockchain = '${c.duneChain}' AND "from" IN (${c.tradeContracts.join(', ')}) AND "to" = ${c.feeReceiver})`)
+    .join('\n          OR ');
+  const payoutTransfer = chains
+    .map((c) => `(blockchain = '${c.duneChain}' AND "from" = ${c.feeReceiver} AND "to" <> ${c.supplySideExcludedReceiver})`)
+    .join('\n          OR ');
+
+  return queryDuneSql(options, `
+    SELECT
+      c.blockchain,
+      COALESCE(t.fees_amount, 0) AS fees_amount,
+      COALESCE(t.supply_side_amount, 0) AS supply_side_amount
+    FROM (VALUES ${chains.map((c) => `('${c.duneChain}')`).join(', ')}) AS c(blockchain)
+    LEFT JOIN (
+      SELECT
+        blockchain,
+        SUM(CASE WHEN ${feeTransfer} THEN amount_raw ELSE 0 END) AS fees_amount,
+        SUM(CASE WHEN ${payoutTransfer} THEN amount_raw ELSE 0 END) AS supply_side_amount
+      FROM tokens.transfers
+      WHERE TIME_RANGE
+        AND blockchain IN (${chains.map((c) => `'${c.duneChain}'`).join(', ')})
+        AND contract_address = ${ADDRESSES.null}
+        AND (
+          ${feeTransfer}
+          OR ${payoutTransfer}
+        )
+      GROUP BY blockchain
+    ) t ON t.blockchain = c.blockchain
+  `);
+}
+
+// Same model as fetchBsc, see the comment there.
+async function fetchEvmTransfers(options: FetchOptions) {
+  const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
+
+  const duneChain = (chainConfig[options.chain as keyof typeof chainConfig] as TransferChainConfig | undefined)?.duneChain;
+  const row = (options.preFetchedResults ?? []).find((r: any) => r.blockchain === duneChain);
+  if (!duneChain || !row) throw new Error(`axiom: no prefetched Dune transfers for ${options.chain}`);
+  const { fees_amount, supply_side_amount } = row;
+
+  dailyFees.addGasToken(fees_amount, LABELS.TRADING_FEES);
+  dailySupplySideRevenue.addGasToken(supply_side_amount, LABELS.CASHBACK_PAYOUTS);
+  dailyRevenue.addGasToken(BigInt(fees_amount) - BigInt(supply_side_amount), LABELS.TRADING_FEES_TO_PROTOCOL);
 
   return {
     dailyFees,
@@ -213,8 +354,11 @@ async function fetchBsc(options: FetchOptions) {
 }
 
 const fetch: any = async (options: FetchOptions) => {
+  // Dune finishes indexing a day several hours after it ends; earlier runs would store a partial day.
+  assertDuneSolanaIndexed(options);
   if (options.chain === CHAIN.SOLANA) return fetchSolana(options);
-  return fetchBsc(options);
+  if (options.chain === CHAIN.BSC) return fetchBsc(options);
+  return fetchEvmTransfers(options);
 }
 
 
@@ -223,11 +367,12 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   allowNegativeValue: true, //claims may happen at later date
   fetch,
+  prefetch,
   methodology: {
-    Fees: 'Includes all trading fees paid by Axiom users.',
+    Fees: "Every trading fee Axiom users pay, measured as the SOL that lands in Axiom's fee wallets on swaps routed through Axiom, plus the referral payouts users later claim from referral vaults (funded inside the swap). Cashback is paid from the fee wallets, so it is already included. On its EVM chains it is the native token the trade contracts pay into Axiom's fee distributors.",
     Revenue: 'Revenue is fees retained by Axiom after deducting referral and cashback payouts.',
     ProtocolRevenue: 'Protocol revenue is the portion of fees retained by Axiom after deducting referral and cashback payouts.',
-    SupplySideRevenue: 'Claimed SOL cashback/referral payouts from Axiom cashback wallets, plus native BNB cashback/referral payouts sent out from the BNB Chain fee receiver.',
+    SupplySideRevenue: 'Claimed SOL cashback/referral payouts from Axiom cashback wallets, plus native-token cashback/referral payouts sent out from the fee distributors on its EVM chains.',
   },
   breakdownMethodology: {
     Fees: {
@@ -241,7 +386,7 @@ const adapter: SimpleAdapter = {
     },
     SupplySideRevenue: {
       [LABELS.REFERRAL_PAYOUTS]: 'Claimed SOL referral payouts sent to users from Axiom referral vaults.',
-      [LABELS.CASHBACK_PAYOUTS]: 'Claimed SOL cashback payouts from Axiom cashback wallets, plus native BNB cashback/referral payouts sent out from the BNB Chain fee receiver.',
+      [LABELS.CASHBACK_PAYOUTS]: 'Claimed SOL cashback payouts from Axiom cashback wallets, plus native-token cashback/referral payouts sent out from the fee distributors on its EVM chains.',
     },
   },
   adapter: chainConfig,

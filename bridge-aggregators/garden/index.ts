@@ -188,15 +188,34 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
         const response: GardenApiResponse = await fetchURL(
             `${baseUrl}?page=${currentPage}&per_page=200&status=completed`
         );
+        // Same reasoning as fees/garden: an empty first page is a source failure,
+        // not a zero-volume day, and letting it through publishes a real 0.
         if (response.status !== "Ok" || !response.result.data.length) {
+            if (currentPage === 1) {
+                throw new Error(
+                    `garden bridge: orders endpoint returned no usable data on page 1 (status ${response.status}, ${response.result?.data?.length ?? "no"} rows)`
+                );
+            }
             break;
         }
+
+        // Pages are newest-first, so a stale first row means paging further is
+        // pointless and would publish the same silent zeros as an empty feed.
+        if (currentPage === 1) {
+            const newestTimestamp = new Date(response.result.data[0].created_at).getTime() / 1000;
+            if (newestTimestamp < startTimestamp) {
+                throw new Error(
+                    `garden bridge: freshest completed order (${response.result.data[0].created_at}) predates the requested window — the orders feed looks stale, not zero`
+                );
+            }
+        }
+
         for (const tx of response.result.data) {
             const txTimestamp = new Date(tx.created_at).getTime() / 1000;
-            if (!insideDateRange && txTimestamp > endTimestamp) {
+            if (!insideDateRange && txTimestamp >= endTimestamp) {
                 continue;
             }
-            if (txTimestamp <= endTimestamp && txTimestamp >= startTimestamp) {
+            if (txTimestamp < endTimestamp && txTimestamp >= startTimestamp) {
                 if (!insideDateRange) {
                     insideDateRange = true;
                 }

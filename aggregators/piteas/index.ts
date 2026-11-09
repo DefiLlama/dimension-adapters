@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { formatAddress } from "../../utils/utils";
@@ -5,8 +6,8 @@ import { formatAddress } from "../../utils/utils";
 const PITEAS_ROUTER = "0x6BF228eb7F8ad948d37deD07E595EfddfaAF88A6";
 
 // Wrapped PLS — used to price native PLS swaps (srcToken/destToken may be zero address)
-const WPLS = "0xa1077a294dde1b09bb078844df40758a5d0f9a27";
-const NATIVE_TOKEN = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+const WPLS = ADDRESSES.pulse.WPLS;
+const NATIVE_TOKEN = ADDRESSES.GAS_TOKEN_2;
 
 const SWAP_EVENT =
   "event SwapEvent(address swapManager, address srcToken, address destToken, address indexed sender, address destReceiver, uint256 srcAmount, uint256 destAmount)";
@@ -14,7 +15,7 @@ const SWAP_EVENT =
 const normalizeToken = (token: string): string => {
   const address = formatAddress(token);
   if (
-    address === "0x0000000000000000000000000000000000000000" ||
+    address === ADDRESSES.null ||
     address === formatAddress(NATIVE_TOKEN)
   ) {
     return formatAddress(WPLS);

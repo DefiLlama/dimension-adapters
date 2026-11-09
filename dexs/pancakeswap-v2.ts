@@ -1,12 +1,12 @@
-import { BaseAdapter, FetchOptions, FetchResultV2, FetchV2, SimpleAdapter } from "../adapters/types";
+import { BaseAdapter, Dependencies, FetchOptions, FetchResultV2, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getUniV2LogAdapter } from "../helpers/uniswap";
 import * as sdk from "@defillama/sdk";
-import { httpGet } from "../utils/fetchURL";
-import { getEnv } from "../helpers/env";
+import { queryAllium } from "../helpers/allium";
 import { queryClickhouse } from "../helpers/indexer";
-import { getDefaultDexTokensWhitelisted } from "../helpers/lists";
-import { Row } from "@clickhouse/client";
+import { getDefaultDexTokensWhitelisted, getDexTokensBlacklisted } from "../helpers/lists";
+import { Row } from "../helpers/indexer";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 const METRIC = {
   SWAP_FEES: 'Token Swap Fees',
@@ -27,6 +27,9 @@ const FEE_CONFIG = {
   SupplySideRevenue: 0.17,
   Revenue: 0.08
 };
+
+const CAKE_BURN_RATE_CHANGE_TIMESTAMP = 1655380606;
+const FEE_CONFIG_BEFORE_BURN_RATE_CHANGE = { ...FEE_CONFIG, ProtocolRevenue: 0.03, HoldersRevenue: 0.05 };
 
 // --- Data source types ---
 
@@ -150,8 +153,8 @@ const hexListSql = (arr: string[], expectedHexChars: number): string =>
 // SELECT pulls the pair address out of it.
 //
 // Address lists are inlined as literals (not Array(String) query params)
-// because @clickhouse/client serializes Array params into a single HTTP form
-// field which Poco caps at ~64KB; a few thousand entries blow past that. The
+// because the SQL client serializes Array params into a single HTTP query
+// parameter which Poco caps at ~64KB; a few thousand entries blow past that. The
 // whitelist (~2K+ tokens on BSC) is wrapped in a WITH clause so it materializes
 // once for both topic1/topic2 IN-checks. The 256KB max_query_size default is
 // lifted at the call site (via clickhouse_settings HTTP param), NOT via an
@@ -190,8 +193,8 @@ const buildSwapAggSql = (
   chainId: number,
   shortAddresses: string[],
   addresses: string[],
-  fromTs: number,
-  toTs: number,
+  fromBlock: number,
+  toBlock: number,
 ): string => `
   SELECT
     address AS pair,
@@ -203,8 +206,8 @@ const buildSwapAggSql = (
     AND short_topic0 = '${SWAP_SHORT_TOPIC0}'
     AND address IN (${hexListSql(addresses, 40)})
     AND topic0 = '${SWAP_TOPIC0}'
-    AND timestamp >= toDateTime(${fromTs})
-    AND timestamp <  toDateTime(${toTs})
+    AND block_number >= ${fromBlock}
+    AND block_number <  ${toBlock}
   GROUP BY address
 `;
 
@@ -213,17 +216,24 @@ type SwapAggRow = Row & { pair: string; amount0_out: string; amount1_out: string
 
 const unpadTopic = (t: string) => '0x' + String(t).slice(-40).toLowerCase();
 
+const BSC_STABLECOIN_CG_IDS: Record<string, string> = {
+  [ADDRESSES.bsc.USDT]: 'tether',
+  [ADDRESSES.bsc.BUSD]: 'binance-usd',
+  [ADDRESSES.bsc.USDC]: 'usd-coin',
+};
+
+const addBscVolume = (balances: sdk.Balances, token: string, amount: string) => {
+  const cgId = BSC_STABLECOIN_CG_IDS[token];
+  if (cgId) balances.addCGToken(cgId, Number(BigInt(amount) / BigInt(1e12)) / 1e6);
+  else balances.add(token, amount);
+};
+
 async function getBscV2Data(options: FetchOptions): Promise<FetchResultV2> {
   const dailyVolume = options.createBalances()
 
   const emptyResult = (): FetchResultV2 => ({
     dailyVolume,
-    dailyFees: dailyVolume.clone(0.0025),
-    dailyUserFees: dailyVolume.clone(0.0025),
-    dailyRevenue: dailyVolume.clone(0.0008),
-    dailySupplySideRevenue: dailyVolume.clone(0.0017),
-    dailyProtocolRevenue: dailyVolume.clone(0.000225),
-    dailyHoldersRevenue: dailyVolume.clone(0.000575),
+    ...calculateFeesBalances(dailyVolume, options.startTimestamp),
   });
 
   const whitelistedTokens = (await getDefaultDexTokensWhitelisted({ chain: options.chain })).map(t => t.toLowerCase());
@@ -259,8 +269,8 @@ async function getBscV2Data(options: FetchOptions): Promise<FetchResultV2> {
       Number(options.api.chainId),
       shortAddresses,
       pairAddresses,
-      options.fromTimestamp,
-      options.toTimestamp,
+      Number(options.fromApi.block),
+      Number(options.toApi.block),
     ),
     undefined,
     chSettings,
@@ -269,146 +279,78 @@ async function getBscV2Data(options: FetchOptions): Promise<FetchResultV2> {
   for (const row of swapRows) {
     const tokens = pairToTokens[String(row.pair).toLowerCase()];
     if (!tokens) continue;
-    dailyVolume.add(tokens.token0, row.amount0_out);
-    dailyVolume.add(tokens.token1, row.amount1_out);
+    addBscVolume(dailyVolume, tokens.token0, row.amount0_out);
+    addBscVolume(dailyVolume, tokens.token1, row.amount1_out);
   }
 
-  return {
-    dailyVolume,
-    dailyFees: dailyVolume.clone(0.0025),
-    dailyUserFees: dailyVolume.clone(0.0025),
-    dailyRevenue: dailyVolume.clone(0.0008),
-    dailySupplySideRevenue: dailyVolume.clone(0.0017),
-    dailyProtocolRevenue: dailyVolume.clone(0.000225),
-    dailyHoldersRevenue: dailyVolume.clone(0.000575),
-  }
+  return emptyResult();
 }
 
 // --- Aptos V2 volume ---
+// https://github.com/pancakeswap/pancake-contracts-move — swap module on this account.
+// SwapEvent<X, Y> carries amount_*_out; one of the two outs is zero on a normal swap, so summing both is the output leg once.
 
-interface ISwapEventData {
-  type: string;
-  amount_x_in: string;
-  amount_x_out: string;
-  amount_y_in: string;
-  amount_y_out: string;
-  user: string;
-}
+const APTOS_SWAP_ACCOUNT = '0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa';
+const APTOS_SWAP_EVENT = `${APTOS_SWAP_ACCOUNT}::swap::SwapEvent`;
 
-const aptosAccount = '0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa';
-const getToken = (i: string) => i.split('<')[1].replace('>', '').split(', ');
-const APTOS_RPC = getEnv('APTOS_RPC');
-
-const getResources = async (account: string): Promise<any[]> => {
-  const data: any = []
-  let lastData: any;
-  let cursor
-  do {
-    let url = `${APTOS_RPC}/v1/accounts/${account}/resources?limit=9999`
-    if (cursor) url += '&start=' + cursor
-    const res = await httpGet(url, undefined, { withMetadata: true })
-    lastData = res.data
-    data.push(...lastData)
-    cursor = res.headers['x-aptos-cursor']
-  } while (lastData.length === 9999)
-  return data
-}
-
-const toUnixTime = (timestamp: string) => Number((Number(timestamp) / 1e6).toString().split('.')[0])
-
-const getSwapEvent = async (pool: any, fromTimestamp: number, toTimestamp: number): Promise<ISwapEventData[]> => {
-  const limit = 100;
-  const swap_events: any[] = [];
-  let start = (pool.swap_events.counter - limit) < 0 ? 0 : pool.swap_events.counter - limit;
-  while (true) {
-    if (start < 0) break;
-    const getEventByCreation = `${APTOS_RPC}/v1/accounts/${aptosAccount}/events/${pool.swap_events.creation_num}?start=${start}&limit=${limit}`;
-    try {
-      const event: any[] = (await httpGet(getEventByCreation));
-      const listSequence: number[] = event.map(e => Number(e.sequence_number))
-      const lastMin = Math.min(...listSequence)
-      if (lastMin >= Infinity || lastMin <= -Infinity) break;
-      const lastVision = event.find(e => Number(e.sequence_number) === lastMin)?.version;
-      const urlBlock = `${APTOS_RPC}/v1/blocks/by_version/${lastVision}`;
-      const block = (await httpGet(urlBlock));
-      const lastTimestamp = toUnixTime(block.block_timestamp);
-      const lastTimestampNumber = lastTimestamp
-      if (lastTimestampNumber >= fromTimestamp && lastTimestampNumber <= toTimestamp) {
-        swap_events.push(...event)
-      }
-      if (lastTimestampNumber < fromTimestamp) {
-        break;
-      }
-      if (start === 0) break;
-      start = lastMin - (limit + 1) > 0 ? lastMin - (limit + 1) : 0;
-    } catch (e: any) {
-      break;
-    }
+const pairTokens = (eventType: string): [string, string] => {
+  const open = eventType.indexOf('<');
+  const close = eventType.lastIndexOf('>');
+  if (open < 0 || close < 0 || close <= open) throw new Error(`Unparseable PancakeSwap Aptos swap type: ${eventType}`);
+  const inner = eventType.slice(open + 1, close);
+  let depth = 0;
+  for (let i = 0; i < inner.length; i++) {
+    const char = inner[i];
+    if (char === '<') depth++;
+    else if (char === '>') depth--;
+    else if (char === ',' && depth === 0) return [inner.slice(0, i).trim(), inner.slice(i + 1).trim()];
   }
-  return swap_events.map(e => {
-    return {
-      ...e,
-      type: e.type,
-      ...e.data
-    }
-  })
-}
+  throw new Error(`Unparseable PancakeSwap Aptos swap type: ${eventType}`);
+};
 
-const fetchAptosVolume: FetchV2 = async ({ fromTimestamp, toTimestamp, createBalances }) => {
-  const account_resource: any[] = (await getResources(aptosAccount))
-  const pools = account_resource.filter(e => e.type?.includes('swap::PairEventHolder'))
-    .map((e: any) => {
-      const [token0, token1] = getToken(e.type);
-      return {
-        type: e.type,
-        token0,
-        token1,
-        swap_events: {
-          counter: e.data.swap.counter,
-          creation_num: e.data.swap.guid.id.creation_num,
-        },
-        timestamp: e.data.timestamp,
-        counter: Number(e.data.swap.counter),
-      }
-    }).sort((a, b) => b.counter - a.counter)
-  const creation_num = [14, 767, 702, 12, 622, 757, 1077, 1092, 5708, 2, 712, 3196]
-  const logs_swap: ISwapEventData[] = (await Promise.all(pools
-    .filter(e => creation_num.includes(Number(e.swap_events.creation_num)))
-    .map(p => getSwapEvent(p, fromTimestamp, toTimestamp)))).flat()
-  const numberOfTrade: any = {};
-  [...new Set(logs_swap.map(e => e.user))].forEach(e => {
-    numberOfTrade[e] = {};
-    numberOfTrade[e]['user'] = e;
-    numberOfTrade[e]['count'] = 0;
-    numberOfTrade[e]['volume'] = 0;
-  })
-  const balances: sdk.Balances = createBalances()
-  logs_swap.map((e: ISwapEventData) => {
-    const [token0, token1] = getToken(e.type);
-    balances.add(token0, e.amount_x_out)
-    balances.add(token1, e.amount_y_out)
-  })
+const fetchAptosVolume: FetchV2 = async (options) => {
+  const dailyVolume = options.createBalances();
+  const rows: { type: string; amount_x_out: string; amount_y_out: string }[] = await queryAllium(`
+    SELECT
+      type,
+      CAST(SUM(TRY_CAST(data:amount_x_out::STRING AS DECIMAL(38, 0))) AS VARCHAR) AS amount_x_out,
+      CAST(SUM(TRY_CAST(data:amount_y_out::STRING AS DECIMAL(38, 0))) AS VARCHAR) AS amount_y_out
+    FROM aptos.raw.events
+    WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.fromTimestamp})
+      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.toTimestamp})
+      AND account_address = '${APTOS_SWAP_ACCOUNT}'
+      AND type LIKE '${APTOS_SWAP_EVENT}<%'
+      AND transaction_success = TRUE
+    GROUP BY 1
+  `);
 
-  // fees are same as v2 on bsc
-  const dailyVolume = createBalances();
-  dailyVolume.addUSDValue(await balances.getUSDString());
-  
+  if (!rows?.length) {
+    throw new Error(`PancakeSwap v2 Aptos: no ${APTOS_SWAP_EVENT} rows for ${options.fromTimestamp}-${options.toTimestamp}`);
+  }
+
+  for (const row of rows) {
+    const [tokenX, tokenY] = pairTokens(row.type);
+    if (row.amount_x_out && row.amount_x_out !== '0') dailyVolume.add(tokenX, row.amount_x_out);
+    if (row.amount_y_out && row.amount_y_out !== '0') dailyVolume.add(tokenY, row.amount_y_out);
+  }
+
   return {
     dailyVolume,
-    ...calculateFeesBalances(dailyVolume),
-  }
-}
+    ...calculateFeesBalances(dailyVolume, options.startTimestamp),
+  };
+};
 
 // --- Fee calculation helpers ---
 
-const calculateFeesBalances = (dailyVolume: sdk.Balances) => {
+const calculateFeesBalances = (dailyVolume: sdk.Balances, startTimestamp: number) => {
+  const feeConfig = startTimestamp < CAKE_BURN_RATE_CHANGE_TIMESTAMP ? FEE_CONFIG_BEFORE_BURN_RATE_CHANGE : FEE_CONFIG;
   return {
-    dailyFees: dailyVolume.clone(FEE_CONFIG.Fees / 100),
-    dailyUserFees: dailyVolume.clone(FEE_CONFIG.UserFees / 100),
-    dailyRevenue: dailyVolume.clone(FEE_CONFIG.Revenue / 100),
-    dailyProtocolRevenue: dailyVolume.clone(FEE_CONFIG.ProtocolRevenue / 100),
-    dailySupplySideRevenue: dailyVolume.clone(FEE_CONFIG.SupplySideRevenue / 100),
-    dailyHoldersRevenue: dailyVolume.clone(FEE_CONFIG.HoldersRevenue / 100),
+    dailyFees: dailyVolume.clone(feeConfig.Fees / 100),
+    dailyUserFees: dailyVolume.clone(feeConfig.UserFees / 100),
+    dailyRevenue: dailyVolume.clone(feeConfig.Revenue / 100),
+    dailyProtocolRevenue: dailyVolume.clone(feeConfig.ProtocolRevenue / 100),
+    dailySupplySideRevenue: dailyVolume.clone(feeConfig.SupplySideRevenue / 100),
+    dailyHoldersRevenue: dailyVolume.clone(feeConfig.HoldersRevenue / 100),
   };
 };
 
@@ -432,10 +374,11 @@ const fetchV2 = async (options: FetchOptions) => {
     const adapter = getUniV2LogAdapter({
       factory: logConfig.factory,
       eventAbi: ABIS.SWAP_EVENT,
-      pairCreatedAbi: ABIS.POOL_CREATE
+      pairCreatedAbi: ABIS.POOL_CREATE,
+      blacklistTokens: await getDexTokensBlacklisted(options),
     });
     const logStats = await adapter(options);
-    const fees = calculateFeesBalances(logStats.dailyVolume);
+    const fees = calculateFeesBalances(logStats.dailyVolume, options.startTimestamp);
     v2Stats = { ...logStats, ...fees }
   } else if (chainConfig.dataSource === DataSource.CUSTOM && options.chain === CHAIN.APTOS) {
     v2Stats = await fetchAptosVolume(options);
@@ -467,9 +410,9 @@ const fetchV2 = async (options: FetchOptions) => {
 
 const methodology = {
   UserFees: "User pays 0.25% fees on each swap.",
-  ProtocolRevenue: "Treasury receives 0.0225% of each swap.",
+  ProtocolRevenue: "Treasury receives 0.0225% of each swap since 16 June 2022, 0.03% before.",
   SupplySideRevenue: "LPs receive 0.17% of the fees.",
-  HoldersRevenue: "0.0575% is used to facilitate CAKE buyback and burn.",
+  HoldersRevenue: "0.0575% of each swap is used to buy back and burn CAKE since 16 June 2022, 0.05% before.",
   Revenue: "All revenue generated comes from user fees.",
   Fees: "All fees comes from the user."
 }
@@ -479,21 +422,22 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: 'User pays 0.25% fees on each swap',
   },
   Revenue: {
-    [METRIC.PROTOCOL_REVENUE]: 'Treasury receives 0.0225% of each swap.',
-    [METRIC.HOLDERS_REVENUE]: '0.0575% is used to facilitate CAKE buyback and burn.',
+    [METRIC.PROTOCOL_REVENUE]: 'Treasury receives 0.0225% of each swap since 16 June 2022, 0.03% before.',
+    [METRIC.HOLDERS_REVENUE]: '0.0575% of each swap is used to buy back and burn CAKE since 16 June 2022, 0.05% before.',
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_REVENUE]: 'Treasury receives 0.0225% of each swap.',
+    [METRIC.PROTOCOL_REVENUE]: 'Treasury receives 0.0225% of each swap since 16 June 2022, 0.03% before.',
   },
   SupplySideRevenue: {
     [METRIC.LP_REVENUE]: 'LPs receive 0.17% of the fees.',
   },
   HoldersRevenue: {
-    [METRIC.BUY_BACK_AND_BURN]: '0.0575% is used to facilitate CAKE buyback and burn.',
+    [METRIC.BUY_BACK_AND_BURN]: '0.0575% of each swap is used to buy back and burn CAKE since 16 June 2022, 0.05% before.',
   },
 }
 
 const adapterObj: SimpleAdapter = {
+  dependencies: [Dependencies.ALLIUM],
   adapter: Object.keys(PROTOCOL_CONFIG).reduce((acc, chain) => {
     acc[chain] = {
       fetch: fetchV2,
@@ -503,6 +447,7 @@ const adapterObj: SimpleAdapter = {
   }, {} as BaseAdapter),
   methodology,
   breakdownMethodology,
+  isExpensiveAdapter: true,
 }
 
 export default adapterObj;

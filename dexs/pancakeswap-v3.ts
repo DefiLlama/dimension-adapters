@@ -1,10 +1,10 @@
 import { CHAIN } from "../helpers/chains";
-import { getDefaultDexTokensWhitelisted } from "../helpers/lists";
+import { getDefaultDexTokensWhitelisted, getDexTokensBlacklisted } from "../helpers/lists";
 import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { getUniV3LogAdapter, UniGetRevenueRatioProps } from '../helpers/uniswap';
 import { queryClickhouse } from "../helpers/indexer";
 import { queryDune } from "../helpers/dune";
-import { Row } from "@clickhouse/client";
+import { Row } from "../helpers/indexer";
 import axios from "axios";
 
 const METRIC = {
@@ -132,7 +132,7 @@ const unpadTopic = (t: string) => '0x' + String(t).slice(-40).toLowerCase();
 // - PoolCreated data layout: tickSpacing (int24 in 32-byte slot), then pool
 //   address right-aligned in 32-byte slot starting at byte 32. The pool
 //   address occupies hex positions 91-130 of the data string (after 0x prefix).
-const buildBscV3DataSql = (chainId: number, factory: string, fromTs: number, toTs: number): string => `
+const buildBscV3DataSql = (chainId: number, factory: string, fromBlock: number, toBlock: number): string => `
   WITH swap_agg AS (
     SELECT
       address AS pool,
@@ -142,8 +142,8 @@ const buildBscV3DataSql = (chainId: number, factory: string, fromTs: number, toT
     PREWHERE chain = ${chainId}
       AND short_topic0 = '${V3_SWAP_SHORT_TOPIC0}'
       AND topic0 = '${V3_SWAP_TOPIC0}'
-      AND timestamp >= toDateTime(${fromTs})
-      AND timestamp <  toDateTime(${toTs})
+      AND block_number >= ${fromBlock}
+      AND block_number <  ${toBlock}
     GROUP BY address
   )
   SELECT
@@ -201,8 +201,8 @@ const fetchBsc = async (options: FetchOptions) => {
     buildBscV3DataSql(
       Number(options.api.chainId),
       factories[options.chain].address.toLowerCase(),
-      options.fromTimestamp,
-      options.toTimestamp,
+      Number(options.fromApi.block),
+      Number(options.toApi.block),
     ),
   );
 
@@ -263,10 +263,11 @@ const fetchBsc = async (options: FetchOptions) => {
   };
 };
 
-const buildEvmFetcher = (factory: string) => {
+const buildEvmFetcher = (factory: string) => async (options: FetchOptions) => {
   const evmAdapter = getUniV3LogAdapter({
     factory,
     swapEvent: poolSwapEvent,
+    blacklistTokens: await getDexTokensBlacklisted(options),
     userFeesRatio: 1,
     getRevenueRatio: ({ poolFeeTier }: UniGetRevenueRatioProps) => {
       const _protocolRevenueRatio = getProtocolRevenueRatio(poolFeeTier);
@@ -278,7 +279,7 @@ const buildEvmFetcher = (factory: string) => {
       };
     },
   })
-  return async (options: FetchOptions) => evmAdapter(options)
+  return evmAdapter(options)
 }
 
 const pancakeSolanaExplorer = 'https://sol-explorer.pancakeswap.com/api/cached/v1/pools/info/list?poolType=concentrated&poolSortField=default&order=desc'

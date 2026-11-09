@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -8,15 +9,15 @@ const chainConfig: any = {
     vaults: [
       {
         address: '0x936faCdf10c8c36294e7b9d28345255539d81bc7', // rock.rETH
-        asset: '0xae78736Cd615f374D3085123A210448E74Fc6393',
+        asset: ADDRESSES.ethereum.RETH,
       },
       {
         address: '0x7a12D4B719F5aA479eCD60dEfED909fb2A37e428', // rock.rLETH
-        asset: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+        asset: ADDRESSES.ethereum.WETH,
       },
       {
         address: '0xba71097e426983d840569edfa1a01396b56d86ad', // rock.rUSDM
-        asset: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+        asset: ADDRESSES.ethereum.USDC,
       },
     ],
   },

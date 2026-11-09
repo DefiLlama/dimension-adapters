@@ -16,9 +16,11 @@ const fetch = async (options: FetchOptions) => {
   const asset = coreAssets.bsc.WBNB;
 
   const deployLogs = await options.getLogs({ target: FACTORY, eventAbi: TokenDeployed, fromBlock: 46527985, cacheInCloud: true });
-  const targets = deployLogs.map((d: any) => d.tokenAddr);
+  const tokens = new Set(deployLogs.map((d: any) => d.tokenAddr.toLowerCase()));
 
-  const logs = await options.getLogs({ targets, eventAbi: ReserveUpdated, flatten: true });
+  // pull the event chain-wide in one query, then keep only the factory-deployed tokens
+  const allLogs = await options.getLogs({ eventAbi: ReserveUpdated, noTarget: true, entireLog: true, parseLog: true });
+  const logs = allLogs.filter((log: any) => tokens.has(log.address.toLowerCase())).map((log: any) => log.args);
 
   for (const log of logs) {
     if (log.isBuy) {

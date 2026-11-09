@@ -1,21 +1,27 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
+import { saucerswapBreakdownMethodology, splitRevenue } from "../../helpers/saucerswap";
 
 const methodology = {
   Fees: "A 0.3% fee is charged to users on every swap, 1/6 goes to protocol.",
   UserFees: "A 0.3% fee is charged to users on every swap, 1/6 goes to protocol.",
   SupplySideRevenue: "There are 5/6 of swap fees goes to liquidity providers.",
   Revenue: "There are 1/6 goes to protocol.",
-  ProtocolRevenue: "There are 1/6 goes to protocol.",
+  ProtocolRevenue: "From 2025-08-31 protocol revenue buys SAUCE; this is the share sent to the Development Fund and the POL and Incentive Reserve (54.5%, 40% from 2026-07-01, 50% from 2026-09-07). Before 2025-08-31, all protocol revenue.",
+  HoldersRevenue: "From 2025-08-31 protocol revenue buys SAUCE; this is the share sent to xSAUCE stakers and burned (45.5%, 60% from 2026-07-01, 50% from 2026-09-07).",
 };
+
+const breakdownMethodology = saucerswapBreakdownMethodology('A 0.3% fee charged on every swap.')
+
 
 const API_INFLATED_DAYS = [
   1772755200, // 2026-03-06
   1773446400 // 2026-03-14
 ]
 
-const fetch = async ({ startOfDay }: FetchOptions) => {
+const fetch = async (options: FetchOptions) => {
+  const { startOfDay } = options
   const platformData: Array<any> = await httpGet(`https://server.saucerswap.finance/api/public/pools/platform-data?field=VOLUME_USD&interval=DAY&from=${startOfDay}&to=${startOfDay + 24 * 3600}`,
     {
       headers: {
@@ -35,9 +41,16 @@ const fetch = async ({ startOfDay }: FetchOptions) => {
   
   // https://docs.saucerswap.finance/protocol/saucerswap-v1
   // v1 charges fee 0.3% per swap, 5/6 goes to LP, 1/6 goes to protocol
-  const dailyFees = dailyVolume * 0.003;
-  const dailyRevenue = (dailyFees * 1) / 6;
-  const dailySupplySideRevenue = (dailyFees * 5) / 6;
+  const fees = dailyVolume * 0.003;
+  const revenue = (fees * 1) / 6;
+
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(fees, 'Token Swap Fees');
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addUSDValue(revenue, 'Swap Fees To Protocol');
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addUSDValue((fees * 5) / 6, 'Swap Fees To LPs');
+  const { dailyProtocolRevenue, dailyHoldersRevenue } = splitRevenue(options, revenue);
 
   return {
     dailyVolume,
@@ -45,7 +58,8 @@ const fetch = async ({ startOfDay }: FetchOptions) => {
     dailyUserFees: dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
   };
 };
 
@@ -54,6 +68,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.HEDERA],
   start: "2022-07-31",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;

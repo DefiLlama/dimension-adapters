@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import { uniV2Exports } from "../helpers/uniswap";
 
@@ -21,7 +22,7 @@ const customLogic = async ({ dailyFees, fetchOptions }: any) => {
 
   const externalBribes = gaugeCreatedLogs
     .map((log: any) => log.external_bribe)
-    .filter((addr: string) => addr !== '0x0000000000000000000000000000000000000000');
+    .filter((addr: string) => addr !== ADDRESSES.null);
 
   if (externalBribes.length > 0) {
     const bribeLogs = await getLogs({

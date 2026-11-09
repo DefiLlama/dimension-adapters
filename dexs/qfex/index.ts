@@ -57,7 +57,8 @@ async function fetch(options: FetchOptions) {
       const openInterest = Number(last.openInterest);
       if (Number.isFinite(openInterest)) {
         if (!Number.isFinite(closePrice)) throw new Error(`Missing close price for ${symbol}`);
-        openInterestAtEndUSD = openInterest * closePrice;
+        // QFEX open interest counts both sides of each contract, so halve it for one-sided OI.
+        openInterestAtEndUSD = openInterest * closePrice / 2;
       }
     }
 
@@ -79,7 +80,7 @@ async function fetch(options: FetchOptions) {
 
 const methodology = {
   Volume: "Taker notional volume across all perpetual futures markets on QFEX (buy-side + sell-side taker notional, no double-counting of maker volume).",
-  OpenInterest: "Open interest is reported in contracts and converted to USD using the matching QFEX candle close for the requested daily window.",
+  OpenInterest: "Open interest is reported in contracts, and converted to USD using the matching QFEX candle close for the requested daily window and single-sided.",
 };
 
 const adapter: SimpleAdapter = {

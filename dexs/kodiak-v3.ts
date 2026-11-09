@@ -6,7 +6,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   chains: [CHAIN.BERACHAIN],
-  start: '2025-02-07',
+  start: '2025-02-05',
   fetch: async (options: FetchOptions) => {
     const graphFetch = getUniV3LogAdapter({
       factory: '0xD84CBf0B02636E7f53dB9E5e45A616E05d710990',
@@ -63,7 +63,7 @@ const adapter: SimpleAdapter = {
     },
     ProtocolRevenue: {
       'Swap Fees To Protocol': 'Full 35% of swap fees kept by the protocol (before 2026-01-01).',
-      'Swap Fees To Protocol-Owned Liquidity': 'From 2026-01-01, 30% of the 35% protocol revenue deployed as Kodiak-owned liquidity.',
+      'Swap Fees To Protocol-Owned Liquidity': 'From 2026-01-01, 30% of the 35% protocol revenue is used to build Kodiak Protocol-Owned Liquidity (POL): the protocol deploys these fees as liquidity positions it owns and controls, deepening pool liquidity rather than paying the revenue out.',
       'Swap Fees To Treasury': 'From 2026-01-01, 10% of the 35% protocol revenue kept by the treasury.',
     },
     HoldersRevenue: {

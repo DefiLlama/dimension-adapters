@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 /*
 Cooler Loans Fees Adapter
 
@@ -38,7 +39,7 @@ import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const MONO_COOLER = "0xdb591Ea2e5Db886dA872654D58f6cc584b68e7cC";
-const USDS = "0xdC035D45d973E3EC169d2276DDab16f1e407384F";
+const USDS = ADDRESSES.ethereum.USDS;
 
 const RAY = BigInt(10) ** BigInt(27);
 

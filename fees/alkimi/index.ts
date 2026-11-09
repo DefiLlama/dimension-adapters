@@ -50,6 +50,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SUI],
   start: '2024-01-01',
+  deadFrom: '2026-08-12',
   methodology,
   breakdownMethodology,
 };

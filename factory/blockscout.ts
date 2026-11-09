@@ -12,26 +12,26 @@ const protocolChainMap: Record<string, string> = {
   "bitcichain": CHAIN.BITCICHAIN,
   "bitgert": CHAIN.BITGERT,
   "canto": CHAIN.CANTO,
-  "celo": CHAIN.CELO,
+  // "celo": CHAIN.CELO, moved to fees/celo.ts to price gas paid in fee currencies
   "chiliz": CHAIN.CHILIZ,
   "corn": CHAIN.CORN,
-  "cronos": CHAIN.CRONOS,
+  // "cronos": CHAIN.CRONOS, moved to fees/cronos.ts: cronos.org/explorer redirects to the Crypto.com explorer (404 on the Blockscout api), fees now come from RPC receipts
   "ethereumclassic": CHAIN.ETHEREUM_CLASSIC,
   "etherlink": CHAIN.ETHERLINK,
-  "fantom": CHAIN.FANTOM,
   "flare": CHAIN.FLARE,
   "flow": CHAIN.FLOW,
   "fuse": CHAIN.FUSE,
   "harmony": CHAIN.HARMONY,
   "hashkey": CHAIN.HASHKEY,
   "hemi": CHAIN.HEMI,
-  "imx": CHAIN.IMX,
+  // "imx": CHAIN.IMX, moved to fees/imx.ts to report revenue
   "iota_evm": CHAIN.IOTAEVM,
   "karak": CHAIN.KARAK,
   "kardia": CHAIN.KARDIA,
   "kcc": CHAIN.KCC,
   "lightlink": CHAIN.LIGHTLINK_PHOENIX,
   "lisk": CHAIN.LISK,
+  "merlin-chain": CHAIN.MERLIN,
   "metis": CHAIN.METIS,
   "mixin": CHAIN.MIXIN,
   "mode": CHAIN.MODE,
@@ -49,7 +49,7 @@ const protocolChainMap: Record<string, string> = {
   "velas": CHAIN.VELAS,
   "winr": CHAIN.WINR,
   "worldchain": CHAIN.WC,
-  "xdai": CHAIN.XDAI,
+  // "xdai": CHAIN.XDAI, moved to fees/xdai.ts: gnosis.blockscout.com now redirects to gnosisscan.io (403 without a key), fees now come from RPC receipts
   "zeta": CHAIN.ZETA,
   "astar": CHAIN.ASTAR,
   "plume": CHAIN.PLUME,
@@ -57,7 +57,6 @@ const protocolChainMap: Record<string, string> = {
   "somnia": CHAIN.SOMNIA,
   "energyweb": CHAIN.ENERGYWEB,
   "superposition": CHAIN.SUPERPOSITION,
-  "sanko": CHAIN.SANKO,
   "appchain": CHAIN.APPCHAIN,
   "xrplevm": CHAIN.XRPL_EVM,
   "alienx": CHAIN.ALIENX,
@@ -68,7 +67,6 @@ const protocolChainMap: Record<string, string> = {
   "ethereal": CHAIN.ETHEREAL,
   "eventum": CHAIN.EVENTUM,
   "everclear": CHAIN.EVERCLEAR,
-  "flynet": CHAIN.FLYNET,
   "hpp": CHAIN.HPP,
   "mind-network": CHAIN.MIND_NETWORK,
   "molten-network": CHAIN.MOLTEN_NETWORK,
@@ -79,15 +77,15 @@ const protocolChainMap: Record<string, string> = {
   "shibarium": CHAIN.SHIBARIUM,
   "vana": CHAIN.VANA,
   "neo-x-mainnet": CHAIN.NEO_X_MAINNET,
-  "kub": CHAIN.KUB,
+  "kub": CHAIN.BITKUB,
   "stratis": CHAIN.STRATIS,
   "superseed": CHAIN.SSEED,
   "swan": CHAIN.SWAN,
   "sx-network": CHAIN.SX,
   "tac": CHAIN.TAC,
   "unit-zero": CHAIN.UNIT0,
-  "viction": CHAIN.TOMOCHAIN,
-  "vinu": CHAIN.VINUCHAIN,
+  // "viction": CHAIN.TOMOCHAIN, moved to fees/viction.ts: viction.blockscout.com returns 404 on every path, fees now come from RPC receipts
+  // "vinu": CHAIN.VINUCHAIN, moved to fees/vinu.ts: vinuexplorer.org stopped serving https after 2026-11-03, fees now come from RPC receipts
   "zilliqa": CHAIN.ZILLIQA,
   "matchain": CHAIN.MATCHAIN,
   "neon": CHAIN.NEON,
@@ -110,15 +108,13 @@ const protocolChainMap: Record<string, string> = {
   "loop": CHAIN.LOOP,
   "cross": CHAIN.CROSS,
   "doma": CHAIN.DOMA,
-  "endurance": CHAIN.ENDURANCE,
+  "endurance": CHAIN.ACE,
   "exsat": CHAIN.EXSAT,
   "kroma": CHAIN.KROMA,
   "eni": CHAIN.ENI,
-  "megaeth": CHAIN.MEGAETH,
-  "katana-chain": CHAIN.KATANA,
   "coti": CHAIN.COTI,
   "mezo": CHAIN.MEZO,
-  "world-mobile": CHAIN.WORLD_MOBILE,
+  // "world-mobile": CHAIN.WORLD_MOBILE, moved to fees/world-mobile.ts to report revenue
   "rise": CHAIN.RISE,
   "citrea": CHAIN.CITREA,
   "moca": CHAIN.MOCA,
@@ -136,6 +132,8 @@ const protocolChainMap: Record<string, string> = {
 
 const deadFromMap: Record<string, string> = {
   "kroma": "2025-06-30",
+  "bitcichain": "2025-09-29", // v3.bitciexplorer.com no longer resolves; last nonzero fees 2025-09-28 ($1)
+  "edu-chain": "2026-08-03", // educhain.blockscout.com now redirects to the Open Campus docs; the chain never reported nonzero fees
 }
 
 const methodologyMap: Record<string, any> = {

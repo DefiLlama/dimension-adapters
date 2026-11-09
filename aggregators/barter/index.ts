@@ -19,7 +19,7 @@ const fetch = async ({ createBalances, getLogs }: FetchOptions) => {
     const padded = ethers.zeroPadValue(executor, 32);
 
     const logs = await getLogs({
-      topics: [TRANSFER_TOPIC, null as any, padded],
+      topics: [TRANSFER_TOPIC, null, padded],
       noTarget: true,
       eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
       entireLog: true,

@@ -18,6 +18,7 @@ const config: any = {
 }
 
 const adapter: SimpleAdapter = {
+  deadFrom: '2026-07-12',
   fetch,
   chains: Object.keys(config),
   runAtCurrTime: true,

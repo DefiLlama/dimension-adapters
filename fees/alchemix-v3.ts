@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -15,7 +16,8 @@ const CREATE_VAULT_EVENT =
   "event CreateVaultV2(address indexed owner, address indexed asset, bytes32 salt, address indexed newVaultV2)";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const TRANSFER_EVENT = "event Transfer(address indexed from, address indexed to, uint256 value)";
-const WAD = 1e18;
+// performanceFee uses the ERC-4626/Alchemix 1e18 fixed-point denominator.
+const WAD_BI = 1000000000000000000n;
 const DEFAULT_PERFORMANCE_FEE = 150000000000000000;
 
 type AlchemixV3Market = {
@@ -61,7 +63,7 @@ const chainConfig: Record<string, { start: string; factory: string; fromBlock: n
         myt: "0xeba62b842081cef5a8184318dc5c4e4aaca9f651",
         alchemist: "0x930750a3510e703535e943e826aba3c364ffc1de",
         transmuter: "0x693b7594ae0633d9c5574d0da46a040f92f5b281",
-        syntheticToken: "0xCB8FA9a76b8e203D8C3797bF438d8FB81Ea3326A",
+        syntheticToken: ADDRESSES.optimism.alUSD,
       },
       {
         myt: "0xfe8f223f3d81462f55bf8609897b8cecfa4b195c",
@@ -81,13 +83,27 @@ const chainConfig: Record<string, { start: string; factory: string; fromBlock: n
         myt: "0xaf510a560744880410f0f65e3341a020fbc2ca41",
         alchemist: "0x930750a3510e703535e943e826aba3c364ffc1de",
         transmuter: "0x693b7594ae0633d9c5574d0da46a040f92f5b281",
-        syntheticToken: "0xCB8FA9a76b8e203D8C3797bF438d8FB81Ea3326A",
+        syntheticToken: ADDRESSES.optimism.alUSD,
       },
       {
         myt: "0x91b8657aea26caa8a0e9d6dd4e24727ccf32f822",
         alchemist: "0xded3a04612ff12b57317abe38e68026fc9d28114",
         transmuter: "0x2584e8b0616b3e750492c9629a3b27679c410cb9",
         syntheticToken: "0x3E29D3A9316dAB217754d13b28646B76607c5f04",
+      },
+    ],
+  },
+  [CHAIN.BASE]: {
+    start: "2026-09-10",
+    factory: "0x2584e8b0616b3e750492c9629a3b27679c410cb9",
+    fromBlock: 51125654,
+    feeReceiver: "0x24E9cbB9DdDa1247ae4b4eEEE3C569A2190ac401",
+    markets: [
+      {
+        myt: "0xb8befe5a6941ca4022a52042075ff269c3c67467",
+        alchemist: "0xeb380d86eed275c9f2ed77745ab1b2ccf364bf7a",
+        transmuter: "0x5b1c7180c630d3b2b6782df70f43ae5ea80425ba",
+        syntheticToken: "0x877014E21c32feA108B6A1f45f367efc9a2d9B9F",
       },
     ],
   },
@@ -159,10 +175,17 @@ async function addVaultYield(options: FetchOptions, vaults: string[], dailyFees:
     const after = cumulativeIndexAfter[i];
     if (!token || !totalSupply || !decimal || !before || !after) continue;
 
-    const netYield = (Number(after) - Number(before)) * Number(totalSupply) / (10 ** Number(decimal));
-    const performanceFee = (performanceFees[i] != null ? Number(performanceFees[i]) : DEFAULT_PERFORMANCE_FEE) / WAD;
-    if (netYield > 0 && performanceFee > 0 && performanceFee < 1) {
-      const grossYield = netYield / (1 - performanceFee);
+    const totalSupplyBi = BigInt(totalSupply);
+    const decimalBi = BigInt(decimal);
+    const beforeBi = BigInt(before);
+    const afterBi = BigInt(after);
+    const unit = 10n ** decimalBi;
+    const netYield = ((afterBi - beforeBi) * totalSupplyBi) / unit;
+    
+    const performanceFee = performanceFees[i] != null ? BigInt(performanceFees[i]) : BigInt(DEFAULT_PERFORMANCE_FEE);
+    
+    if (netYield > 0n && performanceFee > 0n && performanceFee < WAD_BI) {
+      const grossYield = (netYield * WAD_BI) / (WAD_BI - performanceFee);
       const protocolYield = grossYield - netYield;
       dailyFees.add(token, grossYield, METRIC.ASSETS_YIELDS);
       dailyRevenue.add(token, protocolYield, "MYT Performance Fees");
@@ -174,6 +197,14 @@ async function addVaultYield(options: FetchOptions, vaults: string[], dailyFees:
   }
 }
 
+/**
+ * Fetches the daily fees, revenue, and supply-side revenue for Alchemix V3.
+ * Queries ERC-4626 MYT vault share-price appreciation over the period, scaling it by the on-chain
+ * performanceFee to accurately separate protocol revenue from depositor yields.
+ * Also accounts for Alchemist/Transmuter protocol fees and early-exit penalties.
+ * @param options - The FetchOptions injected by the DefiLlama SDK.
+ * @returns The populated balances object for the day/hour slice.
+ */
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const { factory, fromBlock, feeReceiver, markets } = chainConfig[options.chain];
 

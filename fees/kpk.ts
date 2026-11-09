@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import type { Balances } from "@defillama/sdk";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { addTokensReceived } from "../helpers/token";
@@ -76,12 +77,12 @@ const GEARBOX_DIESEL_TOKENS = [
   {
     // https://etherscan.io/address/0x9396DCbf78fc526bb003665337C5E73b699571EF#readContract
     share: "0x9396DCbf78fc526bb003665337C5E73b699571EF", // kpkWETH (Gearbox WETH pool)
-    underlying: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", // WETH
+    underlying: ADDRESSES.ethereum.WETH, // WETH
   },
   {
     // https://etherscan.io/address/0xA9d17f6D3285208280a1Fd9B94479c62e0AABa64#readContract
     share: "0xA9d17f6D3285208280a1Fd9B94479c62e0AABa64", // kpkwstETH (Gearbox wstETH pool)
-    underlying: "0x7f39C581F595B53c5cb19bd0b3f8dA6c935E2Ca0", // wstETH
+    underlying: ADDRESSES.ethereum.WSTETH, // wstETH
   },
 ];
 

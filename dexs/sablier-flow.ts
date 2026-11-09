@@ -3,14 +3,12 @@ import { CHAIN } from "../helpers/chains";
 import { postURL } from "../utils/fetchURL";
 
 // Sablier Flow: rate-based recurring payment streams (payroll, grants,
-// subscriptions). Funded by deposits and topups. Volume is the value paid out to
-// recipients on chain. We sum two action categories: Withdraw (recipient pulls
-// accrued funds, recorded in `amountA` for Flow's single-party shape) and Void
-// (auto-settles the accrued-but-unwithdrawn portion to the recipient on stream
-// termination, recorded in `amountB` for the two-party shape). Refund is the
-// sender pulling back uncommitted deposits and is excluded. Data comes from
-// Sablier's public Envio HyperIndex; per-chain queries filter by chainId. Daily
-// figures are lumpy (claim/void timing) but cumulative equals true streamed value.
+// subscriptions). Volume is value paid out to recipients: `amountA` on
+// Withdraw actions.
+//
+// Void and Refund are excluded and must stay excluded. `_void` moves no tokens;
+// its `amountB` is written-off debt the sender never funded, unbounded on an
+// unfunded stream. Refund returns uncommitted deposits to the sender.
 
 const INDEXER = "https://indexer.hyperindex.xyz/53b7e25/v1/graphql";
 const PAGE_SIZE = 1000;
@@ -39,17 +37,19 @@ const CONFIG: Record<string, { chainId: number; start: string }> = {
 
 interface Row {
   id: string;
-  category: "Withdraw" | "Void";
+  chainId: string;
   amountA: string | null;
-  amountB: string | null;
   stream: { asset_id: string } | null;
 }
 
-const buildQuery = (chainId: number, from: number, to: number, cursor: string) => `{
+// One shared query per window, not one per chain -- the indexer rate-limits bursts.
+const CHAIN_IDS = Object.values(CONFIG).map(({ chainId }) => chainId);
+
+const buildQuery = (from: number, to: number, cursor: string) => `{
   FlowAction(
     where: {
-      category: {_in: [Withdraw, Void]}
-      chainId: {_eq: ${chainId}}
+      category: {_eq: Withdraw}
+      chainId: {_in: [${CHAIN_IDS.join(", ")}]}
       timestamp: {_gte: "${from}", _lt: "${to}"}
       id: {_gt: "${cursor}"}
     }
@@ -57,32 +57,49 @@ const buildQuery = (chainId: number, from: number, to: number, cursor: string) =
     limit: ${PAGE_SIZE}
   ) {
     id
-    category
+    chainId
     amountA
-    amountB
     stream { asset_id }
   }
 }`;
 
-const fetch = async (options: FetchOptions) => {
-  const dailyVolume = options.createBalances();
-  const cfg = CONFIG[options.chain];
+const fetchWindow = async (from: number, to: number) => {
+  const all: Row[] = [];
   let cursor = "";
   while (true) {
-    const query = buildQuery(cfg.chainId, options.fromTimestamp, options.toTimestamp, cursor);
-    const res: { data: { FlowAction: Row[] } } = await postURL(INDEXER, { query });
+    const res: { data: { FlowAction: Row[] } } = await postURL(INDEXER, {
+      query: buildQuery(from, to, cursor),
+    });
     const rows = res.data.FlowAction;
-    if (!rows.length) break;
-    for (const r of rows) {
-      const amount = r.amountA;
-      if (!amount || amount === "0" || !r.stream?.asset_id || r.category !== "Withdraw") continue;
-      // asset_id format: `asset-<chainId>-<tokenAddress>`; take the address suffix.
-      const parts = r.stream.asset_id.split("-");
-      const token = parts[parts.length - 1];
-      dailyVolume.add(token, amount);
-    }
+    all.push(...rows);
     if (rows.length < PAGE_SIZE) break;
     cursor = rows[rows.length - 1].id;
+  }
+  return all;
+};
+
+// Hold only the active window: keeping all of them grows unbounded on backfills,
+// and dropping on settle refetches per chain when chains run sequentially.
+let cached: { key: string; rows: Promise<Row[]> } | undefined;
+
+const getWindow = (from: number, to: number) => {
+  const key = `${from}-${to}`;
+  if (cached?.key !== key) cached = { key, rows: fetchWindow(from, to) };
+  return cached.rows;
+};
+
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const { chainId } = CONFIG[options.chain];
+  const rows = await getWindow(options.fromTimestamp, options.toTimestamp);
+  for (const r of rows) {
+    if (Number(r.chainId) !== chainId) continue;
+    const amount = r.amountA;
+    if (!amount || amount === "0" || !r.stream?.asset_id) continue;
+    // asset_id format: `asset-<chainId>-<tokenAddress>`; take the address suffix.
+    const parts = r.stream.asset_id.split("-");
+    const token = parts[parts.length - 1];
+    dailyVolume.add(token, amount);
   }
   return { dailyVolume };
 };

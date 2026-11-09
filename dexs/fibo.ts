@@ -20,6 +20,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  deadFrom: "2026-06-27",
   methodology: {
     Volume:
       "Total USDC wagered on FIBO parimutuel Up/Down rounds in the period. TVL is not applicable (2-minute rounds).",

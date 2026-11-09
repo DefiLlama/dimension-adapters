@@ -3,7 +3,7 @@ import { getPoolFees, AaveLendingPoolConfig } from '../helpers/aave'
 import { BaseAdapter, FetchOptions, SimpleAdapter } from '../adapters/types'
 import ADDRESSES from '../helpers/coreAssets.json'
 import { addTokensReceived } from '../helpers/token'
-import { queryIndexer } from '../helpers/indexer'
+import { getAlliumChain, queryAllium } from '../helpers/allium'
 import { METRIC } from '../helpers/metrics'
 
 export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
@@ -196,7 +196,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
 }
 
 const methodology = {
-  Fees: 'Include borrow interest, flashloan fee, liquidation fee, penalty paid by borrowers, swap fees from Paraswap, and Chainlink SVR (MEV recapture from Ethereum liquidations).',
+  Fees: 'Include borrow interest, flashloan fee, liquidation fee, penalty paid by borrowers, swap fees from the Aave frontend (Paraswap, then CoW Swap), and Chainlink SVR (MEV recapture from Ethereum liquidations).',
   Revenue: 'Amount of fees go to Aave treasury.',
   SupplySideRevenue: 'Amount of fees distributed to suppliers.',
   ProtocolRevenue: 'Amount of fees go to Aave treasury.',
@@ -210,6 +210,7 @@ const breakdownMethodology = {
     [METRIC.LIQUIDATION_FEES]: 'Fees from liquidation penalty and bonuses.',
     [METRIC.FLASHLOAN_FEES]: 'Flashloan fees paid by flashloan borrowers and executors.',
     'Paraswap Partner Fees': 'Swap fees share from Paraswap from users by using Aave frontend.',
+    'CowSwap Partner Fees': 'Partner fee on swaps made through CoW Swap from the Aave frontend, paid weekly by CoW Protocol to the Aave Collector since 23 April 2026.',
     'Chainlink SVR': 'MEV recapture from Aave V3 Ethereum liquidations via Chainlink Smart Value Recapture infrastructure (Flashbots MEV-Share). 100% of recaptured value is forwarded to the Aave Collector. Available from April 2025.',
   },
   Revenue: {
@@ -218,6 +219,7 @@ const breakdownMethodology = {
     [METRIC.LIQUIDATION_FEES]: 'A portion of fees from liquidation penalty and bonuses.',
     [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors.',
     'Paraswap Partner Fees': 'Swap fees share from Paraswap from users by using Aave frontend.',
+    'CowSwap Partner Fees': 'All of the CoW Swap partner fee from the Aave frontend is paid to the Aave Collector.',
     'Chainlink SVR': '100% of MEV recapture from Aave V3 Ethereum liquidations accrues to the Aave Collector.',
   },
   SupplySideRevenue: {
@@ -232,6 +234,7 @@ const breakdownMethodology = {
     [METRIC.LIQUIDATION_FEES]: 'A portion of fees from liquidation penalty and bonuses are colected by Aave treasury.',
     [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors are collected by Aave treasury.',
     'Paraswap Partner Fees': 'Swap fees share from Paraswap from users by using Aave frontend.',
+    'CowSwap Partner Fees': 'All of the CoW Swap partner fee from the Aave frontend is paid to the Aave Collector.',
     'Chainlink SVR': '100% of MEV recapture from Aave V3 Ethereum liquidations accrues to the Aave Collector.',
   },
   HoldersRevenue: {
@@ -240,7 +243,7 @@ const breakdownMethodology = {
 }
 
 const AaveNonBuybackTransferAddresses = [
-  '0x0000000000000000000000000000000000000000',
+  ADDRESSES.null,
   '0x4da27a545c0c5b758a6ba100e3a049001de870f5', // stkAAVE
   '0xdef1fa4cefe67365ba046a7c630d6b885298e210', // deployer
   '0x25f2226b597e8f9514b3f68f00f494cf4f286491', // ecosystem reserve
@@ -249,18 +252,37 @@ const AaveNonBuybackTransferAddresses = [
 ]
 
 const AaveBuyBackTreasury = '0x22740deBa78d5a0c24C58C740e3715ec29de1bFa';
+// One-off AAVE transfers into the buyback treasury from unrelated EOAs. The buyback
+// programme was paused in April 2026 (#10535) and these senders were never funded by
+// the protocol, so they are not treasury buybacks.
+const AaveNonBuybackTransactions = new Set([
+  '0x4f007edfa6cdb8a4f3b96df10235867d97e87fdd29e54b2679c625aa637bc7c8', // 0.15 AAVE, 2026-06-16
+  '0xc8ec048914b138379c83b97d1d560eeba5d6f80cfdb33d4442c82996991115ff', // 1,405 AAVE, 2026-06-24
+  '0xdc38f874d16b7cbb75268b7d375f82ac17ff91ef606532ac72144d7d06827fd0', // 5,983 AAVE, 2026-06-24
+].map((tx) => tx.toLowerCase()))
+const CowSettlement = '0x9008D19f58AAbD9eD0D60971565AA8510560ab41';
 const VeloraAugustusV6 = '0x6a000f20005980200259b80c5102003040001068';
 // Chainlink SVR (Smart Value Recapture) distribution Safe. Captures MEV from
 // Aave V3 Ethereum liquidations via Flashbots MEV-Share and forwards 100%
 // of recaptured value to the Aave Collector. Weekly distributions started
 // 2025-04-08. Methodology: see Chainlink ARFC linked from #6464.
 const ChainlinkSVRDistributor = '0x149b41b1e4c00b5f9aa34b14fd9f84cfd2f014e5';
+// CoW Protocol pays partner fees weekly, in the native token, from its "Solver payouts" Safe
+// (https://docs.cow.fi/governance/multisigs); on Arbitrum and Polygon it pays from 0x66331f0b..., a Safe that
+// shares its owners. Since 2026-04-23 the Aave frontend's CoW Swap partner fee (app codes aave-v3-interface-*)
+// is paid to the Aave Collector on the chains below that set cowPartnerFeePayer, instead of to Aave Labs:
+// https://governance.aave.com/t/routing-swap-and-horizon-fees-to-dao-collector-addresses/24462
+// e.g. https://etherscan.io/tx/0xec185f9b0ac760522d8fdf3161d0dbc3939355f3280eee47061d1bc956de4f23
+const CowPayoutSafe = '0xa03be496e67ec29bc62f01a428683d7f9c204930';
+const CowPayoutSafeArbitrumPolygon = '0x66331f0b9cb30d38779c786bda5a3d57d12fba50';
+const CowPartnerFeesToCollectorFrom = 1776902400; // 2026-04-23, the first payout to a Collector
 export const chainConfig: Record<string, any> = {
   [CHAIN.ETHEREUM]: {
     pools: AaveMarkets[CHAIN.ETHEREUM],
     treasuryCollector: '0x464C71f6c2F760DdA6093dCB91C24c39e5d6e18c',
     veloraAugustus: VeloraAugustusV6,
     chainlinkSvrDistributor: ChainlinkSVRDistributor,
+    cowPartnerFeePayer: CowPayoutSafe,
     start: '2023-01-01',
   },
   [CHAIN.OPTIMISM]: {
@@ -274,18 +296,21 @@ export const chainConfig: Record<string, any> = {
     start: '2022-03-12',
     treasuryCollector: '0x053D55f9B5AF8694c503EB288a1B7E552f590710',
     veloraAugustus: VeloraAugustusV6,
+    cowPartnerFeePayer: CowPayoutSafeArbitrumPolygon,
   },
   [CHAIN.POLYGON]: {
     pools: AaveMarkets[CHAIN.POLYGON],
     start: '2022-03-12',
     treasuryCollector: '0xe8599F3cc5D38a9aD6F3684cd5CEa72f10Dbc383',
     veloraAugustus: VeloraAugustusV6,
+    cowPartnerFeePayer: CowPayoutSafeArbitrumPolygon,
   },
   [CHAIN.AVAX]: {
     pools: AaveMarkets[CHAIN.AVAX],
     start: '2022-03-12',
     treasuryCollector: '0x5ba7fd868c40c16f7aDfAe6CF87121E13FC2F7a0',
     veloraAugustus: VeloraAugustusV6,
+    cowPartnerFeePayer: CowPayoutSafe,
   },
   [CHAIN.FANTOM]: {
     pools: AaveMarkets[CHAIN.FANTOM],
@@ -296,12 +321,14 @@ export const chainConfig: Record<string, any> = {
     start: '2023-08-09',
     treasuryCollector: '0xBA9424d650A4F5c80a0dA641254d1AcCE2A37057',
     veloraAugustus: VeloraAugustusV6,
+    cowPartnerFeePayer: CowPayoutSafe,
   },
   [CHAIN.BSC]: {
     pools: AaveMarkets[CHAIN.BSC],
     start: '2023-11-18',
     treasuryCollector: '0x25Ec457d1778b0E5316e7f38f3c22baF413F1A8C',
     veloraAugustus: VeloraAugustusV6,
+    cowPartnerFeePayer: CowPayoutSafe,
   },
   [CHAIN.METIS]: {
     pools: AaveMarkets[CHAIN.METIS],
@@ -312,6 +339,7 @@ export const chainConfig: Record<string, any> = {
     start: '2023-10-05',
     treasuryCollector: '0x3e652E97ff339B73421f824F5b03d75b62F1Fb51',
     veloraAugustus: VeloraAugustusV6,
+    cowPartnerFeePayer: CowPayoutSafe,
   },
   [CHAIN.SCROLL]: {
     pools: AaveMarkets[CHAIN.SCROLL],
@@ -387,40 +415,60 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances()
   if (options.chain === CHAIN.ETHEREUM) {
     // AAVE Buybacks https://app.aave.com/governance/v3/proposal/?proposalId=286
-    const nonBuybackTransferAddresses = new Set(AaveNonBuybackTransferAddresses.map((a) => a.toLowerCase()))
+    const treasuryCollector = chainConfig[options.chain].treasuryCollector
+    const nonBuybackTransferAddresses = new Set([...AaveNonBuybackTransferAddresses, AaveBuyBackTreasury, treasuryCollector].map((a) => a.toLowerCase()))
     const buybackReceived = await addTokensReceived({
       options,
       tokens: [ADDRESSES.ethereum.AAVE],
       target: AaveBuyBackTreasury,
-      logFilter: (log) => !nonBuybackTransferAddresses.has((log.from_address ?? "").toLowerCase()),
+      logFilter: (log) => !nonBuybackTransferAddresses.has((log.from_address ?? "").toLowerCase())
+        && !AaveNonBuybackTransactions.has((log.transactionHash ?? "").toLowerCase()),
     })
     dailyHoldersRevenue.addBalances(buybackReceived, METRIC.TOKEN_BUY_BACK)
+    const collectorBuybacks = await addTokensReceived({
+      options,
+      tokens: [ADDRESSES.ethereum.AAVE],
+      target: treasuryCollector,
+      fromAdddesses: [CowSettlement],
+    })
+    dailyHoldersRevenue.addBalances(collectorBuybacks, METRIC.TOKEN_BUY_BACK)
 
     // Chainlink SVR — MEV recapture from Aave V3 Ethereum liquidations.
     // The Chainlink SVR distributor Safe forwards 100% of recaptured value
     // (native ETH) to the Aave Collector via Safe.execTransaction, which the
     // standard sdk indexer doesn't surface (internal trace, not top-level tx).
-    // Same query shape as fees/safe.ts.
+    // Allium's native_token_transfers covers those internal value transfers.
     if (chainConfig[options.chain].chainlinkSvrDistributor) {
-      const svrTransfers: any = await queryIndexer(`
-        SELECT
-          sum("value") AS eth_value
-        FROM
-          ethereum.traces
-        WHERE
-          to_address = '\\x${chainConfig[options.chain].treasuryCollector.replace(/^0x/i, '')}'
-          AND from_address = '\\x${chainConfig[options.chain].chainlinkSvrDistributor.replace(/^0x/i, '')}'
-          AND block_time BETWEEN llama_replace_date_range;
-      `, options)
-      svrTransfers.forEach((e: any) => {
-        if (e.eth_value) {
-          dailyFees.addGasToken(e.eth_value, 'Chainlink SVR')
-          dailyProtocolRevenue.addGasToken(e.eth_value, 'Chainlink SVR')
-        }
-      })
+      const [{ amount }] = await queryAllium(`
+        SELECT COALESCE(SUM(raw_amount), 0) AS amount
+        FROM ${getAlliumChain(options.chain)}.assets.native_token_transfers
+        WHERE to_address = '${chainConfig[options.chain].treasuryCollector.toLowerCase()}'
+          AND from_address = '${chainConfig[options.chain].chainlinkSvrDistributor.toLowerCase()}'
+          AND transfer_type = 'value_transfer'
+          AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      `)
+      dailyFees.addGasToken(amount, 'Chainlink SVR')
+      dailyProtocolRevenue.addGasToken(amount, 'Chainlink SVR')
     }
   }
   
+  // swap fees share from CoW Swap, paid to the collector by CoW Protocol's payout Safe through
+  // Safe.execTransaction (internal value transfers), so read from Allium like the SVR leg above
+  if (chainConfig[options.chain].cowPartnerFeePayer && options.endTimestamp > CowPartnerFeesToCollectorFrom) {
+    const [{ amount }] = await queryAllium(`
+      SELECT COALESCE(SUM(raw_amount), 0) AS amount
+      FROM ${getAlliumChain(options.chain)}.assets.native_token_transfers
+      WHERE to_address = '${chainConfig[options.chain].treasuryCollector.toLowerCase()}'
+        AND from_address = '${chainConfig[options.chain].cowPartnerFeePayer}'
+        AND transfer_type = 'value_transfer'
+        AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    `)
+    dailyFees.addGasToken(amount, 'CowSwap Partner Fees')
+    dailyProtocolRevenue.addGasToken(amount, 'CowSwap Partner Fees')
+  }
+
   // swap fees share from Paraswap
   if (chainConfig[options.chain].treasuryCollector && chainConfig[options.chain].veloraAugustus) {
     const paraswapFees = await addTokensReceived({

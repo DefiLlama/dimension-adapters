@@ -1,5 +1,7 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types"
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
+import { queryAllium } from "../helpers/allium"
 import { CHAIN } from "../helpers/chains"
+import { METRIC } from "../helpers/metrics"
 
 // https://github.com/ethereum-optimism/op-analytics/blob/main/op_collective_economics/opcollective_feesplit/inputs/op_collective_feesplit_config.csv
 // https://github.com/ethereum-optimism/op-analytics/blob/main/src/op_analytics/configs/revshare_to_addresses.yaml
@@ -41,12 +43,23 @@ const revenueFromAddresses: any = {
     '0xF07b3169ffF67A8AECdBb18d9761AEeE34591112', // Soneium Disburser
     '0x267be1c1d684f78cb4f6a176c4911b741e4ffdc0'  // Ink Disburser
   ],
-  [CHAIN.UNICHAIN]: ['0x4300c0D3c0d3c0d3c0d3C0D3c0d3c0d30001'], // Unichain Disburser
+  [CHAIN.UNICHAIN]: ['0x4300c0D3c0d3c0d3c0d3c0d3C0D3c0d3c0d30001'], // Unichain Disburser
   [CHAIN.SONEIUM]: [
     '0x641af675C39E56E5611686Ae07921AFb7d5C1f39', // Soneium Disburser
     '0xF07b3169ffF67A8AECdBb18d9761AEeE34591112'  // Soneium Disburser
   ]
 }
+
+// Unichain's OP receiver 0x4300...0002 emits neither event above, so its share is read from the FeesDistributed event of
+// the FeeSplitter that pays it: https://github.com/Uniswap/unichain-contracts/blob/d5557a763caf74451a70aaa47af6ce0b568848ae/src/FeeSplitter/FeeSplitter.sol
+// That share later reaches Ethereum through Unichain's L1 bridge 0x81014F44..., which must stay off
+// revenueFromAddresses[CHAIN.ETHEREUM], or the same ETH is booked twice.
+const UNICHAIN_FEE_SPLITTER = '0x4300c0D3c0d3c0d3c0d3c0d3C0D3c0d3c0d30001'
+
+// "OP Receiver - All Chains" in revshare_to_addresses.yaml above. It is an EOA on Ethereum, so it emits no events and the
+// disbursers' payments are read from native transfers. Only senders in revenueFromAddresses count.
+const ALL_CHAINS_RECEIVER = '0x16a27462b4d61bdd72cbbabd3e43e11791f7a28c'
+const ALL_CHAINS_RECEIVER_FROM = 1752710400 // 2025-07-17, its first payment from those senders
 
 // OP-owned addresses to filter out from revenue calculation
 const opOwnedFilterOut: any = {
@@ -82,7 +95,7 @@ const fetch = async (options: FetchOptions) => {
   for (const log of logs) {
     if (allowedFromAddresses.includes(log.sender.toLowerCase()) && 
         !excludedAddresses.includes(log.sender.toLowerCase())) {
-      dailyFees.addGasToken(log.value)
+      dailyFees.addGasToken(log.value, METRIC.SERVICE_FEES)
     }
   }
   
@@ -90,8 +103,29 @@ const fetch = async (options: FetchOptions) => {
   for (const log of logs2) {
     if (allowedFromAddresses.includes(log.from.toLowerCase()) && 
         !excludedAddresses.includes(log.from.toLowerCase())) {
-      dailyFees.addGasToken(log.value)
+      dailyFees.addGasToken(log.value, METRIC.SERVICE_FEES)
     }
+  }
+
+  if (options.chain === CHAIN.UNICHAIN) {
+    const splits = await options.getLogs({
+      target: UNICHAIN_FEE_SPLITTER,
+      eventAbi: 'event FeesDistributed(uint256 optimismShare, uint256 l1Fees, uint256 netShare)',
+    })
+    splits.forEach((log: any) => dailyFees.addGasToken(log.optimismShare, METRIC.SERVICE_FEES))
+  }
+
+  if (options.chain === CHAIN.ETHEREUM && options.endTimestamp > ALL_CHAINS_RECEIVER_FROM) {
+    const [{ amount }] = await queryAllium(`
+      SELECT COALESCE(SUM(raw_amount), 0) AS amount
+      FROM ethereum.assets.native_token_transfers
+      WHERE to_address = '${ALL_CHAINS_RECEIVER}'
+        AND from_address IN (${allowedFromAddresses.map((addr: string) => `'${addr}'`).join(', ')})
+        AND transfer_type = 'value_transfer'
+        AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    `)
+    dailyFees.addGasToken(amount, METRIC.SERVICE_FEES)
   }
 
   return {
@@ -105,15 +139,33 @@ const methodology = {
   Revenue: "All fees are collected by OP Labs.",
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SERVICE_FEES]: "Services fees paid by blockchain using OP Stack and registered on Superchain.",
+  },
+  Revenue: {
+    [METRIC.SERVICE_FEES]: "All fees are collected by OP Labs.",
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
   methodology,
+  breakdownMethodology,
   fetch,
   chains: [
-    [CHAIN.BASE, { start: '2023-06-01' }],
+    // Base left the Superchain / OP Stack in Feb 2026 (announced ~Feb 19, 2026). The Base Fee
+    // Disburser (0x09C7bAD99688a55a2e83644BFAed09e62bDcCcBA) stopped sending revshare to the OP
+    // Collective Receiver (0x9c3631dDE5c8316bE5B7554B0CcD2631C15a9A05): last on-chain
+    // SafeReceived payment was 2026-03-01 ($154k). The disburser contract is empty since then,
+    // so on-chain zeros after that date are real zeros, not a broken feed. Sources:
+    // https://www.coindesk.com/business/2026/01/08/optimism-proposes-op-token-buybacks-using-50-of-superchain-revenue
+    // https://gov.optimism.io/t/buyback-communication-thread/10588 (departure + buyback funding drop)
+    [CHAIN.BASE, { start: '2023-06-01', deadFrom: '2026-03-02' }],
     [CHAIN.ETHEREUM, { start: '2022-04-01' }],
-    [CHAIN.UNICHAIN, { start: '2025-02-01' }],
+    [CHAIN.UNICHAIN, { start: '2025-01-28' }],
     [CHAIN.SONEIUM, { start: '2024-12-01' }],
   ],
 }

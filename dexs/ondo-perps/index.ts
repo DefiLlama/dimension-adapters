@@ -1,12 +1,13 @@
 import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { getConfig } from "../../helpers/cache";
 
 const API_BASE = "https://api.ondoperps.xyz/v1";
 
 const fetch = async (options: FetchOptions) => {
-  const markets = (await fetchURL(`${API_BASE}/markets`)).result.perps.tradingPairs;
+  const markets = (await getConfig('ondo-perps/markets', `${API_BASE}/markets`)).result.perps.tradingPairs;
 
   // No error handling as current markets may not have historical candles.
   const { results } = await PromisePool.withConcurrency(3)

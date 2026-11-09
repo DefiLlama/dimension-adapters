@@ -60,7 +60,7 @@ const fetch = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     target: VVV,
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topics: [TRANSFER_TOPIC, null as any, "0x".concat("0".repeat(64))],
+    topics: [TRANSFER_TOPIC, null, "0x".concat("0".repeat(64))],
   });
 
   const priceKey = `${CHAIN.BASE}:${VVV.toLowerCase()}`;

@@ -67,7 +67,16 @@ const abi = {
   swap: "event Swap(bool swap0to1, uint256 amountIn, uint256 amountOut, address to)",
 };
 
-const fetch = async ({ api, createBalances, getLogs }: FetchOptions): Promise<FetchResultV2> => {
+// Exported so fees/fluid can subtract the swap revenue cut from Liquidity Layer revenue (see fees/fluid/revenue.ts)
+export const FLUID_DEX_START: Record<string, string> = {
+  [CHAIN.ETHEREUM]: '2024-10-26',
+  [CHAIN.ARBITRUM]: '2024-12-23',
+  [CHAIN.POLYGON]: '2025-04-03',
+  [CHAIN.BASE]: '2025-05-22',
+  [CHAIN.PLASMA]: '2025-09-22',
+}
+
+export const fetch = async ({ api, createBalances, getLogs }: FetchOptions): Promise<FetchResultV2> => {
   const dailyVolume = createBalances();
   const dailyFees = createBalances()
   const dailyRevenue = createBalances()
@@ -84,22 +93,22 @@ const fetch = async ({ api, createBalances, getLogs }: FetchOptions): Promise<Fe
   });
   const pools = rawPools.map(({ pool, token0, token1, fee }, index: number) => ({ pool, token0, token1, fee: BigInt(fee), revenueCut: BigInt(rawPoolConfigs[index].revenueCut) }));
 
-  const logsByPool: SwapEventArgs[][]= await Promise.all(
-    pools.map(async pool => {
-      const logs: SwapEventArgs[] = await getLogs({
-        targets: [pool.pool],
-        onlyArgs: true,
-        eventAbi: abi.swap,
-      });
-      
-      return logs.map((log: any) => ({
-        swap0to1: log[0] as boolean,
-        amountIn: log[1] as bigint,
-        amountOut: log[2] as bigint,
-        to: log[3] as string,
-        ...pool
-      }));
-    })
+  // one targets call: the indexer serves every pool in one request, and on RPC-only chains (plasma) the sdk runs at most
+  // 5 pool queries at a time. A Promise.all over every pool burst past plasma's RPC rate limits and failed fees/fluid with 429s
+  const poolLogs: any[][] = !pools.length ? [] : await getLogs({
+    targets: pools.map((pool) => pool.pool),
+    onlyArgs: true,
+    flatten: false,
+    eventAbi: abi.swap,
+  });
+  const logsByPool: SwapEventArgs[][] = pools.map((pool, index) =>
+    poolLogs[index].map((log: any) => ({
+      swap0to1: log[0] as boolean,
+      amountIn: log[1] as bigint,
+      amountOut: log[2] as bigint,
+      to: log[3] as string,
+      ...pool
+    }))
   );
 
   const allSwapEvents = logsByPool.flat();
@@ -167,13 +176,7 @@ const adapter: Adapter = {
   pullHourly: true,
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.ETHEREUM]: { fetch, start: '2024-10-26' },
-    [CHAIN.ARBITRUM]: { fetch, start: '2024-12-23' },
-    [CHAIN.POLYGON]: { fetch, start: '2025-04-03' },
-    [CHAIN.BASE]: { fetch, start: '2025-05-22' },
-    [CHAIN.PLASMA]: { fetch, start: '2025-09-22' },
-  },
+  adapter: Object.fromEntries(Object.entries(FLUID_DEX_START).map(([chain, start]) => [chain, { fetch, start }])),
 };
 
 export default adapter;

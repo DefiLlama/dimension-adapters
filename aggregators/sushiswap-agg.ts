@@ -495,7 +495,7 @@ const WNATIVE_ADDRESS: any = {
   [CHAIN.FILECOIN]: '0x60e1773636cf5e4a227d9ac24f20feca034ee25a',
   [CHAIN.HAQQ]: ADDRESSES.islm.ISLM,
   [CHAIN.KAVA]: ADDRESSES.kava.WKAVA,
-  [CHAIN.METIS]: '0x75cb093e4d61d2a2e65d8e0bbb01de8d89b53481',
+  [CHAIN.METIS]: ADDRESSES.metis.WMETIS_2,
   [CHAIN.THUNDERCORE]: ADDRESSES.thundercore.WTT,
   [CHAIN.SCROLL]: ADDRESSES.scroll.WETH,
   [CHAIN.ZETA]: ADDRESSES.zeta.WZETA,
@@ -526,7 +526,7 @@ const WNATIVE_ADDRESS: any = {
   [CHAIN.BERACHAIN]: ADDRESSES.berachain.WBERA,
   [CHAIN.PLASMA]: ADDRESSES.plasma.WXPL,
   [CHAIN.MONAD]: ADDRESSES.monad.WMON,
-  [CHAIN.MEGAETH]: '0x4200000000000000000000000000000000000006',
+  [CHAIN.MEGAETH]: ADDRESSES.optimism.WETH_1,
   [CHAIN.XLAYER]: ADDRESSES.xlayer.WOKB,
 }
 
@@ -700,10 +700,12 @@ const adapters = {
   //   fetch,
   //   start: '2024-04-22'
   // },
-  [CHAIN.THUNDERCORE]: {
-    fetch,
-    start: '2024-02-25'
-  },
+  // thundercore halted on 2026-09-01 at block 236120709; the stale-head guard throws on the
+  // block lookup and takes every other chain's record down with it
+  // [CHAIN.THUNDERCORE]: {
+  //   fetch,
+  //   start: '2024-02-25'
+  // },
   [CHAIN.ZETA]: {
     fetch,
     start: '2024-02-25'

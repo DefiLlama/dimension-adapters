@@ -48,8 +48,8 @@ const fetch: any = async (options: FetchOptions) => {
 const fetchEVM: any = async (options: FetchOptions) => {
   const { dailyFees } = await evmReceivedGasAndTokens("0xCb077A7f06D54c582eD82f5C5ef9FeFB9B8Be449", [])(options);
 
-  const USD1 = "0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d";
-  const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
+  const USD1 = ADDRESSES.bsc.USD1;
+  const WBNB = ADDRESSES.bsc.WBNB;
 
   const { dailyFees: usd1Fees, dailyRevenue: usd1Revenue } =
     await evmReceivedGasAndTokens(

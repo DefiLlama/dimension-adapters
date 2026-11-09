@@ -1,49 +1,24 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL, { httpPost } from "../../utils/fetchURL";
+import fetchURL from "../../utils/fetchURL";
 import { sleep } from "../../utils/utils";
-import { getEnv } from "../../helpers/env";
-import { encodeBase58 } from "ethers";
 import { METRIC } from "../../helpers/metrics";
-
-function extractPubkey(base64Data: string, offset: number): string {
-    const buffer = Buffer.from(base64Data, 'base64');
-    const pubkeyBytes = new Uint8Array(buffer.slice(offset, offset + 32));
-    return encodeBase58(pubkeyBytes);
-}
+import { extractPubkey, getProgramAccounts } from "../../helpers/solana";
 
 const METEORA_DLMM_PROGRAM_ID = "LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo";
 const PRESTOCKS_LP_WALLET = "AuDS1jWvD2StHgkFfFUYaxa4rKQCjAqGayNSC1feixrV";
 
 async function getMeteoraDLMMPositions(owner: string) {
-    const response = await httpPost(getEnv('SOLANA_RPC'), {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "getProgramAccounts",
-        params: [
-            METEORA_DLMM_PROGRAM_ID,
-            {
-                encoding: "base64",
-                // slice only lbPair (offset 8, 32 bytes) — memcmp still runs on full data
-                dataSlice: { offset: 8, length: 32 },
-                filters: [
-                    {
-                        memcmp: {
-                            offset: 40,
-                            bytes: owner
-                        }
-                    }
-                ]
-            }
-        ]
+    const accounts = await getProgramAccounts({
+        programId: METEORA_DLMM_PROGRAM_ID,
+        encoding: "base64",
+        // slice only lbPair (offset 8, 32 bytes) — memcmp still runs on full data
+        dataSlice: { offset: 8, length: 32 },
+        filters: [{ memcmp: { offset: 40, bytes: owner } }],
     });
 
-    if (!Array.isArray(response?.result)) {
-        throw new Error(`getProgramAccounts failed for ${owner}: ${JSON.stringify(response)}`);
-    }
-
     // lbPair is at offset 0 of the sliced data
-    return response.result.map((acc: any) => extractPubkey(acc.account.data[0], 0));
+    return accounts.map((acc) => extractPubkey(acc.account.data[0], 0));
 }
 
 async function fetch(options: FetchOptions) {

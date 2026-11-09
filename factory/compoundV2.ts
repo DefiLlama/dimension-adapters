@@ -10,6 +10,7 @@ type ChainConfig = {
 type Config = {
   chains: Record<string, ChainConfig>;
   options?: Record<string, any>;
+  deadFrom?: string;
 };
 
 const configs: Record<string, Config> = {
@@ -38,6 +39,7 @@ const configs: Record<string, Config> = {
   "elara": {
     chains: { [CHAIN.ZIRCUIT]: { comptroller: "0x695aCEf58D1a10Cf13CBb4bbB2dfB7eDDd89B296", start: '2024-11-20' } },
     options: { protocolRevenueRatio: 1 },
+    deadFrom: '2026-07-31',
   },
   "fluxfinance": {
     chains: { [CHAIN.ETHEREUM]: { comptroller: "0x95Af143a021DF745bc78e845b54591C53a8B3A51", start: '2023-02-02' } },
@@ -45,6 +47,10 @@ const configs: Record<string, Config> = {
   },
   "hover": {
     chains: { [CHAIN.KAVA]: { comptroller: "0x3A4Ec955a18eF6eB33025599505E7d404a4d59eC", start: '2023-11-24' } },
+  },
+  "kinetixdao": {
+    chains: { [CHAIN.BITKUB]: { comptroller: "0xc5DD9f1cE32f19C0a76a924F681914A8D10E8008", start: '2026-10-09' } },
+    options: { start: { [CHAIN.BITKUB]: '2026-10-09' }, protocolRevenueRatio: 1, holdersRevenueRatio: 0 },
   },
   "machfi": {
     chains: { [CHAIN.SONIC]: { comptroller: "0x646F91AbD5Ab94B76d1F9C5D9490A2f6DDf25730", start: '2025-01-01' } },
@@ -115,16 +121,53 @@ const configs: Record<string, Config> = {
       [CHAIN.INK]: { comptroller: '0x4f3b08B7FE4E14f728d084850A7B9CFF2E759Eb7', start: '2026-03-17' },
     },
   },
+  'wing-finance': {
+    chains: {
+      [CHAIN.ETHEREUM]: { comptroller: '0x2F9fa63066cfA2d727F57ddf1991557bA86F12c9', start: '2021-01-20' },
+      [CHAIN.BSC]: { comptroller: '0x49620e9bfd117c7b05b4732980b05b7afee60a69', start: '2021-03-01' },
+    },
+    options: { useExchangeRate: true },
+  },
+  "segment-finance": {
+    chains: {
+      [CHAIN.OP_BNB]: { comptroller: '0x71ac0e9A7113130280040d0189d0556f45a8CBB5', start: '2024-03-21' },
+      [CHAIN.BSC]: { comptroller: '0x57E09c96DAEE58B77dc771B017de015C38060173', start: '2024-01-07' },
+      [CHAIN.BOB]: { comptroller: '0xcD7C4F508652f33295F0aEd075936Cd95A4D2911', start: '2024-04-20' },
+      [CHAIN.ROOTSTOCK]: { comptroller: '0x2eea8fbA494d5008ba72f80E0091Cc74dB5f9926', start: '2024-08-22' },
+      [CHAIN.CORE]: { comptroller: '0xaba65b87eBEdB2D753b37AeCECD1E168341eE0DD', start: '2024-08-22' },
+      [CHAIN.BSQUARED]: { comptroller: '0x69a6B3B96b26a15A588081Df17F46d61f625741c', start: '2025-01-09' },
+    },
+    options: { protocolRevenueRatio: 1 },
+  },
+  "sonne-finance": {
+    chains: {
+      [CHAIN.OPTIMISM]: { comptroller: "0x60CF091cD3f50420d50fD7f707414d0DF4751C58", start: '2022-10-01' },
+      [CHAIN.BASE]: { comptroller: "0x1DB2466d9F5e10D7090E7152B68d62703a2245F0", start: '2023-08-31' },
+    },
+    options: {
+      methodology: {
+        Fees: "Total interest paid by borrowers",
+        Revenue: "Protocol's share of interest treasury",
+        ProtocolRevenue: "Protocol's share of interest into treasury",
+        HoldersRevenue: "Share of interest into protocol governance token holders.",
+        SupplySideRevenue: "Interest paid to lenders in liquidity pools",
+      },
+    },
+  },
 };
 
 
 const feesProtocols: Record<string, any> = {};
-for (const [name, { chains, options }] of Object.entries(configs)) {
+for (const [name, { chains, options, deadFrom }] of Object.entries(configs)) {
   const comptrollers: Record<string, string> = {};
-  for (const [chain, { comptroller }] of Object.entries(chains)) {
+  const starts: Record<string, string> = {};
+  for (const [chain, { comptroller, start }] of Object.entries(chains)) {
     comptrollers[chain] = comptroller;
+    if (start) starts[chain] = start;
   }
-  feesProtocols[name] = compoundV2Export(comptrollers, options);
+  // per-chain start dates from `chains` unless the options already carry a start
+  feesProtocols[name] = compoundV2Export(comptrollers, { ...options, start: options?.start ?? starts });
+  if (deadFrom) feesProtocols[name].deadFrom = deadFrom;
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(feesProtocols);
@@ -151,6 +194,8 @@ for (const [name, { chains }] of Object.entries(configs)) {
 const liquidationProtocols: Record<string, any> = {};
 for (const [name, config] of Object.entries(liquidationConfigs)) {
   liquidationProtocols[name] = compoundV2LiquidationsExport(config);
+  const deadFrom = configs[name]?.deadFrom;
+  if (deadFrom) liquidationProtocols[name].deadFrom = deadFrom;
 }
 
 export const liquidations = createFactoryExports(liquidationProtocols);

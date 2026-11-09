@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
 import { addTokensReceived } from "../../helpers/token";
@@ -14,38 +15,43 @@ const CONFIG: Record<
 > = {
   sonic: {
     treasury: "0x13a4fcbb628b921fbca8296a62a7f061bdf80af2",
-    nativeToken: "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38",
+    nativeToken: ADDRESSES.sonic.wS,
     start: "2025-05-03",
   },
   avax: {
     treasury: "0x24190824cae72fea4f3ffca452c4e5fc34db1995",
-    nativeToken: "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7",
+    nativeToken: ADDRESSES.avax.WAVAX,
     start: "2025-08-12",
   },
   bsc: {
     treasury: "0x9f8745e46b795d7c665170bbfbc61ed0f3a2894b",
-    nativeToken: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+    nativeToken: ADDRESSES.bsc.WBNB,
     start: "2025-10-03",
   },
   ethereum: {
     treasury: "0xb56bdaa3c2d554a178e7dbd2acf324ce787fbd3f",
-    nativeToken: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    nativeToken: ADDRESSES.ethereum.WETH,
     start: "2026-01-29",
   },
   base: {
     treasury: "0x6af0c089b809a0e08cf84c6538a46c17df234ab3",
-    nativeToken: "0x4200000000000000000000000000000000000006",
+    nativeToken: ADDRESSES.optimism.WETH_1,
     start: "2025-04-12",
   },
   arbitrum: {
     treasury: "0xe92a4f69d52d9d1eefdb823343708aceda47eeb6",
-    nativeToken: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+    nativeToken: ADDRESSES.arbitrum.WETH,
     start: "2026-02-17",
   },
   robinhood: {
     treasury: "0xb56bdaa3c2d554a178e7dbd2acf324ce787fbd3f",
-    nativeToken: "0x0bd7d308f8e1639fab988df18a8011f41eacad73",
+    nativeToken: ADDRESSES.robinhood.WETH,
     start: "2026-07-07",
+  },
+  arc: {
+    treasury: "0x88161a8dbbded3f49b5ec8a14fdab2abc7bb7813",
+    nativeToken: ADDRESSES.arc.USDC,
+    start: "2026-09-21",
   },
 };
 

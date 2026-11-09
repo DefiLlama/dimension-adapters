@@ -1,76 +1,115 @@
-import { Chain } from "../../adapters/types";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import ADDRESSES from "../../helpers/coreAssets.json";
+import { fetchTransfersFromLIFIAPI, LIFI_API_CHAINS, LIFI_UNSUPPORTED_CHAINS, LifiDiamonds, LifiFeeCollectors } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
-import { addTokensReceived } from "../../helpers/token";
+import { DefaultDexTokensBlacklisted } from "../../helpers/lists";
+import { FeesForwardedEvent, getFeeForwarders, getFeeTransactions, isJumperTransaction, JumperFeeStart, JumperIntegrators } from "../lifi/feeSources";
 
-type IContract = {
-  [c: string | Chain]: string;
-};
+const SwapFee = 'Swap Fees';
+const BridgeFee = 'Bridge Fees';
 
-const collector: IContract = {
-  [CHAIN.AURORA]: "0xB0210dE78E28e2633Ca200609D9f528c13c26cD9",
-  [CHAIN.ARBITRUM]: "0xB0210dE78E28e2633Ca200609D9f528c13c26cD9",
-  [CHAIN.OPTIMISM]: "0xbD6C7B0d2f68c2b7805d88388319cfB6EcB50eA9",
-  [CHAIN.BASE]: "0x0A6d96E7f4D7b96CFE42185DF61E64d255c12DFf",
-  [CHAIN.ETHEREUM]: "0xbD6C7B0d2f68c2b7805d88388319cfB6EcB50eA9",
-  [CHAIN.AVAX]: "0xB0210dE78E28e2633Ca200609D9f528c13c26cD9",
-  [CHAIN.BSC]: "0xbD6C7B0d2f68c2b7805d88388319cfB6EcB50eA9",
-  [CHAIN.LINEA]: "0xA4A24BdD4608D7dFC496950850f9763B674F0DB2",
-  [CHAIN.MANTLE]: "0xF048e5816B0C7951AC179f656C5B86e5a79Bd7b5",
-  [CHAIN.POLYGON]: "0xbD6C7B0d2f68c2b7805d88388319cfB6EcB50eA9",
-  [CHAIN.POLYGON_ZKEVM]: "0xB49EaD76FE09967D7CA0dbCeF3C3A06eb3Aa0cB4",
-  [CHAIN.FANTOM]: "0xB0210dE78E28e2633Ca200609D9f528c13c26cD9",
-  [CHAIN.MODE]: "0xF048e5816B0C7951AC179f656C5B86e5a79Bd7b5",
-  [CHAIN.SCROLL]: "0xF048e5816B0C7951AC179f656C5B86e5a79Bd7b5",
-  [CHAIN.ERA]: "0x8dBf6f59187b2EB36B980F3D8F4cFC6DC4E4642e",
-  [CHAIN.METIS]: "0x27f0e36dE6B1BA8232f6c2e87E00A50731048C6B",
-  [CHAIN.XDAI]: "0xbD6C7B0d2f68c2b7805d88388319cfB6EcB50eA9",
-  [CHAIN.TAIKO]: "0xDd8A081efC90DFFD79940948a1528C51793C4B03",
-  [CHAIN.BLAST]: "0xF048e5816B0C7951AC179f656C5B86e5a79Bd7b5",
-  [CHAIN.BOBA]: "0xB0210dE78E28e2633Ca200609D9f528c13c26cD9",
-  [CHAIN.FUSE]: "0xB0210dE78E28e2633Ca200609D9f528c13c26cD9",
-  [CHAIN.CRONOS]: "0x11d40Dc8Ff0CE92F54A315aD8e674a55a866cBEe",
-  [CHAIN.GRAVITY]: "0x79540403cdE176Ca5f1fb95bE84A7ec91fFDEF76",
-  // [CHAIN.SEI]: '0x7956280Ec4B4d651C4083Ca737a1fa808b5319D8',
-  // [CHAIN.ROOTSTOCK]: '0xF048e5816B0C7951AC179f656C5B86e5a79Bd7b5',
-  [CHAIN.CELO]: "0xF048e5816B0C7951AC179f656C5B86e5a79Bd7b5",
-  [CHAIN.EVMOS]: "0xB49EaD76FE09967D7CA0dbCeF3C3A06eb3Aa0cB4",
-  [CHAIN.FRAXTAL]: "0x7956280Ec4B4d651C4083Ca737a1fa808b5319D8",
-  //   [CHAIN.HARMONY]: "0xB0210dE78E28e2633Ca200609D9f528c13c26cD9",
-  //   [CHAIN.IMMUTABLEX]: "0x1a4E99aB56BBac95810C0A957F173054f6FA8fDc",
-  [CHAIN.LISK]: "0x50D5a8aCFAe13Dceb217E9a071F6c6Bd5bDB4155",
-  [CHAIN.MOONBEAM]: "0xB0210dE78E28e2633Ca200609D9f528c13c26cD9",
-  //   [CHAIN.MOONRIVER]: "0xB0210dE78E28e2633Ca200609D9f528c13c26cD9",
-  [CHAIN.ARBITRUM_NOVA]: "0xB0210dE78E28e2633Ca200609D9f528c13c26cD9",
-  //   [CHAIN.OKEXCHAIN]: "0xB0210dE78E28e2633Ca200609D9f528c13c26cD9",
-  [CHAIN.OP_BNB]: "0x6A2420650139854F17964b8C3Bb60248470aB57E",
-  [CHAIN.SONIC]: "0xaFb8cC8fCd71cd768Ce117C11eB723119FCDb1f8",
-  // [CHAIN.VELAS]: "0xB0210dE78E28e2633Ca200609D9f528c13c26cD9",
-  // [CHAIN.XLAYER]: "0xC69994fd72824ca98F8a0B1E2ABc954E65a91cf4",
-};
+// FeesForwarded logs; X Layer skipped (RPCs reject the log scan, no Jumper fees seen)
+const OnchainChains = [...Object.keys(LifiFeeCollectors), CHAIN.HYPERLIQUID]
+  .filter((chain) => /^0x[0-9a-f]{40}$/i.test(LifiDiamonds[chain]?.id ?? ''));
 
-const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
-  adapter: Object.keys(collector).reduce((acc, chain) => {
-    return {
-      ...acc,
-      [chain]: {
-        fetch: async (options: FetchOptions) => ({
-          dailyFees: await addTokensReceived({
-            options,
-            target: collector[options.chain],
-          }),
-        }),
-        start: "2023-08-10",
-      },
-    };
-  }, {}),
-  methodology: {
-    Fees: 'All fees paid by users for swap and bridge tokens via Jumper Exchange.',
-    Revenue: 'All fees are distributed to Jumper Exchange.',
-    ProtocolRevenue: 'All fees are distributed to Jumper Exchange.',
+// LI.FI API 'LIFI Fixed Fee' leg, equal to FeesForwarded per tx on EVM. Fee wallets: solana 34FKjAdVcTax2DHqV2XnbXa9J3zmyKcFuFKWbcmgxjgm,
+// bitcoin bc1qn2cstnjlvhxf60j3ujeyq0h0rqc7kklap8j94g, sui 0x90efcc7705e4b7753d79ae6c7430b9cb91c40ff281bc259c82f537f60be268a6
+const ApiChains = LIFI_API_CHAINS.filter((chain) => !OnchainChains.includes(chain) && !LIFI_UNSUPPORTED_CHAINS.includes(chain));
+const ApiFeeName = 'LIFI Fixed Fee';
+
+const fetchOnchain = async (options: FetchOptions, category: 'swap' | 'bridge', addFee: (token: string, amount: any) => void) => {
+  const forwarded: any[] = await options.getLogs({
+    targets: getFeeForwarders(options.chain),
+    eventAbi: FeesForwardedEvent,
+    entireLog: true,
+  });
+  const transactions = forwarded.length ? await getFeeTransactions(options) : new Map();
+
+  for (const log of forwarded) {
+    const transaction = transactions.get(String(log.transactionHash).toLowerCase());
+    if (!isJumperTransaction(transaction) || transaction.kind !== category) continue;
+    for (const fee of log.args.fees) addFee(String(log.args.token), fee.amount);
   }
 };
 
-export default adapter;
+type ApiFeeLeg = { chainId: number; kind: 'swap' | 'bridge'; token: string; amount: string };
+
+// one all-chain query per window, shared by both listings (li.quest: 100 req/min)
+const apiFeeLegs = new Map<string, Promise<ApiFeeLeg[]>>();
+const getApiFeeLegs = (start: number, end: number) => {
+  const key = `${start}-${end}`;
+  if (!apiFeeLegs.has(key)) {
+    if (apiFeeLegs.size >= 24) apiFeeLegs.delete(apiFeeLegs.keys().next().value!);
+    apiFeeLegs.set(key, fetchTransfersFromLIFIAPI(start, end, [...JumperIntegrators])
+      .then((transfers) => transfers.flatMap((transfer) => (transfer.feeCosts ?? [])
+        .filter((fee) => fee.name === ApiFeeName)
+        .map((fee) => ({
+          chainId: transfer.sending.chainId,
+          // refunded bridges report the source chain as receiving chain
+          kind: transfer.receiving.chainId === transfer.sending.chainId && transfer.substatus !== 'REFUNDED' ? 'swap' as const : 'bridge' as const,
+          token: fee.token.address,
+          amount: fee.amount,
+        }))))
+      .catch((error) => {
+        apiFeeLegs.delete(key);
+        throw error;
+      }));
+  }
+  return apiFeeLegs.get(key)!;
+};
+
+const fetchFromApi = async (options: FetchOptions, category: 'swap' | 'bridge', addFee: (token: string, amount: any) => void) => {
+  const chainId = Number(LifiDiamonds[options.chain].chainId ?? LifiDiamonds[options.chain].id);
+  for (const fee of await getApiFeeLegs(options.startTimestamp, options.endTimestamp)) {
+    if (fee.chainId === chainId && fee.kind === category) addFee(fee.token, fee.amount);
+  }
+};
+
+const fetch = (category: 'swap' | 'bridge') => async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const blacklist = new Set((DefaultDexTokensBlacklisted[options.chain] ?? []).map((token) => token.toLowerCase()));
+  const label = category === 'bridge' ? BridgeFee : SwapFee;
+
+  const addFee = (token: string, amount: any) => {
+    if (blacklist.has(token.toLowerCase())) return;
+    // API native-asset ids
+    if (options.chain === CHAIN.BITCOIN) return dailyFees.addCGToken('bitcoin', Number(amount) / 1e8, label);
+    if (options.chain === CHAIN.SOLANA && token === '11111111111111111111111111111111') token = ADDRESSES.solana.SOL;
+    if (options.chain === CHAIN.SUI && /^0x0*2::sui::SUI$/.test(token)) token = ADDRESSES.sui.SUI;
+    dailyFees.add(token, amount, label);
+  };
+
+  if (ApiChains.includes(options.chain as CHAIN)) await fetchFromApi(options, category, addFee);
+  else await fetchOnchain(options, category, addFee);
+
+  return { dailyFees, dailyRevenue: dailyFees.clone(), dailyProtocolRevenue: dailyFees.clone() };
+};
+
+export const createJumperFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapter => {
+  const label = category === 'bridge' ? BridgeFee : SwapFee;
+  const product = category === 'bridge' ? 'bridges' : 'swaps';
+  return {
+  version: 2,
+  pullHourly: true,
+  fetch: fetch(category),
+  adapter: Object.fromEntries([...OnchainChains, ...ApiChains].map((chain) => [chain, { start: JumperFeeStart }])),
+  methodology: {
+    Fees: `Jumper platform fees (0-5 bps depending on the assets) paid by users on ${product}.`,
+    Revenue: 'All platform fees are kept by Jumper.',
+    ProtocolRevenue: 'All platform fees are kept by Jumper.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [label]: `Jumper platform fees on ${product}.`,
+    },
+    Revenue: {
+      [label]: `Jumper platform fees on ${product}.`,
+    },
+    ProtocolRevenue: {
+      [label]: `Jumper platform fees on ${product}.`,
+    },
+  },
+  };
+};
+
+export default createJumperFeeAdapter('swap');

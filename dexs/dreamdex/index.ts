@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL, { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
+import { getConfig } from "../../helpers/cache";
 import PromisePool from "@supercharge/promise-pool";
 import { sleep } from "../../utils/utils";
 
@@ -21,7 +22,7 @@ const fetch = async (options: FetchOptions) => {
   const since = options.startTimestamp * 1000;
   const until = options.endTimestamp * 1000;
 
-  const { markets } = await fetchURL(`${API}/v0/markets`);
+  const { markets } = await getConfig('dreamdex/markets', `${API}/v0/markets`);
 
   await PromisePool.withConcurrency(5)
     .for(markets)

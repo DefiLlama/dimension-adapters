@@ -29,7 +29,10 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   fetch,
-  chains: [CHAIN.SUI],
+  // Off-chain order book with only a deposit contract on Sui (the audits cover the deposit
+  // contract alone and fills carry no Sui digests), so the venue is keyed as off_chain rather
+  // than Sui.
+  chains: [CHAIN.OFF_CHAIN],
   runAtCurrTime: true,
   methodology,
   breakdownMethodology: {

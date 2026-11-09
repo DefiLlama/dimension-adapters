@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -13,7 +14,7 @@ import { METRIC } from "../helpers/metrics";
 const POSITION_MANAGER = "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3";
 const RAVENHOOD_RITUAL = "0xF65227639636288F3ec7D1368DBf6e6F7a99b533"; // recipient of every collect()
 const POSITION_ID = "17757";
-const WETH = "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73"; // token0 (lower address)
+const WETH = ADDRESSES.robinhood.WETH; // token0 (lower address)
 const RVH = "0x96765066f6a040a21EB027167D2315B707c82633"; // token1
 
 const EVENTS = {

@@ -94,6 +94,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.SOMNIA]: {
       // fetch: getUniV3LogAdapter({ factory: '0x0ccff3D02A3a200263eC4e0Fdb5E60a56721B8Ae', ...config, swapEvent: undefined, }),
       start: '2025-08-29',
+    },
+    [CHAIN.POLYGON]: {
+      start: '2026-07-14',
     }
   }
 }

@@ -26,7 +26,7 @@ const fetch = async (options: FetchOptions) => {
     FROM solana.assets.transfers
     WHERE to_address IN (${vaults.map((a) => `'${a}'`).join(", ")})
       AND mint = '${ADDRESSES.solana.SOL}'
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     GROUP BY to_address
   `);
   
@@ -39,7 +39,7 @@ const fetch = async (options: FetchOptions) => {
       to_address = '${MeteoraPoolAuthority}'
       AND from_address = '${TREASURY}'
       AND mint = '${ADDRESSES.solana.SOL}'
-      AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
   `);
 
   const treasuryFlows = options.createBalances();

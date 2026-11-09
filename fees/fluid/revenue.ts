@@ -6,6 +6,7 @@ import { CHAIN } from "../../helpers/chains";
 import { ABI, CONFIG_FLUID, EVENT_ABI, FLUID_METRICS, LIQUIDITY, parseInTopic, TOPIC0 } from "./config";
 import { getVaultsT1Resolver } from "./fees";
 import { httpGet } from '../../utils/fetchURL';
+import { fetch as fetchFluidDex, FLUID_DEX_START } from "../../dexs/fluid-dex";
 
 interface BuybackData {
   amount: string;
@@ -89,7 +90,25 @@ const getUncollectedLiquidities = async (api: ChainApi, tokens: string[]) => {
   return api.multiCall({ calls: tokens.map((token) => ({ target: address, params: [token] })), abi: abi.getRevenue });
 };
 
-const getLiquidityRevenues = async ({ fromApi, api, getLogs, createBalances }: FetchOptions): Promise<Balances> => {
+// plasma only: one LogCollectRevenue query for every token, grouped by token. plasma is not on the logs indexer, and a query
+// per token (17 listed tokens) pushed its RPCs into 429s (rpc.plasma.to ~20 req/s, tenderly ~10 parallel), failing the run
+const getCollectedRevenuesByToken = async (getLogs: FetchOptions['getLogs']): Promise<Record<string, BigNumber>> => {
+  const logs = await getLogs({
+    target: LIQUIDITY,
+    onlyArgs: true,
+    eventAbi: EVENT_ABI.logCollectRevenue,
+    skipCacheRead: true,
+    skipIndexer: true
+  })
+  const collectedByToken: Record<string, BigNumber> = {};
+  for (const log of logs) {
+    const token = String(log.token).toLowerCase();
+    collectedByToken[token] = (collectedByToken[token] ?? new BigNumber(0)).plus(new BigNumber(log.amount || "0"));
+  }
+  return collectedByToken
+}
+
+const getLiquidityRevenues = async ({ fromApi, api, getLogs, createBalances, chain }: FetchOptions): Promise<Balances> => {
   const dailyValues = createBalances();
   const tokens: string[] = (await (await liquidityResolver(api)).listedTokens()).map((t: string) => t.toLowerCase());
   if (!tokens.length) return dailyValues
@@ -98,6 +117,7 @@ const getLiquidityRevenues = async ({ fromApi, api, getLogs, createBalances }: F
     getUncollectedLiquidities(fromApi, tokens),
     getUncollectedLiquidities(api, tokens),
   ]);
+  const collectedByToken = chain === CHAIN.PLASMA ? await getCollectedRevenuesByToken(getLogs) : undefined;
 
   for (const [index, token] of tokens.entries()) {
     if (!token) continue;
@@ -107,23 +127,28 @@ const getLiquidityRevenues = async ({ fromApi, api, getLogs, createBalances }: F
     const initialRev = new BigNumber(revenueFrom || "0");
     const finalRev = new BigNumber(revenueTo || "0");
 
-    // Default to 0 if revenues are missing
-    const collectedRevenueLogs = await getLogs({
-      target: LIQUIDITY,
-      onlyArgs: true,
-      topics:[TOPIC0.logCollectRevenue, parseInTopic(token)],
-      eventAbi: EVENT_ABI.logCollectRevenue,
-      skipCacheRead: true,
-      skipIndexer: true
-    })
+    let collectedRevenue: BigNumber;
+    if (collectedByToken) {
+      collectedRevenue = collectedByToken[token] ?? new BigNumber(0);
+    } else {
+      // Default to 0 if revenues are missing
+      const collectedRevenueLogs = await getLogs({
+        target: LIQUIDITY,
+        onlyArgs: true,
+        topics:[TOPIC0.logCollectRevenue, parseInTopic(token)],
+        eventAbi: EVENT_ABI.logCollectRevenue,
+        skipCacheRead: true,
+        skipIndexer: true
+      })
 
-    const collectedRevenue = collectedRevenueLogs.reduce(
-      (acc: BigNumber, log: any) => {
-        const amt = new BigNumber(log.amount || "0");
-        return acc.plus(amt);
-      },
-      new BigNumber(0)
-    );
+      collectedRevenue = collectedRevenueLogs.reduce(
+        (acc: BigNumber, log: any) => {
+          const amt = new BigNumber(log.amount || "0");
+          return acc.plus(amt);
+        },
+        new BigNumber(0)
+      );
+    }
 
     const net = finalRev.plus(collectedRevenue).minus(initialRev);
     const safeNet = net.isPositive() ? net : new BigNumber(0);
@@ -133,9 +158,8 @@ const getLiquidityRevenues = async ({ fromApi, api, getLogs, createBalances }: F
   return dailyValues
 };
 
-const getVaultT1UncollectedRevenues = async (api: ChainApi, createBalances: CreateBalances, vaults: string[]): Promise<Balances> => {
+const getVaultT1UncollectedRevenues = (createBalances: CreateBalances, vaultDatas: any[]): Balances => {
   const dailyRevenue = createBalances();
-  const vaultDatas = await (await getVaultsT1Resolver(api)).getVaultEntireData(vaults);
   if (!vaultDatas.length) return dailyRevenue
 
   for (const [_index, vault] of vaultDatas.entries()) {
@@ -200,12 +224,16 @@ const getVaultsT1Revenues = async ({ api, fromApi, createBalances, getLogs }: Fe
   const vaults: string[] = await (await getVaultsT1Resolver(api)).getAllVaultsAddresses();
   if (!vaults.length) return dailyRevenue
 
-  const [vaultUncollectedBalancesFrom, vaultUncollectedBalancesTo, vaultCollected] =
+  const [vaultDatasFrom, vaultDatasTo, vaultCollected] =
   await Promise.all([
-    getVaultT1UncollectedRevenues(fromApi, createBalances, vaults),
-    getVaultT1UncollectedRevenues(api, createBalances, vaults),
+    (await getVaultsT1Resolver(fromApi)).getVaultEntireData(vaults),
+    (await getVaultsT1Resolver(api)).getVaultEntireData(vaults),
     getVaultT1CollectedRevenues(api, createBalances, getLogs, vaults),
   ]);
+
+  const failedAtEitherEnd = (i: number) => (vaultDatasFrom.length && !vaultDatasFrom[i]) || (vaultDatasTo.length && !vaultDatasTo[i]);
+  const vaultUncollectedBalancesFrom = getVaultT1UncollectedRevenues(createBalances, vaultDatasFrom.filter((_: any, i: number) => !failedAtEitherEnd(i)));
+  const vaultUncollectedBalancesTo = getVaultT1UncollectedRevenues(createBalances, vaultDatasTo.filter((_: any, i: number) => !failedAtEitherEnd(i)));
 
   vaultUncollectedBalancesTo.addBalances(vaultCollected)
   vaultUncollectedBalancesTo.subtract(vaultUncollectedBalancesFrom);
@@ -214,12 +242,30 @@ const getVaultsT1Revenues = async ({ api, fromApi, createBalances, getLogs }: Fe
   return dailyRevenue
 };
 
+// Fluid DEX swaps settle through the Liquidity Layer: the full amountIn is transferred in, but the pool only credits
+// amountIn minus the protocol cut (fee x revenueCut), so that cut stays in the Liquidity Layer and shows up in
+// getLiquidityRevenues above. dexs/fluid-dex already reports the same cut as Fluid DEX revenue, so remove it here
+// to avoid counting it twice in the parent Fluid revenue.
+const getDexSwapRevenues = async (options: FetchOptions): Promise<Balances> => {
+  const start = FLUID_DEX_START[options.chain]
+  if (!start || options.startOfDay < Date.parse(start) / 1000) return options.createBalances()
+  const { dailyRevenue } = await fetchFluidDex(options) as { dailyRevenue: Balances }
+  // dex balances are keyed by checksummed address, liquidity layer balances by lowercase; normalize so subtract() matches
+  const dexRevenues = options.createBalances()
+  Object.entries(dailyRevenue.getBalances()).forEach(([token, amount]) => dexRevenues.add(token.split(':')[1].toLowerCase(), amount))
+  return dexRevenues
+}
+
 export const getDailyRevenue = async (options: FetchOptions): Promise<Balances> => {
   const dailyRevenue = options.createBalances()
-  const [liquidityRevenues, vaultRevenues] = await Promise.all([
+  const [liquidityRevenues, vaultRevenues, dexSwapRevenues] = await Promise.all([
     getLiquidityRevenues(options),
     getVaultsT1Revenues(options),
+    getDexSwapRevenues(options),
   ]);
+
+  liquidityRevenues.subtract(dexSwapRevenues)
+  liquidityRevenues.removeNegativeBalances()
 
   dailyRevenue.addBalances(liquidityRevenues, FLUID_METRICS.BorrowInterestToTreasury)
   dailyRevenue.addBalances(vaultRevenues, FLUID_METRICS.BorrowInterestToTreasury)

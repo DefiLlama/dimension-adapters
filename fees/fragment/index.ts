@@ -18,6 +18,19 @@ const FRAGMENT_ADDRESSES = [
 ];
 
 /**
+ * Telegram Usernames NFT collection (ton-labels: "Telegram Usernames NFT collection"). A bid that opens a
+ * username auction is paid to the collection, which forwards it in full to the new NFT item contract, so its
+ * in- and outflows are a pass-through: it stays in FRAGMENT_ADDRESSES as internal but is not counted as fees or
+ * payouts. Fragment's take is counted when the item pays a Fragment wallet at the end of the auction: the whole
+ * winning bid on a primary sale, only the 5% royalty on a resale, where the seller gets the rest.
+ */
+const USERNAMES_COLLECTION = '0:80D78A35F955A14B679FAA887FF4CD5BFC0F43B4A4EEA2A7E6927F3701B273C2';
+
+// USDT on TON (EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs). Fragment takes USDT for Stars, Premium and Ads
+// (ton-labels: "Fragment USDT jetton wallet"), paid in volume from 2026-05-11.
+const USDT_MASTER = '0:B113A994B5024A16719F69139328EB759596C38A25F59028B146FECDC3621DFE';
+
+/**
  * Telegram-controlled wallets (label = 'telegram' in ton-labels). These send
  * operational funding to Fragment and receive returns. Excluded on both sides
  * to avoid counting internal Telegram <-> Fragment flows as user fees or payouts.
@@ -29,82 +42,105 @@ const TELEGRAM_WALLETS = [
 ];
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
-  // Workaround for dune indexing issue
+  // Workaround for dune indexing issue: a day's ton.messages rows can carry an _ingested_at more than two hours
+  // after the day ends (up to 7.25 hours on 2026-06-02..11-01). With a two hour wait those days were stored near
+  // zero, and the message_count check below does not catch them. ton.jetton_events (the USDT leg) loads each day
+  // as one batch, at most 7.25 hours after the day ends on 2026-05-11..11-06, so the same wait covers it.
   const now = Date.now()
-  const twoHoursAgo = now - (2 * 60 * 60 * 1000)
-  if ((options.toTimestamp * 1000) > twoHoursAgo) {
-      console.log("End timestamp is less than 2 hours ago, skipping fetch due to dune indexing delay", new Date(options.toTimestamp * 1000).toISOString(), new Date(twoHoursAgo).toISOString())
-      throw new Error("End timestamp is less than 2 hours ago, skipping due to dune indexing delay")
+  const tenHoursAgo = now - (10 * 60 * 60 * 1000)
+  if ((options.toTimestamp * 1000) > tenHoursAgo) {
+      console.log("End timestamp is less than 10 hours ago, skipping fetch due to dune indexing delay", new Date(options.toTimestamp * 1000).toISOString(), new Date(tenHoursAgo).toISOString())
+      throw new Error("End timestamp is less than 10 hours ago, skipping due to dune indexing delay")
   }
 
   const fragmentAddressList = FRAGMENT_ADDRESSES.map(a => `'${a}'`).join(', ');
   const telegramAddressList = TELEGRAM_WALLETS.map(a => `'${a}'`).join(', ');
 
+  // One Dune execution reads both legs. message_count and transfer_count are each window's total row count
+  // (all TON messages, all USDT transfers on TON): they separate a day Fragment really took nothing from a day
+  // the table has not been loaded for, which the sums cannot do on their own.
   const query = `
-    WITH fees AS (
-      SELECT SUM(value / 1e9) AS ton_received
+    WITH ton_leg AS (
+      SELECT
+        COUNT(*) AS message_count,
+        COALESCE(SUM(CASE WHEN destination IN (${fragmentAddressList})
+                           AND destination <> '${USERNAMES_COLLECTION}'
+                           AND source NOT IN (${fragmentAddressList})
+                           AND source NOT IN (${telegramAddressList})
+                          THEN value / 1e9 END), 0) AS ton_received,
+        COALESCE(SUM(CASE WHEN source IN (${fragmentAddressList})
+                           AND source <> '${USERNAMES_COLLECTION}'
+                           AND destination NOT IN (${fragmentAddressList})
+                           AND destination NOT IN (${telegramAddressList})
+                          THEN value / 1e9 END), 0) AS ton_sent
       FROM ton.messages
       WHERE direction = 'in'
         AND NOT bounced
         AND value > 0
-        AND destination IN (${fragmentAddressList})
-        AND source NOT IN (${fragmentAddressList})
-        AND source NOT IN (${telegramAddressList})
         AND block_time >= from_unixtime(${options.fromTimestamp})
         AND block_time < from_unixtime(${options.toTimestamp})
     ),
-    supply_side AS (
-      SELECT SUM(value / 1e9) AS ton_sent
-      FROM ton.messages
-      WHERE direction = 'in'
-        AND NOT bounced
-        AND value > 0
-        AND source IN (${fragmentAddressList})
-        AND destination NOT IN (${fragmentAddressList})
-        AND destination NOT IN (${telegramAddressList})
+    usdt_leg AS (
+      SELECT
+        COUNT(*) AS transfer_count,
+        COALESCE(SUM(CASE WHEN destination IN (${fragmentAddressList})
+                           AND destination <> '${USERNAMES_COLLECTION}'
+                           AND source NOT IN (${fragmentAddressList})
+                           AND source NOT IN (${telegramAddressList})
+                          THEN CAST(amount AS DOUBLE) / 1e6 END), 0) AS usdt_received
+      FROM ton.jetton_events
+      WHERE type = 'transfer'
+        AND NOT tx_aborted
+        AND jetton_master = '${USDT_MASTER}'
         AND block_time >= from_unixtime(${options.fromTimestamp})
         AND block_time < from_unixtime(${options.toTimestamp})
     )
-    SELECT
-      COALESCE(fees.ton_received, 0) AS ton_received,
-      COALESCE(supply_side.ton_sent, 0) AS ton_sent
-    FROM fees
-    CROSS JOIN supply_side`;
+    SELECT * FROM ton_leg CROSS JOIN usdt_leg`;
 
-  const queryResults = await queryDuneSql(options, query);
+  const [row] = await queryDuneSql(options, query);
 
-  if (!queryResults[0]) {
+  if (!row) {
     throw new Error('Dune query returned no results');
   }
 
-  if (queryResults[0].ton_received == null || queryResults[0].ton_sent == null) {
-    throw new Error(`Unexpected Dune result shape: ${JSON.stringify(queryResults[0])}`);
+  if (row.ton_received == null || row.ton_sent == null || row.usdt_received == null) {
+    throw new Error(`Unexpected Dune result shape: ${JSON.stringify(row)}`);
+  }
+
+  // A TON day carries millions of messages and USDT transfers, so an empty window means the table has not
+  // been loaded that far yet rather than that nothing happened. Publishing the sums as a zero day would bury it.
+  if (Number(row.message_count) === 0) {
+    throw new Error(`ton.messages has no rows for ${options.dateString}, refusing to report it as a zero fee day`);
+  }
+  if (Number(row.transfer_count) === 0) {
+    throw new Error(`ton.jetton_events has no USDT transfers for ${options.dateString}, refusing to report it as zero USDT`);
   }
 
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken("the-open-network", queryResults[0].ton_received);
+  dailyFees.addCGToken("the-open-network", row.ton_received);
+  dailyFees.addCGToken("tether", row.usdt_received);
 
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addCGToken("the-open-network", queryResults[0].ton_sent);
+  dailySupplySideRevenue.addCGToken("the-open-network", row.ton_sent);
 
   const dailyRevenue = dailyFees.clone();
   dailyRevenue.subtract(dailySupplySideRevenue);
 
   return {
       dailyFees,
-      dailyUserFees: dailyFees,
+      dailyUserFees: dailyFees.clone(),
       dailyRevenue,
-      dailyProtocolRevenue: dailyRevenue,
+      dailyProtocolRevenue: dailyRevenue.clone(),
       dailySupplySideRevenue,
   }
 }
 
 const methodology = {
-  Fees: "All TON payments received by Fragment wallets, excluding Telegram-controlled wallet flows and inter-Fragment wallet transfers. Covers: Telegram Stars, Ads, Premium, Gift Market, Gateway, username auctions, and Telegram Gifts.",
-  UserFees: "Same as Fees: TON payments made by users to Fragment wallets on TON.",
-  Revenue: "Fees minus supply-side revenue. Note: Stars purchased via Apple Pay/Google Pay are settled off-chain but paid out on-chain, so on-chain revenue may understate actual revenue.",
-  ProtocolRevenue: "Same as Revenue — all retained revenue goes to Telegram (Fragment operator).",
-  SupplySideRevenue: "All TON paid out by Fragment wallets to external addresses, excluding Telegram-controlled wallet returns and inter-Fragment transfers. Primarily: bot developer rewards, channel owner rewards, and user Stars rewards."
+  Fees: "All TON and USDT payments received by Fragment wallets, excluding Telegram-controlled wallet flows and inter-Fragment wallet transfers. Covers: Telegram Stars, Ads, Premium, Gift Market, Gateway, username auctions, and Telegram Gifts. Bids passing through the Telegram Usernames NFT collection on their way to the auction contracts are not counted; what reaches a Fragment wallet afterwards is: the whole winning bid on a primary sale, the 5% royalty on a resale.",
+  UserFees: "TON and USDT paid by users to Fragment wallets for Telegram Stars, Ads, Premium, Gift Market, Gateway, username auctions and Telegram Gifts, excluding Telegram-controlled wallet flows and inter-Fragment wallet transfers.",
+  Revenue: "TON and USDT payments to Fragment minus the TON rewards it pays out to bot developers, channel owners and users. Note: Stars purchased via Apple Pay/Google Pay are settled off-chain but paid out on-chain, so on-chain revenue may understate actual revenue.",
+  ProtocolRevenue: "TON and USDT payments to Fragment minus the TON rewards it pays out, all kept by Telegram (Fragment's operator). Stars purchased via Apple Pay/Google Pay are settled off-chain but paid out on-chain, so this may understate actual revenue.",
+  SupplySideRevenue: "All TON paid out by Fragment wallets to external addresses, excluding Telegram-controlled wallet returns, inter-Fragment transfers and bids forwarded by the Usernames collection. Primarily: bot developer rewards, channel owner rewards, and user Stars rewards."
 };
 
 const adapter: SimpleAdapter = {

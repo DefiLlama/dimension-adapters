@@ -65,10 +65,10 @@ const loanOriginatedByHashQuery = gql`
   }
 `;
 
-const loanMigratedByV2HashQuery = gql`
-  query GetLoanMigrationByV2Hash($loanTermsHash: Bytes!) {
-    loanMigrateds(where: { loanTermsHashV2: $loanTermsHash }, first: 1) {
-      loanTerms
+const loanByHashQuery = gql`
+  query GetLoanByHash($loanTermsHash: ID!) {
+    loan(id: $loanTermsHash) {
+      currencyToken
     }
   }
 `;
@@ -138,20 +138,12 @@ const fetch: any = async (options: FetchOptions) => {
   const getV2CurrencyToken = (loanTermsHash: string): Promise<string> => {
     let cached = v2CurrencyTokenCache.get(loanTermsHash);
     if (!cached) {
-      cached = request(LOAN_ROUTER_V2_SUBGRAPH_API, loanOriginatedByHashQuery, { loanTermsHash })
-        .then(async (response: any) => {
-          if (response.loanOriginateds?.length) {
-            return response.loanOriginateds[0].currencyToken.id;
+      cached = request(LOAN_ROUTER_V2_SUBGRAPH_API, loanByHashQuery, { loanTermsHash })
+        .then((response: any) => {
+          if (!response.loan?.currencyToken) {
+            throw new Error(`No v2 loan found for loan terms hash ${loanTermsHash}`);
           }
-          // Loans migrated from the v1 router emit LoanMigrated instead of LoanOriginated, and the
-          // migration redenominates the loan (v1 PYUSD loans became USDai loans), so the currency
-          // token has to come from the abi-encoded v2 loan terms (4th word) rather than the v1
-          // origination.
-          const migration = await request(LOAN_ROUTER_V2_SUBGRAPH_API, loanMigratedByV2HashQuery, { loanTermsHash });
-          if (!migration.loanMigrateds?.length) {
-            throw new Error(`No v2 loan origination or migration found for loan terms hash ${loanTermsHash}`);
-          }
-          return '0x' + migration.loanMigrateds[0].loanTerms.slice(2 + 3 * 64 + 24, 2 + 4 * 64);
+          return response.loan.currencyToken;
         });
       v2CurrencyTokenCache.set(loanTermsHash, cached);
     }

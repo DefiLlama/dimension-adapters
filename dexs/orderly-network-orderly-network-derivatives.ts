@@ -60,6 +60,9 @@ const chainConfig: Record<string, { chainId: number, start: string }> = {
   [CHAIN.ABSTRACT]: { chainId: 2741, start: "2025-05-29" },
   [CHAIN.BSC]: { chainId: 56, start: "2025-06-27" },
   [CHAIN.MONAD]: { chainId: 143, start: "2025-11-24" },
+  // chainIds from api.orderly.org/v1/public/chain_info; start = first day with volume in daily_stats volumeBreakdown
+  [CHAIN.XLAYER]: { chainId: 196, start: "2026-08-05" },
+  [CHAIN.ROBINHOOD]: { chainId: 4663, start: "2026-08-28" },
 }
 
 const fetch = async (options: FetchOptions) => {

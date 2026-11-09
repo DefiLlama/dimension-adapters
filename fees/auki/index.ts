@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
@@ -5,7 +6,7 @@ import { addTokensReceived } from "../../helpers/token";
 async function fetch(options: FetchOptions) {
     const aukiBurnt = await addTokensReceived({
         options,
-        target: '0x0000000000000000000000000000000000000000',
+        target: ADDRESSES.null,
         tokens: ['0xf9569cfb8fd265e91aa478d86ae8c78b8af55df4']
     });
 

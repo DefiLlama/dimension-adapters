@@ -1,13 +1,14 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const V2_FACTORY = "0x1D283b668F947E03E8ac8ce8DA5505020434ea0E";
 const V3_FACTORY = "0xf1d64dee9f8e109362309a4bfbb523c8e54fa1aa";
-const USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
-const WETH = "0x4200000000000000000000000000000000000006";
-const CBBTC = "0xcbb7c0000ab88b473b1f5afd9ef808440eed33bf";
+const USDC = ADDRESSES.base.USDC;
+const WETH = ADDRESSES.optimism.WETH_1;
+const CBBTC = ADDRESSES.ethereum.cbBTC;
 const ASSETS = [USDC, WETH, CBBTC];
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ADDRESSES.null;
 
 const V3_VAULT_DEPLOYED =
   "0x30f7c1411599514d4a6ee3d132cced214b34bbe4c49d77f74391224dc6d8d635";

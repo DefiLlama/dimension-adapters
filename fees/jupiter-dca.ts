@@ -1,63 +1,57 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { getSolanaReceived } from "../helpers/token"
-import { JUPITER_METRICS, jupBuybackRatioFromRevenue } from "./jupiter";
+import { JUPITER_METRICS, jupTreasuryShare } from "./jupiter";
+import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../helpers/jupiter-stats";
 
-const fethcFeesSolana = async (options: FetchOptions) => {
-  const fees = await getSolanaReceived({ options, targets: [
-    'CpoD6tWAsMDeyvVG2q2rD1JbDY6d4AujnvAn2NdrhZV2'
-  ]})
+const LEGACY_DCA_FEE_WALLET = 'CpoD6tWAsMDeyvVG2q2rD1JbDY6d4AujnvAn2NdrhZV2'
+const fetchOnchain = async (options: FetchOptions) => {
+  const legacyFees = await getSolanaReceived({ options, targets: [LEGACY_DCA_FEE_WALLET] })
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-  
-  dailyFees.add(fees, JUPITER_METRICS.JupDCAFees);
-  dailyRevenue.add(fees, JUPITER_METRICS.JupDCAFees);
-  
-  const buybackRatio = jupBuybackRatioFromRevenue(options.startOfDay);
-  const revenueHolders = dailyRevenue.clone(buybackRatio);
-  const revenueProtocol = dailyRevenue.clone(1 - buybackRatio);
-  dailyProtocolRevenue.add(revenueProtocol, JUPITER_METRICS.JupDCAFees);
-  dailyHoldersRevenue.add(revenueHolders, JUPITER_METRICS.TokenBuyBack);
-
+  dailyFees.add(legacyFees, JUPITER_METRICS.JupDCAFees);
   return {
     dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
-    dailyHoldersRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees.clone(jupTreasuryShare(options.startOfDay)),
+    dailyHoldersRevenue: 0, // JUP buybacks are counted on the Jupiter Aggregator listing
   }
 }
 
+// From 2026-01-01, Jupiter's stats API: DCA v1 fees in the legacy wallet above, and DCA v2 fees from orders settled as
+// swaps signed by the keeper gasBidSWW5zmwXs3gn8TG2ijzKkrwpyM7ucwjgDQst6. Limit order fees are on the Jupiter Limit listing.
+const fetchStatsApi = async (options: FetchOptions) => {
+  const { dailyFees, dailyRevenue } = await getJupiterStatsRevenue(options, { dca: JUPITER_METRICS.JupDCAFees })
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)), dailyHoldersRevenue: 0 }
+}
+
+const fetchFeesSolana = async (options: FetchOptions) =>
+  options.startOfDay >= JUPITER_STATS_API_START_TS ? fetchStatsApi(options) : fetchOnchain(options)
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  version: 1,
+  isExpensiveAdapter: true,
   dependencies: [Dependencies.ALLIUM],
   adapter: {
     [CHAIN.SOLANA]: {
-      fetch: fethcFeesSolana,
+      fetch: fetchFeesSolana,
       start: '2024-01-01',
     },
   },
   methodology: {
-    Fees: 'All DCA trading fees.',
-    Revenue: 'All fees collected by protocol and JUP token holders.',
-    ProtocolRevenue: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
-    HoldersRevenue: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
+    Fees: 'Fees paid by users on DCA (recurring) orders.',
+    Revenue: 'All DCA fees, kept by Jupiter.',
+    ProtocolRevenue: "Half of DCA fees, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+    HoldersRevenue: "No holders revenue on this listing: the JUP bought back with the other half of DCA fees is counted on the Jupiter Aggregator listing.",
   },
   breakdownMethodology: {
     Fees: {
-      [JUPITER_METRICS.JupDCAFees]: 'All DCA trading fees.',
+      [JUPITER_METRICS.JupDCAFees]: 'Fees paid by users on DCA orders.',
     },
     Revenue: {
-      [JUPITER_METRICS.JupDCAFees]: 'All fees collected by protocol and JUP token holders',
+      [JUPITER_METRICS.JupDCAFees]: 'All DCA fees, kept by Jupiter.',
     },
     ProtocolRevenue: {
-      [JUPITER_METRICS.JupDCAFees]: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
-    },
-    HoldersRevenue: {
-      [JUPITER_METRICS.TokenBuyBack]: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
+      [JUPITER_METRICS.JupDCAFees]: 'Half of DCA fees, kept by the treasury.',
     },
   }
 }

@@ -25,6 +25,7 @@ const eVaultFactories: Record<string, string> = {
   [CHAIN.PLASMA]: "0x42388213C6F56D7E1477632b58Ae6Bba9adeEeA3",
   [CHAIN.MANTLE]: "0x47Aaf2f062aa1D55AFa602f5C9597588f71E2d76",
   [CHAIN.MONAD]: "0xba4Dd672062dE8FeeDb665DD4410658864483f1E",
+  [CHAIN.HYPERLIQUID]: "0xcF5552580fD364cdBBFcB5Ae345f75674c59273A",
 };
 
 const feeFlowControllers: Record<string, string> = {
@@ -148,6 +149,12 @@ export const EulerChainConfigs: Record<string, EulerChainConfig> = {
     feeFlowController: feeFlowControllers[CHAIN.MONAD],
     tokenEUL: tokenEUL[CHAIN.MONAD],
     start: '2025-11-23',
+  },
+  [CHAIN.HYPERLIQUID]: {
+    eVaultAddress: eVaultFactories[CHAIN.HYPERLIQUID],
+    feeFlowController: feeFlowControllers[CHAIN.HYPERLIQUID],
+    tokenEUL: tokenEUL[CHAIN.HYPERLIQUID],
+    start: '2026-02-04',
   },
   
   // no vaults created

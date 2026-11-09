@@ -2,6 +2,23 @@ import { Chain } from "../adapters/types";
 import { request, gql } from "graphql-request";
 import {  FetchOptions, FetchResultV2 } from "../adapters/types";
 import BigNumber from "bignumber.js";
+import { sleep } from "../utils/utils";
+
+// graph-node intermittently fails a valid query with a transient
+// `Store error: store error: prepared statement "__diesel_stmt_0" already exists`
+// (seen on graph.pulsechain.com); the next attempt succeeds. Retry only that, and
+// rethrow anything else (or the last failure) so a broken subgraph still fails loudly.
+async function requestWithRetry(url: string, query: string, variables: any, retries = 3): Promise<any> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await request(url, query, variables)
+    } catch (e: any) {
+      const isTransient = (e?.response?.errors ?? []).some((err: any) => String(err?.message).includes('Store error'))
+      if (!isTransient || attempt >= retries) throw e
+      await sleep(1000 * (attempt + 1))
+    }
+  }
+}
 
 interface IGetChainFeeParams {
   totalFees?: number,
@@ -97,11 +114,11 @@ function getChainVolume2({
       const endBlock = (await (getCustomBlock ? getCustomBlock(endTimestamp) : getEndBlock())) ?? undefined;
       const startBlock = (await (getCustomBlock ? getCustomBlock(startTimestamp) : getStartBlock())) ?? undefined;
 
-      const graphResTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block: endBlock }) : undefined;
+      const graphResTotal = hasTotalVolume ? await requestWithRetry(graphUrls[chain], graphQueryTotalVolume, { block: endBlock }) : undefined;
       const total = graphResTotal ? graphResTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalVolume.field]), 0) : undefined;
       const totalFees = totalFeesField && graphResTotal ? graphResTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalFeesField]), 0) : undefined;
 
-      const graphResPrevTotal = hasTotalVolume ? await request(graphUrls[chain], graphQueryTotalVolume, { block: startBlock }) : undefined;
+      const graphResPrevTotal = hasTotalVolume ? await requestWithRetry(graphUrls[chain], graphQueryTotalVolume, { block: startBlock }) : undefined;
       const prevTotal = graphResPrevTotal ? graphResPrevTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalVolume.field]), 0) : undefined;
       const prevTotalFees = totalFeesField && graphResPrevTotal ? graphResPrevTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalFeesField]), 0) : undefined;
 

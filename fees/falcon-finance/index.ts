@@ -19,7 +19,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     target: "0x8407e9864F42374Cb9DACfDEDe0e6962d634edCB",
     eventAbi: "event FeesCollected(uint256 indexed tokenId, uint256 amount)",
   })
-  const totalNftFees = nftFeeEvents.reduce((acc, event) => acc + Number(event.amount), 0)
+  const totalNftFees = nftFeeEvents.reduce((acc, event) => acc + BigInt(event.amount), 0n)
   const assetValue = await options.api.call({
     target: susdfToken,
     abi: 'function convertToAssets(uint256 shares) view returns (uint256)',

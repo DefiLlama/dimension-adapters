@@ -9,6 +9,9 @@ interface IChartItem {
   dailyRevenue: number;
 }
 
+const volumeEndpoint = "https://public-osmosis-api.numia.xyz/volume/historical/chart";
+const MAX_FEES_TO_VOLUME = 0.05;
+
 const fetch = async ({ dateString, createBalances }: FetchOptions) => {
   const feeEndpoint = `https://public-osmosis-api.numia.xyz/external/defillama/chain_fees_and_revenue`;
   const historicalFees: IChartItem[] = await fetchURL(feeEndpoint);
@@ -18,6 +21,15 @@ const fetch = async ({ dateString, createBalances }: FetchOptions) => {
   );
   if (!dayData) {
     throw new Error(`No data found for ${dateString}`);
+  }
+
+  const historicalVolume: { time: string, value: number }[] = await fetchURL(volumeEndpoint);
+  const dayVolume = historicalVolume.find(dayItem => dayItem.time.split('T')[0] === dateString)?.value;
+  if (dayVolume === undefined) {
+    throw new Error(`osmosis: no swap volume for ${dateString} to check the reported fees against`);
+  }
+  if (dayData.dailyFees > MAX_FEES_TO_VOLUME * dayVolume) {
+    throw new Error(`osmosis: numia reports ${Math.round(dayData.dailyFees)} of fees for ${dateString} on ${Math.round(dayVolume)} of swap volume; refusing it until the source is corrected`);
   }
 
   const dailyFees = createBalances();

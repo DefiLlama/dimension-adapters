@@ -3,10 +3,33 @@ import ADDRESSES from '../helpers/coreAssets.json'
 
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { queryDuneSql } from "../helpers/dune";
+import { duneBlockchain, queryDuneSql } from "../helpers/dune";
+import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 import { METRIC } from '../helpers/metrics';
 
 const topic: string = '0x2d720abb2e4bf42730e89955397ce0f5b08db0caff9be7e08ca184a8b1b2db2f';
+
+// The fee (word 3 of the event) can be in a stablecoin, and on BSC, where stablecoins have 18 decimals, it would read as BNB.
+// Word 6 is the trade type: 5 and 6 are always stablecoin-quoted. 15 is on older routers (1.67 USDC:
+// 0xfda5649d62d418bc758654716b11c21c247f68a04fc614508aa514db828020b9) and native on the current one, where it is 0.015 BNB
+// in seven weeks, so it is skipped as well.
+const STABLE_QUOTED_TYPES = [5, 6, 15];
+// This BSC router also has 13 stablecoin-quoted logs of types 30 and 40 (2.8625 USDC:
+// 0x07f92f1f8c28daef1ca23986c9ffcb6adc59c6d6d5638eef16aa85f6ef780bff). All have a fee word above 0.5; its largest native
+// fee is 0.36. It stopped emitting on 2026-09-15.
+const BSC_ROUTER_2026_08 = '0x0b6df1888ed6aced6fc50ab39f354a7c8d08c9b1';
+const BSC_ROUTER_2026_08_MAX_NATIVE_FEE = 0.5e18;
+
+// Bloom rotates EVM routers every few weeks (see dexs/bloom.ts, #9101). Every router added below emits the fee event above
+// and was deployed by Bloom's deployers 0x224bede13247a4dc56f834c3040a9510fe9fb140 or 0x51fd71313b273fe24be8a83b054367c2ee53fc20
+// (#9101), or by 0x2083491e54e243930fa6715751342551097d1d07, which 0x51fd7131 funded seconds before each deploy.
+// 0xb1000000096b.. is the same address on every chain.
+const ROUTER_2026_09 = '0xb1000000096bd2f8ca9b6883182eccaf31e7c3fd';
+
+// 0x51fd7131, which takes the EVM fees, sends part of them to this wallet, which pays dozens of other wallets, traders
+// among them. That fits referral or cashback rewards. It is inferred from flows, like the Solana reward relayers below;
+// Bloom has not confirmed it.
+const EVM_REWARD_RELAYER = '0xb5e7cfd3c8fc55c126030e633b0f2520e1c3ebf6';
 
 const LABELS = {
   TRADING_FEES_TO_PROTOCOL: 'Trading Fees To Protocol',
@@ -42,6 +65,7 @@ const chainConfig: any = {
       'EgMp6MRqnJ7RNiJAMymXA518bma8pfsuqCp6RdcJpx5e',
       '5sUSHnxvcKzDkkj9xQuxj5rzqj1bkvnwMUVQbfRMtJpY',
       'toAPhdPcxDZsm2ziAgKcLLb5FMvhsUxqWpRvxTnYfnP',
+      '3YtdHj6fyWtxax9mEcyXsah5Gff2E8C9cBPLa6DSDLcy', // took over the two-hourly sweep from 9Pbhcx above on 2026-10-02
     ],
     // Before this date, referral/cashback rewards were only paid out via the reward relayers above.
     // From this date on, some payouts also go directly from the fees wallet to recipients, so we start
@@ -74,6 +98,8 @@ const chainConfig: any = {
       // '0x6a70a077396799cfcef957eb6a19297beaa18da4',
       // '0x70e6950543db45784ed7820143bdd103bac58f3d',
       // '0x2621f7ce52aaee20eeaf8a00c7650b014e3e83f1',
+      BSC_ROUTER_2026_08,                           // deployer 0x51fd7131, 2026-08-03 (#9101)
+      ROUTER_2026_09,                               // 2026-09-08
     ],
   },
   [CHAIN.BASE]: {
@@ -102,12 +128,62 @@ const chainConfig: any = {
       // '0x6b3e4cb25a81050f35ff94a7048f2960cce0ac3d',
       // '0x70c956575b722ecdc1b26ede30f958efb9634bbc',
       // '0x4198fdc83f4c47b79d5ce84927a758bc85b9b3ec',
+      '0xe25e101544644aa57fe9fc99c5849172d4ff0d06', // deployer 0x224bede1, 2025-03-16
+      '0x07438f04d1045a2a11f5fce0f7f134caff5cf7c5', // deployer 0x224bede1, 2025-08-01
+      '0xa845de997649c047586300f906bcf01793836ef6', // deployer 0x224bede1, 2026-02-20
+      '0x1ce3712395ee4798ac9548b3e0220ea6a2b61e79', // deployer 0x224bede1, 2026-02-25 (#9101)
+      '0xa538ad204049850fd4ba8f5b33479c7e7defd00b', // deployer 0x51fd7131, 2026-08-14 (#9101)
+      '0x2bcd342b43fa9610b537c0c52a4793fd5bd290af', // deployer 0x51fd7131, 2026-08-14 (#9101)
+      '0x7aef6bb1604c8bad36f663979a78430298e2581e', // deployer 0x51fd7131, 2026-08-18 (#9101)
+      ROUTER_2026_09,                               // 2026-09-08
+    ],
+  },
+  [CHAIN.ETHEREUM]: {
+    start: '2025-04-05',
+    contracts: [
+      '0xb1000058c87d843fc0154591ff9d72af5e7213d5', // deployer 0x224bede1, 2025-04-05
+      '0xf3314c1c9328010aad2215602c5d92b97ffafc27', // deployer 0x224bede1, 2026-04-20
+      '0xe1fcfbca7544c19e8252f74c357f951561988149', // deployer 0x224bede1, 2026-04-22
+      '0xc6eca4badd69d11b66e2a07fce558def61ac09a0', // deployer 0x224bede1, 2026-04-23
+      '0xcece550b4db17dffad10036a75c479a2a77ff539', // deployer 0x224bede1, 2026-04-26
+      '0xb2634d96381b65afbbfc2973fa088c40c894fffb', // deployer 0x224bede1, 2026-04-30
+      ROUTER_2026_09,                               // 2026-09-25
+    ],
+  },
+  [CHAIN.ROBINHOOD]: {
+    start: '2026-07-04',
+    // all deployed by 0x51fd7131 between 2026-07-04 and 2026-08-11, then ROUTER_2026_09 from 2026-08-26
+    contracts: [
+      '0x4fe3d3b9553af616514bc78fc34602ffe532eaa2',
+      '0x23d3232938c716f8cac8b7735a42f3477609a68a',
+      '0xc3b66d2c097db6b55612f4e905b63d93cd4fd3ab',
+      '0x4e5ffb3bd801d9db9a98daee7d4293afd46da677',
+      '0x4e69084f83a635d6270e8f959864f94207031889',
+      '0x685ff26adeda953ca7dbaa1aeb3041c639ffa309',
+      '0x2d6d62baa589991334d68246afdb19adc0fb3526',
+      '0xc86ab5dcfb71544cfacbb7ccd53d2926bc152535',
+      '0x9f0be81f2d46e685177f17d4f7583e04ab492b04',
+      '0x3a445a2ecc4e3ce6486f4f94402f9363394b1724',
+      '0x49eada45eeca00f5bad7a854899197614e7cab6e',
+      '0xcaf8ac91e884027b47083ac7af6471129b6830e8',
+      ROUTER_2026_09,
+    ],
+  },
+  [CHAIN.ARC]: {
+    start: '2026-07-29',
+    contracts: [
+      '0x86732f0b5a88eba3633c03ab90bdf6a0f3408632', // deployer 0x51fd7131, 2026-07-29
+      ROUTER_2026_09,                               // 2026-09-12
     ],
   },
 }
 
 
 async function fetchSolana(options: FetchOptions) {
+  // tokens_solana.transfers finishes a day hours late, and a run before that stores part of the day: 14 of the 30 days in
+  // 2026-10-03..11-01, read through about 18:00 UTC.
+  assertDuneSolanaIndexed(options);
+
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const { feesWallet, rewardRelayers, internalWallets, directRewardRelayerStart } = chainConfig[CHAIN.SOLANA];
@@ -128,7 +204,7 @@ async function fetchSolana(options: FetchOptions) {
         AND action = 'transfer'
         AND token_mint_address IN (
           'So11111111111111111111111111111111111111111',
-          'So11111111111111111111111111111111111111112'
+          '${ADDRESSES.solana.SOL}'
         )
         AND (
           to_owner = '${feesWallet}'
@@ -188,8 +264,6 @@ async function fetchSolana(options: FetchOptions) {
   return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 }
 
-// Note: on EVM (BSC/Base) we don't yet track referral/cashback payouts, so all fees are counted as
-// protocol revenue here. If/when EVM referral tracking is added, deduct it like fetchSolana does.
 async function fetchEVM(options: FetchOptions) {
   const { contracts } = chainConfig[options.chain];
   const logs = await options.getLogs({
@@ -199,15 +273,42 @@ async function fetchEVM(options: FetchOptions) {
   })
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   logs.forEach((log: any) => {
     const data = log.data.replace('0x', '');
+    const tradeType = data.length >= 6 * 64 ? Number('0x' + data.slice(5 * 64, 6 * 64)) : 0;
+    if (STABLE_QUOTED_TYPES.includes(tradeType)) return;
     const fees_amount = Number('0x' + data.slice((2 * 64), (2 * 64) + 64));
+    if (log.address.toLowerCase() === BSC_ROUTER_2026_08 && fees_amount > BSC_ROUTER_2026_08_MAX_NATIVE_FEE) return;
     dailyFees.addGasToken(fees_amount, METRIC.TRADING_FEES);
     dailyRevenue.addGasToken(fees_amount, LABELS.TRADING_FEES_TO_PROTOCOL);
   })
-  return { dailyFees, dailyRevenue }
+
+  // Payouts lag the fees that fund them, so a day's revenue can be negative, as on Solana (allowNegativeValue below).
+  // A chain where the relayer sent nothing in the window has no row in the prefetch.
+  const payoutRow = options.preFetchedResults.find((row: any) => row.blockchain === duneBlockchain(options.chain));
+  const referralCashbackRewards = Number(payoutRow?.payouts ?? 0);
+  dailySupplySideRevenue.addGasToken(referralCashbackRewards, LABELS.REFERRAL_CASHBACK_PAYOUT);
+  dailyRevenue.addGasToken(-referralCashbackRewards, LABELS.TRADING_FEES_TO_PROTOCOL);
+
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 }
 
+
+const EVM_CHAINS = Object.keys(chainConfig).filter((chain) => chain !== CHAIN.SOLANA);
+
+async function prefetch(options: FetchOptions) {
+  return queryDuneSql(options, `
+    SELECT blockchain, SUM(value) AS payouts
+    FROM evms.transactions
+    WHERE blockchain IN (${EVM_CHAINS.map((chain) => `'${duneBlockchain(chain)}'`).join(', ')})
+      AND "from" = ${EVM_REWARD_RELAYER}
+      AND success
+      AND value > uint256 '0'
+      AND TIME_RANGE
+    GROUP BY blockchain
+  `);
+}
 
 async function fetch(options: FetchOptions) {
   return options.chain === CHAIN.SOLANA ? fetchSolana(options) : fetchEVM(options);
@@ -234,6 +335,7 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
+  prefetch,
   adapter: chainConfig,
   isExpensiveAdapter: true,
   // Solana daily revenue (fees - referral/cashback payouts) can be negative on days where payouts

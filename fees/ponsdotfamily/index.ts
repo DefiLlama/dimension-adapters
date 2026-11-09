@@ -1,9 +1,11 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, IJSON, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDune } from "../../helpers/dune";
 import { addOneToken } from "../../helpers/prices";
 import { filterPools } from "../../helpers/uniswap";
 import { METRIC } from "../../helpers/metrics";
+import { addTokensReceived } from "../../helpers/token";
 
 const factories = [
   "0x0c37a24F5D23A486FA692d1500881d698B1F77a4", // old
@@ -15,9 +17,17 @@ const lpLockers = [
   "0x736D76699C26D0d966744cAe304C000d471f7F35", // new
 ];
 
-const MIN_TVL = 1000;
+const BURNER_WALLETS = ["0xda4bcee76b29efec9697fcf663601c2042043968", "0x5795d227dcc305afe212bef18e81b111def7c324"];
+const PONS_TOKEN = ADDRESSES.robinhood.PONS;
+const DEAD_ADDRESS = "0x000000000000000000000000000000000000dEaD";
+
+//https://docs.ponsfamily.com/#fees
+const MIN_TVL = 0;
 const SWAP_FEE = 1 / 100;
 const FROM_BLOCK = 8600612;
+const LAUNCH_FEE_ETH = 0.0005;
+const UNISWAP_FEE_SWITCH_DATE = "2026-07-27";
+const UNISWAP_FEE_SHARE_1_PERCENT_TIER = 1/6;
 
 const tokenLaunchedEvent =
   "event TokenLaunched(address indexed token, address indexed deployer, address indexed dexFactory, address pairToken, address pool, uint256 dexId, uint256 launchConfigId, uint256 positionId, uint256 restrictionsEndBlock, uint256 initialBuyAmount)";
@@ -56,6 +66,12 @@ async function fetch(options: FetchOptions) {
     fromBlock: FROM_BLOCK,
   });
 
+  const tokensLaunchedToday = await options.getLogs({
+    targets: factories,
+    eventAbi: tokenLaunchedEvent,
+    flatten: true,
+  });
+
   const poolsFromNewFactory = new Set(
     (tokenLaunchedLogs[1] ?? []).map((log: any) => log.pool.toLowerCase())
   );
@@ -76,7 +92,7 @@ async function fetch(options: FetchOptions) {
     pairs: pairObject,
     createBalances: options.createBalances,
     minUSDValue: MIN_TVL,
-    maxPairSize: 5000,
+    maxPairSize: 100_000,
   });
 
   const filteredPools = new Set(Object.keys(filteredPairs));
@@ -127,37 +143,68 @@ async function fetch(options: FetchOptions) {
     addOneToken({balances: swapFeesToProtocol,token0,amount0: amount0 * SWAP_FEE * protocolShare,token1,amount1: amount1 * SWAP_FEE * protocolShare});
   }
 
+  const dailyBurns = await addTokensReceived({
+    options,
+    fromAdddesses: BURNER_WALLETS,
+    target: DEAD_ADDRESS,
+    token: PONS_TOKEN
+  })
+
+  const launchFees = tokensLaunchedToday.length * LAUNCH_FEE_ETH;
+  const swapFeesRatioToLps = options.dateString >= UNISWAP_FEE_SWITCH_DATE ? 1 - UNISWAP_FEE_SHARE_1_PERCENT_TIER : 1;
+  const swapFeesRatioToUniswap = options.dateString >= UNISWAP_FEE_SWITCH_DATE ? UNISWAP_FEE_SHARE_1_PERCENT_TIER : 0;
+
   const dailyFees = feesFromSwap.clone(1, METRIC.SWAP_FEES);
-  const dailySupplySideRevenue = swapFeesToCreator.clone(1, "Token Swap Fees to Creators");
-  const dailyProtocolRevenue = swapFeesToProtocol.clone(1, "Token Swap Fees to Protocol");
+  dailyFees.addCGToken("ethereum", launchFees, "Token Launch Fees");
+
+  const dailySupplySideRevenue = swapFeesToCreator.clone(1 * swapFeesRatioToLps, "Token Swap Fees to Creators");
+  const swapFeesToUniswap = dailyFees.clone(swapFeesRatioToUniswap);
+  dailySupplySideRevenue.add(swapFeesToUniswap, "Token Swap Fees to Uniswap");
+
+  const dailyRevenue = swapFeesToProtocol.clone(1 * swapFeesRatioToLps, "Token Swap Fees to Protocol");
+  dailyRevenue.addCGToken("ethereum", launchFees, "Token Launch Fees to Protocol");
+
+  const dailyHoldersRevenue = dailyBurns.clone(1, "Protocol Revenue to Buyback and Burn");
+
+  // the buyback and burn is paid out of protocol revenue, so it moves from protocol revenue to holders revenue
+  const dailyProtocolRevenue = dailyRevenue.clone(1, "Fees To Treasury");
+  dailyProtocolRevenue.subtract(dailyBurns, "Fees To Treasury");
 
   return {
     dailyFees,
-    dailyRevenue: dailyProtocolRevenue,
+    dailyRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue,
     dailyProtocolRevenue,
   };
 }
 
 const methodology = {
-  Fees: "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $1000 in TVL are included).",
-  Revenue: "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
-  ProtocolRevenue: "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
-  SupplySideRevenue: "Part of swap fees paid to token creators after protocol revenue is deducted.",
+  Fees: "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $200 in TVL are included) and 0.0005 $ETH per token launched.",
+  Revenue: "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function, only pools with at least $200 in TVL are included) and all the launch fees (0.0005 $ETH per token launched).",
+  SupplySideRevenue: "Includes one-sixth of swap fees (routed to Uniswap after July 27, 2026, and zero before that), as well as the portion of swap fees paid to token creators after protocol revenue is deducted.",
+  HoldersRevenue: "Around 80% of revenue is used to buyback and burn $PONS tokens.",
+  ProtocolRevenue: "Revenue minus the $PONS bought back and burnt.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $1000 in TVL are included)",
+    [METRIC.SWAP_FEES]: "1% swap fees paid on all token swaps of tokens launched on the platform (only pools with at least $200 in TVL are included)",
+    "Token Launch Fees": "0.0005 $ETH per token launched",
   },
   Revenue: {
-    "Token Swap Fees to Protocol": "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
-  },
-  ProtocolRevenue: {
-    "Token Swap Fees to Protocol": "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function).",
+    "Token Swap Fees to Protocol": "Part of swap fees retained by the protocol (exact fee share extracted from the protocolFeeShare function, only pools with at least $200 in TVL are included).",
+    "Token Launch Fees to Protocol": "All the launch fees (0.0005 $ETH per token launched)",
   },
   SupplySideRevenue: {
     "Token Swap Fees to Creators": "Part of swap fees paid to token creators after protocol revenue is deducted.",
+    "Token Swap Fees to Uniswap": "One-sixth of swap fees (routed to Uniswap after July 27, 2026, and zero before that)",
+  },
+  HoldersRevenue: {
+    "Protocol Revenue to Buyback and Burn": "Around 80% of revenue is used to buyback and burn $PONS tokens.",
+  },
+  ProtocolRevenue: {
+    "Fees To Treasury": "Protocol share of swap fees and all launch fees, minus the $PONS bought back and burnt.",
   },
 };
 
@@ -171,6 +218,9 @@ const adapter: SimpleAdapter = {
   breakdownMethodology,
   doublecounted: true, // uniswap
   isExpensiveAdapter: true,
+  // protocol revenue is negative on days the $PONS burns exceed this listing's revenue: the burns are also
+  // funded by Pons V2 revenue (ponsdotfamily-v2 tracks no burns), and they are batched
+  allowNegativeValue: true,
 };
 
 export default adapter;

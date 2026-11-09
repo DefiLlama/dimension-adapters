@@ -15,7 +15,7 @@ const fetch = async (options: FetchOptions) => {
   const spendLogs = await options.getLogs({
     target: USDT0,
     eventAbi: TRANSFER_EVENT,
-    topics: [TRANSFER_TOPIC, null as any, topic(CARD_SPEND_POOL)],
+    topics: [TRANSFER_TOPIC, null, topic(CARD_SPEND_POOL)],
   });
 
   for (const log of spendLogs) {

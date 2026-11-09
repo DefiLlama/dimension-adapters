@@ -40,19 +40,27 @@ const configs: Record<string, any> = {
     ],
     start: '2025-07-09',
   },
+  [CHAIN.XLAYER]: {
+    creditVault: '0x4Df7557734B382EB542BEa6c74786D398DF4CC19',
+    routers: [
+      '0x45F4D4AED68A04E9a48EED69E1C8b15d7875d25F',
+      '0xFF12771C74A9394477C2ce53F82b67C93d5D7B82',
+    ],
+    start: '2026-05-13',
+  },
+  [CHAIN.ROBINHOOD]: {
+    creditVault: '0x57B8f68ef57Af2dB70BC9aAc891836661CA4cB51',
+    routers: [
+      '0xa5ec1f0aC784C3620fFDcdf2A7DbcEF9DA658ea4',
+      '0xe7D5083b8cA725258552da45C781ED04eF079C7f',
+    ],
+    start: '2026-06-16',
+  },
 };
 
 const Abis = {
-  underlying: 'address:underlying',
-  feeWith: 'address:underlying',
-  allLPTokens: 'function allLPTokens(uint256) view returns (address)',
-  YieldDistributed: 'event YieldDistributed(uint256 yieldAmount)',
+  EpochUpdated: 'event EpochUpdated((address trader, (address token, uint256 fundingFee, uint256 reserveFee)[] feeUpdates)[] accruedFundingFees)',
   WidgetFeeTransfer: 'event WidgetFeeTransfer(address widgetFeeRecipient, uint256 widgetFeeRate, uint256 widgetFeeAmount, address widgetFeeToken)',
-}
-
-const calls: Array<any> = [];
-for (let i = 0; i < 100; i++) {
-  calls.push({ params: [i] })
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -61,31 +69,23 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const config = configs[options.chain];
 
-  const lpTokensAddresses = await options.api.multiCall({
+  // Each epoch the credit vault charges borrowers and splits it: fundingFee to LP holders, reserveFee to Native
+  const epochLogs = await options.getLogs({
     target: config.creditVault,
-    abi: Abis.allLPTokens,
-    calls: calls,
-    permitFailure: true,
-  })
-  
-  const lpTokens = lpTokensAddresses.filter( i => i !== null)
-  const underlyingTokens = await options.api.multiCall({
-    abi: Abis.underlying,
-    calls: lpTokens,
-  })
-  
-  const lpYieldsLogs = await options.getLogs({
-    targets: lpTokens,
-    eventAbi: Abis.YieldDistributed,
-    flatten: false,
-  })
-  for (let i = 0; i < lpYieldsLogs.length; i++) {
-    const token = underlyingTokens[i]
-    const logs = lpYieldsLogs[i]
-    if (token && logs) {
-      for (const log of logs) {
-        dailyFees.add(token, log.yieldAmount, METRIC.BORROW_INTEREST)
-        dailySupplySideRevenue.add(token, log.yieldAmount, METRIC.BORROW_INTEREST)
+    eventAbi: Abis.EpochUpdated,
+  });
+
+  for (const log of epochLogs as any[]) {
+    for (const trader of log.accruedFundingFees) {
+      for (const { token, fundingFee, reserveFee } of trader.feeUpdates) {
+        if (fundingFee > 0) {
+          dailyFees.add(token, fundingFee, METRIC.BORROW_INTEREST)
+          dailySupplySideRevenue.add(token, fundingFee, METRIC.BORROW_INTEREST)
+        }
+        if (reserveFee > 0) {
+          dailyFees.add(token, reserveFee, METRIC.BORROW_INTEREST)
+          dailyRevenue.add(token, reserveFee, 'Credit Pool Fees To Treasury')
+        }
       }
     }
   }
@@ -98,7 +98,7 @@ const fetch = async (options: FetchOptions) => {
 
   widgetFeeLogs.forEach((log: any) => {
     dailyFees.add(log.widgetFeeToken, log.widgetFeeAmount, 'UI Widget Trading Fees');
-    dailyRevenue.add(log.widgetFeeToken, log.widgetFeeAmount, 'UI Widget Trading Fees');
+    dailyRevenue.add(log.widgetFeeToken, log.widgetFeeAmount, 'Widget Fees To Treasury');
   })
 
   return {
@@ -111,31 +111,35 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees:
-    'Native charges fees in two places: credit pool payouts to providers, and widget fees on swap trades.',
+    'Interest market makers pay to borrow from Native credit pools, plus the widget fee a front-end can add to a swap. Native takes nothing on the swap itself - a market maker earns from the price it quotes, so that is not counted here.',
   Revenue:
-    'Protocol revenue comes from widget fees collected on RFQ swaps.',
+    'The slice of borrow interest Native reserves for itself plus any widget fee it collects. Both are zero today: the reserve rate is set to 0 and no widget fees are being charged.',
   ProtocolRevenue:
-    'All tracked widget fees are counted as protocol revenue.',
+    'Same as revenue - everything Native keeps goes to its treasury.',
   SupplySideRevenue:
-    'Credit pool payouts are paid to providers, not the protocol.',
+    'The borrow interest paid out to the liquidity providers who funded the credit pools.',
 }
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.BORROW_INTEREST]:
-      'Fee paid for borrowing liquidity from Native’s credit pool. This goes to providers.',
+      'Interest charged to market makers each epoch for borrowing credit pool liquidity.',
     'UI Widget Trading Fees':
-      'Fee charged on each RFQ swap from natives UI.',
+      'Fee a front-end adds on top of a swap quote, taken from the token the trader is selling.',
   },
   SupplySideRevenue: {
     [METRIC.BORROW_INTEREST]:
-      'All credit-pool payout fees are paid out to providers.',
+      'The part of that interest handed to credit pool depositors.',
   },
   Revenue: {
-    'UI Widget Trading Fees': 'Widget fees stay in the Native protocol treasury.'
+    'Credit Pool Fees To Treasury':
+      'The part of borrow interest Native reserves for itself instead of paying depositors.',
+    'Widget Fees To Treasury': 'Widget fees sent to the recipient Native signs off on.',
   },
   ProtocolRevenue: {
-    'UI Widget Trading Fees': 'The protocol keeps all widget fees it receives from swap trades.'
+    'Credit Pool Fees To Treasury':
+      'The part of borrow interest Native reserves for itself instead of paying depositors.',
+    'Widget Fees To Treasury': 'Widget fees sent to the recipient Native signs off on.',
   },
 }
 

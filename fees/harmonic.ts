@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryDuneSql } from "../helpers/dune"
@@ -70,7 +71,7 @@ const fetch = async (options: FetchOptions) => {
   
   const dailyFees = options.createBalances()
   for (const item of data) {
-    dailyFees.add('So11111111111111111111111111111111111111112', item.amount_sol, METRIC.MEV_REWARDS)
+    dailyFees.add(ADDRESSES.solana.SOL, item.amount_sol, METRIC.MEV_REWARDS)
   }
   
   return {

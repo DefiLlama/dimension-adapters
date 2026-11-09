@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { SimpleAdapter, FetchOptions, FetchV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -98,7 +99,7 @@ async function getBribeRevenue(fetchOptions: FetchOptions): Promise<sdk.Balances
   // Filter valid flywheels (non-zero address)
   const validPairs: { token: string; flywheel: string }[] = [];
   tokenArray.forEach((token, i) => {
-    if (flywheels[i] && flywheels[i] !== '0x0000000000000000000000000000000000000000') {
+    if (flywheels[i] && flywheels[i] !== ADDRESSES.null) {
       validPairs.push({ token, flywheel: flywheels[i] });
     }
   });

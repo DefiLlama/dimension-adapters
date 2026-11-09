@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -12,7 +13,7 @@ const BUY_LISTING_ABI = "event BuyListing (uint256 indexed listingId,address ind
 const OFFER_SALE_ABI = "event OfferSale (uint256 indexed offerId, address seller, uint256 nftId, uint256 locked, uint256 duration, uint256 price, uint256 fee)";
 
 const TOKEN: Record<string, string> = {
-    [CHAIN.BASE]: '0x940181a94a35a4569e4529a3cdfb74e38fd98631', //aero
+    [CHAIN.BASE]: ADDRESSES.base.AERO, //aero
     [CHAIN.OPTIMISM]: '0x9560e827af36c94d2ac33a39bce1fe78631088db' //velo
 };
 

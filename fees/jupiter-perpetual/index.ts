@@ -1,7 +1,7 @@
 import { Dependencies, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSqlFromFile, queryDuneSql, queryDuneResult } from "../../helpers/dune";
-import { jupBuybackRatioFromRevenue, JUPITER_METRICS } from "../jupiter";
+import { JUPITER_METRICS, jupTreasuryShare } from "../jupiter";
 
 const fetch = async (options: FetchOptions) => {
   const sql = getSqlFromFile("helpers/queries/jupiter-perpetual.sql", {
@@ -10,10 +10,14 @@ const fetch = async (options: FetchOptions) => {
   });
 
   let data: any[] = [];
-  if (options.startOfDay > 1774656000) {
+  if (options.startOfDay > 1793664000) {
     data = await queryDuneSql(options, sql);
+    // JLP Loans interest comes from the USDC custody's 15-minute withdrawFees2 events: a day without them is missing data, not zero interest
+    if (data.some((row: any) => !row.usdc_fee_withdrawals)) {
+      throw new Error(`No USDC custody withdrawFees2 events found for date ${options.dateString}`)
+    }
   } else {
-    const alldata = await queryDuneResult(options, '6919084')
+    const alldata = await queryDuneResult(options, '9069874')
     const targetDate = options.dateString
     const matched = alldata.find(
       (row: any) => typeof row.day === 'string' && row.day.slice(0, 10) === targetDate,
@@ -21,6 +25,10 @@ const fetch = async (options: FetchOptions) => {
     data = matched ? [matched] : []
     if(!data || !data.length) {
       throw new Error(`No data found for date ${options.dateString}, fix cache result query`)
+    }
+    // a cached row without the staking and JLP Loans columns is missing data, not zero (genuine zeros are kept)
+    if (data.some((row: any) => !('staking_rewards_sol' in row) || !('loan_interest' in row))) {
+      throw new Error(`No staking_rewards_sol or loan_interest column found for date ${options.dateString}, fix cache result query`)
     }
   }
 
@@ -35,6 +43,8 @@ const fetch = async (options: FetchOptions) => {
       acc.fundingFees += row.funding_fees || 0;
       acc.priceImpactFees += row.price_impact_fees || 0;
       acc.totalFees += row.total_fees || 0;
+      acc.stakingRewardsSol += row.staking_rewards_sol || 0;
+      acc.loanInterest += row.loan_interest || 0;
       return acc;
     },
     {
@@ -47,10 +57,10 @@ const fetch = async (options: FetchOptions) => {
       fundingFees: 0,
       priceImpactFees: 0,
       totalFees: 0,
+      stakingRewardsSol: 0,
+      loanInterest: 0,
     },
   );
-
-  const buybackRatio = jupBuybackRatioFromRevenue(options.startOfDay);
 
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(totals.addLiqFees, JUPITER_METRICS.JupPerpsAddLiquidityFees);
@@ -61,79 +71,80 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.addUSDValue(totals.liquidationFees, JUPITER_METRICS.JupPerpsLiquidationFees);
   dailyFees.addUSDValue(totals.fundingFees, JUPITER_METRICS.JupPerpsFundingFees);
   dailyFees.addUSDValue(totals.priceImpactFees, JUPITER_METRICS.JupPerpsPriceImpactFees);
+  dailyFees.addCGToken("solana", totals.stakingRewardsSol, JUPITER_METRICS.JupPerpsStakingRewards);
+  dailyFees.addUSDValue(totals.loanInterest, JUPITER_METRICS.JupPerpsLoanInterest);
 
+  // the program sends 25% of the pool's fees to Jupiter (7JQeyNK55fkUPUmEotupBFpiBGpgEQYLe8Ht1VdSfxcP), 75% stays with JLP
   const dailySupplySideRevenue = dailyFees.clone(0.75);
   const dailyRevenue = dailyFees.clone(0.25);
-  const dailyHoldersRevenue = dailyRevenue.clone(buybackRatio);
-  const dailyProtocolRevenue = dailyRevenue.clone(1 - buybackRatio);
+  // JUP buybacks are reported once, on the Jupiter Aggregator listing (fees/jupiter.ts), so no holders revenue here
+  const dailyProtocolRevenue = dailyRevenue.clone(jupTreasuryShare(options.startOfDay));
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyHoldersRevenue,
     dailyProtocolRevenue,
     dailySupplySideRevenue,
+    dailyHoldersRevenue: 0,
   };
 };
 
 const methodology = {
-  Fees: "All fees paid by users including liquidity operations, swaps, trading positions, funding fees, and price impact",
-  Revenue: "25% of total fees goes to protocol treasury and JUP holders",
-  ProtocolRevenue: "50% of revenue (12.5% of total fees) goes to protocol treasury, it was 100% before 2025-02-17",
-  HoldersRevenue: "From 2025-02-17, 50% of revenue (12.5% of total fees) goes to JUP holders",
-  SupplySideRevenue: "75% of total fees goes to liquidity providers",
+  Fees: "Trading, swap, borrow, liquidation and JLP mint/burn fees paid by users, plus staking rewards on the pool's SOL and JLP Loans interest.",
+  Revenue: "25% of all fees, sent to Jupiter.",
+  ProtocolRevenue: "Half of the 25% of fees sent to Jupiter, kept by the treasury. The other half buys back JUP, counted on the Jupiter Aggregator listing.",
+  HoldersRevenue: "No holders revenue on this listing: the JUP bought back with the other half of the 25% of fees sent to Jupiter is counted on the Jupiter Aggregator listing.",
+  SupplySideRevenue: "75% of all fees, kept by the JLP pool for liquidity providers.",
 }
 
 const breakdownMethodology = {
   Fees: {
-    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "Fees charged when users mint JLP to the pool",
-    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "Fees charged when users burn JLP from the pool",
-    [JUPITER_METRICS.JupPerpsSwapFees]: "Fees from swaps within the perpetual pool",
-    [JUPITER_METRICS.JupPerpsOpenPositionFees]: "Position fees charged when opening or increasing a perpetual position",
-    [JUPITER_METRICS.JupPerpsClosePositionFees]: "Position fees charged when closing or decreasing a perpetual position",
-    [JUPITER_METRICS.JupPerpsLiquidationFees]: "Fees collected from liquidating underwater positions",
-    [JUPITER_METRICS.JupPerpsFundingFees]: "Funding fees paid by traders to maintain their positions, settled when positions are modified",
-    [JUPITER_METRICS.JupPerpsPriceImpactFees]: "Price impact fees charged on trades based on market conditions and imbalance, up to 0.44% of trade size",
+    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "Fees paid to mint JLP.",
+    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "Fees paid to burn JLP.",
+    [JUPITER_METRICS.JupPerpsSwapFees]: "Fees on swaps through the JLP pool.",
+    [JUPITER_METRICS.JupPerpsOpenPositionFees]: "Fees paid to open or increase a position.",
+    [JUPITER_METRICS.JupPerpsClosePositionFees]: "Fees paid to close or decrease a position.",
+    [JUPITER_METRICS.JupPerpsLiquidationFees]: "Fees paid on liquidated positions.",
+    [JUPITER_METRICS.JupPerpsFundingFees]: "Borrow fees paid by traders on open positions.",
+    [JUPITER_METRICS.JupPerpsPriceImpactFees]: "Price impact fees paid on trades.",
+    [JUPITER_METRICS.JupPerpsStakingRewards]: "Staking rewards on the SOL the JLP pool stakes.",
+    [JUPITER_METRICS.JupPerpsLoanInterest]: "Interest paid by JLP Loans borrowers, counted from 2025-12-15, when the program started logging it.",
   },
   Revenue: {
-    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "25% of mint JLP fees goes to protocol",
-    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "25% of burn JLP fees goes to protocol",
-    [JUPITER_METRICS.JupPerpsSwapFees]: "25% of swap fees goes to protocol",
-    [JUPITER_METRICS.JupPerpsOpenPositionFees]: "25% of open position fees goes to protocol",
-    [JUPITER_METRICS.JupPerpsClosePositionFees]: "25% of close position fees goes to protocol",
-    [JUPITER_METRICS.JupPerpsLiquidationFees]: "25% of liquidation fees goes to protocol",
-    [JUPITER_METRICS.JupPerpsFundingFees]: "25% of funding fees goes to protocol",
-    [JUPITER_METRICS.JupPerpsPriceImpactFees]: "25% of price impact fees goes to protocol",
-  },
-  SupplySideRevenue: {
-    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "75% of mint JLP fees distributed to liquidity providers",
-    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "75% of burn JLP fees distributed to liquidity providers",
-    [JUPITER_METRICS.JupPerpsSwapFees]: "75% of swap fees distributed to liquidity providers",
-    [JUPITER_METRICS.JupPerpsOpenPositionFees]: "75% of open position fees distributed to liquidity providers",
-    [JUPITER_METRICS.JupPerpsClosePositionFees]: "75% of close position fees distributed to liquidity providers",
-    [JUPITER_METRICS.JupPerpsLiquidationFees]: "75% of liquidation fees distributed to liquidity providers",
-    [JUPITER_METRICS.JupPerpsFundingFees]: "75% of funding fees distributed to liquidity providers",
-    [JUPITER_METRICS.JupPerpsPriceImpactFees]: "75% of price impact fees distributed to liquidity providers",
+    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "25% of JLP mint fees, sent to Jupiter.",
+    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "25% of JLP burn fees, sent to Jupiter.",
+    [JUPITER_METRICS.JupPerpsSwapFees]: "25% of swap fees, sent to Jupiter.",
+    [JUPITER_METRICS.JupPerpsOpenPositionFees]: "25% of open position fees, sent to Jupiter.",
+    [JUPITER_METRICS.JupPerpsClosePositionFees]: "25% of close position fees, sent to Jupiter.",
+    [JUPITER_METRICS.JupPerpsLiquidationFees]: "25% of liquidation fees, sent to Jupiter.",
+    [JUPITER_METRICS.JupPerpsFundingFees]: "25% of borrow fees, sent to Jupiter.",
+    [JUPITER_METRICS.JupPerpsPriceImpactFees]: "25% of price impact fees, sent to Jupiter.",
+    [JUPITER_METRICS.JupPerpsStakingRewards]: "25% of SOL staking rewards, sent to Jupiter.",
+    [JUPITER_METRICS.JupPerpsLoanInterest]: "25% of JLP Loans interest, sent to Jupiter.",
   },
   ProtocolRevenue: {
-    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "50% of protocol revenue from mint JLP fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
-    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "50% of protocol revenue from burn JLP fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
-    [JUPITER_METRICS.JupPerpsSwapFees]: "50% of protocol revenue from swap fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
-    [JUPITER_METRICS.JupPerpsOpenPositionFees]: "50% of protocol revenue from open position fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
-    [JUPITER_METRICS.JupPerpsClosePositionFees]: "50% of protocol revenue from close position fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
-    [JUPITER_METRICS.JupPerpsLiquidationFees]: "50% of protocol revenue from liquidation fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
-    [JUPITER_METRICS.JupPerpsFundingFees]: "50% of protocol revenue from funding fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
-    [JUPITER_METRICS.JupPerpsPriceImpactFees]: "50% of protocol revenue from price impact fees (12.5% of total fees) goes to treasury, it was 100% before 2025-02-17",
+    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "Half of the 25% of JLP mint fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "Half of the 25% of JLP burn fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsSwapFees]: "Half of the 25% of swap fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsOpenPositionFees]: "Half of the 25% of open position fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsClosePositionFees]: "Half of the 25% of close position fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsLiquidationFees]: "Half of the 25% of liquidation fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsFundingFees]: "Half of the 25% of borrow fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsPriceImpactFees]: "Half of the 25% of price impact fees sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsStakingRewards]: "Half of the 25% of SOL staking rewards sent to Jupiter, kept by the treasury.",
+    [JUPITER_METRICS.JupPerpsLoanInterest]: "Half of the 25% of JLP Loans interest sent to Jupiter, kept by the treasury.",
   },
-  HoldersRevenue: {
-    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "From 2025-02-17, 50% of protocol revenue from mint JLP fees (12.5% of total fees) goes to JUP holders",
-    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "From 2025-02-17, 50% of protocol revenue from burn JLP fees (12.5% of total fees) goes to JUP holders",
-    [JUPITER_METRICS.JupPerpsSwapFees]: "From 2025-02-17, 50% of protocol revenue from swap fees (12.5% of total fees) goes to JUP holders",
-    [JUPITER_METRICS.JupPerpsOpenPositionFees]: "From 2025-02-17, 50% of protocol revenue from open position fees (12.5% of total fees) goes to JUP holders",
-    [JUPITER_METRICS.JupPerpsClosePositionFees]: "From 2025-02-17, 50% of protocol revenue from close position fees (12.5% of total fees) goes to JUP holders",
-    [JUPITER_METRICS.JupPerpsLiquidationFees]: "From 2025-02-17, 50% of protocol revenue from liquidation fees (12.5% of total fees) goes to JUP holders",
-    [JUPITER_METRICS.JupPerpsFundingFees]: "From 2025-02-17, 50% of protocol revenue from funding fees (12.5% of total fees) goes to JUP holders",
-    [JUPITER_METRICS.JupPerpsPriceImpactFees]: "From 2025-02-17, 50% of protocol revenue from price impact fees (12.5% of total fees) goes to JUP holders",
+  SupplySideRevenue: {
+    [JUPITER_METRICS.JupPerpsAddLiquidityFees]: "75% of JLP mint fees, kept by the JLP pool.",
+    [JUPITER_METRICS.JupPerpsRemoveLiquidityFees]: "75% of JLP burn fees, kept by the JLP pool.",
+    [JUPITER_METRICS.JupPerpsSwapFees]: "75% of swap fees, kept by the JLP pool.",
+    [JUPITER_METRICS.JupPerpsOpenPositionFees]: "75% of open position fees, kept by the JLP pool.",
+    [JUPITER_METRICS.JupPerpsClosePositionFees]: "75% of close position fees, kept by the JLP pool.",
+    [JUPITER_METRICS.JupPerpsLiquidationFees]: "75% of liquidation fees, kept by the JLP pool.",
+    [JUPITER_METRICS.JupPerpsFundingFees]: "75% of borrow fees, kept by the JLP pool.",
+    [JUPITER_METRICS.JupPerpsPriceImpactFees]: "75% of price impact fees, kept by the JLP pool.",
+    [JUPITER_METRICS.JupPerpsStakingRewards]: "75% of SOL staking rewards, kept by the JLP pool.",
+    [JUPITER_METRICS.JupPerpsLoanInterest]: "75% of JLP Loans interest, kept by the JLP pool.",
   },
 }
 

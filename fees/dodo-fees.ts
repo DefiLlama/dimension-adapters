@@ -95,13 +95,18 @@ const breakdownMethodology = {
 const adapter: Adapter = {
   version: 1,
   adapter: {
-    [CHAIN.DFIO_META_MAIN]: { fetch: dfioFetch },
+    //[CHAIN.DFIO_META_MAIN]: { fetch: dfioFetch },
     [CHAIN.ETHEREUM]: { fetch },
     [CHAIN.BSC]: { fetch },
     [CHAIN.POLYGON]: { fetch },
     [CHAIN.ARBITRUM]: { fetch },
     [CHAIN.AURORA]: { fetch },
     [CHAIN.BOBA]: { fetch },
+    // the volume adapter reads these three from the same api and they have traded every week;
+    // the fee query answers for them under the same chain key
+    [CHAIN.BASE]: { fetch },
+    [CHAIN.AVAX]: { fetch },
+    [CHAIN.OPTIMISM]: { fetch },
   },
   runAtCurrTime: true,
   methodology,

@@ -4,6 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import { joeLiquidityBookExport } from "../../helpers/joe";
 import { METRIC } from "../../helpers/metrics";
 import { getUniV2LogAdapter } from "../../helpers/uniswap";
+import {nullAddress} from "../../helpers/token";
 
 // Holders Revenue is only applicable once the $ONE token is launched (Not launched currently)
 type FactoryVersion = 2 | 2.2;
@@ -35,6 +36,14 @@ const chainConfig: Record<string, ChainConfig> = {
     factories: [
       { factory: "0x217da3e53F221D1f36e8b09bc7d55d4012C0aa70", version: 2, fromBlock: 42532043 },
       { factory: "0x3357f02fB3aA78fc86D3Bccdc5Edf039D4b952B5", version: 2.2, fromBlock: 33296377 },
+    ],
+  },
+  [CHAIN.ROBINHOOD]: {
+    start: "2026-07-14",
+    uniV2Factory: nullAddress,
+    factories: [
+      { factory: "0xea982d35ee551cd143538c3acae7e1edb72cc396", version: 2, fromBlock: 9738098 },
+      { factory: "0x3d8Dc63dDC9b992cfDe89f7AEa6f18717E84687D", version: 2.2, fromBlock: 10137038 },
     ],
   },
 }
@@ -90,7 +99,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const uniV2Result = await uniV2Fetch(options);
+  let uniV2Result: BalanceResult = {
+    dailyVolume: options.createBalances(),
+    dailyFees: options.createBalances(),
+    dailyRevenue: options.createBalances(),
+  }
+  if (chainConfig[options.chain].uniV2Factory !== nullAddress) {
+     uniV2Result = await uniV2Fetch(options);
+  }
   const lbResult = await joeFetch(options);
 
   dailyVolume.addBalances(uniV2Result.dailyVolume);

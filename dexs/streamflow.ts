@@ -5,7 +5,7 @@ import { queryAllium } from "../helpers/allium";
 // Streamflow (Solana): value of tokens delivered to vesting/airdrop recipients.
 // Join each escrow-PDA outflow to its outer Anchor instruction and keep only
 // delivery instructions by discriminator, so clawbacks (-> admin), cancel
-// refunds (-> sender), escrow funding, and the 0.25% fee leg aren't counted.
+// refunds (-> sender), escrow funding, and the protocol fee leg aren't counted.
 
 const STREAMFLOW_PROGRAMS = [
   "strmRqUCoQUgGUan5YhzUZa6KqdzwX5L6FpUxfmKg5m", // Stream (vesting / payments)
@@ -13,15 +13,22 @@ const STREAMFLOW_PROGRAMS = [
   "aMERKpFAWoChCi5oZwPvgsSCoGpZKBiU7fi76bdZjt2", // Aligned Distributor (airdrop)
   "MErKy6nZVoVAkryxAejJz2juifQ4ArgLgHmaJCQkU7N", // Distributor (airdrop)
 ];
+// The two Aligned programs declare no withdraw/claim instruction of their own --
+// their contracts settle through Stream and Distributor above. They stay listed
+// so CPI-parented transfers still match on outer_program_id.
 
 // delivery instructions, by Anchor discriminator
 const DELIVERY_DISCRIMINATORS = [
-  "b712469c946da122", // withdraw
-  "4eb1627bd215bb53", // new_claim
-  "22ceb5170bcf935a", // claim_locked
+  "b712469c946da122", // withdraw            (Stream)
+  "4eb1627bd215bb53", // new_claim           (Distributor)
+  "22ceb5170bcf935a", // claim_locked        (Distributor)
+  "2c15afa1634c2cf9", // claim_locked_v2     (Distributor)
+  "b585df75bc83f39e", // new_claim_by_worker (Distributor)
 ];
 
-// treasury -- receives the 0.25% fee leg inside a withdraw
+// treasury -- receives the protocol fee leg (0.19% vesting, 0.5% token lock)
+// carried inside a withdraw. Only ~20% of withdrawals carry one: the token fee
+// is refundable under the paid subscription plans.
 const STREAMFLOW_TREASURY = "5SEpbdjFK5FxwTvfsGMXVQTD2v4M2c5tyRTxhdsPkgDw";
 
 const fetch = async (options: FetchOptions) => {
@@ -55,7 +62,6 @@ const fetch = async (options: FetchOptions) => {
   `);
 
   for (const row of rows) {
-    if (!row.mint || !row.amount) continue;
     dailyVolume.add(row.mint, row.amount);
   }
 
@@ -71,7 +77,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   pullHourly: true,
   methodology: {
-    Volume: "Value of SPL tokens delivered to recipients of Streamflow vesting streams and airdrops in the day window. Only recipient-delivery instructions (withdraw, airdrop claim) are counted; escrow funding, cancellation refunds to the sender, airdrop clawbacks to the admin, and the 0.25% protocol fee are excluded.",
+    Volume: "Value of SPL tokens delivered to recipients of Streamflow vesting streams and airdrops in the day window. Only recipient-delivery instructions (withdrawals and airdrop claims) are counted; escrow funding, cancellation refunds to the sender, airdrop clawbacks to the admin, and the protocol fee taken out of each withdrawal (0.19% on vesting, 0.5% on token locks) are excluded.",
   },
 };
 

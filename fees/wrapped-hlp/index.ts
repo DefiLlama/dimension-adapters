@@ -56,6 +56,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Total fees generated from HLP by the WHLP vault and its deployed strategies.",
     Revenue: "The share of fees for Looping Collective.",

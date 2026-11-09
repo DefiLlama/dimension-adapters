@@ -7,10 +7,6 @@ const chainConfig: Record<string, { api: string; start: string }> = {
     api: "https://mainnet.zklighter.elliot.ai/api/v1",
     start: "2025-01-17",
   },
-  [CHAIN.ROBINHOOD]: {
-    api: "https://api.rh.lighter.xyz/api/v1",
-    start: "2026-06-26",
-  },
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -20,7 +16,8 @@ const fetch = async (options: FetchOptions) => {
   const data = await fetchURL(`${api}/orderBookDetails`);
   const markets = data.order_book_details;
   markets.forEach((market: any) => {
-    openInterestAtEnd += (Number(market.open_interest || 0) * Number(market.last_trade_price || 0) * 2); // * 2 because of double sided OI
+    // Lighter's open_interest is already one-sided (verified against trade deltas: moves 1:1 with fill size)
+    openInterestAtEnd += (Number(market.open_interest || 0) * Number(market.last_trade_price || 0));
   });
 
   return { openInterestAtEnd };

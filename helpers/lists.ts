@@ -1,12 +1,15 @@
+import { FetchOptions } from "../adapters/types";
 import { formatAddress } from "../utils/utils";
 import { getConfig } from "./cache";
 import { CHAIN } from "./chains";
+import { duneBlockchain, queryDune } from "./dune";
 
 export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
   [CHAIN.ETHEREUM]: [
     "0x044fe33895Cb7c6e4566DA8E24420C1110933a63",
     "0x888888aE2c4A298EFd66D162fFC53b3F2a869888",
     "0xb4357054c3da8d46ed642383f03139ac7f090343", // PORT3 - hacked
+    "0x3e985250cb137fc1ff55922116934c5982d29f85", // ZENT - supply inflated to 5e45 tokens
     "0x8d010bf9C26881788b4e6bf5Fd1bdC358c8F90b8", // DOT
     "0xBC33B4D48f76d17A1800aFcB730e8a6AAada7Fe5", //vDOT
   ],
@@ -14,6 +17,7 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0xac68931b666e086e9de380cfdb0fb5704a35dc2d", // old BNBTiger
     "0x4c769928971548eb71a3392eaf66bedc8bef4b80", // scam BITCOIN token
     "0xc53ca0d56c420e8f913316e84d2c492ede99c61e", // scam GROK token
+    "0xbe8d9ec5d3c9313e4af08d50b6f85af76a69a1f1", // USDB: a few wallets loop fake ATC -> USDB -> fake BTC through Uniswap v3/v4 pools (~$2.4M/day at the $1 price, Oct 2026)
     "0xc08cd26474722ce93f4d0c34d16201461c10aa8c",
     "0xda0638ea374c4c5bf2914e6f4d5b2335deb8d80d",
     "0xf4B385849f2e817E92bffBfB9AEb48F950Ff4444",
@@ -50,7 +54,6 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0x6CFfFa5bFD4277a04D83307fEedFe2D18D944DD2",
     "0xd5dF4d260D7a0145F655bcBf3B398076F21016C7",
     "0x82ec31d69b3c289e541b50e30681fd1acad24444",
-    "0x82Ec31D69b3c289E541b50E30681FD1ACAd24444",
     "0x02e75d28a8aa2a0033b8cf866fcf0bb0e1ee4444",
     "0x4c9027e10c5271efca82379d3123917ae3f2374e",
     "0x3ac8e2c113d5d7824ac6ebe82a3c60b1b9d64444",
@@ -59,12 +62,12 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0x302dfaf2cdbe51a18d97186a7384e87cf599877d",
     "0xa3cfb853339b77f385b994799b015cb04b208fe6",
     "0x76e9b54b49739837be8ad10c3687fc6b543de852",
-    "0xb4357054c3da8d46ed642383f03139ac7f090343",
     "0xACB8f52DC63BB752a51186D1c55868ADbFfEe9C1",
     "0x8d010bf9c26881788b4e6bf5fd1bdc358c8f90b8",
     "0xBC33B4D48f76d17A1800aFcB730e8a6AAada7Fe5",
     "0x96fb784986284cb6d4a8da6dd50dd7e85ef38f5d",
     "0x44F161aE29361E332dEA039DFA2F404E0bC5B5Cc",
+    "0xac531eb26ca1d21b85126de8fb87e80e09002dcf", // SAND(hacked)
   ],
   [CHAIN.ARBITRUM]: [
     "0x2fcAA28BE8549F3953FCf7cae4CC9FBe6Ab2E501",
@@ -118,6 +121,80 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0x8d010bf9c26881788b4e6bf5fd1bdc358c8f90b8",
     "0xBC33B4D48f76d17A1800aFcB730e8a6AAada7Fe5",
     "0x570b1533F6dAa82814B25B62B5c7c4c55eB83947",
+    "0x1d1dd64c58518c6727a308a5216a5701afae5b07", // fake "OpenAI", $52M wash-traded in one day on aerodrome slipstream (Jul 2026), same factory as the uniswap-v4 fake-ticker pools
+    "0xac531eb26ca1d21b85126de8fb87e80e09002dcf", // SAND(hacked)
+  ],
+  // Impersonator tokens on Uniswap v4 (fake cirBTC/WETH/EURC/USDC and copies of the
+  // chain's memecoins) churned against real USDC by one operator, mostly wallet
+  // 0x3f5d6d4a48540fed25d1aa9b63fe55adb25d7dbe: $1.5B of USDC-leg volume from
+  // 2026-09-19 to 2026-11-04 out of <= 50 wallets per token (the real cirBTC/ARGUS
+  // pools see 25k-35k wallets). None is priced by DefiLlama. Sample: fake cirBTC
+  // 0x560f6b.. $351M from 3 wallets. Many loops cross two pools, so the same-tx
+  // phantom filter in dexs/uniswap-v4.ts does not catch them.
+  [CHAIN.ARC]: [
+    "0x9696b5e894afe749b3d4683b230e549f39678932", // USDB: same ATC -> USDB -> BTC loop as the BSC USDB above, priced at ~$0.94 by the coins API with no USDC market; $516M since 2026-09-15 in 4 pools, ~90% of a day from one address (v3 0xb8329339.., v4 0x1b8be780..)
+    "0x560f6b48d41056de13983ad1601d76d3d851a30b", // cirBTC $351.3M from 3 wallets
+    "0x41d5379e2fcce2c28802aa9f2536541b0ab9f938", // WETH $227.6M from 2 wallets
+    "0x8adf1c44c6cb7c04cd12c63108e0037922fb603c", // ARGUS $143.5M from 41 wallets
+    "0x834dcdca521657fe234f37f69546ac16afccfc0e", // EURC $71.0M from 1 wallet
+    "0x93ffd195481e8c08eb25a158689e4d9e61313111", // WETH $63.8M from 14 wallets
+    "0xf1ee5017d5d77d0714a73c19692aad5426d62f79", // TOLLY $61.7M from 21 wallets
+    "0xf81afef268aca40717e0adcae7c41514327cfaab", // FAZE $57.1M from 12 wallets
+    "0x972b159ca91baec0ec88f2c114cf1d7aa5db240e", // ARGUS $36.9M from 28 wallets
+    "0xc08083d41d9c1728255f1cb736dca1eb955ec907", // COOL $35.2M from 3 wallets
+    "0xacebfc5e30c0b167442f2131b03758472ddec0ba", // CATZ $31.1M from 9 wallets
+    "0xe98278e24625f0905680d1361f133526aea9b590", // DIVIDEND $30.8M from 7 wallets
+    "0xff84785bb0ec44c992a796e0c444e406ca9d4838", // AF $25.9M from 6 wallets
+    "0xbee49e32bdca2d2ac716ba9978cf7d6e56c39014", // CRCL $23.8M from 4 wallets
+    "0x7694c19f9a5a50bc985ea704a99835dec16e8bd1", // ASTOCK $22.1M from 9 wallets
+    "0xb2552a615281534b7f72689a99f111c538bf40bd", // FOCI $21.1M from 6 wallets
+    "0x92edb5a45e3e7cbf4a8328719539c57314dc8f0d", // REGI $19.5M from 8 wallets
+    "0x7893608a88c97927f5a5ec6804bd421b622bee35", // ARCLIGHT $17.5M from 7 wallets
+    "0xaa3711cc599a23056df390e8a492e869f83cae96", // ARCMAN $16.4M from 7 wallets
+    "0x5eeb6d9edf987e2fa4aad208cddb8b76146e5656", // AMC $16.4M from 4 wallets
+    "0x73d4f4fc589ec2b07fa1c0f4beec2c0496532c6f", // MEMESPAD $13.6M from 4 wallets
+    "0x7ffa0e19aa4e252f8d5ee08933e9d880a7aaebd8", // LONG $13.2M from 5 wallets
+    "0x796dd949aeb7a4a0a24b60bf908de714c9b43d45", // DUKE $13.0M from 3 wallets
+    "0xe2a02706a7b78444e14dad71e6f1b297e71563a0", // BAGFI $12.9M from 6 wallets
+    "0x54b3302a6c92b71eb6de54c1cb15b5950e079635", // WONK $12.6M from 6 wallets
+    "0xd2d0e63e1da4a24081629aa9c1f61a7fe480b5be", // MURMUR $11.4M from 6 wallets
+    "0xe5d445f074f3c8c987e8f86f5f03de2ceb1ba4cc", // MALA $8.5M from 4 wallets
+    "0xa9d83218cbd6a306c193c7c63b6fa0cf4c050ef9", // AMC $8.1M from 2 wallets
+    "0xef58c06eedbe50f6fd52ef533e49e38f9a526f0a", // ARCT $7.1M from 4 wallets
+    "0x52bc5f413345eab7c96ef6e17b8bd255bcc2df87", // HTTPS $7.1M from 3 wallets
+    "0xf6d159e050fb7e9ec587e80ffea0874e65e20397", // ARCOON $6.7M from 1 wallet
+    "0xa064e97b71a9540f670865661393038034674fab", // ARCUS $6.6M from 4 wallets
+    "0x5ffc627a2d3186ae7f845216709c1b06329c77ac", // CRA $6.3M from 3 wallets
+    "0xd2edbaf23cbdb94b607de57cb1f19e2279372bd8", // POLL $6.1M from 4 wallets
+    "0xd1f5ea6e5f288b9d9c9f8dcf97829b9e8c9884e7", // BLINKR $6.0M from 3 wallets
+    "0x9f8707f6f68307107abdde1fd95c81f911109a1b", // TTWO $5.6M from 4 wallets
+    "0xd4f465f54eced6256141bf945bc72693530a2974", // XSOL $5.6M from 2 wallets
+    "0xccc78a517c369091dbef44d2a510b27cd139dd02", // PROM $5.5M from 3 wallets
+    "0x6597a514dd620f2c12bcbf9baf116fea4dec139a", // TORTOISE $5.5M from 3 wallets
+    "0xcbed15e7ec87c1046290dbcea0897df6ebdefd89", // ZEC $5.5M from 3 wallets
+    "0xd5ad7f5e0917c4bde695a2f7f4cfa6bff5a9cf7a", // CAR $5.5M from 3 wallets
+    "0xe26886da842e7e6cb6b4fa27adff38c21247c13a", // FELIS $5.4M from 3 wallets
+    "0x84f408c3125d02f0eb4d4608abaa6edfb19040a1", // METAX $5.3M from 3 wallets
+    "0xa955430fbe6a9302f28fe732848d7d1ce7bbe47d", // SBTC $5.0M from 3 wallets
+    "0x811cc0981ee19dfea8de016c6d5d1c7623b33b7b", // ONBOARD $5.0M from 4 wallets
+    "0xec929e5653cbfcb5b64959178d2447c3eae1baee", // BAGFI $4.9M from 2 wallets
+    "0xb2cb9db1f8f4e46e499071cbc6ea31abe8a35fcf", // NICE $4.9M from 2 wallets
+    "0x77cc634dddf43992f55ae025b0734fde58ba8a79", // SOLON $4.6M from 2 wallets
+    "0x3e78ffce59076c9ee0babddbb01792c9b96c4582", // SPYX $4.2M from 4 wallets
+    "0x909305eef96ace07a3d3b7f28561205cccf9522a", // WAVE $4.1M from 2 wallets
+    "0x90b1cf587ac41785425b8e5e83eacdcfb83e8bbc", // ARCANUS $4.0M from 2 wallets
+    "0x6224f63cc5961fc3a4cb88b291438079e0fcc0f0", // GOWF $3.5M from 3 wallets
+    "0x4dd343f03d26b797b3d84b92c2669f25c0484d21", // TTWO $2.9M from 2 wallets
+    "0xab73d16902edb1b91b50e48abede1da9378dbd6a", // FUCI $2.7M from 3 wallets
+    "0x44700f23ee028dd86a08d9a9ae7ecf4dd7f56b93", // TEZO $2.5M from 2 wallets
+    "0xb781ceaf37067a0d9abe9176deee4be2451d001a", // ARCPACA $2.4M from 3 wallets
+    "0xead732ce520398ade8a9052cf6d1441b1b1f6023", // WETH $2.0M from 2 wallets
+    "0x4a7f6f3d4184a91ecc84487cd50eb848ea5ec6d9", // MEMESPAD $1.8M from 3 wallets
+    "0x58b7c0399d8898f5894b0556b7e6619e3c652d03", // EXIT $1.2M from 1 wallet
+    "0xa7d2e4eb5f73c304d93ce78f288254066c5331f1", // USDC $1.2M from 1 wallet
+    "0x9de13abc97d54814232ba1a9b18e7fc4718ed50a", // JEANUSDC $1.1M from 1 wallet
+    "0xe071fdec0289fc1dfbc39552e5b5f67b4dd3bbfc", // CRCL $0.7M from 1 wallet
+    "0x6fc424b3adbb3f94cdd2e97e2099148016fffada", // SI $0.6M from 1 wallet
   ],
 };
 
@@ -125,6 +202,47 @@ export function getDefaultDexTokensBlacklisted(chain: string): Array<string> {
   return DefaultDexTokensBlacklisted[chain]
     ? DefaultDexTokensBlacklisted[chain].map((item) => formatAddress(item))
     : [];
+}
+
+// Shared scam/fake-token list maintained on Dune, applied on top of
+// DefaultDexTokensBlacklisted. Add new offenders there, not here:
+// https://dune.com/data/dune.zteam.dataset_dex_blacklist
+// Columns: address (varbinary, joins directly on dex.trades token columns),
+// chain (varchar Dune blockchain slug, or 'any' for every chain). For an
+// in-query filter see dexs/uniswap-v3.ts; for a client-side list use
+// getDexTokensBlacklisted below.
+export const DUNE_DEX_BLACKLIST_TABLE = 'dune.zteam.dataset_dex_blacklist';
+
+let duneDexBlacklist: Promise<Record<string, Set<string>>> | undefined;
+
+// One Dune call per process; the dataset is a few thousand rows. A failure
+// throws (and clears the cache so the next call retries) - reporting unfiltered
+// would republish scam volume as real.
+function fetchDuneDexBlacklist(options: FetchOptions): Promise<Record<string, Set<string>>> {
+  if (!duneDexBlacklist) {
+    duneDexBlacklist = queryDune('3996608', { fullQuery: `SELECT chain, address FROM ${DUNE_DEX_BLACKLIST_TABLE}` }, options, { extraUIDKey: 'dex-blacklist' })
+      .then((rows: any[]) => {
+        const byChain: Record<string, Set<string>> = {};
+        for (const row of rows) {
+          if (!row.address || !row.chain) continue;
+          (byChain[String(row.chain).toLowerCase()] ??= new Set()).add(formatAddress(row.address));
+        }
+        return byChain;
+      })
+      .catch((e) => { duneDexBlacklist = undefined; throw e; });
+  }
+  return duneDexBlacklist;
+}
+
+// DefaultDexTokensBlacklisted for the chain + the Dune dataset's 'any' rows and
+// the chain's own rows. Lowercased. Use this in adapters instead of
+// getDefaultDexTokensBlacklisted whenever a Dune dependency is acceptable.
+export async function getDexTokensBlacklisted(options: FetchOptions): Promise<Array<string>> {
+  const byChain = await fetchDuneDexBlacklist(options);
+  const tokens = new Set(getDefaultDexTokensBlacklisted(options.chain));
+  for (const token of byChain['any'] ?? []) tokens.add(token);
+  for (const token of byChain[duneBlockchain(options.chain)] ?? []) tokens.add(token);
+  return [...tokens];
 }
 
 export function getAllDexTokensBlacklisted(): Array<string> {
@@ -386,6 +504,10 @@ async function getTokenLists(options: GetTokenListsOptions): Promise<Array<strin
     const items = data.tokens ? data.tokens : data;
     for (const item of items) {
       if (item.chainId === options.chainId) {
+        // token lists are remote data - drop malformed addresses (e.g. coingecko's
+        // BSC list shipped a 39-hex-char address) instead of letting one bad entry
+        // break every consumer downstream
+        if (!/^0x[0-9a-fA-F]{40}$/.test(String(item.address))) continue;
         tokens.add(formatAddress(item.address));
       }
     }

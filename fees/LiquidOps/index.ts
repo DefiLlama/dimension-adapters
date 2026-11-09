@@ -98,6 +98,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    deadFrom: '2026-02-07',
     adapter: {
         [CHAIN.AO]: {
             fetch,

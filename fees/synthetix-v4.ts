@@ -3,17 +3,14 @@ import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 import { postURL } from "../utils/fetchURL";
 
-const QUERY_URL = "https://queries.clickhouse.cloud/run/ca3181a6-2788-44fd-bda9-8cdd08dca70a?format=JSONEachRow";
-const AUTH_HEADER = "Basic QTlkUEpUcWc3V0h1TDRKSEpDV0I6" + "NGIxZHdrdW92TmdxMFcwR0NyajJQMXJWODJLOGszWHR2UDl2ZGpWNzN6";
+// backend used by https://stats.synthetix.io (no auth required)
+const QUERY_URL = "https://bmzv4vwivoeg3bqpqzxo3qf3ae0qktxn.lambda-url.ap-northeast-1.on.aws/overview-daily-stats?format=JSONEachRow";
 const DAY = 24 * 60 * 60;
 
 async function getRows(days: number) {
   const response = await postURL(QUERY_URL, { queryVariables: { days } }, 3, {
     headers: {
-      authorization: AUTH_HEADER,
       "content-type": "application/json",
-      origin: "https://stats.synthetix.io",
-      "x-clickhouse-endpoint-version": "2",
     },
   });
 

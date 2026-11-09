@@ -23,6 +23,7 @@ const prefetch = async (options: FetchOptions) => {
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
   const stats: IStats[] = options.preFetchedResults || [];
+  if (!stats.some((stat) => stat.unix_ts === options.startOfDay)) throw new Error(`gains-network: the dune stats table has no rows for ${options.dateString} yet`);
   const chainStat = stats.find((stat) => stat.unix_ts === options.startOfDay && stat.blockchain === options.chain);
 
   return { dailyVolume: chainStat?.daily_volume || 0 };

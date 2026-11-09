@@ -1,10 +1,11 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 
 const SHARES = "0x04E5a6f7eE9977D38f57945c31B72178c9Cf1c06";
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 
 // First/only FeeHandlerSet event found at block 33316772.
 // Keep known historical handlers here so old fee events remain included if

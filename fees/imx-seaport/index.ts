@@ -8,6 +8,7 @@ const adapter: SimpleAdapter = {
     Revenue: "Portion of fees going to protocol fee collectors"
   },
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.IMX]: {
       fetch,

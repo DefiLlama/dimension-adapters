@@ -1,8 +1,9 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 
 const PERP_ADDRESS = "0x54A62D550e1754f3bB34ad80501A63815297Fccc";
-const USDC_ADDRESS = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831";
+const USDC_ADDRESS = ADDRESSES.arbitrum.USDC_CIRCLE;
 
 const ABIS = {
     PositionOpened:

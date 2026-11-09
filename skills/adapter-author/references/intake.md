@@ -5,7 +5,7 @@ Use after the broad opener in `SKILL.md` when facts are still missing. One unres
 ## Evidence to inspect first
 
 - `pull_request_template.md` - TVL belongs in `DefiLlama-Adapters`; normal adapter PRs do not edit package files.
-- `GUIDELINES.md` and the matching category `GUIDELINES.md` - global rules, v1/v2 guidance, fee/revenue model, common traps.
+- `AGENTS.md` and the matching category `AGENTS.md` - global rules, v1/v2 guidance, fee/revenue model, common traps.
 - `adapters/types.ts` - supported `AdapterType`s, `whitelistedDimensionKeys`, the actual metric keys runtime accepts (e.g. `tokenIncentives`, not `dailyTokenIncentives`).
 - `.github/workflows/getFileList.js` - PR CI changed-file roots; factory-backed roots are not all covered.
 - `factory/registry.ts` - factory-backed adapter wiring and helper fallback.

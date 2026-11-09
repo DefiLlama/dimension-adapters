@@ -41,7 +41,7 @@ const fetch: any = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     topics: [
       id("Transfer(address,address,uint256)"),
-      null as any,
+      null,
       zeroPadValue(proxyTrade.toLowerCase(), 32),
     ],
     noTarget: true,

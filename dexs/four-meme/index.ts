@@ -1,80 +1,76 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import ADDRESSES from '../../helpers/coreAssets.json'
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { queryDuneSql } from '../../helpers/dune';
 
-// Trades emit on TokenManager V1 (BNB) and TokenManager2 (BNB or ERC-20 quote), regardless of router.
-const WBNB = '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c'
+// Trades emit on TokenManager V1 (BNB quote) and TokenManager2 (BNB or ERC-20 quote), regardless of router.
+const WBNB = ADDRESSES.bsc.WBNB
+const TOKEN_MANAGER_V1 = '0xec4549cadce5da21df6e6422d448034b5233bfbc'
 const TOKEN_MANAGER_V2 = '0x5c952063c7fc8610ffdb798152d69f0b9550762b'
+const TOKEN_INFOS = 'function _tokenInfos(address) view returns (address base, address quote, uint256 template, uint256 totalSupply, uint256 maxOffers, uint256 maxRaising, uint256 launchTime, uint256 offers, uint256 funds, uint256 lastPrice, uint256 K, uint256 T, uint256 status)'
 
-// Quote token: a supported ERC-20 quote (USDT/USD1/USDC/BUSD/CAKE) if it moves to/from TokenManager2 in most of a token's trades, else BNB (native BNB pays emit no transfer).
+// Event layouts checked against live logs: no indexed params, topic0 0x00fe0e12../0x80d4e495.. on V1 and 0x7db52723../0x0a5575b3.. on V2.
+const V1_TRADE_EVENTS = [
+  'event TokenPurchase(address token, address account, uint256 tokenAmount, uint256 etherAmount, uint256 fee)',
+  'event TokenSale(address token, address account, uint256 tokenAmount, uint256 etherAmount, uint256 fee)',
+]
+const V2_TRADE_EVENTS = [
+  'event TokenPurchase(address token, address account, uint256 price, uint256 amount, uint256 cost, uint256 fee, uint256 offers, uint256 funds)',
+  'event TokenSale(address token, address account, uint256 price, uint256 amount, uint256 cost, uint256 fee, uint256 offers, uint256 funds)',
+]
+
+// OpenFour (the launch engine introduced by Four.Meme), https://github.com/four-meme-community/openfour-docs: every curve
+// trade emits TradeExecuted on Core with the quote asset. Volume is what the trader put in: traderQuoteAmount on buys
+// (curve amount plus fees), curveQuoteAmount on sells (before fees), per the guide's §10.2 amount relationships.
+// Sample tx 0x2c906e792ae2c6ad84efbfe23212d8a5fb335a20720ac95a96ace695172ba6d3: curve trade of 150.625 BNC4.
+// TapeFour (presetId 1778027615734) curve trades are NAND NFT fundraising, which the OpenFour integration guide says to
+// keep out of ERC-20 volume.
+const OPENFOUR_CORE = '0xebe7b6c1089d9f72ad07f34e36d898e44e5e27f3'
+const TAPEFOUR_PRESET = '1778027615734'
+const TRADE_EXECUTED = 'event TradeExecuted(address indexed token, address indexed trader, uint256 indexed presetId, bool isBuy, address quoteAsset, address vault, uint256 requestedTokenAmount, uint256 tokenAmount, uint256 curveQuoteAmount, uint256 traderQuoteAmount, uint256 lastPrice, uint256 slippageLimit, uint256 protocolFee, uint256 taxFee, uint256 devFee, uint256 antiSniperFee, uint256 totalRaised, uint256 remainingForSale)'
+
 const fetch = async (options: FetchOptions) => {
-  const query = `
-    WITH v2_trades AS (
-      SELECT evt_tx_hash, token, cost FROM four_meme_bnb.tokenmanager2_evt_tokenpurchase
-      WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
-      UNION ALL
-      SELECT evt_tx_hash, token, cost FROM four_meme_bnb.tokenmanager2_evt_tokensale
-      WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
-    ),
-    tx_tokens AS (SELECT DISTINCT evt_tx_hash, token FROM v2_trades),
-    token_trades AS (SELECT token AS meme, COUNT(DISTINCT evt_tx_hash) AS n_tx FROM v2_trades GROUP BY 1),
-    stable_hits AS (
-      SELECT tt.token AS meme, tr.contract_address AS base, COUNT(DISTINCT tt.evt_tx_hash) AS tx_hits
-      FROM erc20_bnb.evt_transfer tr
-      JOIN tx_tokens tt ON tt.evt_tx_hash = tr.evt_tx_hash
-      WHERE tr.evt_block_time >= from_unixtime(${options.startTimestamp}) AND tr.evt_block_time < from_unixtime(${options.endTimestamp})
-        AND (tr."to" = ${TOKEN_MANAGER_V2} OR tr."from" = ${TOKEN_MANAGER_V2})
-        AND tr.contract_address IN (
-          0x55d398326f99059ff775485246999027b3197955, -- USDT
-          0x8d0d000ee44948fc98c9b98a4fa4921476f08b0d, -- USD1
-          0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d, -- USDC
-          0xe9e7cea3dedca5984780bafc599bd69add087d56, -- BUSD
-          0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82  -- CAKE
-        )
-      GROUP BY 1, 2
-    ),
-    stable_base AS (
-      SELECT meme, base FROM (
-        SELECT s.meme, s.base, ROW_NUMBER() OVER (PARTITION BY s.meme ORDER BY s.tx_hits DESC) AS rn
-        FROM stable_hits s JOIN token_trades tt ON tt.meme = s.meme
-        WHERE s.tx_hits * 2 >= tt.n_tx
-      ) x WHERE rn = 1
-    ),
-    per_base AS (
-      SELECT COALESCE(sb.base, ${WBNB}) AS base_token, SUM(t.cost) AS amount
-      FROM v2_trades t LEFT JOIN stable_base sb ON sb.meme = t.token
-      GROUP BY 1
-      UNION ALL
-      SELECT ${WBNB} AS base_token, SUM(amount) AS amount FROM (
-        SELECT etheramount AS amount FROM four_meme_bnb.tokenmanager_evt_tokenpurchase
-        WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
-        UNION ALL
-        SELECT etheramount AS amount FROM four_meme_bnb.tokenmanager_evt_tokensale
-        WHERE evt_block_time >= from_unixtime(${options.startTimestamp}) AND evt_block_time < from_unixtime(${options.endTimestamp})
-      ) v1
-    )
-    SELECT lower('0x' || to_hex(base_token)) AS base_token, CAST(SUM(amount) AS varchar) AS amount
-    FROM per_base GROUP BY 1
-  `
-
   const dailyVolume = options.createBalances()
-  const rows = await queryDuneSql(options, query)
-  for (const row of rows) {
-    if (row.amount) dailyVolume.add(row.base_token, row.amount)
+
+  // V1: every curve is quoted in BNB
+  for (const eventAbi of V1_TRADE_EVENTS) {
+    const logs = await options.getLogs({ target: TOKEN_MANAGER_V1, eventAbi })
+    logs.forEach((log: any) => dailyVolume.add(WBNB, log.etherAmount))
   }
+
+  // V2: cost is in the quote token TokenManager2 records for the curve; address(0) means BNB
+  const costByToken: Record<string, bigint> = {}
+  for (const eventAbi of V2_TRADE_EVENTS) {
+    const logs = await options.getLogs({ target: TOKEN_MANAGER_V2, eventAbi })
+    logs.forEach((log: any) => {
+      const token = log.token.toLowerCase()
+      costByToken[token] = (costByToken[token] ?? 0n) + BigInt(log.cost)
+    })
+  }
+  const tokens = Object.keys(costByToken)
+  const tokenInfos = await options.api.multiCall({ target: TOKEN_MANAGER_V2, abi: TOKEN_INFOS, calls: tokens })
+  tokens.forEach((token, i) => {
+    const quote = tokenInfos[i].quote.toLowerCase()
+    dailyVolume.add(quote === ADDRESSES.null ? WBNB : quote, costByToken[token].toString())
+  })
+
+  // OpenFour: quoteAsset is in the event
+  const trades = await options.getLogs({ target: OPENFOUR_CORE, eventAbi: TRADE_EXECUTED })
+  trades.forEach((log: any) => {
+    if (String(log.presetId) === TAPEFOUR_PRESET) return
+    dailyVolume.add(log.quoteAsset, log.isBuy ? log.traderQuoteAmount : log.curveQuoteAmount)
+  })
 
   return { dailyVolume }
 }
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
   fetch,
   chains: [CHAIN.BSC],
   start: '2024-12-25',
-  dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
+  pullHourly: true,
   methodology: {
-    Volume: "Sum of every buy and sell on four.meme's V1 and V2 bonding curves, taken from the on-chain TokenPurchase/TokenSale events. Each trade's cost is valued in the curve's quote token: BNB by default, or the ERC-20 quote token (USDT, USD1, USDC, BUSD, CAKE) the curve is priced in.",
+    Volume: "Every buy and sell on four.meme's bonding curves, classic and OpenFour, valued in each curve's quote token (BNB, a stablecoin or a tokenized stock). Trades after a token migrates to a DEX and TapeFour NFT fundraising are excluded.",
   },
 }
 

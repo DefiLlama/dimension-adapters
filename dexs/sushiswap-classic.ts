@@ -17,7 +17,7 @@ const sushiClassicConfigs: Record<string, SushiClassicConfig> = {
   [CHAIN.BSC]: { factory: "0xc35dadb65012ec5796536bd9864ed8773abc74c4", start: "2021-03-01" },
   [CHAIN.CORE]: { factory: "0xb45e53277a7e0f1d35f2a77160e91e25507f1763", start: "2023-11-01" },
   [CHAIN.BLAST]: { factory: "0x42fa929fc636e657ac568c0b5cf38e203b67ac2b", start: "2024-03-03" },
-  [CHAIN.KATANA]: { factory: "0x72d111b4d6f31b38919ae39779f570b747d6acd9", start: "2025-04-01" },
+  [CHAIN.KATANA]: { factory: "0x72d111b4d6f31b38919ae39779f570b747d6acd9", start: "2025-05-09" },
   [CHAIN.XDAI]: { factory: "0xc35dadb65012ec5796536bd9864ed8773abc74c4", start: "2021-03-01" },
   [CHAIN.OPTIMISM]: { factory: "0xfbc12984689e5f15626bad03ad60160fe98b303c", start: "2023-10-16" },
   [CHAIN.BASE]: { factory: "0x71524b4f93c58fcbf659783284e38825f0622859", start: "2023-08-15" },
@@ -25,6 +25,7 @@ const sushiClassicConfigs: Record<string, SushiClassicConfig> = {
   [CHAIN.CELO]: { factory: "0xc35dadb65012ec5796536bd9864ed8773abc74c4", start: "2021-06-17" },
   [CHAIN.LINEA]: { factory: "0xfbc12984689e5f15626bad03ad60160fe98b303c", start: "2023-10-15" },
   [CHAIN.METIS]: { factory: "0x580ED43F3BBa06555785C81c2957efCCa71f7483", start: "2023-10-15" },
+  [CHAIN.ARC]: { factory: "0x0e867974275cd31c25015c2753c9d75f9f355379", start: "2026-09-15" },
 }
 
 const getUniV2LogAdapterConfig = {

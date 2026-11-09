@@ -79,7 +79,7 @@ const chainConfig: Partial<Record<CHAIN, ChainConfigType>> = {
   //   start: '2024-03-27',
   //   contract: beefyRevenueBridgeAddress,
   //   stables: [
-  //     '0xFc00000000000000000000000000000000000001', // frxUSD
+  //     ADDRESSES.fraxtal.FRAX, // frxUSD
   //   ]
   // },
   [CHAIN.SCROLL]: {
@@ -103,7 +103,7 @@ const chainConfig: Partial<Record<CHAIN, ChainConfigType>> = {
   //   start: '2023-08-23',
   //   contract: beefyRevenueBridgeAddress,
   //   stables: [
-  //     '0xEB466342C4d449BC9f53A865D5Cb90586f405215', // axlUSDC
+  //     ADDRESSES.celo.axlUSDC, // axlUSDC
   //   ],
   // },
   // [CHAIN.CANTO]: {

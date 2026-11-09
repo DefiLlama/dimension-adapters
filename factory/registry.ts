@@ -40,6 +40,7 @@ function resolveFactoryPath(factoryPath: string) {
 // Use 'name:export' to reference a named export (e.g. 'uniV2:fees')
 const factoriesByAdapterType: { [adapterType: string]: string[] } = {
   'fees': [
+    'injectiveBigQuery:fees',
     'helpers/liquity',
     'helpers/balancer',
     'helpers/friend-tech',
@@ -56,9 +57,11 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'routescan',
     'hyperliquid:validatorFees',
     'hyperliquid',
+    'lighter',
     'symmio',
     'compoundV2',
     'orderly',
+    'azverse:fees',
     'gmxV1',
     'chainTxFees',
     'curators',
@@ -68,9 +71,12 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'curve',
     'subscan',
     'polymarket:fees',
+    'papertrade:fees',
   ],
   'dexs': [
+    'injectiveBigQuery',
     'helpers/crypto-card',
+    'helpers/rainCard',
     'helpers/balancer',
     'uniV2',
     'uniV3',
@@ -78,8 +84,10 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'uniV2:fees',
     'uniV3:fees',
     'hyperliquid',
+    'lighter',
     'symmio',
     'orderly',
+    'azverse',
     'gmxV1',
     'polymarket',
     'saddle',
@@ -87,6 +95,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'duneSolanaDex',
     'joeLiquidityBook',
     'curve',
+    // 'papertrade', // builder volume is not listed yet, see factory/papertrade.ts
   ],
   'aggregators': [],
   'open-interest': [
@@ -110,6 +119,12 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'aaveLiquidations',
     'compoundV2:liquidations',
     'gmxV1:liquidations',
+    'helpers/liquity:liquidations',
+  ],
+  'bridges': [
+    'evmBridges',
+    'opStackBridges',
+    'arbitrumBridges',
   ],
 };
 

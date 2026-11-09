@@ -39,7 +39,7 @@ const fetch: any = async (options: FetchOptions) => {
                     AND aa.balance_change > 0
                     AND aa.tx_success = true
                     AND aa.block_time >= from_unixtime(${options.startTimestamp})
-                    AND aa.block_time <= from_unixtime(${options.endTimestamp})
+                    AND aa.block_time < from_unixtime(${options.endTimestamp})
                 UNION ALL
                 SELECT
                     aa.balance_change / 1e9 AS daily_fees
@@ -51,7 +51,7 @@ const fetch: any = async (options: FetchOptions) => {
                     AND aa.balance_change > 0
                     AND aa.tx_success = true
                     AND aa.block_time >= from_unixtime(${options.startTimestamp})
-                    AND aa.block_time <= from_unixtime(${options.endTimestamp})
+                    AND aa.block_time < from_unixtime(${options.endTimestamp})
                     AND u.call_tx_id not in (
                         select
                             call_tx_id
@@ -59,7 +59,7 @@ const fetch: any = async (options: FetchOptions) => {
                             sanctum_unstake_solana.unstake_call_unstake
                         where
                             call_block_time >= from_unixtime(${options.startTimestamp})
-                            AND call_block_time <= from_unixtime(${options.endTimestamp})
+                            AND call_block_time < from_unixtime(${options.endTimestamp})
                     )
                 UNION ALL 
                 SELECT
@@ -75,7 +75,7 @@ const fetch: any = async (options: FetchOptions) => {
                     )
                     and token_balance_change > 0
                     AND block_time >= from_unixtime(${options.startTimestamp})
-                    AND block_time <= from_unixtime(${options.endTimestamp})
+                    AND block_time < from_unixtime(${options.endTimestamp})
                 )
             
         SELECT

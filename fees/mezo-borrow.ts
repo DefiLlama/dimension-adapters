@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived, nullAddress } from "../helpers/token";
@@ -23,7 +24,7 @@ import { METRIC } from "../helpers/metrics";
  * and back out interest = total - borrowing/refinancing fees (from events).
  */
 
-const MUSD = "0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186";
+const MUSD = ADDRESSES.mezo.MUSD;
 
 const CONTRACTS = {
   troveManager: "0x94AfB503dBca74aC3E4929BACEeDfCe19B93c193",

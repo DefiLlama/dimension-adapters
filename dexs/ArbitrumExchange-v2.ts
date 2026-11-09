@@ -4,9 +4,11 @@ import { getUniV2LogAdapter } from "../helpers/uniswap";
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      fetch: getUniV2LogAdapter({ factory: '0x1C6E968f2E6c9DEC61DB874E28589fd5CE3E1f2c' }),
+      // factory feeTo is set on-chain => stock uniV2 protocol share of 1/6 of swap fees
+      fetch: getUniV2LogAdapter({ factory: '0x1C6E968f2E6c9DEC61DB874E28589fd5CE3E1f2c', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 }),
     },
   },
 }

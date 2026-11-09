@@ -10,11 +10,12 @@ const fetch = async () => {
     .filter((market: any) => market.type === "PERPETUAL")
     .reduce((sum: number, market: any) => sum + Number(market.openInterest) * Number(market.markPrice), 0);
 
+  // /v1/markets openInterest is one-sided
   return { openInterestAtEnd };
 };
 
 const methodology = {
-  OpenInterest: "Open interest is the sum of notional open interest from Arcus's markets API.",
+  OpenInterest: "Open interest is the sum of notional open interest (openInterest x markPrice) from Arcus's markets API, which reports one side of each position.",
 };
 
 const adapter: SimpleAdapter = {

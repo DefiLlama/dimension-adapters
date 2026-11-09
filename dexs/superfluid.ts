@@ -86,7 +86,7 @@ const CONFIG: Record<string, { endpoint: string; start: string; wnative: string 
   },
 };
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 
 interface Token {
   id: string;

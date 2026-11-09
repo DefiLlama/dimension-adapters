@@ -10,7 +10,7 @@ const fetch = async (options: FetchOptions) => {
     WHERE
       result = 'tesSUCCESS'
       AND _event_created_at >= from_unixtime(${options.startTimestamp})
-      AND _event_created_at <= from_unixtime(${options.endTimestamp})
+      AND _event_created_at < from_unixtime(${options.endTimestamp})
   `
   const res = await queryDuneSql(options, query);
   const dailyFees = options.createBalances();

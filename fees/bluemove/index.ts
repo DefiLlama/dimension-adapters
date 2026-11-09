@@ -11,6 +11,12 @@ const SUI_FEE_RATE = 0.003; // 0.3%
 const SUI_PROTOCOL_FEE_RATE = 0;
 const SUI_SUPPLY_SIDE_FEE_RATE = SUI_FEE_RATE - SUI_PROTOCOL_FEE_RATE;
 
+// BlueMove was drained on this date. The sui swap event feed keeps emitting
+// inflated swaps afterwards, so dexs/bluemove.ts stops reading it here (#8359).
+// The same feed backs the fee legs below and was left unguarded, which booked
+// 2,288,313 of fees on 2026-07-22 against 0 volume on the dexs side.
+const PROTOCOL_DRAIN_DATE = "2026-07-11";
+
 interface IVolumeall {
   num: string;
   date: string;
@@ -30,6 +36,13 @@ const fetchAptos = async (options: FetchOptions) => {
 };
 
 const fetchSui = async (options: FetchOptions) => {
+  if (options.dateString > PROTOCOL_DRAIN_DATE) {
+    return {
+      dailyFees: options.createBalances(),
+      dailySupplySideRevenue: options.createBalances(),
+    };
+  }
+
   const events = await queryEvents({
     eventModule: { package: SUI_PACKAGE, module: "swap" },
     options,

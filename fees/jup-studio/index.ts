@@ -1,150 +1,126 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 import { FetchOptions } from "../../adapters/types";
-import { JUPITER_METRICS, jupBuybackRatioFromRevenue } from "../jupiter";
+import { JUPITER_METRICS } from "../jupiter";
+
+// Studio's Meteora DBC configs, selected by fee claimer (fixed at config creation). Studio creates one config per token,
+// in the pool's tx. Fee split: https://docs.jup.ag/user-docs/launch/studio/graduation-and-fees. At graduation the DBC
+// program assigns the partner's DAMM v2 LP position NFT to the fee claimer, so the same keys own Jupiter's LP positions.
+const JUP_STUDIO_FEE_CLAIMERS = [
+    'CWcERiVd7xkUrcJK5QBdcKC5GG8JMATMLNHtCEUguwPz', // configs until 2026-09-11
+    'E8QjCz3aX31Qk6ieEYzfVsfqmT3dbTaTEABwUUgZVGWL', // configs since 2026-09-11
+]
+const FEE_CLAIMERS_SQL = JUP_STUDIO_FEE_CLAIMERS.map((a) => `'${a}'`).join(', ')
+
+const LABELS = {
+    TRADING_FEES_TO_CREATORS: 'Jup Studio Trading Fees To Creators',
+    TRADING_FEES_TO_METEORA: 'Jup Studio Trading Fees To Meteora',
+}
 
 interface IData {
     quote_mint: string;
-    total_volume: number;
-    total_trading_fees: number;
-    total_protocol_fees: number;
-    total_referral_fees: number;
-    damm_v2_fees: number;
+    trading_fees: number;
+    protocol_fees: number;
+    referral_fees: number;
+    creator_fees: number;
+    damm_v2_lp_fees: number;
 }
 
+// DBC swap event fees (state/config.rs split_fees): protocol = 20% of the fee, trading = the rest, referral = 20% of
+// protocol, taken out of protocol. The trader pays trading + protocol + referral. trading is split between the creator
+// (creator_trading_fee_percentage) and the partner (Jupiter). Fees charged in the base token
+// (collect_fee_mode 1 on buys) are left out.
+// DAMM v2 claims: for pools migrated from DBC, token B is the quote mint, so fee_b_claimed is the quote-side fee.
 const fetch = async (options: FetchOptions) => {
     const query = `
         WITH
-            dbc_tokens AS (
+            cfg AS (
                 SELECT
                     account_config,
                     account_quote_mint,
-                    call_tx_signer,
-                    CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.ConfigParameters.collect_fee_mode') AS INT) AS collect_fee_mode
+                    CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.ConfigParameters.collect_fee_mode') AS INT) AS collect_fee_mode,
+                    COALESCE(CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.ConfigParameters.creator_trading_fee_percentage') AS INT), 0) AS creator_fee_pct
                 FROM meteora_solana.dynamic_bonding_curve_call_create_config
                 WHERE call_executing_account = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
-                    AND cardinality(call_account_arguments) = 9
-                    AND call_account_arguments[9] = '8rE9CtCjwhSmbwL5fbJBtRFsS3ohfMcDFeTTC7t4ciUA'
+                    AND account_fee_claimer IN (${FEE_CLAIMERS_SQL})
             ),
-            swap_events AS (
+            dbc AS (
                 SELECT
-                    s.config,
-                    s.trade_direction,
-                    s.amount_in,
-                    s.swap_result,
-                    t.account_quote_mint,
-                    t.collect_fee_mode,
+                    c.account_quote_mint AS quote_mint,
+                    c.creator_fee_pct,
                     CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.trading_fee') AS DECIMAL(38,0)) AS trading_fee,
                     CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.protocol_fee') AS DECIMAL(38,0)) AS protocol_fee,
-                    CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.referral_fee') AS DECIMAL(38,0)) AS referral_fee,
-                    CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.output_amount') AS DECIMAL(38,0)) AS amount_out
+                    CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult.referral_fee') AS DECIMAL(38,0)) AS referral_fee
                 FROM meteora_solana.dynamic_bonding_curve_evt_evtswap s
-                JOIN dbc_tokens t ON s.config = t.account_config
+                JOIN cfg c ON c.account_config = s.config
                 WHERE s.evt_executing_account = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
                     AND s.evt_block_time >= from_unixtime(${options.startTimestamp})
                     AND s.evt_block_time < from_unixtime(${options.endTimestamp})
+                    AND NOT (c.collect_fee_mode = 1 AND s.trade_direction = 1)
             ),
-            damm_v2_fees AS (
-                SELECT
-                    evt_tx_id,
-                    evt_outer_instruction_index,
-                    evt_inner_instruction_index
-                FROM meteora_solana.cp_amm_evt_evtclaimpositionfee
-                WHERE owner = 'CWcERiVd7xkUrcJK5QBdcKC5GG8JMATMLNHtCEUguwPz'
-                    AND evt_block_time >= from_unixtime(${options.startTimestamp})
-                    AND evt_block_time < from_unixtime(${options.endTimestamp})
+            pools AS (
+                SELECT DISTINCT m.account_pool AS pool, m.account_quote_mint AS quote_mint
+                FROM meteora_solana.dynamic_bonding_curve_call_migration_damm_v2 m
+                JOIN cfg c ON c.account_config = m.account_config
             ),
-            damm_v2_token_transfers AS (
-                SELECT
-                    t.token_mint_address,
-                    SUM(t.amount) AS total_amount
-                FROM tokens_solana.transfers t
-                INNER JOIN damm_v2_fees d ON t.tx_id = d.evt_tx_id
-                    AND t.outer_instruction_index = d.evt_outer_instruction_index
-                    AND t.inner_instruction_index = d.evt_inner_instruction_index - 1
-                WHERE t.block_time >= from_unixtime(${options.startTimestamp})
-                    AND t.block_time < from_unixtime(${options.endTimestamp})
-                GROUP BY t.token_mint_address
+            damm AS (
+                SELECT p.quote_mint, SUM(CAST(e.fee_b_claimed AS DECIMAL(38,0))) AS lp_fees
+                FROM meteora_solana.cp_amm_evt_evtclaimpositionfee e
+                JOIN pools p ON p.pool = e.pool
+                WHERE e.evt_executing_account = 'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG'
+                    AND e.owner IN (${FEE_CLAIMERS_SQL})
+                    AND e.evt_block_time >= from_unixtime(${options.startTimestamp})
+                    AND e.evt_block_time < from_unixtime(${options.endTimestamp})
+                GROUP BY 1
             )
         SELECT
-            account_quote_mint as quote_mint,
-            SUM(
-                CASE 
-                    WHEN trade_direction = 1 THEN COALESCE(amount_in, 0)
-                    ELSE COALESCE(amount_out, 0)
-                END
-            ) AS total_volume,
-            SUM(
-                CASE 
-                    WHEN collect_fee_mode = 1 AND trade_direction = 1 THEN 0
-                    ELSE COALESCE(trading_fee, 0)
-                END
-            ) AS total_trading_fees,
-            SUM(
-                CASE 
-                    WHEN collect_fee_mode = 1 AND trade_direction = 1 THEN 0
-                    ELSE COALESCE(protocol_fee, 0)
-                END
-            ) AS total_protocol_fees,
-            SUM(
-                CASE 
-                    WHEN collect_fee_mode = 1 AND trade_direction = 1 THEN 0
-                    ELSE COALESCE(referral_fee, 0)
-                END
-            ) AS total_referral_fees,
-            CAST(0 AS DECIMAL(38,0)) AS damm_v2_fees
-        FROM swap_events
-        GROUP BY account_quote_mint
+            quote_mint,
+            SUM(trading_fee) AS trading_fees,
+            SUM(protocol_fee) AS protocol_fees,
+            SUM(referral_fee) AS referral_fees,
+            SUM(trading_fee * creator_fee_pct / 100) AS creator_fees,
+            CAST(0 AS DECIMAL(38,0)) AS damm_v2_lp_fees
+        FROM dbc
+        GROUP BY 1
         UNION ALL
-        SELECT
-            token_mint_address as quote_mint,
-            CAST(0 AS DECIMAL(38,0)) AS total_volume,
-            CAST(0 AS DECIMAL(38,0)) AS total_trading_fees,
-            CAST(0 AS DECIMAL(38,0)) AS total_protocol_fees,
-            CAST(0 AS DECIMAL(38,0)) AS total_referral_fees,
-            total_amount AS damm_v2_fees
-        FROM damm_v2_token_transfers
+        SELECT quote_mint, 0, 0, 0, 0, lp_fees FROM damm
     `
     const data: IData[] = await queryDuneSql(options, query)
+    // Studio pools trade every day: an empty result is missing Dune data, not a zero day
+    if (!data.length) throw new Error(`No Jup Studio swaps or fee claims found on Dune for ${options.dateString}`)
 
     const dailyFees = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
     const dailyRevenue = options.createBalances();
-    const dailyProtocolRevenue = options.createBalances();
-    const dailyHoldersRevenue = options.createBalances();
 
     const accepted_quote_mints = [
-        'So11111111111111111111111111111111111111112',
-        'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'
+        ADDRESSES.solana.SOL,
+        ADDRESSES.solana.USDC,
+        ADDRESSES.solana.JUP
     ]
     data.forEach(row => {
         if (!accepted_quote_mints.includes(row.quote_mint)) return;
-        const totalFees = Number(row.total_protocol_fees) + Number(row.total_referral_fees) + Number(row.total_trading_fees) + Number(row.damm_v2_fees);
+        const trading = Number(row.trading_fees);
+        const protocol = Number(row.protocol_fees);
+        const referral = Number(row.referral_fees);
+        const creator = Number(row.creator_fees);
+        const lp = Number(row.damm_v2_lp_fees);
 
-        dailyFees.add(row.quote_mint, Number(totalFees), JUPITER_METRICS.JupStudioFees);
-        dailySupplySideRevenue.add(row.quote_mint, Number(row.total_referral_fees), JUPITER_METRICS.JupStudioFeesToReferrals);
-      
-      
-        const revenue = options.createBalances();
-        revenue.add(row.quote_mint, Number(row.total_trading_fees) + Number(row.damm_v2_fees))
-        dailyRevenue.add(revenue, JUPITER_METRICS.JupStudioFeesToJupiter);
-      
-        const buybackRatio = jupBuybackRatioFromRevenue(options.startOfDay);
-        const revenueHolders = revenue.clone(buybackRatio);
-        const revenueProtocol = revenue.clone(1 - buybackRatio);
-        dailyProtocolRevenue.add(revenueProtocol, JUPITER_METRICS.JupStudioFeesToJupiter);
-        dailyHoldersRevenue.add(revenueHolders, JUPITER_METRICS.TokenBuyBack);
+        dailyFees.add(row.quote_mint, trading + protocol + referral + lp, JUPITER_METRICS.JupStudioFees);
+        dailySupplySideRevenue.add(row.quote_mint, referral, JUPITER_METRICS.JupStudioFeesToReferrals);
+        dailySupplySideRevenue.add(row.quote_mint, creator, LABELS.TRADING_FEES_TO_CREATORS);
+        dailySupplySideRevenue.add(row.quote_mint, protocol, LABELS.TRADING_FEES_TO_METEORA);
+        dailyRevenue.add(row.quote_mint, trading - creator + lp, JUPITER_METRICS.JupStudioFeesToJupiter);
     });
 
     return {
         dailyFees,
         dailyUserFees: dailyFees,
         dailyRevenue,
-        dailyProtocolRevenue,
+        dailyProtocolRevenue: dailyRevenue,
         dailySupplySideRevenue,
-        dailyHoldersRevenue,
     };
 };
 
@@ -155,28 +131,27 @@ const adapter: SimpleAdapter = {
     dependencies: [Dependencies.DUNE],
     start: '2025-07-02',
     isExpensiveAdapter: true,
+    doublecounted: true, // Studio pools are Meteora DBC curves and DAMM v2 pools, also counted on Meteora's listings
     methodology: {
-        Fees: "Trading fees paid by users.",
-        Revenue: "Fees collected by Jup Studio.",
-        SupplySideRevenue: "Fees collected by referrals.",
-        ProtocolRevenue: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
-        HoldersRevenue: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
+        Fees: "Trading fees paid by users on Jup Studio bonding curves, and the fees Jupiter's LP position earns in graduated Meteora DAMM v2 pools, counted when claimed.",
+        Revenue: "Jup Studio's share of bonding-curve trading fees (after the token creator's share) and its fees from migrated DAMM v2 pools.",
+        SupplySideRevenue: "Fees paid to referrals, to token creators (their configured share of the trading fee) and to Meteora (its protocol fee).",
+        ProtocolRevenue: "All of Jup Studio's revenue, kept by Jupiter. Not used for JUP buybacks.",
     },
     breakdownMethodology: {
         Fees: {
-            [JUPITER_METRICS.JupStudioFees]: 'Trading fees paid by users.',
+            [JUPITER_METRICS.JupStudioFees]: "Bonding-curve trading fees (creator, Jupiter, Meteora and referral shares) plus the DAMM v2 LP fees Jupiter claims.",
         },
         Revenue: {
-            [JUPITER_METRICS.JupStudioFeesToJupiter]: 'All token trading and launching fees are revenue.',
+            [JUPITER_METRICS.JupStudioFeesToJupiter]: "Jup Studio's share of trading fees, after the creator share, plus DAMM v2 position fees it claims.",
         },
         ProtocolRevenue: {
-            [JUPITER_METRICS.JupStudioFeesToJupiter]: 'Share of 50% fees collected by protocol, it was 100% before 2025-02-17.',
+            [JUPITER_METRICS.JupStudioFeesToJupiter]: "All of Jup Studio's revenue, kept by Jupiter.",
         },
         SupplySideRevenue: {
             [JUPITER_METRICS.JupStudioFeesToReferrals]: 'Fees collected by referrals.',
-        },
-        HoldersRevenue: {
-            [JUPITER_METRICS.TokenBuyBack]: 'From 2025-02-17, share of 50% fees to buy back JUP tokens.',
+            [LABELS.TRADING_FEES_TO_CREATORS]: "The token creator's configured share of the bonding-curve trading fee.",
+            [LABELS.TRADING_FEES_TO_METEORA]: "Meteora's protocol fee on bonding-curve swaps.",
         },
     }
 }

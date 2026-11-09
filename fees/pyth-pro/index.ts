@@ -1,14 +1,29 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
 
 // Douro Labs is the official Pyth Pro data distributor
 // Revenue split: Douro Labs keeps 40%, Pyth DAO receives 60%
+// PYTH payments go to the Pyth DAO treasury in both periods.
+// Before PIP-136, USDC payments also went to the Pyth DAO treasury.
+// From PIP-136, USDC payments go to the Pythian Council Ops Multisig
+// (GAdn7TZhszf5KTfwNRx3A2nP6KCRFEWucZubgdEqbJA2), which buys PYTH for the DAO.
 const DOURO_LABS_WALLET = "2ru31e9g8RF2mSSNgTQ11QMb166NE6LJccmBqGJM8xxy";
 const PYTH_DAO_WALLET = "Gx4MBPb1vqZLJajZmsKLg8fGw9ErhoKsR8LeKcCKFyak";
+const PYTHIAN_COUNCIL_WALLET = "GAdn7TZhszf5KTfwNRx3A2nP6KCRFEWucZubgdEqbJA2";
+
+// PIP-136: USDC DAO share is delivered to the Pythian Council instead of the DAO treasury
+const PIP_136 = "2026-09-25";
+
+// The September 2026 distribution (553,693 USDC) was sent to the DAO on 2026-10-05 instead of the
+// Council: Douro "should be sending it directly to the Pythian Council wallet ... but failed to do so this time".
+// Admit only this transfer; other post-PIP-136 USDC transfers to the DAO stay excluded.
+// Source: https://forum.pyth.network/t/pyth-pro-douro-labs-report-september-2026/2720
+const MISROUTED_USDC_TX = "4HmpUVkLMCTBZVoY2kmQaDpFkFTUUTpJ4bhrPwQeXTEKcdkmnXb8fhUv5Ha8kspL9xhvYaJYVjLE5DRcZSXNq6eZ";
 
 // Token mints
-const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const USDC_MINT = ADDRESSES.solana.USDC;
 const PYTH_MINT = "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3";
 
 const DAO_SHARE_PERCENT = 60n;
@@ -19,7 +34,11 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // Query USDC and PYTH transfers from Douro Labs to Pyth DAO
+  // Before PIP-136 both tokens settle at the DAO. From PIP-136, USDC settles at the Council.
+  const usdcRecipient = options.dateString >= PIP_136
+    ? PYTHIAN_COUNCIL_WALLET
+    : PYTH_DAO_WALLET;
+
   // Note: Douro distributes in month N+1 for revenue earned in month N,
   // so DefiLlama data lags ~1 month vs actual earning period
   const subscriptionQuery = `
@@ -30,7 +49,11 @@ const fetch = async (options: FetchOptions) => {
     WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
       AND mint IN ('${USDC_MINT}', '${PYTH_MINT}')
       AND from_address = '${DOURO_LABS_WALLET}'
-      AND to_address = '${PYTH_DAO_WALLET}'
+      AND (
+        (mint = '${USDC_MINT}' AND to_address = '${usdcRecipient}')
+        OR (mint = '${USDC_MINT}' AND to_address = '${PYTH_DAO_WALLET}' AND txn_id = '${MISROUTED_USDC_TX}')
+        OR (mint = '${PYTH_MINT}' AND to_address = '${PYTH_DAO_WALLET}')
+      )
     GROUP BY mint
   `;
 

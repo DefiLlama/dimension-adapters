@@ -1,7 +1,8 @@
-import fetchURL from "../../utils/fetchURL"
+import { proxiedFetch } from "../../utils/fetchURL"
 import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
+// megaton.fi answers from a residential IP but blocks datacenter IPs, so route it through the shared proxy like fees/ntm
 const historicalVolumeEndpoint = "https://megaton.fi/api/dashboard/info?"
 
 interface IVolumeall {
@@ -10,7 +11,7 @@ interface IVolumeall {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint)).dayVolume;
+  const historicalVolume: IVolumeall[] = (await proxiedFetch(historicalVolumeEndpoint)).dayVolume;
   const dateString = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
   const dailyVolume = historicalVolume
     .find(dayItem => dayItem.dateId.split('T')[0] === dateString)?.amount

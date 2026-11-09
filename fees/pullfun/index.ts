@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards";
 
 const ENDPOINT = "https://pull.fun/api/public/defillama/fees/v2";
 
@@ -109,6 +110,7 @@ const adapter: SimpleAdapter = {
   fetch,
   methodology,
   breakdownMethodology,
+  unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
   allowNegativeValue: true,
 };
 

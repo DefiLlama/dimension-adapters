@@ -1,59 +1,56 @@
-import fetchURL from "../../utils/fetchURL"
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { PARADEX_DAILY_VOLUME_CARD, PARADEX_TRADES_FROM, getParadexDailyCardValue, getParadexMarkets, getParadexTrades, getParadexUnderlyingPrices, isParadexDailyCardSlot } from "../../helpers/paradex";
 
-// Options Daily Volume (notional) - rolling window of recent daily options volume
-const dailyVolumeEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/27263/card/32012?parameters=%5B%5D'
-// Options Daily Premium - rolling window of recent daily options premium volume
+// Daily premium. Row format: [Day, Premium Volume, Cumulative Premium Volume]
 const dailyPremiumEndpoint = 'https://tradeparadigm.metabaseapp.com/api/public/dashboard/e4d7b84d-f95f-48eb-b7a6-141b3dcef4e2/dashcard/28546/card/32935?parameters=%5B%5D'
+const OPTION_VOLUME_INDEX = 4
 
-interface DailyCache {
-  [date: string]: { notional: number, premium: number }
-}
+const NOTIONAL_TRADE_TYPES = new Set(['FILL', 'RPI', 'BLOCK_TRADE'])
 
-let dailyCache: DailyCache | null = null
+const fetchFromTrades = async (options: FetchOptions) => {
+  const markets = await getParadexMarkets('OPTION')
+  const underlyings = [...new Set(markets.map((m: any) => m.base_currency as string))]
+  let dailyNotionalVolume = 0
+  let dailyPremiumVolume = 0
+  for (const underlying of underlyings) {
+    const trades = (await getParadexTrades(options, `base_asset=${underlying}`)).filter((t: any) => t.trade_type !== 'SETTLE_MARKET')
+    if (!trades.length) continue
 
-const fetchDailyCache = async (): Promise<DailyCache> => {
-  if (dailyCache) return dailyCache
-  const [volumeRes, premiumRes] = await Promise.all([
-    fetchURL(dailyVolumeEndpoint),
-    fetchURL(dailyPremiumEndpoint),
-  ])
-  const cache: DailyCache = {}
-  // Notional card row format: [DAY, VOLUME]
-  for (const row of volumeRes.data.rows) {
-    const date = row[0].slice(0, 10) // "2026-04-08T00:00:00Z" -> "2026-04-08"
-    cache[date] = { notional: Number(row[1] ?? 0), premium: 0 }
+    const prices = await getParadexUnderlyingPrices(options, `${underlying}-USD-PERP`)
+    for (const trade of trades) {
+      dailyPremiumVolume += Number(trade.price) * Number(trade.size)
+      if (!NOTIONAL_TRADE_TYPES.has(trade.trade_type)) continue
+      const price = prices[Math.floor(trade.created_at / 60e3) * 60e3]
+      if (price == null) throw new Error(`Missing ${underlying} underlying price at ${trade.created_at}`)
+      dailyNotionalVolume += Number(trade.size) * price
+    }
   }
-  // Premium card row format: [DAY, PREMIUM_VOLUME, CUMULATIVE_PREMIUM_VOLUME]
-  for (const row of premiumRes.data.rows) {
-    const date = row[0].slice(0, 10)
-    if (!cache[date]) cache[date] = { notional: 0, premium: 0 }
-    cache[date].premium = Number(row[1] ?? 0)
-  }
-  dailyCache = cache
-  return dailyCache
+  return { dailyNotionalVolume, dailyPremiumVolume }
 }
 
 const fetch = async (options: FetchOptions) => {
-  const { startOfDay } = options
-  const cache = await fetchDailyCache()
-  const dateKey = new Date(startOfDay * 1000).toISOString().slice(0, 10)
-  const entry = cache[dateKey]
-  if (!entry) throw new Error(`No Paradex options volume data for ${dateKey}`)
+  if (options.startTimestamp >= PARADEX_TRADES_FROM) return fetchFromTrades(options)
+
+  if (!isParadexDailyCardSlot(options)) return { dailyNotionalVolume: 0, dailyPremiumVolume: 0 }
   return {
-    dailyNotionalVolume: entry.notional,
-    dailyPremiumVolume: entry.premium,
+    dailyNotionalVolume: await getParadexDailyCardValue(PARADEX_DAILY_VOLUME_CARD, options, OPTION_VOLUME_INDEX),
+    dailyPremiumVolume: await getParadexDailyCardValue(dailyPremiumEndpoint, options, 1),
   }
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.PARADEX]: {
       fetch,
       start: '2026-03-25',
     },
+  },
+  methodology: {
+    NotionalVolume: 'Notional value of options traded on Paradex: contracts traded times the underlying price. From 2026-10-31 it is computed from the public Paradex trades API and minute underlying prices; earlier days come from the Paradex stats dashboard.',
+    PremiumVolume: 'Option premiums paid on Paradex, excluding expiry settlements. From 2026-10-31 it is summed from the public Paradex trades API; earlier days come from the Paradex stats dashboard.',
   },
 }
 

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 // Bounce - Leveraged Tokens on HyperEVM (Open Interest)
 //
 // Open Interest = sum of notional across all leveraged token contracts
@@ -14,7 +15,7 @@ import { CHAIN } from "../helpers/chains";
 import { ethers } from "ethers";
 
 const GLOBAL_STORAGE = '0xa07d06383c1863c8A54d427aC890643d76cc03ff';
-const USDC = '0xb88339CB7199b77E23DB6E890353E22632Ba630f'; // notionalUsdc precompile always returns 6-decimal USDC
+const USDC = ADDRESSES.hyperliquid.USDC; // notionalUsdc precompile always returns 6-decimal USDC
 
 const fetch = async (options: FetchOptions) => {
     const factory = await options.api.call({ abi: 'address:factory', target: GLOBAL_STORAGE });
@@ -37,6 +38,11 @@ const fetch = async (options: FetchOptions) => {
         if (isLongs[i]) longOpenInterestAtEnd.add(USDC, notional);
         else shortOpenInterestAtEnd.add(USDC, notional);
     });
+
+    // pool venue with no single-sided field: average the two sides instead of summing them
+    openInterestAtEnd.resizeBy(0.5);
+    longOpenInterestAtEnd.resizeBy(0.5);
+    shortOpenInterestAtEnd.resizeBy(0.5);
 
     return { openInterestAtEnd, longOpenInterestAtEnd, shortOpenInterestAtEnd };
 };

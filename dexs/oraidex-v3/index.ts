@@ -2,7 +2,7 @@ import { gql, GraphQLClient } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-const historicalVolumeEndpoint = "https://staging-ammv3-indexer.oraidex.io/";
+const historicalVolumeEndpoint = "https://ammv3-indexer.oraidex.io/";
 const fetch = async (options: FetchOptions) => {
   const dayIndex = Math.floor(options.startOfDay / 86400);
   const query = gql`

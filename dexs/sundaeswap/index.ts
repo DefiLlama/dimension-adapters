@@ -1,87 +1,14 @@
-import { request, gql } from "graphql-request";
-import {
-  FetchOptions,
-  FetchResult,
-  SimpleAdapter,
-} from "../../adapters/types";
+import { SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getVolumeFetch, volumeMethodology } from "../../helpers/sundaeswap";
 
-const endpoint = "https://api.sundae.fi/graphql";
-
-interface VolumeStat {
-  asset: {
-    id: string;
-  };
-  quantity: string;
-}
-
-interface GraphQLResponse {
-  stats: {
-    volume: VolumeStat;
-  };
-}
-
-const query = gql`
-  query StatsVolume {
-    stats {
-      volume {
-        asset {
-          id
-        }
-        quantity
-      }
-    }
-  }
-`;
-
-const fetch = async (
-  options: FetchOptions,
-): Promise<FetchResult> => {
-  const dailyVolume =
-    options.createBalances();
-
-  const response =
-    await request<GraphQLResponse>(
-      endpoint,
-      query,
-    );
-
-  const volume =
-    response.stats.volume;
-
-  if (!volume) {
-    return { dailyVolume };
-  }
-
-  const assetId =
-    volume.asset.id;
-
-  const quantity =
-    Number(volume.quantity);
-
-  if (
-    assetId === "ada.lovelace" ||
-    assetId === "lovelace"
-  ) {
-    dailyVolume.addGasToken(
-      quantity,
-    );
-  } else {
-    dailyVolume.add(
-      assetId,
-      quantity,
-    );
-  }
-
-  return { dailyVolume };
-};
-
+// Listed as SundaeSwap V2 on DefiLlama; the Sundae API calls these pools V1
 const adapter: SimpleAdapter = {
   version: 1,
   chains: [CHAIN.CARDANO],
-  fetch,
-  //start: "2022-02-01",
-  runAtCurrTime: true,
+  fetch: getVolumeFetch(["V1"]),
+  start: "2022-01-20",
+  methodology: volumeMethodology,
 };
 
 export default adapter;

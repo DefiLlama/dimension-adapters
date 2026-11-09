@@ -12,6 +12,15 @@ const comptrollerABI = {
     reservesAdded: "event ReservesAdded(address benefactor,uint256 addAmount,uint256 newTotalReserves)",
     liquidateBorrow: "event LiquidateBorrow (address liquidator, address borrower, uint256 repayAmount, address mTokenCollateral, uint256 seizeTokens)",
     reserveFactor: "uint256:reserveFactorMantissa",
+    borrowBalanceStored: "function borrowBalanceStored(address account) view returns (uint256)",
+    repayBorrow: "event RepayBorrow(address payer, address borrower, uint256 repayAmount, uint256 accountBorrows, uint256 totalBorrows)",
+};
+
+// Accounts whose debt will never be repaid. Interest keeps accruing on their borrow balance and is
+// reported by AccrueInterest like any other interest, but nobody pays it, so it is taken back out.
+// Base: the 2026-08-27 MAMO oracle exploiter borrowed ~$9.2M against worthless mMAMO collateral.
+const excludedBorrowers: IJSON<{ account: string, start: string }[]> = {
+    base: [{ account: "0x719eae70d4a83f35bf82a2740699f5db84be919d", start: "2026-08-28" }],
 };
 
 const baseUnitroller = "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C";
@@ -20,7 +29,7 @@ const moonriverUnitroller = "0x0b7a0EAA884849c6Af7a129e899536dDDcA4905E";
 const optimismUnitroller = "0xCa889f40aae37FFf165BccF69aeF1E82b5C511B9";
 const ethereumUnitroller = "0xdec80bB934397575594E91970b37baf65f5b21bE";
 
-async function getFees(market: string, { createBalances, api, getLogs, }: FetchOptions, {
+async function getFees(market: string, { createBalances, api, getLogs, fromApi, toApi, chain, startTimestamp }: FetchOptions, {
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
@@ -92,6 +101,34 @@ async function getFees(market: string, { createBalances, api, getLogs, }: FetchO
         dailyRevenue!.add(underlying, reserveShare, METRIC.BORROW_INTEREST);
         dailySupplySideRevenue!.add(underlying, lenderShare, METRIC.BORROW_INTEREST);
     })
+
+    // interest accrued on excluded borrowers = growth of their stored borrow balance over the window,
+    // plus anything repaid on their behalf during it
+    for (const { account, start } of excludedBorrowers[chain] ?? []) {
+        if (startTimestamp < Date.parse(`${start}T00:00:00Z`) / 1000) continue
+        const calls = markets.map((m: string) => ({ target: m, params: [account] }))
+        const [debtFrom, debtTo] = await Promise.all([
+            fromApi.multiCall({ calls, abi: comptrollerABI.borrowBalanceStored, permitFailure: true }),
+            toApi.multiCall({ calls, abi: comptrollerABI.borrowBalanceStored, permitFailure: true }),
+        ])
+        const debtMarkets = markets.filter((_: string, i: number) => Number(debtFrom[i] ?? 0) > 0)
+        const repaid: Record<string, number> = {}
+        if (debtMarkets.length) {
+            const repayLogs: any[] = await getLogs({ targets: debtMarkets, eventAbi: comptrollerABI.repayBorrow, flatten: false })
+            repayLogs.forEach((logs: any[], i: number) => {
+                for (const l of logs) if (l.borrower.toLowerCase() === account) repaid[debtMarkets[i].toLowerCase()] = (repaid[debtMarkets[i].toLowerCase()] ?? 0) + Number(l.repayAmount)
+            })
+        }
+        markets.forEach((m: string, i: number) => {
+            if (debtFrom[i] == null || debtTo[i] == null) return
+            const interest = Number(debtTo[i]) - Number(debtFrom[i]) + (repaid[m.toLowerCase()] ?? 0)
+            if (interest <= 0) return
+            const reserveShare = interest * Number(reserveFactors[i]) / 1e18
+            dailyFees!.add(underlyings[i], -interest, METRIC.BORROW_INTEREST)
+            dailyRevenue!.add(underlyings[i], -reserveShare, METRIC.BORROW_INTEREST)
+            dailySupplySideRevenue!.add(underlyings[i], -(interest - reserveShare), METRIC.BORROW_INTEREST)
+        })
+    }
 
     liquidateBorrowLogs.forEach((log: any) => {
         const marketIndex = log.marketIndex;

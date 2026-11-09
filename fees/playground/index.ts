@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpPost } from "../../utils/fetchURL";
@@ -6,7 +7,7 @@ import { httpPost } from "../../utils/fetchURL";
 const TREASURY_ADDRESS = '0x5d4a744c4895529c6d529d76b21716423493f10aa9d6b46776a94c175f55925c';
 
 // Native USDC on Aptos mainnet (Circle CCTP)
-const USDC_ASSET_TYPE = '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b';
+const USDC_ASSET_TYPE = ADDRESSES.aptos.USDC_3;
 
 const USDC_DECIMALS = 1e6;
 const APTOS_GRAPHQL = 'https://api.mainnet.aptoslabs.com/v1/graphql';

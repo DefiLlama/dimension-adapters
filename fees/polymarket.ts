@@ -1,3 +1,6 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { addTokensReceived } from "../helpers/token"
@@ -44,14 +47,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const usdc = ADDRESSES.polygon.USDC
   const pusd = ADDRESSES.polygon.PUSD
-  const usdcLc = usdc.toLowerCase()
   const pusdLc = pusd.toLowerCase()
   const protocolFeeWalletLc = POLYMARKET_ADDRESSES.common.ProtocolFeeWallet.toLowerCase()
 
   const logFilter = (log: any) => {
-    const to = String(log.to ?? log.toAddress ?? '').toLowerCase()
-    const token = String(log.token ?? log.address ?? '').toLowerCase()
-    return !(token === usdcLc && to === pusdLc) && to !== protocolFeeWalletLc
+    const to = String(log.to ?? log.to_address ?? '').toLowerCase()
+    return to !== pusdLc && to !== protocolFeeWalletLc
   }
 
   const fees = await addTokensReceived({
@@ -59,9 +60,16 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     fromAdddesses: [POLYMARKET_ADDRESSES.v1.FeeModule, POLYMARKET_ADDRESSES.v1.NegRiskFeeModuleOld, POLYMARKET_ADDRESSES.v1.NegRiskFeeModuleNew, POLYMARKET_ADDRESSES.v1.Ctf, POLYMARKET_ADDRESSES.v1.NegRiskCtf, POLYMARKET_ADDRESSES.v1.WrappedCollateral,
     POLYMARKET_ADDRESSES.v2.Ctf, POLYMARKET_ADDRESSES.v2.NegRiskCtf
     ],
-    targets: [...POLYMARKET_ADDRESSES.v1.FeeRecipients, ...POLYMARKET_ADDRESSES.v2.FeeRecipients],
+    targets: POLYMARKET_ADDRESSES.v1.FeeRecipients,
     tokens: [usdc, pusd],
     logFilter,
+  })
+  await addTokensReceived({
+    options,
+    targets: POLYMARKET_ADDRESSES.v2.FeeRecipients,
+    tokens: [usdc, pusd],
+    logFilter,
+    balances: fees,
   })
   const netLiquidityRewards = await addTokensReceived({
     options,

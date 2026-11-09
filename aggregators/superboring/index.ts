@@ -1,9 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { request, gql } from 'graphql-request'
 import { CHAIN } from '../../helpers/chains'
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { getConfig } from '../../helpers/cache'
 
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+const ZERO_ADDRESS = ADDRESSES.null
 
 // Subgraph endpoints for fetching torex contract addresses
 const TOREX_GRAPHQL_ENDPOINTS: Record<string, string> = {
@@ -148,9 +149,9 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch: fetchDailyVolume,
   adapter: {
-    [CHAIN.BASE]: { start: 1720080031 },
-    [CHAIN.OPTIMISM]: { start: 1723454131 },
-    [CHAIN.ARBITRUM]: { start: 1750045591 },
+    [CHAIN.BASE]: { start: '2024-07-04' },
+    [CHAIN.OPTIMISM]: { start: '2024-08-12' },
+    [CHAIN.ARBITRUM]: { start: '2025-06-16' },
   },
   methodology: 'Volume represents the USD value of SuperTokens DCAed through SuperBoring Torexes during each day',
 }

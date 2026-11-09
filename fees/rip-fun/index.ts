@@ -1,8 +1,8 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import coreAssets from "../../helpers/coreAssets.json";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
-const USDC = coreAssets.base.USDC;
+const USDC = ADDRESSES.base.USDC;
 
 const CONTRACTS = {
   legacyPacketStore: "0xeBeA10BCd609d3F6fb2Ea104baB638396C037388",
@@ -25,7 +25,7 @@ const CARD_RECIPIENT_INITIALIZER = {
   blockNumber: 47_466_430,
   logIndex: 123,
 } as const;
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 
 const COMBO_DEPLOY_BLOCK = 42_686_409;
 const MARKETPLACE_DEPLOY_BLOCK = 41_215_711;

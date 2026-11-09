@@ -2,7 +2,8 @@ import { SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-const URL = "https://market-info-mainnet-prod.gmtrade.xyz/api/v2/solana/pairs";
+// GMX's official GMX Solana pair feed (gmx-api), the same CoinGecko-format rows as the legacy GMTrade market-info feed it replaces
+const URL = "https://solana.gmxapi.io/v1/pairs";
 
 const fetch = async (_a: any) => {
   const pairs = await fetchURL(URL)
@@ -19,6 +20,8 @@ const fetch = async (_a: any) => {
   return {
     longOpenInterestAtEnd,
     shortOpenInterestAtEnd,
+    // Pool venue, as in gmx-v2: every position is its own contract against the pool (longs and shorts are not
+    // matched against each other), so long + short counts each open position exactly once.
     openInterestAtEnd: longOpenInterestAtEnd + shortOpenInterestAtEnd,
   }
 }

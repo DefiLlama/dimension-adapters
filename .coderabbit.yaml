@@ -194,8 +194,6 @@ knowledge_base:
   opt_out: false
   code_guidelines:
     enabled: true
-    filePatterns:
-      - "**/GUIDELINES.md"
   learnings:
     scope: global
   issues:

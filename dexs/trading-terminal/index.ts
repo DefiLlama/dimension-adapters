@@ -73,7 +73,7 @@ async function fetchEvm(options: FetchOptions) {
       FROM ${chainKey}.assets.native_token_transfers
       WHERE to_address = '${feeWallet}'
         AND transfer_type = 'value_transfer'
-        AND block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+        AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     ),
     botTrades AS (
       SELECT
@@ -86,7 +86,7 @@ async function fetchEvm(options: FetchOptions) {
         ) AS row_num
       FROM ${chainKey}.dex.trades t
       JOIN tt_txs a ON t.transaction_hash = a.transaction_hash
-      WHERE t.block_timestamp BETWEEN TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND TO_TIMESTAMP_NTZ(${options.endTimestamp})
+      WHERE t.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND t.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
         AND t.transaction_from_address != '${feeWallet}'
     )
     SELECT COALESCE(SUM(usd_amount), 0) AS total_volume

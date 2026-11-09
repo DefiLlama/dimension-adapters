@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import * as sdk from "@defillama/sdk";
 
@@ -30,7 +31,7 @@ async function getFees(market: string, { createBalances, api, getLogs, }: FetchO
     const underlyings = await api.multiCall({ calls: markets, abi: comptrollerABI.underlying, permitFailure: true, });
     const exchangeRatesCurrent = await api.multiCall({ calls: markets, abi: comptrollerABI.exchangeRateCurrent, permitFailure: true, });
     underlyings.forEach((underlying, index) => {
-        if (!underlying) underlyings[index] = "0x0000000000000000000000000000000000000000"
+        if (!underlying) underlyings[index] = ADDRESSES.null
     })
     const reserveFactors = await api.multiCall({ calls: markets, abi: abis.reserveFactor ?? comptrollerABI.reserveFactor, });
     const logs: any[] = (await getLogs({
@@ -114,8 +115,7 @@ function moonwellArtemisExport(config: { moonbeam: string }) {
             }),
         }
     })
-    return { adapter: exportObject, version: 2, allowNegativeValue: true, methodology, } as SimpleAdapter
-    return { adapter: exportObject, pullHourly: true, allowNegativeValue: true, methodology, } as SimpleAdapter
+    return { adapter: exportObject, version: 2, pullHourly: true, allowNegativeValue: true, methodology, } as SimpleAdapter
 }
 
 export default moonwellArtemisExport({ moonbeam: moonbeamUnitroller });

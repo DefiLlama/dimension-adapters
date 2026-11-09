@@ -28,14 +28,14 @@ async function fetch(options: FetchOptions) {
     const dailyVolume = options.createBalances()
 
     const [splits, merges] = await Promise.all([
-        options.getLogs({ target: conditionalTokens, eventAbi: positionSplit, topics: ["0x2e6bb91f8cbcda0c93623c54d0403a43514fabc40084ec96b6d5379a74786298", ethers.zeroPadValue(router as BytesLike, 32), null as any, null as any] }),
-        options.getLogs({ target: conditionalTokens, eventAbi: positionMerge, topics: ["0x6f13ca62553fcc2bcd2372180a43949c1e4cebba603901ede2f4e14f36b282ca", ethers.zeroPadValue(router as BytesLike, 32), null as any, null as any] }),
+        options.getLogs({ target: conditionalTokens, eventAbi: positionSplit, topics: ["0x2e6bb91f8cbcda0c93623c54d0403a43514fabc40084ec96b6d5379a74786298", ethers.zeroPadValue(router as BytesLike, 32), null, null] }),
+        options.getLogs({ target: conditionalTokens, eventAbi: positionMerge, topics: ["0x6f13ca62553fcc2bcd2372180a43949c1e4cebba603901ede2f4e14f36b282ca", ethers.zeroPadValue(router as BytesLike, 32), null, null] }),
     ])
     let futarchyLogs = []
     if (futarchyRouter) {
         const [futarchySplits, futarchyMerges] = await Promise.all([
-        options.getLogs({ target: conditionalTokens, eventAbi: positionSplit, topics: ["0x2e6bb91f8cbcda0c93623c54d0403a43514fabc40084ec96b6d5379a74786298", ethers.zeroPadValue(futarchyRouter as BytesLike, 32), null as any, null as any] }),
-        options.getLogs({ target: conditionalTokens, eventAbi: positionMerge, topics: ["0x6f13ca62553fcc2bcd2372180a43949c1e4cebba603901ede2f4e14f36b282ca", ethers.zeroPadValue(futarchyRouter as BytesLike, 32), null as any, null as any] }),
+        options.getLogs({ target: conditionalTokens, eventAbi: positionSplit, topics: ["0x2e6bb91f8cbcda0c93623c54d0403a43514fabc40084ec96b6d5379a74786298", ethers.zeroPadValue(futarchyRouter as BytesLike, 32), null, null] }),
+        options.getLogs({ target: conditionalTokens, eventAbi: positionMerge, topics: ["0x6f13ca62553fcc2bcd2372180a43949c1e4cebba603901ede2f4e14f36b282ca", ethers.zeroPadValue(futarchyRouter as BytesLike, 32), null, null] }),
     ])
     futarchyLogs = futarchySplits.concat(futarchyMerges)
     }

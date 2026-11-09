@@ -26,7 +26,50 @@ const feeWallets = [
   '5BqYhuD4q1YD3DMAYkc1FeTu9vqQVYYdfBAmkZjamyZg',
 ];
 
-const bscTradeContract = '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e';
+// Axiom's current trade contract, deployed at the same address on every EVM chain (BSC and Robinhood
+// since 2026-09-06, the others since 2026-09-09).
+const TRADE_CONTRACT = '0x9689992f5b5c09447f15906d8d11214944488341';
+
+// duneChain: the chain's name in Dune. tradeContracts (EVM only): Axiom rotates trade contracts and old
+// ones keep trading for a while after a new one is live, so match on all of them rather than switching
+// by date. Same lists as fees/axiom.ts.
+const chainConfig: Record<string, { start: string; duneChain: string; tradeContracts?: string[] }> = {
+  [CHAIN.SOLANA]: { start: '2025-01-21', duneChain: 'solana' },
+  [CHAIN.BSC]: {
+    start: '2025-12-25',
+    duneChain: 'bnb',
+    tradeContracts: [
+      '0x5da7dd96efa6127e68c8ab06f125124c3c05d18d', // 2025-12-25 to 2026-01-30
+      '0x325098a6291a412bba7a52531ef05ac5dd7d5d6e', // old trade contract
+      '0x05701DC0b8F6711f6DE3B282f46B10c813AFb02d', // new trade contract
+      TRADE_CONTRACT,
+    ],
+  },
+  [CHAIN.ROBINHOOD]: {
+    start: '2026-07-10',
+    duneChain: 'robinhood',
+    tradeContracts: [
+      '0xcda14e87628317e4f90077750fbe9634b896a24f',
+      '0x76a0e120631735845769e3de2606924af7716150',
+      '0xc6cdc85a225236013ee9b3b47dd05c07aed1fabc',
+      '0x105358a03c47706ad4697e227d5a8ddfacf85448',
+      '0xe3dc74b2d5b83916a1682777f1de8b2155ddfc38',
+      '0xd9fc1771672f08f3abce96d033cc21d1e5a3ac7f',
+      '0x578980d6cac7ab262c40dfca650b1d2d259c1cca',
+      '0x4a86009a36fcec5aa341ffceb3205a911fcf6f60',
+      TRADE_CONTRACT,
+    ],
+  },
+  [CHAIN.ETHEREUM]: {
+    start: '2026-04-28',
+    duneChain: 'ethereum',
+    tradeContracts: ['0xe44f80d8b61762fdb03dc754247c0b2d3ddf456b', TRADE_CONTRACT], // first one 2026-04-28 to 2026-09-08
+  },
+  [CHAIN.BASE]: { start: '2026-09-09', duneChain: 'base', tradeContracts: [TRADE_CONTRACT] },
+  [CHAIN.HYPERLIQUID]: { start: '2026-09-11', duneChain: 'hyperevm', tradeContracts: [TRADE_CONTRACT] },
+  [CHAIN.ARC]: { start: '2026-09-15', duneChain: 'arc', tradeContracts: [TRADE_CONTRACT] },
+  [CHAIN.INK]: { start: '2026-09-09', duneChain: 'ink', tradeContracts: [TRADE_CONTRACT] },
+};
 
 const formatAddresses = (addresses: string[]) => addresses.map((a) => `'${a}'`).join(', ');
 
@@ -56,42 +99,44 @@ const prefetch = async (options: FetchOptions) => {
         t.tx_id,
         t.trader_id,
         t.amount_usd,
-        t.token_bought_symbol,
-        t.token_sold_symbol,
+        -- one leg per trade: prefer the SOL leg as the notional, else the largest leg
         ROW_NUMBER() OVER (
           PARTITION BY t.tx_id, t.trader_id
           ORDER BY
-            CASE WHEN t.token_bought_symbol = 'WSOL' OR t.token_sold_symbol = 'WSOL' THEN 0 ELSE 1 END,
+            CASE WHEN t.token_bought_mint_address = '${ADDRESSES.solana.SOL}'
+                   OR t.token_sold_mint_address = '${ADDRESSES.solana.SOL}' THEN 0 ELSE 1 END,
             t.amount_usd DESC
         ) AS row_num
       FROM dex_solana.trades t
       JOIN axiom_txs a ON t.tx_id = a.tx_id
       WHERE TIME_RANGE
         AND t.trader_id NOT IN (${formattedFeeWallets})
-        AND (
-          t.token_bought_symbol = 'WSOL'
-          OR t.token_sold_symbol = 'WSOL'
-          OR t.token_bought_mint_address = '${ADDRESSES.solana.SOL}'
-          OR t.token_sold_mint_address = '${ADDRESSES.solana.SOL}'
-        )
     )
     SELECT 'solana' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
     FROM botTrades
     WHERE row_num = 1
+    ${Object.values(chainConfig).filter((config) => config.tradeContracts).map(({ duneChain, tradeContracts }) => `
     UNION ALL
-    SELECT 'bnb' AS chain, COALESCE(SUM(amount_usd), 0) AS total_volume
-    FROM dex.trades
-    WHERE blockchain = 'bnb'
-      AND TIME_RANGE
-      AND tx_to = ${bscTradeContract}
+    SELECT '${duneChain}' AS chain, COALESCE(SUM(swap_usd), 0) AS total_volume
+    FROM (
+      -- dex.trades has a row per pool hop; keep the largest row of each tx. Users call the trade contract
+      -- directly (tx_to), so a tx is one user's swap: one trade event per tx on BSC and Robinhood, sampled 2026-11-05.
+      SELECT tx_hash, MAX(amount_usd) AS swap_usd
+      FROM dex.trades
+      WHERE blockchain = '${duneChain}'
+        AND TIME_RANGE
+        AND tx_to IN (${tradeContracts!.join(', ')})
+      GROUP BY tx_hash
+    )`).join('')}
   `);
 };
 
 const fetch: any = async (options: FetchOptions) => {
   assertIndexed(options);
 
-  const target = options.chain === CHAIN.BSC ? 'bnb' : 'solana';
-  const row = (options.preFetchedResults || []).find((r: any) => r.chain === target);
+  const target = chainConfig[options.chain].duneChain;
+  const row = options.preFetchedResults.find((r: any) => r.chain === target);
+  if (!row) throw new Error(`Axiom: no prefetched Dune result for ${target}`);
 
   return { dailyVolume: row.total_volume };
 };
@@ -102,12 +147,9 @@ const adapter: SimpleAdapter = {
   fetch,
   prefetch,
   methodology: {
-    Volume: "Total USD volume of spot swaps made through Axiom. On Solana it counts trades whose transaction paid a fee to Axiom, and on BSC trades routed through Axiom's trading contract.",
+    Volume: "Total US-dollar value of the token swaps people make through Axiom, counting each swap once even when it is routed through several pools. A swap counts when its transaction pays a fee to Axiom. Swaps Axiom routes through venues that are not yet indexed are not included, so the figure is a floor.",
   },
-  adapter: {
-    [CHAIN.SOLANA]: { start: '2025-01-21' },
-    [CHAIN.BSC]: { start: '2026-01-25' },
-  },
+  adapter: chainConfig,
   isExpensiveAdapter: true,
   doublecounted: true,
 };

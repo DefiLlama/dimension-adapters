@@ -1,8 +1,17 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types"
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
+import { queryDuneSql } from "../../helpers/dune"
 
 const CCTP_MESSENGER = '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d';
 const MINT_AND_WITHDRAW_EVENT = 'event MintAndWithdraw (address indexed mintRecipient, uint256 amount, address indexed mintToken, uint256 feeCollected)'
+
+const STELLAR_CCTP_CONTRACT = 'CAE2G5Z77UP7GYPYGFOWFGW7C7J6I4YP2AFGSADRKQY62SYUFLPNFTXL'
+
+const STARKNET_CCTP_CONTRACT = '0x07d421B9cA8aA32DF259965cDA8ACb93F7599F69209A41872AE84638B2A20F2a'
+const STARKNET_MINT_AND_WITHDRAW_SELECTOR = '0x02dc261d291ce25f6904f36a80576ecb181e55a55d2735b3a540f4775b62568a'
+
+const SOLANA_CCTP_PROGRAM = 'CCTPV2vPZJS2u2BBsUoscuikbYjnpFmbFsvVuJdgUMQe'
+const SOLANA_MINT_AND_WITHDRAW_DISCRIMINATOR = '0xe445a52e51cb9a1d4b43e546a27e0047'
 
 //chains can be found here: https://bridge.usdc.com/api/feature-flags
 const chainConfig = {
@@ -22,6 +31,9 @@ const chainConfig = {
     [CHAIN.XDC]: { start: '2025-08-21' },
     [CHAIN.INK]: { start: '2025-08-21' },
     [CHAIN.MONAD]: { start: '2025-09-15' },
+    [CHAIN.STELLAR]: { start: '2026-04-16', fetch: fetchStellar },
+    [CHAIN.STARKNET]: { start: '2025-10-29', fetch: fetchStarknet },
+    [CHAIN.SOLANA]: { start: '2025-05-29', fetch: fetchSolana },
 }
 
 async function fetch(options: FetchOptions) {
@@ -34,6 +46,99 @@ async function fetch(options: FetchOptions) {
 
     mintAndWithdrawLogs.forEach(log => {
         dailyFees.add(log.mintToken, log.feeCollected, "Bridge Fees");
+    })
+
+    return {
+        dailyFees,
+        dailyUserFees: dailyFees,
+        dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
+    }
+}
+
+async function fetchStellar(options: FetchOptions) {
+    const dailyFees = options.createBalances()
+
+    const query = `
+      select
+        sum(try_cast(
+          regexp_extract(data_decoded, '"fee_collected"\\},"val":\\{"i128":"([0-9]+)"\\}', 1) as decimal(38, 0)
+        ) / 1e7) as total_fee
+      from stellar.history_contract_events
+      where contract_id = '${STELLAR_CCTP_CONTRACT}'
+        and successful = true
+        and json_extract_scalar(topics_decoded, '$[0].symbol') = 'mint_and_withdraw'
+        and closed_at >= from_unixtime(${options.startTimestamp})
+        and closed_at < from_unixtime(${options.endTimestamp})
+    `
+
+    const rows: { total_fee: string | null }[] = await queryDuneSql(options, query)
+    if (rows[0]?.total_fee) {
+        // Stellar classic/SAC assets use 7 decimal places
+        dailyFees.addCGToken('usd-coin', Number(rows[0].total_fee), "Bridge Fees")
+    }
+
+    return {
+        dailyFees,
+        dailyUserFees: dailyFees,
+        dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
+    }
+}
+
+async function fetchStarknet(options: FetchOptions) {
+    const dailyFees = options.createBalances()
+
+    const query = `
+      select
+        keys[3] as mint_token,
+        cast(sum(varbinary_to_uint256(data[3])) as varchar) as fee_collected
+      from starknet.events
+      where from_address = ${STARKNET_CCTP_CONTRACT}
+        and keys[1] = ${STARKNET_MINT_AND_WITHDRAW_SELECTOR}
+        and block_time >= from_unixtime(${options.startTimestamp})
+        and block_time < from_unixtime(${options.endTimestamp})
+      group by keys[3]
+    `
+
+    const rows: { mint_token: string; fee_collected: string }[] = await queryDuneSql(options, query)
+
+    rows.forEach(row => {
+        dailyFees.add(row.mint_token, row.fee_collected, "Bridge Fees")
+    })
+
+    return {
+        dailyFees,
+        dailyUserFees: dailyFees,
+        dailyRevenue: dailyFees,
+        dailyProtocolRevenue: dailyFees,
+    }
+}
+
+async function fetchSolana(options: FetchOptions) {
+    const dailyFees = options.createBalances()
+
+    // data = 16-byte anchor+event discriminator, then mintRecipient(32) + amount u64 LE(8) + mintToken(32) + feeCollected u64 LE(8)
+    const query = `
+      select
+        mint_token,
+        sum(fee_collected) as fee_collected
+      from (
+        select
+          to_base58(VARBINARY_SUBSTRING(data, 57, 32)) as mint_token,
+          VARBINARY_TO_UINT256(VARBINARY_REVERSE(VARBINARY_SUBSTRING(data, 89, 8))) as fee_collected
+        from solana.instruction_calls
+        where executing_account = '${SOLANA_CCTP_PROGRAM}'
+          and VARBINARY_SUBSTRING(data, 1, 16) = ${SOLANA_MINT_AND_WITHDRAW_DISCRIMINATOR}
+          and tx_success = true
+          and block_time >= from_unixtime(${options.startTimestamp})
+          and block_time < from_unixtime(${options.endTimestamp})
+      ) t
+      group by mint_token
+    `
+    const rows: { mint_token: string; fee_collected: string }[] = await queryDuneSql(options, query)
+    rows.forEach(row => {
+        dailyFees.add(row.mint_token, row.fee_collected, "Bridge Fees")
     })
 
     return {
@@ -64,12 +169,13 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-    version: 2,
-    pullHourly: true,
+    version: 1,
     fetch,
     adapter: chainConfig,
     methodology,
     breakdownMethodology,
+    dependencies: [Dependencies.DUNE],
+    isExpensiveAdapter: true,
 }
 
 export default adapter

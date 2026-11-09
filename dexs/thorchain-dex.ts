@@ -25,7 +25,12 @@ const fetch = async (options: FetchOptions) => {
   const url = `https://gateway.liquify.com/chain/thorchain_midgard/v2/history/swaps?interval=day&from=${options.startOfDay}&to=${options.endTimestamp}`;
   const historicalVolume: IVolumeall[] = (await httpGet(url, { headers: {"x-client-id": "defillama"}})).intervals;
   const dailyVolumeCall = historicalVolume.find((dayItem: IVolumeall) => Number(dayItem.startTime) === options.startOfDay);
-  const dailyVolume = calVolume(dailyVolumeCall as IVolumeall);
+  if (!dailyVolumeCall)
+    throw new Error(`thorchain-dex: midgard has no interval for ${options.dateString}`);
+
+  const dailyVolume = calVolume(dailyVolumeCall);
+  if (!dailyVolume)
+    throw new Error(`thorchain-dex: midgard reports no volume for ${options.dateString} yet, refusing to publish a zero day`);
 
   return { dailyVolume };
 };

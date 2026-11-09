@@ -204,15 +204,6 @@ const comptrollers = [
         }
     },
     {
-        id:"467",
-        name:"Benqi Lending",
-        comptrollers:{
-            "avax":[
-                "0x486Af39519B4Dc9a7fCcd318217352830E8AD9b4",
-            ]
-        }
-    },
-    {
         id:"parent#trader-joe",
         name:"Trader Joe",
         comptrollers:{

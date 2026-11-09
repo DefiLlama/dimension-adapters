@@ -1,13 +1,95 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryAllium } from "../helpers/allium"
+import { queryDuneResult } from "../helpers/dune"
 import { METRIC } from "../helpers/metrics"
+import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../helpers/jupiter-stats"
 
-// const JUP_LITTERBOX_ADDRESS = '6tZT9AUcQn4iHMH79YZEXSy55kDLQ4VbA3PMtfLVNsFX'
+// JUP buybacks. Since 2025-02-17 Jupiter spends 50% of its revenue across all products on JUP, which is held in the
+// Litterbox Trust wallet (https://docs.jup.ag/user-docs/more/jup-token/faq). Holders revenue is the JUP received by
+// that wallet each day, measured on-chain instead of the former flat 50% of each listing's revenue, and reported once,
+// on this listing, so the Jupiter parent does not double count it.
+// Senders: the revenue collector 7JQeyNK55fkUPUmEotupBFpiBGpgEQYLe8Ht1VdSfxcP (hourly swaps), the RFQ sweeper
+// 3rA996DAZe5G67HWbC4jdyYPLeNptLXuybtLnx6dvkxn, platform fees already paid in JUP forwarded from the fee authorities
+// below (Feb to May 2025), and the first bulk buy on 2025-02-25: 3.1M USDC left the Litterbox, was swapped to 4.49M JUP
+// and sent back, e.g. tx 65jKkr5Yw42LRD3BQW7MeBQwGzCZ2A7ijGS61An3T6msMhz7N5mvA79XFypw9r2q45QkMrWpqTMSC4m9D9fCoAhQ.
+// Outflows are ignored, so the 134.5M JUP moved out on 2025-11-24 to be burned is not counted twice.
+const JUP_LITTERBOX_ADDRESS = '6tZT9AUcQn4iHMH79YZEXSy55kDLQ4VbA3PMtfLVNsFX'
+const JUP_MINT = 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'
+const JUP_BUY_BACK_START_TIME = 1739750400; // 2025-02-17, first JUP into the Litterbox
+// Share of revenue kept by the treasury (protocol revenue) on the products that fund the Litterbox (Aggregator, JupiterZ,
+// Limit, DCA, Perps): all of it before 2025-02-17, half since,
+// when the other half started buying back JUP (counted once, on this listing, as holders revenue).
+export const jupTreasuryShare = (timestamp: number) => timestamp >= JUP_BUY_BACK_START_TIME ? 0.5 : 1;
 
-// 50% revenue will be used to buy back JUP start from 2025-02-17
-const JUP_BUY_BACK_START_TIME = 1739750400;
-export const jupBuybackRatioFromRevenue = (timestamp: number) => timestamp >= JUP_BUY_BACK_START_TIME ? 0.5 : 0;
+// Saved Dune query running helpers/queries/jupiter-aggregator.sql: fees and Litterbox buybacks per day since 2025-02-17,
+// so refills skip the Allium queries below. Rerun it on Dune to extend the history; days not in its result use Allium.
+const DUNE_HISTORY_QUERY_ID = '9087823'
+
+type CachedDay = { fees_usd: number, buyback_jup: string }
+async function getCachedDay(options: FetchOptions): Promise<CachedDay | undefined> {
+  if (options.startOfDay < JUP_BUY_BACK_START_TIME) return
+  const [row] = await queryDuneResult(options, DUNE_HISTORY_QUERY_ID, `day = '${options.dateString}'`)
+  return row as CachedDay | undefined
+}
+
+async function getLitterboxBuybacks(options: FetchOptions, cached?: CachedDay) {
+  const dailyHoldersRevenue = options.createBalances()
+  if (options.endTimestamp <= JUP_BUY_BACK_START_TIME) return dailyHoldersRevenue
+  if (cached) {
+    dailyHoldersRevenue.add(JUP_MINT, cached.buyback_jup, METRIC.TOKEN_BUY_BACK)
+    return dailyHoldersRevenue
+  }
+  const [row] = await queryAllium(`
+    SELECT
+      (SELECT COALESCE(SUM(t.raw_amount), 0)
+        FROM solana.assets.transfers t
+        WHERE t.to_address = '${JUP_LITTERBOX_ADDRESS}'
+          AND t.from_address != '${JUP_LITTERBOX_ADDRESS}'
+          AND t.mint = '${JUP_MINT}'
+          AND t.type IN ('transfer', 'transferChecked')
+          AND t.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+          AND t.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})) AS amount,
+      (SELECT MIN(block_timestamp)
+        FROM solana.assets.transfers
+        WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.endTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp + 900})) AS indexed_past_end
+  `)
+  if (!row) throw new Error(`Litterbox buybacks: no Allium result for ${options.dateString}`)
+  if (!row.indexed_past_end) throw new Error(`Litterbox buybacks: Allium is not indexed through ${options.dateString} yet`)
+  dailyHoldersRevenue.add(JUP_MINT, row.amount, METRIC.TOKEN_BUY_BACK)
+  return dailyHoldersRevenue
+}
+
+// Jupiter program authorities that accumulate Swap V2 fees before they are
+// swept to the central revenue wallet. Exported so product adapters can use
+// the same canonical set when attributing a subset of aggregator fees.
+export const JUPITER_FEE_AUTHORITIES = [
+  'BQ72nSv9f3PRyRKCBnHLVrerrv37CYTHm5h3s9VSGQDV',
+  '2MFoS3MPtvyQ4Wh4M9pdfPjz6UhVoNbFbGJAskCPCj3h',
+  'HU23r7UoZbqTUuh3vA7emAGztFtqwTeVips789vqxxBw',
+  '3CgvbiM3op4vjrrjH2zcrQUwsqh5veNVRjFCB9N6sRoD',
+  '6LXutJvKUw8Q5ue2gCgKHQdAN4suWW8awzFVC6XCguFx',
+  'CapuXNQoDviLvU1PxFiizLgPNQCxrsag1uMeyk6zLVps',
+  'GGztQqQ6pCPaJQnNpXBgELr5cs3WwDakRbh1iEMzjgSJ',
+  '9nnLbotNTcUhvbrsA6Mdkx45Sm82G35zo28AqUvjExn8',
+  '3LoAYHuSd7Gh8d7RTFnhvYtiTiefdZ5ByamU42vkzd76',
+  'DSN3j1ykL3obAVNv7ZX49VsFCPe4LqzxHnmtLiPwY6xg',
+  '69yhtoJR4JYPPABZcSNkzuqbaFbwHsCkja1sP1Q2aVT5',
+  '6U91aKa8pmMxkJwBCfPTmUEfZi6dHe7DcFq2ALvB2tbB',
+  '7iWnBRRhBCiNXXPhqiGzvvBkKrvFSWqqmxRyu9VyYBxE',
+  '4xDsmeTWPNjgSVSS1VTfzFq3iHZhp77ffPkAmkZkdu71',
+  'GP8StUXNYSZjPikyRsvkTbvRV1GBxMErb59cpeCJnDf1',
+  'HFqp6ErWHY6Uzhj8rFyjYuDya2mXUpYEk8VW75K9PSiY',
+  '6zQecXhjYTifDGYxbW7vRTQBrBYsi1Uac6BEJ4WzefWS',
+  'GgY8theL9n9hQPoz2keQM8y6z8T6G6BH9FPLjBtkF9Hd',
+  'G4FUwFD1h4tb4R6jkZXuoyst7YNbYTcJH3MvCUguss6E',
+  'F2Xjd4ZJYz6SfszyUVGzLUzAHRRhfU2iJacCfW5GCJHM',
+  '3cHRcBKWbJeL2qyjgQ8wdSYxmRYW1ZyC2nVqTakAj57G',
+  '6Ugimjtgk7rk5SbZNzcYvZiM3P6ki4Uq3QGtTHWNn8co',
+  '4QKRxAfawktf6szGUP456AqBvaKSnmuGy91QnqdBDSke',
+  '9kiYqGSb1nbYMc5xxZQHhKvJR57LLAHVyDvSQ3FHjDPK',
+]
 
 export const JUPITER_METRICS = {
   // Aggregator
@@ -16,6 +98,7 @@ export const JUPITER_METRICS = {
   LimitOrderV2Fees: 'Limit Orders v2 Fees',
   AggSwapFeesToIntergators: 'Aggregator Swap Fees To Integrators',
   AggSwapFeesToJupiter: 'Aggregator Swap Fees To Jupiter',
+  JupiterZFees: 'JupiterZ Fees',
 
   // JupLend
   BorrowInterest: 'JupLend Borrow Interests',
@@ -33,6 +116,8 @@ export const JUPITER_METRICS = {
   JupPerpsLiquidationFees: 'JupPerps Liquidation Fees',
   JupPerpsFundingFees: 'JupPerps Funding Fees',
   JupPerpsPriceImpactFees: 'JupPerps Price Impact Fees',
+  JupPerpsStakingRewards: 'JupPerps SOL Staking Rewards',
+  JupPerpsLoanInterest: 'JupPerps JLP Loans Interest',
   JupPerpsFeesToLPs: 'JupPerps Fees To Lps',
   JupPerpsFeesToLJupiter: 'JupPerps Fees To Jupiter',
 
@@ -40,10 +125,15 @@ export const JUPITER_METRICS = {
   JupSOLStakingRewards: 'JupSOL Staking Rewards',
   JupSOLStakingRewardsToStakers: 'JupSOL Staking Rewards To Stakers',
   JupSOLDepositWithdrawFees: 'JupSOL Deposit/Withdraw Fees',
+  JupSOLMevRewards: 'JupSOL MEV Rewards',
+  JupSOLValidatorPriorityFees: 'JupSOL Validator Priority Fees',
+  JupSOLStakingRewardsToSanctum: 'JupSOL Staking Rewards To Sanctum',
+  JupSOLValidatorCommission: 'JupSOL Validator Commission',
 
   // Prediction
   JupPredictionFees: 'Jup Prediction Fees',
-  JupPredictionFeesToKalshi: 'Jup Prediction Fees to Kalshi',
+  JupPredictionFeesToJupiter: 'Jup Prediction Fees To Jupiter',
+  JupPredictionFeesToVenues: 'Jup Prediction Fees To Venues',
 
   // Ape
   JupApeFees: 'Jup Ape Trading And Launching Fees',
@@ -60,35 +150,24 @@ export const JUPITER_METRICS = {
   TokenBuyBack: METRIC.TOKEN_BUY_BACK,
 }
 
-const fetch = async (options: FetchOptions) => {
+const fetchOnchain = async (options: FetchOptions) => {
+  const cached = await getCachedDay(options)
+  if (cached) {
+    const dailyFees = options.createBalances()
+    dailyFees.addUSDValue(cached.fees_usd, JUPITER_METRICS.AggSwapFees)
+    return {
+      dailyFees,
+      dailyRevenue: dailyFees,
+      dailyProtocolRevenue: dailyFees.clone(jupTreasuryShare(options.startOfDay)),
+      dailyHoldersRevenue: await getLitterboxBuybacks(options, cached),
+    }
+  }
+  const feeAuthorityRows = JUPITER_FEE_AUTHORITIES.map((address) => `('${address}')`).join(',\n        ')
   const data: { amount_usd: number }[] = await queryAllium(`
     WITH addr_list AS (
       SELECT addr
       FROM (VALUES
-        ('BQ72nSv9f3PRyRKCBnHLVrerrv37CYTHm5h3s9VSGQDV'),
-        ('2MFoS3MPtvyQ4Wh4M9pdfPjz6UhVoNbFbGJAskCPCj3h'),
-        ('HU23r7UoZbqTUuh3vA7emAGztFtqwTeVips789vqxxBw'),
-        ('3CgvbiM3op4vjrrjH2zcrQUwsqh5veNVRjFCB9N6sRoD'),
-        ('6LXutJvKUw8Q5ue2gCgKHQdAN4suWW8awzFVC6XCguFx'),
-        ('CapuXNQoDviLvU1PxFiizLgPNQCxrsag1uMeyk6zLVps'),
-        ('GGztQqQ6pCPaJQnNpXBgELr5cs3WwDakRbh1iEMzjgSJ'),
-        ('9nnLbotNTcUhvbrsA6Mdkx45Sm82G35zo28AqUvjExn8'),
-        ('3LoAYHuSd7Gh8d7RTFnhvYtiTiefdZ5ByamU42vkzd76'),
-        ('DSN3j1ykL3obAVNv7ZX49VsFCPe4LqzxHnmtLiPwY6xg'),
-        ('69yhtoJR4JYPPABZcSNkzuqbaFbwHsCkja1sP1Q2aVT5'),
-        ('6U91aKa8pmMxkJwBCfPTmUEfZi6dHe7DcFq2ALvB2tbB'),
-        ('7iWnBRRhBCiNXXPhqiGzvvBkKrvFSWqqmxRyu9VyYBxE'),
-        ('4xDsmeTWPNjgSVSS1VTfzFq3iHZhp77ffPkAmkZkdu71'),
-        ('GP8StUXNYSZjPikyRsvkTbvRV1GBxMErb59cpeCJnDf1'),
-        ('HFqp6ErWHY6Uzhj8rFyjYuDya2mXUpYEk8VW75K9PSiY'),
-        ('6zQecXhjYTifDGYxbW7vRTQBrBYsi1Uac6BEJ4WzefWS'),
-        ('GgY8theL9n9hQPoz2keQM8y6z8T6G6BH9FPLjBtkF9Hd'),
-        ('G4FUwFD1h4tb4R6jkZXuoyst7YNbYTcJH3MvCUguss6E'),
-        ('F2Xjd4ZJYz6SfszyUVGzLUzAHRRhfU2iJacCfW5GCJHM'),
-        ('3cHRcBKWbJeL2qyjgQ8wdSYxmRYW1ZyC2nVqTakAj57G'),
-        ('6Ugimjtgk7rk5SbZNzcYvZiM3P6ki4Uq3QGtTHWNn8co'),
-        ('4QKRxAfawktf6szGUP456AqBvaKSnmuGy91QnqdBDSke'),
-        ('9kiYqGSb1nbYMc5xxZQHhKvJR57LLAHVyDvSQ3FHjDPK')
+        ${feeAuthorityRows}
       ) AS v(addr)
     )
     
@@ -97,7 +176,7 @@ const fetch = async (options: FetchOptions) => {
     WHERE t.to_address = '9hdBK7FUzv4NjZbtYfm39F5utJyFsmCwbF9Mow5Pr1sN'
       AND t.block_timestamp <= TIMESTAMP '2025-02-16 23:59:59'
       AND t.block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-      AND t.block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+      AND t.block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
 
     UNION ALL
     
@@ -107,52 +186,56 @@ const fetch = async (options: FetchOptions) => {
       AND t.to_address = '7JQeyNK55fkUPUmEotupBFpiBGpgEQYLe8Ht1VdSfxcP'
       AND t.block_timestamp >= TIMESTAMP '2025-02-17 00:00:00'
       AND t.block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-      AND t.block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+      AND t.block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
   `);
 
   const ultraRevenue = data.reduce((sum, row) => sum + (row.amount_usd || 0), 0);
 
   const dailyFees = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-
   dailyFees.addUSDValue(ultraRevenue, JUPITER_METRICS.AggSwapFees);
-  const dailyRevenue = dailyFees.clone(1);
-
-  // Split protocol revenue between treasury and token buybacks
-  const buybackRatio = jupBuybackRatioFromRevenue(options.startOfDay);
-
-  // Ultra revenue split
-  dailyProtocolRevenue.addBalances(dailyRevenue.clone(1 - buybackRatio));
-  dailyHoldersRevenue.addBalances(dailyRevenue.clone(buybackRatio), JUPITER_METRICS.TokenBuyBack);
+  const dailyHoldersRevenue = await getLitterboxBuybacks(options);
 
   return {
     dailyFees,
-    dailyRevenue,
+    dailyRevenue: dailyFees,
+    dailyProtocolRevenue: dailyFees.clone(jupTreasuryShare(options.startOfDay)),
     dailyHoldersRevenue,
-    dailyProtocolRevenue,
   }
 }
 
+// From 2026-01-01, Jupiter's stats API, including swaps made in Jupiter Mobile and the Jupiter Extension. Swap fees land
+// in the fee authorities above, except Jupiter Mobile swap fees from 2026-09-15, which land in the Mobile collector
+// 6Gfahmxqn1VfJE1rZ3JsDZdztUKMc4F8bjR9pfu1XhWZ.
+// Positive slippage fees land in sobLmyY3kjTYqk2r7Ui18PC6YzHUBDaD2tk6PPNAv4o from 2026-08-17 and in the fee authorities
+// before that.
+const fetchStatsApi = async (options: FetchOptions) => {
+  const { dailyFees, dailyRevenue } = await getJupiterStatsRevenue(options, { aggregator: JUPITER_METRICS.AggSwapFees })
+  const dailyHoldersRevenue = await getLitterboxBuybacks(options, await getCachedDay(options))
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)), dailyHoldersRevenue }
+}
+
+const fetch = async (options: FetchOptions) =>
+  options.startOfDay >= JUPITER_STATS_API_START_TS ? fetchStatsApi(options) : fetchOnchain(options)
+
 const methodology = {
-  Fees: 'Jupiter platform fees collected from Ultra mode swaps.',
-  Revenue: 'Jupiter platform fees from Ultra aggregation service.',
-  HoldersRevenue: 'JUP token buybacks from 50% of platform revenue, started 2025-02-17.',
-  ProtocolRevenue: 'Platform fees allocated to Jupiter treasury. 100% before 2025-02-17, 50% after.',
+  Fees: 'Jupiter platform fees on swaps routed through Jupiter, including its share of positive slippage.',
+  Revenue: 'All Jupiter platform fees on swaps, kept by Jupiter.',
+  HoldersRevenue: 'JUP bought back into the Jupiter Litterbox wallet since 2025-02-17, funded with 50% of Aggregator, JupiterZ, Limit, DCA and Perps revenue and reported once, on this listing.',
+  ProtocolRevenue: 'Half of platform fees, kept by the treasury. The other half buys back JUP, counted here as holders revenue.',
 }
 
 const breakdownMethodology = {
   Fees: {
-    [JUPITER_METRICS.AggSwapFees]: "Platform fees from swaps executed through Jupiter's /order endpoint in Ultra mode.",
+    [JUPITER_METRICS.AggSwapFees]: "Platform fees on swaps routed through Jupiter, including its share of positive slippage.",
   },
   Revenue: {
-    [JUPITER_METRICS.AggSwapFees]: "100% of Jupiter platform fees from Ultra mode swaps.",
+    [JUPITER_METRICS.AggSwapFees]: "All platform fees on swaps, kept by Jupiter.",
   },
   ProtocolRevenue: {
-    [JUPITER_METRICS.AggSwapFees]: "Platform fees allocated to Jupiter treasury: 100% before 2025-02-17, 50% after when token buyback program started.",
+    [JUPITER_METRICS.AggSwapFees]: "Half of platform fees on swaps, kept by the treasury.",
   },
   HoldersRevenue: {
-    [JUPITER_METRICS.TokenBuyBack]: "Starting 2025-02-17, 50% of platform revenue is used to buy back JUP tokens, benefiting token holders.",
+    [JUPITER_METRICS.TokenBuyBack]: "JUP bought back into the Jupiter Litterbox wallet with 50% of Aggregator, JupiterZ, Limit, DCA and Perps revenue.",
   }
 }
 
@@ -161,7 +244,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2023-01-03',
-  dependencies: [Dependencies.ALLIUM],
+  dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology,
   breakdownMethodology

@@ -1,10 +1,16 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 import * as sdk from '@defillama/sdk';
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getDexTokensBlacklisted } from '../../helpers/lists';
 import { addOneToken } from '../../helpers/prices';
+import { getEstablishedTokens, getWashPools } from '../../helpers/uniswap';
+import { formatAddress } from '../../utils/utils';
 import { ethers } from "ethers";
 import PromisePool from "@supercharge/promise-pool";
-import { handleBribeToken } from "../aerodrome/utils";
+import { bribesEnded, handleBribeToken, legacyRevenueExports, LOCKED_GAUGE_FEES } from "../aerodrome/utils";
 
 const CONFIG = {
   factories: [
@@ -119,6 +125,24 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
   for (const factory of CONFIG.factories) {
     const factoryLogs = await getLogs({ target: factory.address, fromBlock: factory.fromBlock, toBlock, eventAbi: eventAbis.event_poolCreated, skipIndexer: factory.skipIndexer, cacheInCloud: true, })
     rawPools = rawPools.concat(factoryLogs)
+  }
+
+  // ignore pools holding blacklisted (scam/wash-traded) tokens - everything
+  // downstream (volume, fees, revenue splits) derives from rawPools
+  const blacklistTokens = new Set(await getDexTokensBlacklisted(fetchOptions))
+  rawPools = rawPools.filter(({ token0, token1 }: any) => !blacklistTokens.has(formatAddress(token0)) && !blacklistTokens.has(formatAddress(token1)))
+
+  // drop the day's wash-flagged pools (see getWashPools), unless every side is
+  // established (core asset or CoinGecko-listed) - the fake-ticker factory
+  // moved here from uniswap v4 the day the filter shipped there
+  const washPools: Set<string> = fetchOptions.preFetchedResults?.washPools ?? new Set()
+  const flagged = rawPools.filter((p: any) => washPools.has(formatAddress(p.pool)))
+  if (flagged.length) {
+    const established = await getEstablishedTokens(chain, flagged.flatMap((p: any) => [p.token0, p.token1]))
+    const drop = new Set(flagged
+      .filter((p: any) => !(established.has(formatAddress(p.token0)) && established.has(formatAddress(p.token1))))
+      .map((p: any) => formatAddress(p.pool)))
+    rawPools = rawPools.filter((p: any) => !drop.has(formatAddress(p.pool)))
   }
 
   const _pools = rawPools.map((i: any) => i.pool.toLowerCase())
@@ -254,51 +278,57 @@ const fetch = async (fetchOptions: FetchOptions): Promise<FetchResult> => {
     if (supply1 > 0) dailySupplySideRevenue.add(token1, supply1, 'Unstaked-LP Fees')
   })
 
-  const { dailyBribesRevenue } = await getBribes(fetchOptions, bribeSet)
-  const dailyRevenue = fetchOptions.createBalances()
+  const { dailyBribesRevenue } = bribesEnded(fetchOptions) ? { dailyBribesRevenue: createBalances() } : await getBribes(fetchOptions, bribeSet)
 
   dailyFees.add(dailyBribesRevenue, 'External Bribes Rewards')
-  dailyRevenue.add(dailyHoldersRevenue, 'Staked-LP Fees And Unstaked-LP Rake')
-  dailyRevenue.add(dailyBribesRevenue, 'External Bribes Revenue')
-  dailyHoldersRevenue.add(dailyBribesRevenue, 'External Bribes Revenue')
   
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue,
-    dailyHoldersRevenue,
+    ...legacyRevenueExports(fetchOptions, dailyHoldersRevenue, 'Staked-LP Fees And Unstaked-LP Rake', dailyBribesRevenue, 'External Bribes Revenue'),
     dailySupplySideRevenue,
   }
 }
 
+const prefetch: any = async (options: FetchOptions) => {
+  return { washPools: await getWashPools(options, { blockchain: 'base', project: 'aerodrome', version: 'slipstream' }) }
+}
+
 const methodology = {
-  Fees: "Total swap fees paid by traders. Per-pool fee rate read from CLPool.fee() (tickSpacing-based default, customizable) applied to each swap's input amount.",
-  Revenue: "veAERO holders' share of swap fees, equal to HoldersRevenue (Aerodrome's zero-leak model routes all protocol revenue to voters).",
-  HoldersRevenue: "Sum of (a) staked-LP fees and (b) the unstaked-LP rake (CLFactory.getUnstakedFee, default 10% of unstaked share), both routed into the gauge's CLPool.gaugeFees() accumulator. Measured on-chain as gaugeFees(toBlock) - gaugeFees(fromBlock) plus CollectFees event amounts (which drain the accumulator each Voter.distribute call).",
-  SupplySideRevenue: "Unstaked LPs' net share of swap fees after the rake, accruing via the pool's feeGrowthGlobal. Computed per pool as Fees - HoldersRevenue.",
+  Volume: 'Swap volume on Aerodrome Slipstream (concentrated liquidity) pools, excluding wash trading.',
+  Fees: 'Swap fees paid by traders, plus bribes deposited for veAERO voters until voting ended with the Aero upgrade on 2026-10-22.',
+  Revenue: 'Swap fees earned by liquidity staked in gauges plus the cut taken from unstaked liquidity, and bribes, paid to veAERO voters, plus those staked-liquidity fees locked in the gauges since their last fee distribution on 2026-10-15.',
+  HoldersRevenue: 'Swap fees earned by liquidity staked in gauges plus the cut taken from unstaked liquidity until the gauges last distributed fees on 2026-10-15, plus bribes until voting ended on 2026-10-22, all paid to veAERO voters.',
+  ProtocolRevenue: 'Swap fees of liquidity staked in gauges, plus the cut taken from unstaked liquidity, since the gauges last distributed fees on 2026-10-15, locked in the gauges until the Aero Foundation reclaims them. Zero before.',
+  SupplySideRevenue: 'Swap fees kept by liquidity providers that do not stake in a gauge, after the unstaked fee cut.',
 }
 
 const breakdownMethodology = {
   Fees: {
-    'Token Swap Fees': 'All swap fees paid by traders on Aerodrome Slipstream pools.',
-    'External Bribes Rewards': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to slipstream GaugeFactories). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
+    'Token Swap Fees': 'Swap fees paid by traders.',
+    'External Bribes Rewards': 'Bribes deposited for veAERO voters, until voting ended on 2026-10-22.',
   },
   Revenue: {
-    'Staked-LP Fees And Unstaked-LP Rake': "Both flow into the gauge's gaugeFees accumulator and are distributed to veAERO voters via FeeVotingReward.",
-    'External Bribes Revenue': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to slipstream GaugeFactories). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
+    'Staked-LP Fees And Unstaked-LP Rake': 'Swap fees earned by liquidity staked in gauges plus the cut taken from unstaked liquidity, paid to veAERO voters until the last fee distribution on 2026-10-15.',
+    'External Bribes Revenue': 'Bribes paid to veAERO voters, until voting ended on 2026-10-22.',
+    [LOCKED_GAUGE_FEES]: 'The same fees since the gauges last distributed fees on 2026-10-15, locked in the gauges until the Aero Foundation reclaims them.',
   },
   HoldersRevenue: {
-    'Staked-LP Fees And Unstaked-LP Rake': "Both flow into the gauge's gaugeFees accumulator and are distributed to veAERO voters via FeeVotingReward.",
-    'External Bribes Revenue': "External bribes deposited to BribeVotingReward contracts (NotifyReward events filtered to slipstream GaugeFactories). Pre-launch tokens are priced via hardcoded conversion rates until each token's cutoff timestamp; afterwards DefiLlama spot pricing is used.",
+    'Staked-LP Fees And Unstaked-LP Rake': 'Swap fees earned by liquidity staked in gauges plus the cut taken from unstaked liquidity, paid to veAERO voters until the last fee distribution on 2026-10-15.',
+    'External Bribes Revenue': 'Bribes paid to veAERO voters, until voting ended on 2026-10-22.',
+  },
+  ProtocolRevenue: {
+    [LOCKED_GAUGE_FEES]: 'Swap fees of liquidity staked in gauges plus the cut taken from unstaked liquidity, since the gauges last distributed fees on 2026-10-15, locked in the gauges until the Aero Foundation reclaims them.',
   },
   SupplySideRevenue: {
-    'Unstaked-LP Fees': "Unstaked LPs' pro-rata share of swap fees, net of the unstaked-LP rake redirected to the gauge.",
+    'Unstaked-LP Fees': 'Swap fees kept by liquidity providers that do not stake in a gauge, after the unstaked fee cut.',
   },
 }
 
 const adapters: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  prefetch,
   methodology,
   breakdownMethodology,
   adapter: {

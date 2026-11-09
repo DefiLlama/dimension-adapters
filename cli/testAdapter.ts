@@ -72,8 +72,8 @@ let usedHelper: string | null | undefined = null;
   const file = `${adapterType}/${moduleArg}`
   const passedFile = path.resolve(process.cwd(), `./${file}`);
 
-  // Skip documentation files (e.g., GUIDELINES.md, guidelines)
-  const docFiles = ['guidelines', 'readme', 'changelog'];
+  // Skip documentation files (e.g., AGENTS.md)
+  const docFiles = ['agents', 'guidelines', 'readme', 'changelog'];
   const baseName = path.basename(moduleArg).toLowerCase().replace('.md', '');
   if (moduleArg.endsWith('.md') || docFiles.includes(baseName)) {
     console.info(`Skipping documentation file: ${moduleArg}`);
@@ -112,6 +112,19 @@ let usedHelper: string | null | undefined = null;
   const adapterVersion = module.version
   const isHourly = isHourlyAdapter(module)
   const isPlainDate = isPlainDateArg(rawTimeArg)
+
+  // optional 5th arg: comma separated list of chains to run, if not set, all chains are run
+  const rawChainsArg = process.argv[5]
+  let onlyChains: Set<string> | undefined
+  if (rawChainsArg) {
+    const requestedChains = rawChainsArg.split(',').map((c: string) => c.trim()).filter(Boolean)
+    const adapterChains = Object.keys(module.adapter ?? {})
+    const unknownChains = requestedChains.filter((c: string) => !adapterChains.includes(c))
+    if (unknownChains.length)
+      throw new Error(`Adapter ${moduleArg} has no chain(s): ${unknownChains.join(', ')}. Available: ${adapterChains.join(', ')}`)
+    onlyChains = new Set(requestedChains)
+    console.info(`🦙 Running only these chains: ${requestedChains.join(', ')}\n`)
+  }
 
   const chainDeadFroms = Object.values(module.adapter ?? {}).map((c: any) => c.deadFrom)
   const adapterDeadFrom = module.deadFrom
@@ -203,6 +216,7 @@ let usedHelper: string | null | undefined = null;
     withMetadata: debugBreakdownFees,
     isTest: true,
     deadChains: deadChainsSet,
+    onlyChains,
     name: usedHelper ? `${adapterType}/${moduleArg} (from ${usedHelper})` : moduleArg
   })
 
@@ -243,7 +257,7 @@ let usedHelper: string | null | undefined = null;
       const batch = jobs.slice(i, i + MAX_PARALLEL)
 
       const results = await Promise.all(
-        batch.map(job => runAdapter({ module, endTimestamp: job.endTimestamp, withMetadata: true, runWindowInSeconds: 60 * 60, deadChains: deadChainsSet }))
+        batch.map(job => runAdapter({ module, endTimestamp: job.endTimestamp, withMetadata: true, runWindowInSeconds: 60 * 60, deadChains: deadChainsSet, onlyChains }))
       )
 
       results.forEach((res: any, idx) => {

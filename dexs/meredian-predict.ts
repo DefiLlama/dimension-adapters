@@ -1,9 +1,10 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 
 const PREDICT_CONTRACT = "0xE4cea507b19796362A5a28Fa7cb705A3F1866213";
 const SECONDARY_CONTRACT = "0x7E318ef37c3bC3d0cBA205Af2D1Fc9F9CeFEB5df";
-const TOKEN = "0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34";
+const TOKEN = ADDRESSES.avax.USDe;
 
 const PREDICTION_CREATED =
   "event PredictionCreated(bytes32 indexed predictionId, address indexed predictor, address indexed counterparty, address predictorToken, address counterpartyToken, uint256 predictorCollateral, uint256 counterpartyCollateral, bytes32 refCode, bytes32 pickConfigId)";

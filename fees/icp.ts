@@ -25,13 +25,11 @@ async function fetch(options: FetchOptions) {
 
   const feesInIcp = xdrBurned / xdrPerIcp;
 
-  const revenueInIcp = (Number(current.icp_burned_total) - Number(previous.icp_burned_total)) / 1e8;
-
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
 
   dailyFees.addCGToken("internet-computer", feesInIcp, 'Transaction Fees');
-  dailyRevenue.addCGToken("internet-computer", Number(revenueInIcp), 'Token Burn');
+  dailyRevenue.addCGToken("internet-computer", feesInIcp, 'Token Burn');
 
   return {
     dailyFees,
@@ -48,7 +46,7 @@ const adapter: SimpleAdapter = {
   protocolType: ProtocolType.CHAIN,
   methodology: {
     Fees: "Cycles consumed on the network converted to ICP equivalent using the daily average ICP/XDR conversion rate.",
-    Revenue: "ICP tokens burned to mint cycles and for transaction fees.",
+    Revenue: "Same as fees. Consumed cycles are destroyed, and node providers are paid from newly minted ICP rather than out of fees, so no part of the fee is paid to a supply side.",
     HoldersRevenue: "Same as revenue, as burns are deflationary benefiting holders.",
   },
   breakdownMethodology: {
@@ -56,7 +54,7 @@ const adapter: SimpleAdapter = {
       'Transaction Fees': "Cycles consumed on the Internet Computer network, converted to ICP equivalent using the daily average ICP/XDR conversion rate.",
     },
     Revenue: {
-      'Token Burn': "ICP tokens burned to mint cycles and for transaction fees.",
+      'Token Burn': "Cycles consumed are destroyed, so the whole fee is burned.",
     },
   }
 };

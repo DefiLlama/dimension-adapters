@@ -5,13 +5,10 @@ import { CHAIN } from "../helpers/chains";
 const fetch = async (options: FetchOptions) => {
   const url = "https://app.gensuki.xyz/api/defillama/gunfun";
   const res = await fetchURL(url);
-  const dayData = res.history?.find((h: any) => h.date === options.dateString);
-  if (!dayData) {
-    throw new Error(`Data not found for date: ${options.dateString}`);
-  }
+  const dayData = res.history.find((h: any) => h.date === options.dateString);
 
   return {
-    dailyTransactionsCount: dayData.txCount,
+    dailyTransactionsCount: dayData ? dayData.txCount : 0,
   };
 };
 

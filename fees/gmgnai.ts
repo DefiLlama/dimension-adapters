@@ -7,7 +7,7 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneResult, queryDuneSql } from "../helpers/dune";
 import { METRIC } from '../helpers/metrics';
 
-const feeCollector = '0xb8159ba378904F803639D274cEc79F788931c9C8'
+const feeCollectors = ['0xb8159ba378904F803639D274cEc79F788931c9C8', '0xe3ed4c49c9807367784ab0d0d087d8a6815e7427']
 
 const chainConfig: Record<string, { start: string }> = {
   [CHAIN.BSC]: {
@@ -31,6 +31,18 @@ const chainConfig: Record<string, { start: string }> = {
   [CHAIN.SOLANA]: {
     start: '2024-03-20'
   },
+  [CHAIN.XLAYER]: {
+    start: '2026-06-23'
+  },
+  [CHAIN.ROBINHOOD]: {
+    start: '2026-07-03'
+  },
+  [CHAIN.ARBITRUM]: {
+    start: '2026-08-19'
+  },
+  [CHAIN.ARC]: {
+    start: '2026-09-16'
+  }
 }
 
 // GMGN's nine Solana fee-collection wallets. Verified on-chain (2026-06) to be
@@ -60,6 +72,12 @@ const EVM_CHAINS: Record<string, { dune: string; usdc?: string }> = {
   [CHAIN.MONAD]: { dune: 'monad', usdc: (ADDRESSES as any).monad?.USDC },
   [CHAIN.HYPERLIQUID]: { dune: 'hyperevm', usdc: (ADDRESSES as any).hyperliquid?.USDC },
   [CHAIN.MEGAETH]: { dune: 'megaeth' },
+  // usdg is the main stablecoin on robinhood
+  [CHAIN.ROBINHOOD]: { dune: 'robinhood', usdc: ADDRESSES.robinhood.USDG },
+  [CHAIN.XLAYER]: { dune: 'xlayer' },
+  // arbitrum.USDC in coreAssets is bridged USDC.e; GMGN's collector is on native USDC
+  [CHAIN.ARBITRUM]: { dune: 'arbitrum', usdc: ADDRESSES.arbitrum.USDC_CIRCLE },
+  [CHAIN.ARC]: { dune: 'arc', usdc: ADDRESSES.arc.USDC },
 };
 
 // Solana referral-distribution wallets: GMGN funds these (mainly from BCNsHAH28…)
@@ -78,7 +96,7 @@ const SOLANA_REFERRAL_INTERNAL = [...SOLANA_REFERRAL_WALLETS, 'BCNsHAH2887uUF4gd
 // Stablecoins GMGN pays referral in (all 6dp ≈ $1; summed and booked as USDC).
 const SOLANA_REFERRAL_STABLES = [
   ADDRESSES.solana.USDC,
-  'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
+  ADDRESSES.solana.USDT, // USDT
   'USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB',  // USD1
 ];
 // Real referral payouts are small per-referrer; any single referral transfer
@@ -87,7 +105,7 @@ const SOLANA_REFERRAL_STABLES = [
 // stables are ~$1 so the raw amount is the USD value.
 const REFERRAL_MAX_USD = 150000;
 
-const NATIVE = '0x0000000000000000000000000000000000000000';
+const NATIVE = ADDRESSES.null;
 const sqlList = (xs: string[]) => xs.map((x) => `'${x}'`).join(', ');
 
 // Single query for ALL chains, one row per (day, chain). EVM legs report fees in
@@ -109,7 +127,7 @@ const liveQuery = () => {
              CAST(NULL AS double) AS sol_raw, CAST(NULL AS double) AS usdc_raw,
              SUM(amount_usd) AS usd, CAST(NULL AS double) AS ref_sol_raw, CAST(NULL AS double) AS ref_stable_raw
       FROM tokens.transfers
-      WHERE TIME_RANGE AND "to" = ${feeCollector} AND (${evmFilter})
+      WHERE TIME_RANGE AND "to" IN (${feeCollectors.join(',')}) AND (${evmFilter})
       GROUP BY 1, 2
     ),
     sol_parts AS (

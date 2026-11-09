@@ -1,36 +1,38 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
-import ADDRESSES from "../helpers/coreAssets.json";
+import { getFees } from "../helpers/ethereum-l2";
+
+// OP-stack fee vault predeploys, per the Optimism specs:
+// https://specs.optimism.io/protocol/predeploys.html
+const SEQUENCER_FEE_VAULT = '0x4200000000000000000000000000000000000011';
+const L1_FEE_VAULT = '0x420000000000000000000000000000000000001a';
+const BASE_FEE_VAULT = '0x4200000000000000000000000000000000000019';
+// OperatorFeeVault, added by the Isthmus upgrade:
+// https://specs.optimism.io/protocol/isthmus/exec-engine.html#operator-fee
+const OPERATOR_FEE_VAULT = '0x420000000000000000000000000000000000001b';
+
+// BOB charges an operator fee, so most of what users pay accrues in the OperatorFeeVault rather
+// than the BaseFeeVault and all four vaults have to be summed.
+const FEE_VAULTS = [SEQUENCER_FEE_VAULT, L1_FEE_VAULT, BASE_FEE_VAULT, OPERATOR_FEE_VAULT];
+
+// Withdrawals are added back to the balance delta because they move value out of a vault. The
+// OperatorFeeVault is the exception: every withdrawal it has ever made paid into the BaseFeeVault
+// (5 of 5 — 13.251630, 10.000890, 9.308640, 0.500160 and 0.500625 ETH, all with
+// to = 0x4200000000000000000000000000000000000019), so that value stays inside the four-vault
+// total and adding it back would count it twice. The other three vaults withdraw to
+// 0xc91482a96e9c2a104d9298d1980eccf8c4dc764e, outside the set, so theirs are added back.
+const WITHDRAWING_VAULTS = [SEQUENCER_FEE_VAULT, L1_FEE_VAULT, BASE_FEE_VAULT];
+
+const LABEL = 'sequencer fees';
 
 const fetch = async (options: FetchOptions) => {
-  const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
+  const fees = await getFees(options, {
+    feeVaults: FEE_VAULTS,
+    withdrawingVaults: WITHDRAWING_VAULTS,
+  });
+  const dailyFees = fees.clone(1, LABEL);
 
-  const sql_query = getSqlFromFile('helpers/queries/bob-blockchain.sql', {
-    start: options.startTimestamp,
-    end: options.endTimestamp,
-  })
-  const results = await queryDuneSql(options, sql_query);
-
-  const dateString = new Date(options.startOfDay * 1000).toISOString().split('T')[0];
-  if (results && results.length > 0) {
-    const dayData = results.find((row: any) => row.day && row.day.startsWith(dateString));
-
-    if (dayData) {
-      // Use revenue_value (in wei) instead of revenue_eth
-      const revenueWei = dayData.revenue_value || (dayData.revenue_eth * 1e18).toString();
-      if (revenueWei && revenueWei !== "0") {
-        dailyFees.add(ADDRESSES.null, revenueWei, 'sequencer fees');
-        dailyRevenue.add(ADDRESSES.null, revenueWei, 'sequencer fees');
-      }
-    }
-  }
-
-  return {
-    dailyFees,
-    dailyRevenue,
-  };
+  return { dailyFees, dailyRevenue: dailyFees.clone() };
 };
 
 const methodology = {
@@ -48,14 +50,13 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   methodology,
   breakdownMethodology,
   chains: [CHAIN.BOB],
   start: "2024-04-12",
-  dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
 };
 
 export default adapter;

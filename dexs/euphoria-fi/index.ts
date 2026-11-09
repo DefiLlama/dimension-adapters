@@ -36,7 +36,7 @@ const fetch = async (options: FetchOptions) => {
     options.getLogs({
       target: ADDRESSES.megaeth.USDm,
       eventAbi: ABIS.transfer,
-      topics: [TRANSFER_TOPIC, null as any, topicAddress(CONTRACT)],
+      topics: [TRANSFER_TOPIC, null, topicAddress(CONTRACT)],
       onlyArgs: false,
     }),
   ]);

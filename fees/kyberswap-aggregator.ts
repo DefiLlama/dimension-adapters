@@ -61,12 +61,12 @@ const blacklistedTokens = [
   '0x3e4802f35A7B388EC78C2d3F6286Ddac2576F9fC',
 ]
 
-const feeCollector = "0x4f82e73edb06d29ff62c91ec8f5ff06571bdeb29"
+const feeCollectors = ["0x4f82e73edb06d29ff62c91ec8f5ff06571bdeb29", "0x1111110f0f73c0b2ef09ec012eae758b3e03a902"]
 
 async function fetch(options: FetchOptions) {
   // ERC20 fees: KyberSwap's MetaAggregationRouterV2 sends the protocol cut to the
-  // feeCollector as an ERC20 Transfer for non-native trades.
-  const dailyFees = await addTokensReceived({ target: feeCollector, options })
+  // fee collectors as an ERC20 Transfer for non-native trades.
+  const dailyFees = await addTokensReceived({ targets: feeCollectors, options })
 
   // Native gas-token fees: the same router forwards native ETH / BNB / etc. via an
   // internal call when the trade pays in the chain's native token. These do not emit
@@ -75,7 +75,7 @@ async function fetch(options: FetchOptions) {
   // 0x8f10b468b06c6fd214b65f87778827f7d113f996 (CREATE2-deployed at the same address
   // on every supported chain) — verified across Ethereum / Base / BSC / Arbitrum.
   if (nativeFeeChains.has(options.chain)) {
-    await getETHReceived({ target: feeCollector, options, balances: dailyFees })
+    await getETHReceived({ targets: feeCollectors, options, balances: dailyFees })
   }
 
   const defaultBlacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)

@@ -32,10 +32,12 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
+  doublecounted: true, // Jumper volume is also included in the LI.FI bridge adapter
   adapter: Object.keys(LifiDiamonds).reduce((acc, chain) => {
     return {
       ...acc,
-      [chain]: { fetch, start: LifiDiamonds[chain].startTime, }
+      [chain]: { fetch, start: LifiDiamonds[chain].start, deadFrom: LifiDiamonds[chain].deadFrom, }
     }
   }, {})
 };

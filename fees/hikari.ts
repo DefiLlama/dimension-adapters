@@ -1,10 +1,11 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const KATANA_TOKEN = "0x7F1f4b4b29f5058fA32CC7a97141b8D7e5ABDC2d";
+const KATANA_TOKEN = ADDRESSES.katana.KAT;
 const hikariPool = "0x2ac7673C3a0370dE512A20464a800fa7C53235C3";
 const hikariStaking = "0xeCA16687491B0D748C6246645f56AAE787474f3b";
-const AUSD_TOKEN = "0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a";
+const AUSD_TOKEN = ADDRESSES.mantle.AUSD;
 const FLOOR = "0x6573895ef28D3aEd6b84656e2CD870B7e08966b8";
 const FEE_EVENT =
   "event Collect(address indexed owner, address recipient, int24 indexed tickLower, int24 indexed tickUpper, uint128 amount0, uint128 amount1)";

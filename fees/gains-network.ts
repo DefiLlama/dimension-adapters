@@ -45,6 +45,7 @@ const prefetch = async (options: FetchOptions) => {
 
 const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
   const stats: IStats[] = options.preFetchedResults || [];
+  if (!stats.some((stat) => stat.unix_ts === options.startOfDay)) throw new Error(`gains-network: the dune stats table has no rows for ${options.dateString} yet`);
   const chainStat = stats.find((stat) => stat.unix_ts === options.startOfDay && stat.blockchain === options.chain);
   // const [dailyFees, dailyRevenue, dailyHoldersRevenue, dailySupplySideRevenue] = chainStat
   //   ? [chainStat.all_fees, chainStat.dev_fund + chainStat.project_fund + chainStat.gns_stakers, chainStat.gns_stakers, chainStat.dai_stakers + chainStat.usdc_stakers + chainStat.weth_stakers]

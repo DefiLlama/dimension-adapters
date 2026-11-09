@@ -1,9 +1,12 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { getUniV2LogAdapter } from "../helpers/uniswap";
 import { queryClickhouse } from "../helpers/indexer";
-import { getDefaultDexTokensWhitelisted } from "../helpers/lists";
-import { Row } from "@clickhouse/client";
+import { getDefaultDexTokensWhitelisted, getDexTokensBlacklisted } from "../helpers/lists";
+import { Row } from "../helpers/indexer";
 
 type Source = 'LOGS' | 'CLICKHOUSE';
 
@@ -82,15 +85,27 @@ const chainConfig: Record<string, {
     start: '2026-03-23',
   },
   [CHAIN.XLAYER]: {
+    // X Layer isn't in evm_indexer either, so fall back to the RPC-backed LOGS path.
     factory: '0xDf38F24fE153761634Be942F9d859f3DBA857E95',
-    source: 'CLICKHOUSE',
+    source: 'LOGS',
     start: '2026-01-05',
     feeSwitchDate: "2026-03-08",
+  },
+  [CHAIN.INK]: {
+    // Ink isn't in evm_indexer, so fall back to the RPC-backed LOGS path.
+    factory: '0xfe57A6BA1951F69aE2Ed4abe23e0f095DF500C04',
+    source: 'LOGS',
+    start: '2024-12-20',
   },
   [CHAIN.ROBINHOOD]: {
     factory: '0x8bcEaA40B9AcdfAedF85AdF4FF01F5Ad6517937f',
     source: 'LOGS',
     start: '2026-01-01',
+  },
+  [CHAIN.ARC]: {
+    factory: '0x89e5db8b5aa49aa85ac63f691524311aeb649eba',
+    source: 'LOGS',
+    start: '2026-05-28',
   },
 }
 
@@ -166,8 +181,8 @@ const buildSwapAggSql = (
   chainId: number,
   shortAddresses: string[],
   addresses: string[],
-  fromTs: number,
-  toTs: number,
+  fromBlock: number,
+  toBlock: number,
 ): string => `
   SELECT
     address AS pair,
@@ -179,8 +194,8 @@ const buildSwapAggSql = (
     AND short_topic0 = '${SWAP_SHORT_TOPIC0}'
     AND address IN (${hexListSql(addresses, 40)})
     AND topic0 = '${SWAP_TOPIC0}'
-    AND timestamp >= toDateTime(${fromTs})
-    AND timestamp <  toDateTime(${toTs})
+    AND block_number >= ${fromBlock}
+    AND block_number <  ${toBlock}
   GROUP BY address
 `;
 
@@ -230,7 +245,7 @@ async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig
 
   // Step 2: aggregate per-pair Swap event amount-out for the day
   const swapRows = await queryClickhouse<SwapAggRow>(
-    buildSwapAggSql(chainId, shortAddresses, pairAddresses, options.fromTimestamp, options.toTimestamp),
+    buildSwapAggSql(chainId, shortAddresses, pairAddresses, Number(options.fromApi.block), Number(options.toApi.block)),
     undefined,
     chSettings,
   );
@@ -260,7 +275,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   if (config.source === 'LOGS') {
-    const fetchFunction = getUniV2LogAdapter({ factory: config.factory, ...getLogAdapterConfig(options), allowReadPairs: options.chain === CHAIN.ZORA });
+    const fetchFunction = getUniV2LogAdapter({ factory: config.factory, ...getLogAdapterConfig(options), allowReadPairs: options.chain === CHAIN.ZORA, blacklistTokens: await getDexTokensBlacklisted(options) });
     return await fetchFunction(options);
   } else if (config.source === 'CLICKHOUSE') {
     return await fetchClickhouse(options, config);

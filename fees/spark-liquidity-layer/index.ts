@@ -40,6 +40,10 @@ async function fetch(options: FetchOptions): Promise<FetchResultFees> {
   }
 
   for (const record of records) {
+    // Sparklend rows need the reserve-factor slice from spark_sparklend_actual_revenue_daily; without it the row would double count
+    if (record.protocol_name === 'Sparklend' && record.reserve_factor_usd == null) {
+      throw new Error(`No Sparklend reserve factor data for ${record.token_symbol} on ${date}`)
+    }
     const fees = Number(record.fees || 0)
     const revenue = Number(record.revenue || 0)
     const ssr = Number(record.fees) - Number(record.revenue);
@@ -53,42 +57,42 @@ async function fetch(options: FetchOptions): Promise<FetchResultFees> {
 }
 
 const methodology = {
-  Fees: 'Total interest earned on all loans.',
-  Revenue: 'Fees collected minus the Sky Base Rate (vault stability fee) plus the monthly offchain rebate calculation for things like idle USDS.',
-  SupplySideRevenue: 'Fees collected distributed to supply-side depositors.',
-  ProtocolRevenue: 'All revenue are collected by Spark protocol.',
+  Fees: "Yield the Spark Liquidity Layer earns on the USDS it borrows from Sky (its parent ecosystem) and deploys into lending markets, vaults and pools, after each venue's own cut (for SparkLend, its reserve factor).",
+  Revenue: "That yield minus the base rate Spark pays Sky for the borrowed USDS, plus the monthly rebate on idle USDS.",
+  ProtocolRevenue: "Yield on the USDS borrowed from Sky minus the base rate paid to Sky for it, plus the monthly rebate on idle USDS, all kept by Spark.",
+  SupplySideRevenue: "The base rate Spark pays Sky, its parent ecosystem, for the USDS it deploys.",
 }
 
 const breakdownMethodology = {
   Fees: {
-    'Paypal Yields': 'All yields collected from Paypal PYUSD.',
-    'Aave Yields': 'All yields collected from Aave loans.',
-    'Anchorage Yields': 'All yields collected from Anchorage.',
-    'Morpho Yields': 'All yields collected from Morpho loans.',
-    'Curve Yields': 'All yields collected from Curve pools.',
-    'Maple Yields': 'All yields collected from Maple loans.',
-    'Sparklend Yields': 'All yields collected from Sparklend loans.',
-    'Others Yields': 'All yields collected from other sources.',
+    'Paypal Yields': 'Rewards on PYUSD held directly by the Liquidity Layer.',
+    'Aave Yields': 'Yield on capital deployed in Aave.',
+    'Anchorage Yields': 'Yield on capital held at Anchorage.',
+    'Morpho Yields': 'Yield on capital deployed in Morpho vaults.',
+    'Curve Yields': 'Yield on capital deployed in Curve pools.',
+    'Maple Yields': 'Yield on capital deployed in Maple.',
+    'Sparklend Yields': "Yield on capital deployed in SparkLend, after SparkLend's reserve factor.",
+    'Others Yields': 'Yield on capital deployed elsewhere.',
   },
   Revenue: {
-    'Paypal Yields To Spark': 'Spark share of yields collected from Paypal PYUSD.',
-    'Aave Yields To Spark': 'Spark share of yields collected from Aave loans.',
-    'Anchorage Yields To Spark': 'Spark share of yields collected from Anchorage.',
-    'Morpho Yields To Spark': 'Spark share of yields collected from Morpho loans.',
-    'Curve Yields To Spark': 'Spark share of yields collected from Curve pools.',
-    'Maple Yields To Spark': 'Spark share of yields collected from Maple loans.',
-    'Sparklend Yields To Spark': 'Spark share of yields collected from Sparklend loans.',
-    'Others Yields To Spark ': 'Spark share of yields collected from other sources.',
+    'Paypal Yields To Spark': 'PYUSD rewards minus the Sky base rate on that capital.',
+    'Aave Yields To Spark': 'Aave yield minus the Sky base rate on that capital.',
+    'Anchorage Yields To Spark': 'Anchorage yield minus the Sky base rate on that capital.',
+    'Morpho Yields To Spark': 'Morpho yield minus the Sky base rate on that capital.',
+    'Curve Yields To Spark': 'Curve yield minus the Sky base rate on that capital.',
+    'Maple Yields To Spark': 'Maple yield minus the Sky base rate on that capital.',
+    'Sparklend Yields To Spark': "SparkLend yield, after SparkLend's reserve factor, minus the Sky base rate on that capital.",
+    'Others Yields To Spark': 'Other yield minus the Sky base rate on that capital.',
   },
   SupplySideRevenue: {
-    'Paypal Yields To Suppliers': 'Suppliers share of yields collected from Paypal PYUSD.',
-    'Aave Yields To Suppliers': 'Suppliers share of yields collected from Aave loans.',
-    'Anchorage Yields To Suppliers': 'Suppliers share of yields collected from Anchorage.',
-    'Morpho Yields To Suppliers': 'Suppliers share of yields collected from Morpho loans.',
-    'Curve Yields To Suppliers': 'Suppliers share of yields collected from Curve pools.',
-    'Maple Yields To Suppliers': 'Suppliers share of yields collected from Maple loans.',
-    'Sparklend Yields To Suppliers': 'Suppliers share of yields collected from Sparklend loans.',
-    'Others Yields To Suppliers ': 'Suppliers share of yields collected from other sources.',
+    'Paypal Yields To Suppliers': 'Sky base rate paid on the capital held as PYUSD.',
+    'Aave Yields To Suppliers': 'Sky base rate paid on the capital deployed in Aave.',
+    'Anchorage Yields To Suppliers': 'Sky base rate paid on the capital held at Anchorage.',
+    'Morpho Yields To Suppliers': 'Sky base rate paid on the capital deployed in Morpho.',
+    'Curve Yields To Suppliers': 'Sky base rate paid on the capital deployed in Curve.',
+    'Maple Yields To Suppliers': 'Sky base rate paid on the capital deployed in Maple.',
+    'Sparklend Yields To Suppliers': 'Sky base rate paid on the capital deployed in SparkLend.',
+    'Others Yields To Suppliers': 'Sky base rate paid on capital deployed elsewhere.',
   },
 }
 

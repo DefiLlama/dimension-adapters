@@ -27,8 +27,6 @@ function convertDecimals(value: string | number, decimals: number) {
 }
 
 const fetch = async (options: FetchOptions) => {
-  // startTimestamp is one second before midnight, so flooring it to a day lands on the
-  // previous day's bucket. startOfDay is already the midnight of the day being reported.
   const todaysTimestamp = options.startOfDay
   const graphQuery = gql
     `{

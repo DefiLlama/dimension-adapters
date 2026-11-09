@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken, isCoreAsset } from "../../helpers/prices";
@@ -26,7 +27,7 @@ const chainConfig: Record<string, { master: string, start: string }> = {
 // fee as a fraction of the input amount; protocolFee is the share of that fee
 // taken by the protocol (the remainder accrues to LPs).
 const FEE_DENOMINATOR = 100_000;
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ADDRESSES.null;
 
 const abi = {
   poolsLength: "function poolsLength() view returns (uint256)",

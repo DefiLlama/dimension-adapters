@@ -7,7 +7,8 @@ const fetch = async (options: FetchOptions) => {
     "https://hub.orbs.network/analytics-daily/v1",
   );
 
-  let dailyVolume = dailyResult.result.rows.find((row: any) => row.key === options.dateString)?.daily_total_calculated_value
+  // the API renamed the date field from `key` to `evt_date`
+  let dailyVolume = dailyResult.result.rows.find((row: any) => (row.evt_date ?? row.key) === options.dateString)?.daily_total_calculated_value
   if (!dailyVolume)
     throw new Error(`No data found for date ${options.dateString}`);
 
