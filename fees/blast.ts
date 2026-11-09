@@ -1,12 +1,16 @@
+import { chains } from "@defillama/sdk";
 import type { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import addresses from "../helpers/coreAssets.json";
 import { httpGet } from "../utils/fetchURL";
 
 const metricsUrl = "https://www.blast.fun/api/v1/defillama/metrics";
-const secondsPerDay = 86_400;
-// Blast publishes 100 rows per page. Bound requests even if the API keeps issuing new cursors.
+// The feed caps cursors at row 1,000,000 and returns 100 rows per page.
 const maxPages = 10_000;
-const suiCoinType = `0x${"0".repeat(63)}2::sui::SUI`;
+// Published pages are indexed reads. Fail stalled requests so the runner can retry the day.
+const requestTimeoutMs = 15_000;
+const { normalizeCoinType } = chains.sui;
+const suiCoinType = normalizeCoinType(addresses.sui.SUI);
 const coinTypePattern = /^0x[0-9a-f]{64}::[a-zA-Z_][a-zA-Z0-9_]*::[a-zA-Z_][a-zA-Z0-9_]*(?:<.+>)?$/;
 const feeMetrics = ["fees", "revenue", "protocol_revenue", "supply_side_revenue"] as const;
 type FeeMetric = (typeof feeMetrics)[number];
@@ -53,13 +57,10 @@ async function fetch(options: FetchOptions) {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  for await (const item of readDailyFees(options)) {
-    const token = item.coin_type === suiCoinType ? "0x2::sui::SUI" : item.coin_type;
-    for (const { label, fees, revenue, supply } of feeBreakdown(item)) {
-      dailyFees.add(token, fees, label);
-      dailyRevenue.add(token, revenue, label);
-      dailySupplySideRevenue.add(token, supply, label);
-    }
+  for await (const { token, label, fees, revenue, supply } of readDailyFees(options)) {
+    dailyFees.add(token, fees, label);
+    dailyRevenue.add(token, revenue, label);
+    dailySupplySideRevenue.add(token, supply, label);
   }
 
   return {
@@ -73,47 +74,52 @@ async function fetch(options: FetchOptions) {
 
 /** Follow the API's cursors within one published revision. */
 async function* readDailyFees(options: FetchOptions) {
-  const url = new URL(metricsUrl);
-  url.searchParams.set("date", options.dateString);
   const cursors = new Set<string>();
   const seenRows = new Set<string>();
+  let cursor: string | undefined;
   let snapshotId: string | undefined;
 
-  for (let pageNumber = 1; pageNumber <= maxPages; pageNumber++) {
-    const page: DailyPage = await httpGet(url.toString(), { timeout: 15_000, maxRedirects: 0 });
-    requireCompleteDay(page, options);
-    if (snapshotId !== undefined && page.snapshot_id !== snapshotId) {
-      throw new Error("Blast snapshot revision changed during pagination");
-    }
-    snapshotId = page.snapshot_id;
+  while (cursors.size < maxPages) {
+    const page: DailyPage = await httpGet(metricsUrl, {
+      params: { date: options.dateString, cursor },
+      timeout: requestTimeoutMs,
+      maxRedirects: 0,
+    });
+    requireCompleteDay(page, options, snapshotId);
+    snapshotId ??= page.snapshot_id;
 
     for (const item of page.items) {
       if (item.included_in_totals !== true || item.underlying_venue_overlap !== false) {
         continue;
       }
-      const rowKey = `${item.component}:${item.coin_type}`;
-      if (!coinTypePattern.test(item.coin_type) || seenRows.has(rowKey)) {
+      const coinType = normalizeCoinType(item.coin_type);
+      const rowKey = `${item.component}:${coinType}`;
+      if (!coinTypePattern.test(coinType) || seenRows.has(rowKey)) {
         throw new Error(`Invalid or duplicate Blast fee row: ${rowKey}`);
       }
       seenRows.add(rowKey);
-      yield item;
+      const token = coinType === suiCoinType ? addresses.sui.SUI : coinType;
+      yield* feeBreakdown(item).map((fee) => ({ token, ...fee }));
     }
 
-    const cursor = page.next_cursor;
-    if (cursor === null) {
+    if (page.next_cursor === null) {
       return;
     }
+    cursor = page.next_cursor;
     if (typeof cursor !== "string" || !cursor || cursors.has(cursor)) {
       throw new Error("Invalid Blast snapshot pagination");
     }
     cursors.add(cursor);
-    url.searchParams.set("cursor", cursor);
   }
   throw new Error("Blast snapshot exceeded the page limit");
 }
 
 /** Reject partial days so missing receipts cannot be reported as zero fees. */
-function requireCompleteDay(page: DailyPage, { dateString, startOfDay }: FetchOptions) {
+function requireCompleteDay(
+  page: DailyPage,
+  { dateString, startOfDay, endTimestamp }: FetchOptions,
+  snapshotId?: string,
+) {
   if (
     page?.schema_version !== 1 ||
     page.chain !== CHAIN.SUI ||
@@ -121,8 +127,9 @@ function requireCompleteDay(page: DailyPage, { dateString, startOfDay }: FetchOp
     page.methodology_version !== "blast-defi-v4" ||
     page.date !== dateString ||
     page.start_timestamp !== startOfDay ||
-    page.end_timestamp !== startOfDay + secondsPerDay ||
+    page.end_timestamp !== endTimestamp ||
     typeof page.snapshot_id !== "string" ||
+    (snapshotId !== undefined && page.snapshot_id !== snapshotId) ||
     !Array.isArray(page.items)
   ) {
     throw new Error(`Invalid Blast snapshot for ${dateString}`);
@@ -201,12 +208,12 @@ const adapter: SimpleAdapter = {
     UserFees: feeDescriptions,
     Revenue: feeDescriptions,
     ProtocolRevenue: feeDescriptions,
-    SupplySideRevenue: {
-      [launchpadLabels.creation]: "Creator and partner shares of launch creation fees.",
-      [launchpadLabels.curve_swaps]: "Creator and partner shares of bonding curve swap fees.",
-      [launchpadLabels.migration]: "Creator and partner shares of launch migration fees.",
-      [launchpadLabels.presale_raise]: "Creator and partner shares of presale raise fees.",
-    },
+    SupplySideRevenue: Object.fromEntries(
+      Object.values(launchpadLabels).map((label) => [
+        label,
+        `Creator and partner shares of ${label.toLowerCase()}.`,
+      ]),
+    ),
   },
 };
 
