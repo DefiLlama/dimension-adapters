@@ -16,17 +16,21 @@ const frontendLabels = {
 
 const labels = new Map(Object.entries({ ...launchpadLabels, ...frontendLabels }));
 
-/** Read Blast's published fees and revenue for one complete UTC day. */
-async function fetch({ dateString, createBalances }: FetchOptions) {
+/** Read Blast's published fees and revenue for the requested UTC window. */
+async function fetch({ startTimestamp, endTimestamp, createBalances }: FetchOptions) {
   const summary: unknown = await httpGet("https://www.blast.fun/api/v1/defillama/fees", {
-    params: { date: dateString },
+    params: { start_timestamp: startTimestamp, end_timestamp: endTimestamp },
     // Blast's relay allows 5s for its backend. Allow 10s more for cold starts and transit.
     timeout: 15_000,
     maxRedirects: 0,
   });
 
-  if (!isRecord(summary) || summary.date !== dateString) {
-    throw new Error(`Invalid Blast fee summary for ${dateString}`);
+  if (
+    !isRecord(summary) ||
+    summary.start_timestamp !== startTimestamp ||
+    summary.end_timestamp !== endTimestamp
+  ) {
+    throw new Error(`Invalid Blast fee summary for ${startTimestamp}–${endTimestamp}`);
   }
 
   const dailyFees = toBalances(summary.dailyFees, createBalances);
@@ -88,7 +92,8 @@ const feeDescriptions = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   chains: [CHAIN.SUI],
   start: "2026-11-07",
   fetch,
