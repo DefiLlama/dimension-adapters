@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import ADDRESSES from '../../helpers/coreAssets.json';
 
 // cro.trade (https://cro.trade) charges a flat 0.9% on every spot trade it routes on Cronos.
 // It is a compile-time constant in every router below (FEE_NUMERATOR = 90 / FEE_DENOMINATOR = 10000,
@@ -84,7 +85,7 @@ const RH_ROUTERS = [
   '0x91e2e94bfc604836e208fe8ded09bd863d8a15e4', // CroTradeRouterRH, 2026-11-01
   '0x67703604015fecced592788923877f50e8f675d4', // CroTradeRouterRH2, 2026-11-04
 ]
-const RH_NATIVE = '0x0000000000000000000000000000000000000000'
+const RH_NATIVE = ADDRESSES.null
 const RH_BASES = new Set([
   RH_NATIVE,
   '0x0bd7d308f8e1639fab988df18a8011f41eacad73', // WETH
