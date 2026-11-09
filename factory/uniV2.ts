@@ -28,6 +28,16 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "fstswap": {
+    // V2 pair creation and 0.3% swap invariant: https://sourcify.dev/server/v2/contract/56/0x9a272d734c5a0d7d84e0a892e891a553e8066dce?fields=sources
+    // Deployment block 13426673 (2021-12-13); volume only: fee split not documented.
+    [CHAIN.BSC]: { factory: '0x9a272d734c5a0d7d84e0a892e891a553e8066dce', start: '2021-12-13', fees: 0.003, customLogic: volumeOnly },
+  },
+  "bscswap": {
+    // V2 pair creation and 0.3% swap invariant: https://sourcify.dev/server/v2/contract/56/0xce8fd65646f2a2a897755a1188c04ace94d2b8d0?fields=sources
+    // Deployment block 458157 (2020-09-14); volume only: fee split not documented.
+    [CHAIN.BSC]: { factory: '0xce8fd65646f2a2a897755a1188c04ace94d2b8d0', start: '2020-09-14', fees: 0.003, customLogic: volumeOnly },
+  },
   "bdex-v2": {
     // stock uniV2 fork on BOT Chain. Factory: https://dev-docs.botchain.ai/docs/DEX/contract-addresses/
     // feeTo() is the zero address (https://scan.botchain.ai/address/0x117115f3B72C8d1989178089A67D0C26f8EE0AA3, checked 2026-09-22) => 0.3% swap fee, 100% to LPs
