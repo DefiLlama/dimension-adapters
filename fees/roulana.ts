@@ -4,8 +4,16 @@ import { httpGet } from "../utils/fetchURL"
 
 // Roulana (https://roulana.com): one live European roulette table on Solana. Every round with money on it is drawn
 // and paid by the table's program (https://github.com/roulana/program); players bet USDC from their own wallet.
+// On Solana:
+//   program  7FqVwLDtBPC1YsKpiXUw8HxCJP63hqQKGFcnYXgYgHBn (the table's program, verified build)
+//   table    AfyXCSmsshBZ998TCCNbuUSB5hcw4RnJFeEk1LWhh63J (its Table account: the bank, the fee rate)
+//   vault    BPJmrTZFCBi4iK6bA4FxV43wM1qQqiHXBGMHbfd4aw56 (the USDC the TVL adapter counts)
+//   fees     the service fee goes to the table's owner wallet 8K7acNB8rubHNfqoMyF4v8pKkzxwmZ4qJWZBQJ5QSXCH; the buyback half
+//            to 3nzTjSv6pf5n3mexQbV7wnRNkFeCdMUWXbedRFNwFDmy, collected by the buyback wallet 6Pcucyd1iNtxYH2YmKw3vcC62L8iyaN7AhoH5oCALF9V
 // The table's public feed gives one UTC day of those rounds with each wallet's stakes and payouts in dollars
-// (https://roulana.com/developers, /api/day), the same records the round checker reads from Solana.
+// (https://roulana.com/api/day, documented at https://roulana.com/developers). The same rounds are there one by one
+// with every bet (https://roulana.com/api/history, /api/rounds/<number>), each with its Solana round account and a
+// link that checks it on chain (https://roulana.com/verify?round=<account>).
 const API = "https://roulana.com/api/day"
 
 // The table's own house players, which play with Roulana's money to test the table, are left out so that only real
@@ -31,6 +39,7 @@ const ROULANA_WALLETS = new Set([
 
 // The table's fee: 1 % of every stake (feeBps 100 in the program's Table account, https://roulana.com/api/bank),
 // paid by the bank out of its edge; half is the service fee to Roulana, half funds the public buyback of $ROULANA.
+// Unchanged since the table opened on 2026-10-01; a change of the rate would need a dated switch here.
 const FEE_RATE = 0.01
 const SERVICE_SHARE = 0.5
 
