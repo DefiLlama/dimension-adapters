@@ -205,8 +205,22 @@ async function firstSpotTradeAtOrAfter(ts: number, lastId: number): Promise<numb
   while (lo < hi) {
     const mid = Math.floor((lo + hi) / 2);
     let tradeTs: number | undefined;
-    for (let id = mid; id < hi && tradeTs === undefined; id++) {
-      tradeTs = (await getSpotTrade(id))?.timestamp;
+    for (let cursor = mid; cursor < hi && tradeTs === undefined; cursor += POOL_CONCURRENCY) {
+      const candidateIds = Array.from(
+        { length: Math.min(POOL_CONCURRENCY, hi - cursor) },
+        (_, i) => cursor + i
+      );
+      const { results: batchTrades, errors } = await PromisePool.withConcurrency(POOL_CONCURRENCY)
+        .for(candidateIds)
+        .process(async (id) => ({ id, trade: await getSpotTrade(id) }));
+      if (errors.length) throw errors[0];
+      batchTrades.sort((a, b) => a.id - b.id);
+      for (const item of batchTrades) {
+        if (item.trade !== null) {
+          tradeTs = item.trade.timestamp;
+          break;
+        }
+      }
     }
     if (tradeTs === undefined || tradeTs >= ts) hi = mid;
     else lo = mid + 1;
@@ -284,8 +298,22 @@ async function firstPositionOpenedAtOrAfter(ts: number, lastId: number): Promise
   while (lo < hi) {
     const mid = Math.floor((lo + hi) / 2);
     let openedTs: number | undefined;
-    for (let id = mid; id < hi && openedTs === undefined; id++) {
-      openedTs = (await getPosition(id))?.openedAt;
+    for (let cursor = mid; cursor < hi && openedTs === undefined; cursor += POOL_CONCURRENCY) {
+      const candidateIds = Array.from(
+        { length: Math.min(POOL_CONCURRENCY, hi - cursor) },
+        (_, i) => cursor + i
+      );
+      const { results: batchPositions, errors } = await PromisePool.withConcurrency(POOL_CONCURRENCY)
+        .for(candidateIds)
+        .process(async (id) => ({ id, pos: await getPosition(id) }));
+      if (errors.length) throw errors[0];
+      batchPositions.sort((a, b) => a.id - b.id);
+      for (const item of batchPositions) {
+        if (item.pos !== null) {
+          openedTs = item.pos.openedAt;
+          break;
+        }
+      }
     }
     if (openedTs === undefined || openedTs >= ts) hi = mid;
     else lo = mid + 1;
@@ -352,20 +380,27 @@ const fetch = async (options: FetchOptions) => {
         ? Math.min(settledPrefixId + 1, maxPosId + 1)
         : 1;
     const posIds = Array.from({ length: Math.max(0, maxPosId - startPosId + 1) }, (_, i) => startPosId + i);
-    const { results, errors } = await PromisePool.withConcurrency(POOL_CONCURRENCY)
+    const positionsById = new Map<number, StockPositionRecord | null>();
+    const { errors } = await PromisePool.withConcurrency(POOL_CONCURRENCY)
       .for(posIds)
       .process(async (id) => {
         if (!closedPositionCache.has(id)) {
           await new Promise((r) => setTimeout(r, POOL_THROTTLE_BASE_MS + Math.random() * POOL_THROTTLE_JITTER_MS));
         }
-        return getPosition(id);
+        const pos = await getPosition(id);
+        positionsById.set(id, pos);
+        return pos;
       });
     if (errors.length) throw new Error(`${errors.length}/${posIds.length} GetPosition calls failed`);
 
-    // Advance the contiguous settled prefix watermark `[1..settledPrefixId]` when scanning from `settledPrefixId + 1`.
+    // Iterate in ascending `posIds` order so out-of-order PromisePool completions never stop settled-prefix advancement prematurely.
     let canAdvancePrefix = startPosId === settledPrefixId + 1;
-    for (const p of results) {
-      if (!p) continue;
+    for (const id of posIds) {
+      const p = positionsById.get(id) ?? null;
+      if (!p) {
+        canAdvancePrefix = false;
+        continue;
+      }
       if (canAdvancePrefix && p.id === settledPrefixId + 1 && !p.isOpen && p.closedAt > 0) {
         settledPrefixId = p.id;
         if (p.closedAt > settledPrefixMaxClosedAt) {
@@ -418,9 +453,7 @@ const methodology = {
     "Sum of matched maker/taker Spot CLOB Orderbook fills on stonkbase-orderbook (0x2c1dd078...) and 1x-5x leveraged RWA perpetuals positions opened/closed on stonkbase-vara-desk (0x8073da7a...) on Vara Mainnet.",
   OpenInterest:
     "Sum of active VARA-denominated notional across leveraged RWA perpetual positions on stonkbase-vara-desk (0x8073da7a...) that remain open at the end of the window.",
-  Fees: "0.30% (30 bps) fee on Spot CLOB Orderbook fills (0.25% maker/LP rebate + 0.05% protocol fee) and 0.10% (10 bps) execution fee on RWA perpetual positions.",
-  UserFees:
-    "0.30% (30 bps) fee paid by takers on Spot CLOB Orderbook fills and 0.10% (10 bps) execution fee paid by traders on RWA perpetual opens and closes.",
+  Fees: "0.30% (30 bps) fee paid by takers on Spot CLOB Orderbook fills (0.25% maker/LP rebate + 0.05% protocol fee) and 0.10% (10 bps) execution fee paid by traders on RWA perpetual opens and closes.",
   Revenue:
     "0.05% protocol share of Spot CLOB Orderbook fills plus 0.10% execution fee on RWA perpetual positions.",
   ProtocolRevenue:
