@@ -28,6 +28,13 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "spartadex": {
+    // V2 pair creation and 0.3% swap invariant: https://sourcify.dev/server/v2/contract/42161/0xFe8EC10Fe07A6a6f4A2584f8cD9FE232930eAF55?fields=all
+    // Linea factory uses the same pair code: https://sourcify.dev/server/v2/contract/59144/0x9E4Fc4a5A0769ba74088856C229c4a1Db2Ea5A9e?fields=all
+    // Deployment blocks 117753271 and 3590497; volume only: historical fee split not documented.
+    [CHAIN.ARBITRUM]: { factory: '0xFe8EC10Fe07A6a6f4A2584f8cD9FE232930eAF55', start: '2023-08-03', fees: 0.003, customLogic: volumeOnly },
+    [CHAIN.LINEA]: { factory: '0x9E4Fc4a5A0769ba74088856C229c4a1Db2Ea5A9e', start: '2024-04-11', fees: 0.003, customLogic: volumeOnly },
+  },
   "bdex-v2": {
     // stock uniV2 fork on BOT Chain. Factory: https://dev-docs.botchain.ai/docs/DEX/contract-addresses/
     // feeTo() is the zero address (https://scan.botchain.ai/address/0x117115f3B72C8d1989178089A67D0C26f8EE0AA3, checked 2026-09-22) => 0.3% swap fee, 100% to LPs
