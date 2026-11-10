@@ -28,6 +28,12 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "gibxswap": {
+    // Verified factory and pair: https://sourcify.dev/server/v2/contract/56/0x97bCD9BB482144291D77ee53bFa99317A82066E8?fields=all
+    // V2 PairCreated and Swap events; swap fee 3/1000. Factory deployed at block 10913313 on 2021-09-14.
+    // volume only: feeTo is mutable and its historical protocol share is not established.
+    [CHAIN.BSC]: { factory: '0x97bCD9BB482144291D77ee53bFa99317A82066E8', start: '2021-09-14', fees: 0.003, customLogic: volumeOnly },
+  },
   "inkyswap": {
     // Verified V2 factory and 0.3% pair fee: https://explorer.inkonchain.com/address/0x458c5d5b75ccba22651d2c5b61cb1ea1e0b0f95d?tab=contract
     // Factory deployed 2024-12-17: https://explorer.inkonchain.com/tx/0x6d777441da3a1df1e2317d7bd00f9ed56a176f6a21bf8167aef212534e029b96
