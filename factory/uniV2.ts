@@ -2049,6 +2049,61 @@ protocols['sonevibe'].breakdownMethodology = {
   SupplySideRevenue: { 'LP fees': methodologyMap['sonevibe'].SupplySideRevenue },
 }
 
+// Patch for DefiLlama dimension-adapters factory/uniV2.ts
+// Live file: https://github.com/DefiLlama/dimension-adapters/blob/master/factory/uniV2.ts
+// Do not replace the existing configs["sonevibe"][CHAIN.SONEIUM] entry (old factory, start 2025-12-15).
+// Insert this override immediately after:
+//   protocols['sonevibe'].breakdownMethodology = { ... }
+//
+// uniV2Exports accepts one factory per chain, so Soneium volume/fees from the
+// drain-free factory have to be summed here. Skip it before it existed or
+// allowReadPairs will call allPairsLength on an empty address and break history.
+
+const sonevibeSoneiumFeeCfg = {
+  fees: 0.0025,
+  userFeesRatio: 1,
+  revenueRatio: 1 / 6,
+  protocolRevenueRatio: 1 / 6,
+  allowReadPairs: true,
+}
+const sonevibeSoneiumOldFactory = '0x06C0b58287794a0bdce20ce768b601CA974618DC'
+const sonevibeSoneiumNewFactory = '0x77b141dCFDa726e239efF005E3DE7A47AeBFf948'
+// Deploy 2026-11-10 03:56:01 UTC, block 30574105,
+// tx 0x69f8165d69abe21ac04f9e9b2e05e67fe97a2fd7ee976d97732068c0a2e57ad4
+const sonevibeSoneiumNewFactoryStart = 1794282961
+
+const sonevibeSoneiumNewFactoryBlock = 30574105
+
+protocols['sonevibe'].adapter[CHAIN.SONEIUM].fetch = async (options: FetchOptions) => {
+  const oldRes = await getUniV2LogAdapter({
+    factory: sonevibeSoneiumOldFactory,
+    ...sonevibeSoneiumFeeCfg,
+  })(options)
+  // Gate on the resolved end block, not the timestamp: block lookup can round down up to 5 minutes.
+  if (options.endTimestamp < sonevibeSoneiumNewFactoryStart) return oldRes
+  if ((await options.getToBlock()) < sonevibeSoneiumNewFactoryBlock) return oldRes
+  // Deployed but no pairs yet (03:56:01-04:27:09 UTC Nov 10): with an empty pair cache,
+  // getUniV2LogAdapter leaves `pairs` undefined and throws on pairs.forEach. options.api is pinned to toBlock.
+  const newPairsLength = await options.api.call({ target: sonevibeSoneiumNewFactory, abi: 'uint256:allPairsLength' })
+  if (!Number(newPairsLength)) return oldRes
+  const newRes = await getUniV2LogAdapter({
+    factory: sonevibeSoneiumNewFactory,
+    ...sonevibeSoneiumFeeCfg,
+  })(options)
+  for (const key of Object.keys(newRes)) {
+    const o = oldRes[key]
+    const n = newRes[key]
+    if (n == null) continue
+    if (o && typeof o.add === 'function') {
+      if (typeof n.add === 'function') o.add(n)
+    } else {
+      // old side is undefined or the numeric 0 from the empty-pairs path
+      oldRes[key] = n
+    }
+  }
+  return oldRes
+}
+
 // RH has no referral program: Pair._update0/_update1 send MAX_REFERRAL_FEE to the treasury in dibs.
 // Factory: https://robinhoodchain.blockscout.com/address/0x76c1D39C33b773ABe8fBDD6253f4D09B735b2e7b
 protocols['hybra-v2'].breakdownMethodology = {
