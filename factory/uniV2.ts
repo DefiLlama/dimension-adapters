@@ -1165,6 +1165,12 @@ const configs: Record<string, Record<string, any>> = {
     // PancakeSwap V2 fork: 0.25% swap fee, 32% of it (8/25 in _mintFee) minted to feeTo, the treasury multisig
     [CHAIN.BASE]: { factory: '0xFDa619b6d20975be80A10332cD39b9a4b0FAa8BB', start: '2023-07-28', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32, holdersRevenueRatio: 0 },
   },
+  "alienbase": {
+    // Alien Base V2 (https://alienbase.xyz): Uniswap V2 fork, pairs charge 0.16% per swap (not the stock 0.3%).
+    // factory.feeTo() = 0xdD8Bb6779D6d7A2540C38caE1e95c2A1c350A390 (Alien Base multisig, checked 2026-11-10), so the stock
+    // kLast _mintFee mints 1/6 of the LP fee growth to the treasury. Factory deployed August 2023 (listed 2023-08-09).
+    [CHAIN.BASE]: { factory: '0x3E84D913803b02A4a7f027165E8cA42C14C0FdE7', start: '2023-08-09', fees: 0.0016, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+  },
   "voltswap-v1": {
     // all swap fees go to VOLT stakers
     [CHAIN.METER]: { factory: '0x56aD9A9149685b290ffeC883937caE191e193135', revenueRatio: 1, protocolRevenueRatio: 0, holdersRevenueRatio: 1 },
@@ -1783,6 +1789,14 @@ const methodologyMap: Record<string, any> = {
     SupplySideRevenue: "All user fees are distributed among LPs.",
     HoldersRevenue: "Stakers received $GLINT in staking rewards.",
   },
+  "alienbase": {
+    Volume: "Swap volume from all Alien Base V2 pairs deployed by the V2 factory on Base.",
+    Fees: "Traders pay a 0.16% fee on every swap in Alien Base V2 pairs.",
+    UserFees: "All fees are the 0.16% swap fee paid by traders.",
+    Revenue: "1/6 of swap fees (about 0.027% of volume), minted as LP tokens to the Alien Base treasury through the factory feeTo switch.",
+    ProtocolRevenue: "1/6 of swap fees (about 0.027% of volume), collected by the Alien Base treasury multisig set as the factory feeTo.",
+    SupplySideRevenue: "5/6 of swap fees (about 0.133% of volume) stay in the pairs for liquidity providers.",
+  },
   "baseswap-v2": {
     Fees: "Traders pay a 0.25% fee on every swap in BaseSwap V2 pairs.",
     UserFees: "All fees are the 0.25% swap fee paid by traders.",
@@ -2364,6 +2378,14 @@ protocols['baseswap-v2'].breakdownMethodology = {
   ProtocolRevenue: { 'Protocol fees': "32% of swap fees (0.08% of volume) collected by the BaseSwap treasury multisig." },
   SupplySideRevenue: { 'LP fees': "68% of swap fees (0.17% of volume) kept by liquidity providers." },
   HoldersRevenue: { 'Tokenholder fees': "No fixed share of swap fees goes to BSX/xBSX holders." },
+}
+
+protocols['alienbase'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': "0.16% swap fee paid by traders on Alien Base V2 pairs." },
+  UserFees: { 'Trading fees': "0.16% swap fee paid by traders per trade." },
+  Revenue: { 'Protocol fees': "1/6 of swap fees, minted to the treasury through the factory feeTo switch." },
+  ProtocolRevenue: { 'Protocol fees': "1/6 of swap fees, collected by the Alien Base treasury multisig." },
+  SupplySideRevenue: { 'LP fees': "5/6 of swap fees, kept by liquidity providers." },
 }
 
 protocols['potatoswap'].breakdownMethodology = {
