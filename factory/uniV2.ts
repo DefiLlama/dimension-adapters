@@ -28,6 +28,50 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "beam-swap": {
+    // Factory and 0.3% V2 pair invariant: https://sourcify.dev/server/v2/contract/4337/0x662b526fb70ebb508962f3f61c9f735f687c8fa5?fields=sources,compilation,deployment
+    // Factory deployment block 295 is 2023-08-18 UTC; volume only: fee split not documented.
+    [CHAIN.BEAM]: { factory: '0x662b526FB70EBB508962f3f61c9F735f687C8fA5', start: '2023-08-18', fees: 0.003, customLogic: volumeOnly },
+  },
+  "inkyswap": {
+    // Verified V2 factory and 0.3% pair fee: https://explorer.inkonchain.com/address/0x458c5d5b75ccba22651d2c5b61cb1ea1e0b0f95d?tab=contract
+    // Factory deployed 2024-12-17: https://explorer.inkonchain.com/tx/0x6d777441da3a1df1e2317d7bd00f9ed56a176f6a21bf8167aef212534e029b96
+    // volume only: fee split not documented
+    [CHAIN.INK]: { factory: '0x458C5d5B75ccBA22651D2C5b61cB1EA1e0b0f95D', start: '2024-12-17', customLogic: volumeOnly },
+  },
+  "gibxswap": {
+    // Verified factory and pair: https://sourcify.dev/server/v2/contract/56/0x97bCD9BB482144291D77ee53bFa99317A82066E8?fields=all
+    // V2 PairCreated and Swap events; swap fee 3/1000. Factory deployed at block 10913313 on 2021-09-14.
+    // volume only: feeTo is mutable and its historical protocol share is not established.
+    [CHAIN.BSC]: { factory: '0x97bCD9BB482144291D77ee53bFa99317A82066E8', start: '2021-09-14', fees: 0.003, customLogic: volumeOnly },
+  },
+  "arbswap": {
+    // Factories create SwapPair contracts with a 3/1000 swap fee; deployment blocks give the UTC start dates:
+    // https://sourcify.dev/server/v2/contract/42161/0xd394e9cc20f43d2651293756f8d320668e850f1b?fields=all (block 3692134)
+    // https://sourcify.dev/server/v2/contract/42170/0xf6239423fcf1c19ed2791d9648a90836074242fd?fields=all (block 727)
+    // volume only: fee split not documented
+    [CHAIN.ARBITRUM]: { factory: '0xd394e9cc20f43d2651293756f8d320668e850f1b', start: '2021-12-09', fees: 0.003, customLogic: volumeOnly },
+    [CHAIN.ARBITRUM_NOVA]: { factory: '0xf6239423fcf1c19ed2791d9648a90836074242fd', start: '2022-08-09', fees: 0.003, customLogic: volumeOnly },
+  },
+  "pureswap": {
+    // Factory creates V2 pairs; swap invariant charges 3/1000: https://sourcify.dev/server/v2/contract/56/0x94b4188d143b9dd6bd7083ae38a461fcc6aad07e?fields=all
+    // volume only: fee split not documented; feeTo is mutable and pair mints to two recipients.
+    [CHAIN.BSC]: { factory: '0x94b4188D143b9dD6bd7083aE38A461FcC6AAd07E', fees: 0.003, customLogic: volumeOnly },
+  },
+  "koffeeswap": {
+    // Factory and V2 pair source: https://koffeeswap.medium.com/exchange-contracts-dba53d7bae14
+    // Pair swap charges 3/1000: https://github.com/KoffeeSwap/koffeeswap-contracts/blob/master/factory/KoffeeSwapPair.sol
+    // Factory deployment 2021-06-17: https://scan.kcc.io/tx/0x48c06beb59797b7fc8537341537d5cbd934e381b33256166882aba188e36b402
+    // volume only: fee split not documented
+    [CHAIN.KCC]: { factory: '0xc0ffee00000e1439651c6ad025ea2a71ed7f3eab', start: '2021-06-17', fees: 0.003, customLogic: volumeOnly },
+  },
+  "spartadex": {
+    // V2 pair creation and 0.3% swap invariant: https://sourcify.dev/server/v2/contract/42161/0xFe8EC10Fe07A6a6f4A2584f8cD9FE232930eAF55?fields=all
+    // Linea factory uses the same pair code: https://sourcify.dev/server/v2/contract/59144/0x9E4Fc4a5A0769ba74088856C229c4a1Db2Ea5A9e?fields=all
+    // Deployment blocks 117753271 and 3590497; volume only: historical fee split not documented.
+    [CHAIN.ARBITRUM]: { factory: '0xFe8EC10Fe07A6a6f4A2584f8cD9FE232930eAF55', start: '2023-08-03', fees: 0.003, customLogic: volumeOnly },
+    [CHAIN.LINEA]: { factory: '0x9E4Fc4a5A0769ba74088856C229c4a1Db2Ea5A9e', start: '2024-04-11', fees: 0.003, customLogic: volumeOnly },
+  },
   "bdex-v2": {
     // stock uniV2 fork on BOT Chain. Factory: https://dev-docs.botchain.ai/docs/DEX/contract-addresses/
     // feeTo() is the zero address (https://scan.botchain.ai/address/0x117115f3B72C8d1989178089A67D0C26f8EE0AA3, checked 2026-09-22) => 0.3% swap fee, 100% to LPs
