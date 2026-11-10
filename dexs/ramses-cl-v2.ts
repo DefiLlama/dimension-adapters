@@ -10,13 +10,15 @@ interface ChainConfig {
   // Kingdom indexer path: https://gateway.kingdom.dev/<path>/subgraph/v1/graphql
   path: string;
   chainId: number;
-  start: Partial<Record<RamsesProduct, string>>;
   // Time from which every CL, Legacy and DLMM treasury fee recipient is a Ramses holder module
   // (Sarcophagus or Buyback Module). Without it the treasury share stays protocol revenue.
   holderTreasuryFrom?: number;
 }
 
-const chainConfig: Record<string, ChainConfig> = {
+// One listing's entry for a chain: passed as `adapter` and read by that listing's fetch.
+type ProductChainConfig = ChainConfig & { start: string };
+
+const chainConfig: Record<string, ChainConfig & { start: Partial<Record<RamsesProduct, string>> }> = {
   [CHAIN.HYPERLIQUID]: { path: "hyperevm", chainId: 999, start: { cl: "2025-11-08", legacy: "2025-11-08" } },
   [CHAIN.ARBITRUM]: { path: "arbitrum", chainId: 42161, start: { cl: "2026-01-13", legacy: "2026-01-28" } },
   [CHAIN.POLYGON]: { path: "polygon", chainId: 137, start: { cl: "2026-01-28", legacy: "2026-01-28" } },
@@ -52,7 +54,9 @@ const HOUR = 3600;
 const DAY = 24 * HOUR;
 const PAGE_SIZE = 1000;
 // Voter, treasury and total fees are separately rounded decimal strings; when voter + treasury is all of the
-// fee, their parsed sum can exceed the total by float rounding.
+// fee, their parsed sum can exceed the total by float rounding. The allowance is a chosen one part per billion
+// of the row's fees with a $1 floor ($0.001 on a $1m row, $1e-9 on sub-dollar rows): enough for independently
+// rounded splits, too small to overallocate materially.
 const PARTITION_TOLERANCE = 1e-9;
 
 type Row = Record<string, any> & { id: string };
@@ -94,32 +98,38 @@ async function assertIndexedThrough(chain: ChainConfig, endTimestamp: number) {
     throw new Error(`Ramses ${chain.path} indexer is at ${meta?.progressBlockTime}, before window end ${endTimestamp}`);
 }
 
+/**
+ * USD value of the external bribes on one product's pools in the window. VoteBribe.amount is already divided by
+ * token decimals, and each bribe is valued at the subgraph TokenDayData price of its own UTC day. A positive bribe
+ * without a valid positive price for that day throws, so an unpriced bribe is never stored as $0.
+ */
 async function fetchBribesUSD(chain: ChainConfig, product: RamsesProduct, options: FetchOptions) {
   const bribes = await fetchAll(chain, "VoteBribe",
     `${productConfig[product].bribePool}: { _is_null: false }, timestamp: { _gte: "${options.startTimestamp}", _lt: "${options.endTimestamp}" }`,
     "amount token timestamp");
   if (!bribes.length) return 0;
 
-  // VoteBribe.amount is already divided by token decimals; priced with the subgraph's token price for the bribe day.
   const priceId = (bribe: Row) => `${chain.chainId}:${bribe.token}:${Math.floor(Number(bribe.timestamp) / DAY) * DAY}`;
   const ids = Array.from(new Set(bribes.map(priceId)));
   const { prices } = await request<{ prices: Row[] }>(endpoint(chain),
     `query ($ids: [String!]!) { prices: TokenDayData(where: { id: { _in: $ids } }) { id priceUSD } }`, { ids });
+  if (!Array.isArray(prices)) throw new Error(`Ramses TokenDayData query returned no prices array`);
   const priceById = new Map(prices.map((price) => [price.id, parseAmount(price, "priceUSD")]));
 
   return bribes.reduce((total, bribe) => {
+    const amount = parseAmount(bribe, "amount");
     const price = priceById.get(priceId(bribe));
     if (price === undefined) throw new Error(`Missing TokenDayData ${priceId(bribe)} for Ramses bribe ${bribe.id}`);
-    return total + parseAmount(bribe, "amount") * price;
+    if (amount > 0 && price === 0) throw new Error(`Zero TokenDayData price ${priceId(bribe)} for Ramses bribe ${bribe.id}`);
+    return total + amount * price;
   }, 0);
 }
 
-async function fetchProduct(options: FetchOptions, product: RamsesProduct) {
+async function fetchProduct(options: FetchOptions, product: RamsesProduct, chain: ChainConfig) {
   const { startTimestamp, endTimestamp } = options;
   // The source is hourly pool buckets; a partial hour cannot be read exactly.
   if (startTimestamp % HOUR || endTimestamp % HOUR)
     throw new Error(`Ramses needs whole-hour windows, got [${startTimestamp}, ${endTimestamp})`);
-  const chain = chainConfig[options.chain];
   await assertIndexedThrough(chain, endTimestamp);
 
   const { hourData, tokenVolumes } = productConfig[product];
@@ -222,15 +232,15 @@ const breakdownMethodology = {
 };
 
 export function createRamsesAdapter(product: RamsesProduct): SimpleAdapter {
-  const adapter: Record<string, { start: string }> = {};
+  const adapter: Record<string, ProductChainConfig> = {};
   for (const [chain, config] of Object.entries(chainConfig)) {
     const start = config.start[product];
-    if (start) adapter[chain] = { start };
+    if (start) adapter[chain] = { ...config, start };
   }
   return {
     version: 2,
     pullHourly: true,
-    fetch: (options: FetchOptions) => fetchProduct(options, product),
+    fetch: (options: FetchOptions) => fetchProduct(options, product, adapter[options.chain]),
     adapter,
     methodology,
     breakdownMethodology,
