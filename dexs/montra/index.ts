@@ -5,31 +5,41 @@ import { CHAIN } from "../../helpers/chains";
 // Montra (https://montramarkets.xyz) is a token launchpad on Elysium. Every coin trades in its own
 // Uniswap V4 pool whose hook is a Montra launch hook. The hook charges a fee in the pool's pair asset (native HYPE or KNTQ) on
 // every swap and splits it between the coin's creator side and the protocol fee vault. Every address is read from the Montra
-// registry (https://montramarkets.xyz/docs/contracts) at the window's end block.
+// registry (https://montramarkets.xyz/docs/contracts) at the window's end block. Event and vault ABIs are Montra's published ones
+// (https://montramarkets.xyz/docs/events, /docs/abis/events.json, /docs/abis/ProtocolFeeVault.json).
 const REGISTRY = "0xF1E2FA75422F889e565F3142bdbf60B28dce2aa7";
 const FACTORY_DEPLOY_BLOCK = 588508; // first Montra factory log, 2026-11-04
 const NATIVE = "0x0000000000000000000000000000000000000000";
 
 const REGISTRY_GET = "function get(bytes32 name) view returns (address)";
 const REGISTRY_HOOKS = "function hooks() view returns (address[])";
-// Protocol fee vault payout lanes. The fields used are recipient, asset (the asset the lane is paid in) and bps; the others are
-// unverified. Through 2026-11-08: lane 0 = treasury Safe, 10000 bps. On 2026-11-10: treasury 3000 bps, MONTRA buyback-and-burn 7000 bps.
-const VAULT_LANES = "function lanes() view returns (tuple(address recipient, address asset, uint256 arg2, uint256 bps, uint256 arg4)[])";
+// Protocol fee vault payout lanes: `want` is the asset a lane is paid in (address(0) = paid as received, no conversion).
+// Through 2026-11-09: lane 0 = treasury Safe, 10000 bps. On 2026-11-10: treasury 3000 bps, MONTRA buyback-and-burn 7000 bps.
+const VAULT_LANES = "function lanes() view returns (tuple(address to, address want, bool converts, uint16 shareBps, uint16 floorBps)[])";
 const BPS = 10_000n;
 
-// quote is the pair asset (address(0) = native HYPE).
-const TOKEN_LAUNCHED = "event TokenLaunched(address indexed token, address indexed creator, bytes32 indexed poolId, uint256 configId, address quote, bool arg5, uint256 supply, int24 tick, address arg8, bool arg9, uint256 arg10, uint256 arg11)";
-// Emitted by the hook on every swap: fee is the hook fee in the pair asset, protocolFee the part of it owed to the protocol fee vault
-// (the rest stays with the coin's creator side). arg1 and arg2 are the swap direction and amountSpecified.
-const FEE_ACCRUED = "event FeeAccrued(bytes32 indexed poolId, bool arg1, int256 arg2, uint256 fee, uint256 protocolFee)";
+// quote is the pair asset (address(0) = native HYPE). A launch's first buy (its Swap and FeeAccrued) is logged before TokenLaunched.
+const TOKEN_LAUNCHED = "event TokenLaunched(address indexed token, address indexed creator, bytes32 indexed poolId, uint256 configId, address quote, bool quoteIsCurrency0, uint256 supply, int24 startTick, address feeRecipient, bool feeLocked, uint256 firstBuyIn, uint256 firstBuyOut)";
+// Once per swap, even when the fee rounds to zero: fee is the hook fee in the quote (anti-snipe premium included), protocolPart the
+// protocol's part of it; the rest is the creator side's.
+const FEE_ACCRUED = "event FeeAccrued(bytes32 indexed poolId, bool zeroForOne, int256 amountSpecified, uint256 fee, uint256 protocolPart)";
+// LP fees earned by a graduated pool's seed position: the quote goes to the creator, the launched tokens are burned.
+const SEED_FEES_HARVESTED = "event SeedFeesHarvested(bytes32 indexed poolId, address indexed caller, uint256 quoteToCreator, uint256 tokensBurned)";
+// Native launch fee, collected by the factory into the protocol fee vault (the launch fee is 0 since 2026-11-04).
+const LAUNCH_FEES_COLLECTED = "event LaunchFeesCollected(address indexed recipient, uint256 amount)";
 const V4_SWAP = "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)";
 const V4_SWAP_TOPIC0 = id("Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)");
 
 const LABEL = {
   swapFees: "Swap Fees",
+  seedLpFees: "Seed LP Fees",
+  launchFees: "Launch Fees",
   toCreators: "Swap Fees To Creators",
+  seedLpToCreators: "Seed LP Fees To Creators",
   toTreasury: "Swap Fees To Treasury",
   toBuyback: "Swap Fees To MONTRA Buyback And Burn",
+  launchToTreasury: "Launch Fees To Treasury",
+  launchToBuyback: "Launch Fees To MONTRA Buyback And Burn",
 };
 
 const lower = (a: string) => String(a).toLowerCase();
@@ -68,19 +78,44 @@ async function fetch(options: FetchOptions) {
   // ---- protocol fee vault lanes: the protocol share's split between treasury and MONTRA buyback ----
   const lanes = await options.api.call({ abi: VAULT_LANES, target: protocolVault });
   let treasuryBps = 0n, buybackBps = 0n;
-  // Until the MONTRA lane was added (between 2026-11-08 and 2026-11-10) the treasury lane had 100% and montra was not registered.
+  // Until the MONTRA lane was added (2026-11-10) the treasury lane had 100% and montra was not registered.
   for (const lane of lanes) {
-    if (BigInt(lane.bps) === 0n) continue; // empty lane slot
-    if (montra !== NATIVE && lower(lane.asset) === montra) buybackBps += BigInt(lane.bps);
-    else if (lower(lane.asset) === NATIVE) treasuryBps += BigInt(lane.bps);
-    else throw new Error(`Montra: unknown fee vault lane ${lane.recipient} paid in ${lane.asset}; review the revenue split`);
+    if (BigInt(lane.shareBps) === 0n) continue; // empty lane slot
+    if (montra !== NATIVE && lower(lane.want) === montra) buybackBps += BigInt(lane.shareBps);
+    else if (lower(lane.want) === NATIVE) treasuryBps += BigInt(lane.shareBps);
+    else throw new Error(`Montra: unknown fee vault lane to ${lane.to} paid in ${lane.want}; review the revenue split`);
   }
   if (treasuryBps + buybackBps !== BPS) throw new Error("Montra: fee vault lanes do not sum to 100%");
+  // Splits an amount the vault receives into its treasury and MONTRA buyback lanes.
+  const addToVault = (quote: string, amount: bigint, treasuryLabel: string, buybackLabel: string) => {
+    const toBuyback = amount * buybackBps / BPS;
+    addQuote(dailyRevenue, quote, amount - toBuyback, treasuryLabel);
+    addQuote(dailyProtocolRevenue, quote, amount - toBuyback, treasuryLabel);
+    addQuote(dailyRevenue, quote, toBuyback, buybackLabel);
+    addQuote(dailyHoldersRevenue, quote, toBuyback, buybackLabel);
+  };
 
-  // ---- every launch: poolId -> launched coin and pair asset (full history, cached) ----
+  // ---- every launch: poolId -> pair asset and its side (full history, cached) ----
   const launches = await options.getLogs({ target: factory, eventAbi: TOKEN_LAUNCHED, fromBlock: FACTORY_DEPLOY_BLOCK, cacheInCloud: true });
-  const poolInfo: Record<string, { token: string, quote: string }> = {};
-  for (const l of launches) poolInfo[lower(l.poolId)] = { token: lower(l.token), quote: lower(l.quote) };
+  const poolInfo: Record<string, { quote: string, quoteIs0: boolean }> = {};
+  for (const l of launches) poolInfo[lower(l.poolId)] = { quote: lower(l.quote), quoteIs0: Boolean(l.quoteIsCurrency0) };
+
+  // ---- launch fees: native, collected into the protocol fee vault ----
+  const launchFees = await options.getLogs({ target: factory, eventAbi: LAUNCH_FEES_COLLECTED });
+  for (const l of launchFees) {
+    if (lower(l.recipient) !== protocolVault) throw new Error(`Montra: launch fees collected to ${l.recipient}, not the protocol fee vault`);
+    addQuote(dailyFees, NATIVE, BigInt(l.amount), LABEL.launchFees);
+    addToVault(NATIVE, BigInt(l.amount), LABEL.launchToTreasury, LABEL.launchToBuyback);
+  }
+
+  // ---- seed LP fees of graduated pools: quote side to the creator (the launched tokens harvested are burned, not counted) ----
+  const harvests = await options.getLogs({ targets: hooks, eventAbi: SEED_FEES_HARVESTED });
+  for (const h of harvests) {
+    const info = poolInfo[lower(h.poolId)];
+    if (!info) throw new Error(`Montra: pool ${h.poolId} has no TokenLaunched log`);
+    addQuote(dailyFees, info.quote, BigInt(h.quoteToCreator), LABEL.seedLpFees);
+    addQuote(dailySupplySideRevenue, info.quote, BigInt(h.quoteToCreator), LABEL.seedLpToCreators);
+  }
 
   const feeLogs = dedupe(await options.getLogs({ targets: hooks, eventAbi: FEE_ACCRUED, onlyArgs: false }));
   const activePools = [...new Set(feeLogs.map((log: any) => lower(log.args.poolId)))];
@@ -92,6 +127,10 @@ async function fetch(options: FetchOptions) {
     swapLogs.push(...await options.getLogs({ target: poolManager, eventAbi: V4_SWAP, topics: [V4_SWAP_TOPIC0, chunk] as any, onlyArgs: false }));
   }
   const swaps = dedupe(swapLogs);
+  // Swaps and their FeeAccrued pair one-to-one by transaction, pool and direction, in log order (Montra events docs). A Swap's
+  // direction: zeroForOne pays currency0 into the pool, so its amount0 is negative.
+  const swapKey = (s: any) => `${lower(s.transactionHash)}-${lower(s.args.id)}-${BigInt(s.args.amount0) < 0n}`;
+  const feeKey = (f: any) => `${lower(f.transactionHash)}-${lower(f.args.poolId)}-${Boolean(f.args.zeroForOne)}`;
   const txPool = (log: any, pool: string) => `${lower(log.transactionHash)}-${pool}`;
   const protocolSwapKeys = new Set(swaps.filter((s) => protocolSwappers.has(lower(s.args.sender))).map((s) => txPool(s, lower(s.args.id))));
 
@@ -100,45 +139,37 @@ async function fetch(options: FetchOptions) {
   for (const log of feeLogs) {
     const pool = lower(log.args.poolId);
     if (protocolSwapKeys.has(txPool(log, pool))) continue;
-    (feesByKey[txPool(log, pool)] ??= []).push(log);
+    (feesByKey[feeKey(log)] ??= []).push(log);
     const { quote } = poolInfo[pool];
     const fee = BigInt(log.args.fee);
-    const toProtocol = BigInt(log.args.protocolFee);
-    const toBuyback = toProtocol * buybackBps / BPS;
+    const toProtocol = BigInt(log.args.protocolPart);
     addQuote(dailyFees, quote, fee, LABEL.swapFees);
     addQuote(dailySupplySideRevenue, quote, fee - toProtocol, LABEL.toCreators);
-    addQuote(dailyRevenue, quote, toProtocol - toBuyback, LABEL.toTreasury);
-    addQuote(dailyProtocolRevenue, quote, toProtocol - toBuyback, LABEL.toTreasury);
-    addQuote(dailyRevenue, quote, toBuyback, LABEL.toBuyback);
-    addQuote(dailyHoldersRevenue, quote, toBuyback, LABEL.toBuyback);
+    addToVault(quote, toProtocol, LABEL.toTreasury, LABEL.toBuyback);
   }
 
   // ---- volume: launch-pool swaps, in the pair asset, gross of the hook fee ----
-  // On a buy the hook charges its fee on top of the quote the pool receives (before the swap on exact-input buys, after it on
-  // exact-output buys, e.g. 0xf3f885152e026383411698a541a8eaade19496a571f4a17310751f4f756d6652), so the Swap amount is net of it
-  // and the fee is added back. On a sell the fee comes out of the output after the swap, so the Swap is gross.
-  // Each Swap pairs with one FeeAccrued of the same tx and pool, in log order.
+  // A v4 Swap shows the pool's side of a trade. On a buy the pool receives the input less the hook fee, so the fee is added back;
+  // on a sell the pool pays out the whole and the hook takes its fee from that, so the Swap amount is already gross.
   const swapsByKey: Record<string, any[]> = {};
-  for (const swap of swaps) (swapsByKey[txPool(swap, lower(swap.args.id))] ??= []).push(swap);
+  for (const swap of swaps) {
+    if (protocolSwapKeys.has(txPool(swap, lower(swap.args.id)))) continue;
+    (swapsByKey[swapKey(swap)] ??= []).push(swap);
+  }
   const byLogIndex = (a: any, b: any) => Number(a.logIndex) - Number(b.logIndex);
   for (const [key, group] of Object.entries(swapsByKey)) {
-    if (protocolSwapKeys.has(key)) continue;
     if (group.length !== (feesByKey[key] ?? []).length) throw new Error(`Montra: Swap/FeeAccrued count mismatch for ${key}`);
     group.sort(byLogIndex);
     feesByKey[key].sort(byLogIndex);
   }
 
-  for (const swap of swaps) {
-    const pool = lower(swap.args.id);
-    if (protocolSwappers.has(lower(swap.args.sender))) continue;
-    const { token, quote } = poolInfo[pool];
-    const quoteIs0 = quote < token; // Uniswap V4 sorts currency0 < currency1 (native HYPE is always currency0)
-    const amount = BigInt(quoteIs0 ? swap.args.amount0 : swap.args.amount1);
-    addQuote(dailyVolume, quote, abs(amount));
-    if (amount >= 0n) continue; // sell: pool paid the quote out, already gross
-    const key = txPool(swap, pool);
-    const feeLog = feesByKey[key][swapsByKey[key].indexOf(swap)];
-    addQuote(dailyVolume, quote, BigInt(feeLog.args.fee));
+  for (const [key, group] of Object.entries(swapsByKey)) {
+    group.forEach((swap, i) => {
+      const { quote, quoteIs0 } = poolInfo[lower(swap.args.id)];
+      const amount = BigInt(quoteIs0 ? swap.args.amount0 : swap.args.amount1);
+      addQuote(dailyVolume, quote, abs(amount));
+      if (amount < 0n) addQuote(dailyVolume, quote, BigInt(feesByKey[key][i].args.fee)); // buy: add the hook fee back
+    });
   }
 
   return { dailyVolume, dailyFees, dailyUserFees: dailyFees.clone(), dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
@@ -146,33 +177,44 @@ async function fetch(options: FetchOptions) {
 
 const methodology = {
   Volume: "Value of all trades in Montra launch pools, measured in the pool's pair asset (HYPE or KNTQ) before the trading fee. Montra's own fee conversions and MONTRA buybacks are excluded.",
-  Fees: "Trading fees charged by the Montra launch hook on every launch-pool trade. Montra charges no launch fee.",
-  UserFees: "Trading fees paid by traders on every Montra launch-pool trade.",
-  Revenue: "The protocol's part of every trading fee, sent to the Montra protocol fee vault, which pays it to the treasury and to MONTRA buybacks.",
-  SupplySideRevenue: "The part of every trading fee kept for each coin's creator side.",
-  ProtocolRevenue: "The share of the protocol fee vault paid to the Montra treasury.",
-  HoldersRevenue: "The share of the protocol fee vault used to buy back and burn MONTRA.",
+  Fees: "Trading fees charged by the Montra launch hook on every launch-pool trade (including the higher anti-snipe fee right after launch), LP fees earned by graduated pools' seed liquidity, and launch fees (none charged so far).",
+  UserFees: "Trading fees, seed LP fees and launch fees paid by Montra traders and token launchers.",
+  Revenue: "The protocol's part of every trading fee, plus any launch fees, sent to the Montra protocol fee vault, which pays them to the treasury and to MONTRA buybacks.",
+  SupplySideRevenue: "The part of every trading fee kept for each coin's creator side, plus the seed LP fees paid to creators.",
+  ProtocolRevenue: "The share of the protocol fee vault paid to the Montra treasury: all of it until 2026-11-10, 30% since.",
+  HoldersRevenue: "The share of the protocol fee vault used to buy back and burn MONTRA: 70% since 2026-11-10, none before.",
 };
 
+const treasuryLane = "Treasury lane of the protocol fee vault (100% of the vault until 2026-11-10, 30% since)";
+const buybackLane = "MONTRA buyback lane of the protocol fee vault (70% of the vault since 2026-11-10); the MONTRA bought is burned";
 const breakdownMethodology = {
   Fees: {
-    [LABEL.swapFees]: "Hook fee charged in the pair asset on every launch-pool trade, from the hook's FeeAccrued events.",
+    [LABEL.swapFees]: "Hook fee charged in the pair asset on every launch-pool trade, anti-snipe premium included, from the hook's FeeAccrued events.",
+    [LABEL.seedLpFees]: "Pair-asset LP fees earned by a graduated pool's seed liquidity, from the hook's SeedFeesHarvested events.",
+    [LABEL.launchFees]: "Native launch fee paid per launch, from the factory's LaunchFeesCollected events (0 since launch).",
   },
   UserFees: {
     [LABEL.swapFees]: "Hook fee paid by traders on every launch-pool trade.",
+    [LABEL.seedLpFees]: "LP fees paid by traders to graduated pools' seed liquidity.",
+    [LABEL.launchFees]: "Native launch fee paid by token launchers.",
   },
   Revenue: {
-    [LABEL.toTreasury]: "Treasury lane of the protocol fee vault's share of trading fees (30% of the vault on 2026-11-10).",
-    [LABEL.toBuyback]: "MONTRA buyback lane of the protocol fee vault's share of trading fees (70% of the vault on 2026-11-10); the MONTRA bought is burned.",
+    [LABEL.toTreasury]: `${treasuryLane}, from the protocol's part of trading fees.`,
+    [LABEL.toBuyback]: `${buybackLane}, from the protocol's part of trading fees.`,
+    [LABEL.launchToTreasury]: `${treasuryLane}, from launch fees.`,
+    [LABEL.launchToBuyback]: `${buybackLane}, from launch fees.`,
   },
   ProtocolRevenue: {
-    [LABEL.toTreasury]: "Treasury lane of the protocol fee vault's share of trading fees (30% of the vault on 2026-11-10).",
+    [LABEL.toTreasury]: `${treasuryLane}, from the protocol's part of trading fees.`,
+    [LABEL.launchToTreasury]: `${treasuryLane}, from launch fees.`,
   },
   HoldersRevenue: {
-    [LABEL.toBuyback]: "MONTRA buyback lane of the protocol fee vault's share of trading fees (70% of the vault on 2026-11-10); the MONTRA bought is burned.",
+    [LABEL.toBuyback]: `${buybackLane}, from the protocol's part of trading fees.`,
+    [LABEL.launchToBuyback]: `${buybackLane}, from launch fees.`,
   },
   SupplySideRevenue: {
-    [LABEL.toCreators]: "Part of every trading fee kept by the hook for the coin's creator side (the creator or its fee splitter recipients).",
+    [LABEL.toCreators]: "Part of every trading fee kept by the hook for the coin's creator side (the creator, its fee splitter recipients, or the token's holder rewards), anti-snipe premium included.",
+    [LABEL.seedLpToCreators]: "Pair-asset seed LP fees of graduated pools, paid to the coin's creator side.",
   },
 };
 
