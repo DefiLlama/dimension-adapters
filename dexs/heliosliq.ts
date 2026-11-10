@@ -24,7 +24,10 @@ import { METRIC } from "../helpers/metrics";
 // pool), not from the fees above, so they are holders revenue only. A buyback is counted when it is
 // made, as the native HYPE spent on it: the buyback wallet buys through KyberSwap's router, whose
 // Swapped event carries the amount spent, so no $HELIOS price is needed. The $HELIOS bought is burned
-// afterwards and is not counted a second time.
+// afterwards and is not counted a second time. That creator fee is a tax on trading the token in
+// Boxa's pool, not a fee of a Helios pool, so it is left out of fees and revenue (Boxa's pool fees are
+// Boxa's to report) and only what reaches $HELIOS holders is counted, under holders revenue, as the
+// repository's guidelines ask for token taxes.
 // Contracts: https://heliosliq.app/#contracts (explorer: https://elysium.kinetiq.xyz)
 
 const POOL_MANAGER = "0xE2e105d3F7209A9DA11f83cCf3E7398a753823F1"; // Uniswap v4 PoolManager on Elysium
@@ -165,7 +168,6 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees: dailyFees.clone(),
     dailySupplySideRevenue,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue.clone(),
@@ -176,7 +178,6 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Volume: "Swap volume in Helios DLMM and DAMM pools (the Uniswap v4 pools that carry the Helios fee hook), counted once per trade as what the trader paid in, on the HYPE or stablecoin side of the pool.",
   Fees: "Fees paid by traders on swaps in Helios DLMM and DAMM pools: each pool's LP fee, which the Helios hook sets per swap, plus Helios' 0.1% protocol fee.",
-  UserFees: "Fees paid by traders on swaps in Helios DLMM and DAMM pools: each pool's LP fee, which the Helios hook sets per swap, plus Helios' 0.1% protocol fee.",
   SupplySideRevenue: "The LP fee of every swap in Helios DLMM and DAMM pools, which stays in the pool for its liquidity providers.",
   Revenue: "Helios' 0.1% protocol fee on every swap in its DLMM and DAMM pools, taken by the fee hook.",
   ProtocolRevenue: "Helios' 0.1% protocol fee on every swap in its DLMM and DAMM pools, taken by the fee hook for the Helios treasury.",
@@ -185,10 +186,6 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "The LP fee of each swap in a Helios DLMM or DAMM pool, at the rate the hook set for that swap (carried in the Uniswap v4 Swap event).",
-    [PROTOCOL_SWAP_FEE]: "Helios' 0.1% protocol fee on each swap in a Helios DLMM or DAMM pool, from the hook's ProtocolFeeTaken events.",
-  },
-  UserFees: {
     [METRIC.SWAP_FEES]: "The LP fee of each swap in a Helios DLMM or DAMM pool, at the rate the hook set for that swap (carried in the Uniswap v4 Swap event).",
     [PROTOCOL_SWAP_FEE]: "Helios' 0.1% protocol fee on each swap in a Helios DLMM or DAMM pool, from the hook's ProtocolFeeTaken events.",
   },
