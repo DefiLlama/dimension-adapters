@@ -54,6 +54,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.CHAINFLIP],
   fetch,
   start: "2023-11-23", // Protocol start date

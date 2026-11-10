@@ -158,6 +158,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: Object.keys(v3ChainConfig).map((chain: string) => [chain, { start: v3ChainConfig[chain].start }]),
   methodology: {

@@ -132,7 +132,7 @@ for (const [chain, c] of Object.entries(config)) adapterChains[chain] = { start:
 
 const adapter: Adapter = {
   version: 2,
-  // pullHourly: true,
+  pullHourly: true,
   fetch,
   adapter: adapterChains,
   methodology: {

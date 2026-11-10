@@ -41,6 +41,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: false, // passes the window, needs DEEPTRADE_API_KEY to verify hourly
   doublecounted: true, //DeepBook
   adapter: {
     [CHAIN.SUI]: {

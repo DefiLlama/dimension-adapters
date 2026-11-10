@@ -10,7 +10,7 @@ const fetch: FetchV2 = async ({ startTimestamp, endTimestamp }) => {
 };
 
 const adapter: SimpleAdapter = {
-	version: 2,
+	version: 1, // API returns whole days
 	adapter: {
 		[CHAIN.SUI]: {
 			fetch,

@@ -175,6 +175,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.HYPERLIQUID]: { start: '2026-04-20', },
   },
   version: 2,
+  pullHourly: true,
 }
 
 export default adapter;

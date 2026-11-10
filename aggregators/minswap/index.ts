@@ -13,6 +13,7 @@ const fetch: FetchV2 = async ({ fromTimestamp, toTimestamp }) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,

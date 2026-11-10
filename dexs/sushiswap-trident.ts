@@ -74,6 +74,7 @@ export default {
     UserFees: "Trading fees paid by users",
   },
   version: 2,
+  pullHourly: true,
   start: '2024-04-01',
   adapter: trident,
 }

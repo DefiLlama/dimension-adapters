@@ -140,6 +140,7 @@ async function fetch({
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: false, // returns openInterestAtEnd, a snapshot; the server sums hourly slices, which would store 24x OI
   adapter: Object.fromEntries(
     Object.entries(CONFIG).map(([chain, config]) => [
       chain,

@@ -206,6 +206,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: false, // one oracle report per day, hourly windows throw
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2020-12-19',
