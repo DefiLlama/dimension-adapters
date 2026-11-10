@@ -5,11 +5,11 @@ import { ABI, DEPLOYMENT_BLOCK, MARKETS, START, USDG } from '../../helpers/hedge
 async function fetch(options: FetchOptions) {
   const dailyNotionalVolume = options.createBalances();
   const dailyPremiumVolume = options.createBalances();
-  const [previousBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+  // getFromBlock() is already the block after the previous window's closing block, so adjacent pulls do not overlap
+  const [firstBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
   // A failed lookup returns null: rescanning from deployment would count earlier fills again
-  if (!Number.isInteger(previousBlock) || !Number.isInteger(toBlock)) throw new Error('HedgeHood Options: block lookup failed');
-  // The previous window's closing block opens this one; skip it so adjacent pulls do not repeat a fill.
-  const fromBlock = Math.max(previousBlock + 1, DEPLOYMENT_BLOCK);
+  if (!Number.isInteger(firstBlock) || !Number.isInteger(toBlock)) throw new Error('HedgeHood Options: block lookup failed');
+  const fromBlock = Math.max(firstBlock, DEPLOYMENT_BLOCK);
   if (fromBlock <= toBlock) {
     const targets = MARKETS.map(({ market }) => market);
     const [fills, premiums] = await Promise.all([

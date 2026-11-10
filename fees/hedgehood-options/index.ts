@@ -6,11 +6,11 @@ const LABEL = 'Trading fees on option premiums';
 
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
-  const [previousBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+  // getFromBlock() is already the block after the previous window's closing block, so adjacent pulls do not overlap
+  const [firstBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
   // A failed lookup returns null: rescanning from deployment would count earlier fills again
-  if (!Number.isInteger(previousBlock) || !Number.isInteger(toBlock)) throw new Error('HedgeHood Options: block lookup failed');
-  // The previous window's closing block opens this one; skip it so adjacent pulls do not repeat a fill.
-  const fromBlock = Math.max(previousBlock + 1, DEPLOYMENT_BLOCK);
+  if (!Number.isInteger(firstBlock) || !Number.isInteger(toBlock)) throw new Error('HedgeHood Options: block lookup failed');
+  const fromBlock = Math.max(firstBlock, DEPLOYMENT_BLOCK);
   if (fromBlock <= toBlock) {
     const premiums = await options.getLogs({ targets: MARKETS.map(({ market }) => market), eventAbi: ABI.premiumSettled, fromBlock, toBlock });
     for (const premium of premiums) dailyFees.add(USDG, BigInt(premium.fee), LABEL);
