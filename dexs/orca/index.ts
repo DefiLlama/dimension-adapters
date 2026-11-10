@@ -12,9 +12,15 @@ const PROTOCOL_FEE_RATE_DENOMINATOR = 10_000;
 // other 12 points are the treasury share. There is no separate on-chain climate account — the
 // donation is made downstream out of collected protocol fees, so it stays inside revenue.
 const CLIMATE_FUND_RATE = 0.01;
-// 40% of the 12% treasury share buys ORCA for the xORCA vault (raised from 20% on 13 Jan 2026).
+// 10% of the 12% treasury share buys ORCA for the xORCA vault from 30 Oct 2026, after the October
+// 2026 tokenholder vote (40% from 13 Jan 2026, 20% before).
 // https://forums.orca.so/t/council-update-increased-xorca-buyback-rewards-fueled-by-protocol-fee-revenue-20-to-40-and-r-d-grant/1129
-const HOLDERS_REVENUE_RATE = 0.40;
+// https://forums.orca.so/t/tokenholder-proposal-resourcing-orca-for-its-next-phase/1281
+const HOLDERS_REVENUE_RATE = 0.10;
+// The Team-managed Buyback Account gets another 10% of the treasury share. The account is
+// Team-controlled and the ORCA it buys can go to locked contributor grants as well as burns or
+// xORCA deposits, so it stays in protocol revenue rather than holders revenue.
+const BUYBACK_ACCOUNT_RATE = 0.10;
 // FEE_RATE_HARD_LIMIT in the on-chain program caps the total swap fee (static + adaptive) at 10%,
 // so anything above that is bad data rather than an expensive pool.
 const MAX_FEE_TIER = 10 / 100;
@@ -112,10 +118,17 @@ function calculateProtocolFees(pool: WhirlpoolWithNumberMetrics): number {
     return pool.feesUsdc24h * protocolFeeShare(pool);
 }
 
-// The buyback is funded from the treasury share only, so the climate donation comes off first.
+// Buybacks are funded from the treasury share only, so the climate donation comes off first.
+function calculateTreasuryShare(pool: WhirlpoolWithNumberMetrics): number {
+    return pool.feesUsdc24h * (protocolFeeShare(pool) - CLIMATE_FUND_RATE);
+}
+
 function calculateHoldersRevenue(pool: WhirlpoolWithNumberMetrics): number {
-    const treasuryFees = pool.feesUsdc24h * (protocolFeeShare(pool) - CLIMATE_FUND_RATE);
-    return treasuryFees * HOLDERS_REVENUE_RATE;
+    return calculateTreasuryShare(pool) * HOLDERS_REVENUE_RATE;
+}
+
+function calculateBuybackAccountRevenue(pool: WhirlpoolWithNumberMetrics): number {
+    return calculateTreasuryShare(pool) * BUYBACK_ACCOUNT_RATE;
 }
 
 function delay(ms: number): Promise<void> {
@@ -195,14 +208,19 @@ async function fetch(options: FetchOptions) {
         const buybackFees = validFeePools.reduce(
             (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateHoldersRevenue(pool), 0
         );
+        const buybackAccountFees = validFeePools.reduce(
+            (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + calculateBuybackAccountRevenue(pool), 0
+        );
         const climateFundFees = validFeePools.reduce(
             (sum: number, pool: WhirlpoolWithNumberMetrics) => sum + pool.feesUsdc24h * CLIMATE_FUND_RATE, 0
         );
-        const treasuryFees = protocolFees - buybackFees - climateFundFees;
+        const treasuryFees = protocolFees - buybackFees - buybackAccountFees - climateFundFees;
         dailyRevenue.addUSDValue(treasuryFees, 'Treasury');
         dailyRevenue.addUSDValue(buybackFees, 'xORCA Buyback');
+        dailyRevenue.addUSDValue(buybackAccountFees, 'Buyback Account');
         dailyRevenue.addUSDValue(climateFundFees, 'Climate Fund Donation');
         dailyProtocolRevenue.addUSDValue(treasuryFees, 'Treasury');
+        dailyProtocolRevenue.addUSDValue(buybackAccountFees, 'Buyback Account');
         dailyProtocolRevenue.addUSDValue(climateFundFees, 'Climate Fund Donation');
         dailyHoldersRevenue.addUSDValue(buybackFees, 'xORCA Buyback');
     } else {
@@ -226,9 +244,9 @@ const methodology = {
     Fees: "All swap fees paid by traders, including the volatility surcharge on adaptive-fee pools.",
     UserFees: "All swap fees paid by traders.",
     Revenue: "The 13% of swap fees Orca takes on every pool. Of the total fees, 12% is the treasury share and 1% is donated to the Orca Climate Fund.",
-    ProtocolRevenue: "The treasury share left after the xORCA buyback: the initial development team's 50% and the Orca DAO's 10% of the 12%, plus the 1% Climate Fund donation.",
+    ProtocolRevenue: "The treasury share not sent to xORCA: the Team's 80% and the Buyback Account's 10% of the 12%, plus the 1% Climate Fund donation (11.8% of swap fees).",
     SupplySideRevenue: "The 87% of swap fees that accrues to liquidity providers.",
-    HoldersRevenue: "40% of the 12% treasury share, used to buy ORCA and deposit it into the xORCA vault. Raised from 20% on 13 January 2026."
+    HoldersRevenue: "10% of the 12% treasury share (1.2% of swap fees), used to buy ORCA and deposit it into the xORCA vault. 10% from 30 October 2026 after the October 2026 tokenholder vote, 40% from 13 January 2026, 20% before."
 }
 
 const breakdownMethodology = {
@@ -239,16 +257,18 @@ const breakdownMethodology = {
         'Swap Fees': "All swap fees paid by traders.",
     },
     Revenue: {
-        'Treasury': "The part of the 12% treasury share kept after the xORCA buyback (60%, i.e. 7.2% of swap fees).",
-        'xORCA Buyback': "40% of the 12% treasury share (4.8% of swap fees), used to buy ORCA for the xORCA vault.",
+        'Treasury': "The Team's 80% of the 12% treasury share (9.6% of swap fees), from 30 October 2026 after the October 2026 tokenholder vote.",
+        'xORCA Buyback': "10% of the 12% treasury share (1.2% of swap fees), used to buy ORCA for the xORCA vault. 10% from 30 October 2026 after the October 2026 tokenholder vote, 40% from 13 January 2026, 20% before.",
+        'Buyback Account': "10% of the 12% treasury share (1.2% of swap fees) sent to the Team-managed Buyback Account for discretionary ORCA buybacks; bought ORCA may be burned, deposited into xORCA or used for locked contributor grants.",
         'Climate Fund Donation': "1% of swap fees donated to the Orca Climate Fund.",
     },
     ProtocolRevenue: {
-        'Treasury': "The part of the 12% treasury share kept after the xORCA buyback (60%, i.e. 7.2% of swap fees).",
+        'Treasury': "The Team's 80% of the 12% treasury share (9.6% of swap fees), from 30 October 2026 after the October 2026 tokenholder vote.",
+        'Buyback Account': "10% of the 12% treasury share (1.2% of swap fees) sent to the Team-managed Buyback Account for discretionary ORCA buybacks; bought ORCA may be burned, deposited into xORCA or used for locked contributor grants.",
         'Climate Fund Donation': "1% of swap fees donated to the Orca Climate Fund.",
     },
     HoldersRevenue: {
-        'xORCA Buyback': "40% of the 12% treasury share, used to buy ORCA and deposit it into the xORCA vault. Raised from 20% on 13 January 2026.",
+        'xORCA Buyback': "10% of the 12% treasury share (1.2% of swap fees), used to buy ORCA for the xORCA vault. 10% from 30 October 2026 after the October 2026 tokenholder vote, 40% from 13 January 2026, 20% before.",
     },
     SupplySideRevenue: {
         'Swap Fees To LPs': "The 87% of swap fees that accrues to liquidity providers.",
