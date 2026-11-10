@@ -3,7 +3,7 @@ import { FetchOptions } from "../adapters/types";
 import { getTxReceiptsWithRetry } from "./getTxReceipts";
 
 // Kalos (https://www.kalos.fun) on Kinetiq Elysium: values and logic shared by the Kalos adapters
-// (aggregators/kalos-trade, fees/kalos-trade, fees/kalos-launchpad).
+// (aggregators/kalos-trade, fees/kalos-trade, fees/kalos-launchpad and the kalos-dex entry in factory/uniV3.ts).
 // Contracts: https://www.kalos.fun/learn/contracts, fees: https://www.kalos.fun/learn/fees
 
 // KalosRevenueSplitterV2 (proxy): receives every Kalos fee (https://elysium.kinetiq.xyz/address/0xcA105395094Ceb27e6AfdA492c6379cBF468CDb8)
@@ -11,7 +11,26 @@ export const KALOS_SPLITTER = '0xcA105395094Ceb27e6AfdA492c6379cBF468CDb8';
 // Kalos DEX: canonical Uniswap V3 factory deployed by Kalos, created in block 915221 on 2026-11-05 (its swaps are counted by
 // the kalos-dex entry in factory/uniV3.ts)
 export const KALOS_V3_FACTORY = '0x8C60243181370bDA9A7d1a45b1249A8263da0158';
+const KALOS_V3_FACTORY_BLOCK = 915221;
 export const KALOS_START = '2026-11-05';
+
+const PoolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)';
+
+/**
+ * Every Kalos DEX pool created up to the window's end (lowercase), from the factory's own PoolCreated logs since its
+ * creation block: a small config scan, cached. Shared by the kalos-dex entry in factory/uniV3.ts and the Kalos Trade
+ * adapters, which use it to tell Kalos DEX-only trades from routed ones.
+ */
+export async function getKalosPools(options: FetchOptions): Promise<string[]> {
+  const logs = await options.getLogs({
+    target: KALOS_V3_FACTORY,
+    eventAbi: PoolCreatedEvent,
+    fromBlock: KALOS_V3_FACTORY_BLOCK,
+    toBlock: await options.getToBlock(),
+    cacheInCloud: true,
+  });
+  return logs.map((log: any) => String(log.pool).toLowerCase());
+}
 
 // The Kalos Trade terminal (Sniper) and Swap panel do not have a router of their own: Kalos builds each trade itself and
 // sends it through 0x's Settler (via 0x's AllowanceHolder for token inputs), through a launchpad's own router (Ascend), or
@@ -129,15 +148,11 @@ export async function getKalosTradeFees(options: FetchOptions): Promise<KalosTra
     receiptByHash[hash] = receipts[i];
   });
 
-  // pools that emitted a Uniswap V3 swap in these trades, and whether the Kalos factory created them
-  const v3Pools = new Set<string>();
-  Object.values(receiptByHash).forEach((receipt: any) => receipt.logs.forEach((log: any) => {
-    if (log.topics[0] === UNIV3_SWAP_TOPIC) v3Pools.add(log.address.toLowerCase());
-  }));
-  const poolList = [...v3Pools];
-  // permitFailure: another venue's pool may have no factory() at all (a revert, not an RPC error); it is not a Kalos pool
-  const factories = await options.api.multiCall({ abi: 'address:factory', calls: poolList, permitFailure: true });
-  const kalosPools = new Set(poolList.filter((_, i) => String(factories[i] ?? '').toLowerCase() === KALOS_V3_FACTORY.toLowerCase()));
+  // Kalos DEX pools come from the factory's own PoolCreated logs, not from a factory() call on each pool: a failed call
+  // could not be told from a pool without factory(), and would count a Kalos DEX-only trade as routed volume. They are
+  // only needed when a trade went through a Uniswap V3 pool.
+  const hasV3Swap = Object.values(receiptByHash).some((receipt: any) => receipt.logs.some((log: any) => log.topics[0] === UNIV3_SWAP_TOPIC));
+  const kalosPools = new Set(hasV3Swap ? await getKalosPools(options) : []);
 
   const trades: KalosTradeFee[] = [];
   for (const feeLog of feeLogs) {
