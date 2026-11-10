@@ -1,4 +1,3 @@
-import { ChainApi } from "@defillama/sdk";
 import { id } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -56,33 +55,29 @@ const LABEL = {
   taxToBurn: "Creator Tax To LOOP Buyback And Burn",
 };
 
+const SUPPLY_SIDE_LABELS = new Set([LABEL.toCreators, LABEL.taxToCreators, LABEL.toMemeBuyback, LABEL.toLoopers]);
+
 const abs = (v: bigint) => (v < 0n ? -v : v);
 const lower = (a: string) => String(a).toLowerCase();
 
 type Policy = { protocolFeeRecipient: string, protocolFeeShareBps: bigint, buybackBurnBps: bigint, creator: string };
 
 async function fetch(options: FetchOptions) {
-  // Public Robinhood Chain RPCs prune historical state, so a read at the window's end block can fail.
-  // The values read here (launch fee, per-launch fee policy, launch records) are set at launch time,
-  // so on a historical-state error the same call is retried against the latest block.
-  const readState = async (params: any) => {
-    try { return await options.api.multiCall(params); }
-    catch { return new ChainApi({ chain: options.chain }).multiCall(params); }
-  };
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  // Every fee is booked under its source label in Fees and under its destination label in Revenue.
-  // Destinations reaching the $LOOP burn are also Holders Revenue, every other destination is Protocol Revenue.
+  // Every swap fee is booked under its source label in Fees and under its destination label in either
+  // Supply Side Revenue (creators, Loopers) or Revenue + Holders Revenue (the $LOOP burn legs).
   function addFee(quote: string, amount: bigint, feeLabel: string, destLabel: string) {
     if (amount === 0n) return;
     dailyFees.add(quote, amount, feeLabel);
+    if (SUPPLY_SIDE_LABELS.has(destLabel)) return dailySupplySideRevenue.add(quote, amount, destLabel);
     dailyRevenue.add(quote, amount, destLabel);
-    if (destLabel === LABEL.toBurn || destLabel === LABEL.taxToBurn) dailyHoldersRevenue.add(quote, amount, destLabel);
-    else dailyProtocolRevenue.add(quote, amount, destLabel);
+    dailyHoldersRevenue.add(quote, amount, destLabel);
   }
 
   // Splits a base fee and creator tax exactly like LoopV2BondingCurve._accrueFees / LoopV2MemeHook._distribute.
@@ -106,8 +101,9 @@ async function fetch(options: FetchOptions) {
   const hooks = LAUNCH_SETS.map((s) => s.hook);
 
   // ---- launches (full history, cached) and launch fees (this window) ----
-  const allLaunches = await Promise.all(LAUNCH_SETS.map(({ factory, fromBlock }) =>
-    options.getLogs({ target: factory, eventAbi: TOKEN_LAUNCHED, fromBlock, cacheInCloud: true })));
+  const allLaunches: any[][] = await options.getLogs({
+    targets: factories, eventAbi: TOKEN_LAUNCHED, fromBlock: Math.min(...LAUNCH_SETS.map((s) => s.fromBlock)), cacheInCloud: true, flatten: false,
+  });
   const curveInfo: Record<string, { token: string, pairToken: string, factory: string }> = {};
   allLaunches.forEach((logs, i) => {
     for (const l of logs) curveInfo[lower(l.curve)] = { token: l.token, pairToken: l.pairToken, factory: factories[i] };
@@ -116,7 +112,7 @@ async function fetch(options: FetchOptions) {
   const [windowLaunches, launchFees] = await Promise.all([
     options.getLogs({ targets: factories, eventAbi: TOKEN_LAUNCHED, flatten: false }),
     // Flat ETH fee per launch, paid to the LoopFeeSplitter treasury leg (LoopV2LaunchFactory._payLaunchFee).
-    readState({ abi: "uint256:launchFee", calls: factories }),
+    options.api.multiCall({ abi: "uint256:launchFee", calls: factories }),
   ]);
   windowLaunches.forEach((logs: any[], i: number) => {
     const amount = BigInt(launchFees[i]) * BigInt(logs.length);
@@ -135,8 +131,8 @@ async function fetch(options: FetchOptions) {
     ]);
     const active = curves.filter((_, i) => buys[i].length || sells[i].length);
     const [policies, launched] = await Promise.all([
-      readState({ abi: LAUNCH_FEE_POLICY, calls: active.map((c) => ({ target: curveInfo[c].factory, params: [curveInfo[c].token] })) }),
-      readState({ abi: LAUNCHED_TOKEN, calls: active.map((c) => ({ target: curveInfo[c].factory, params: [curveInfo[c].token] })) }),
+      options.api.multiCall({ abi: LAUNCH_FEE_POLICY, calls: active.map((c) => ({ target: curveInfo[c].factory, params: [curveInfo[c].token] })) }),
+      options.api.multiCall({ abi: LAUNCHED_TOKEN, calls: active.map((c) => ({ target: curveInfo[c].factory, params: [curveInfo[c].token] })) }),
     ]);
     active.forEach((curve, j) => {
       const i = curves.indexOf(curve);
@@ -167,9 +163,9 @@ async function fetch(options: FetchOptions) {
     const key = `${hooks[i]}-${log.args.poolId}`;
     if (!seen.has(key)) { seen.add(key); poolKeys.push({ hook: hooks[i], poolId: log.args.poolId }); }
   }));
-  if (!poolKeys.length) return { dailyVolume, dailyFees, dailyUserFees: dailyFees.clone(), dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
+  if (!poolKeys.length) return { dailyVolume, dailyFees, dailyUserFees: dailyFees.clone(), dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
 
-  const pools = await readState({ abi: HOOK_LAUNCHES, calls: poolKeys.map(({ hook, poolId }) => ({ target: hook, params: [poolId] })) });
+  const pools = await options.api.multiCall({ abi: HOOK_LAUNCHES, calls: poolKeys.map(({ hook, poolId }) => ({ target: hook, params: [poolId] })) });
   const poolInfo: Record<string, any> = {};
   poolKeys.forEach((k, i) => { poolInfo[`${k.hook}-${k.poolId}`] = pools[i]; });
 
@@ -178,11 +174,11 @@ async function fetch(options: FetchOptions) {
   // Swap of the same pool earlier in the same transaction.
   const memePools = poolKeys.filter((k) => hookLogs[hooks.indexOf(k.hook)].some((log) =>
     log.args.poolId === k.poolId && lower(log.args.currency) !== lower(poolInfo[`${k.hook}-${k.poolId}`].quoteToken)));
-  const swapLogs: any[][] = await Promise.all(memePools.map(({ poolId }) => options.getLogs({
-    target: POOL_MANAGER, eventAbi: V4_SWAP, topics: [V4_SWAP_TOPIC0, poolId], onlyArgs: false,
-  })));
+  const swapLogs: any[] = memePools.length ? await options.getLogs({
+    target: POOL_MANAGER, eventAbi: V4_SWAP, topics: [V4_SWAP_TOPIC0, memePools.map(({ poolId }) => poolId)] as any, onlyArgs: false,
+  }) : [];
   const swapsByTx: Record<string, any[]> = {};
-  swapLogs.flat().forEach((log) => {
+  swapLogs.forEach((log) => {
     const key = `${log.args.id}-${lower(log.transactionHash)}`;
     (swapsByTx[key] = swapsByTx[key] ?? []).push(log);
   });
@@ -211,16 +207,17 @@ async function fetch(options: FetchOptions) {
     addSplit(quote, fee, tax, policy, LABEL.poolFees);
   }));
 
-  return { dailyVolume, dailyFees, dailyUserFees: dailyFees.clone(), dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
+  return { dailyVolume, dailyFees, dailyUserFees: dailyFees.clone(), dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
 }
 
 const methodology = {
   Volume: "Volume of trades on LoopUP bonding curves, in the quote asset. Trades in graduated Uniswap V4 pools are not included, they are counted under Uniswap V4.",
   Fees: "Launch fees, the 1% swap fee on bonding-curve trades and graduated Uniswap V4 pool trades (including the short decaying anti-snipe tax at launch), and any optional creator tax, all paid by traders and launchers.",
   UserFees: "Launch fees, swap fees and creator tax paid by LoopUP traders and token launchers.",
-  Revenue: "All launch fees, swap fees and creator tax paid on LoopUP: 60% of the swap fee goes to token creators, 20% to Looper (caller) rewards and 20% to buying back and burning $LOOP; launch fees go to the treasury.",
-  ProtocolRevenue: "The token creators' 60% share of swap fees, the 20% Looper (caller) rewards share, creator tax and launch fees, all distributed by LoopUP contracts.",
-  HoldersRevenue: "The 20% share of swap fees used to buy back and burn $LOOP, plus the creator share of the $LOOP token itself, whose creator fee recipient is the same burn wallet.",
+  Revenue: "Launch fees kept by the LoopUP treasury, plus the 20% of every swap fee used to buy back and burn $LOOP, plus the creator share and creator tax of the $LOOP token itself, which also go to the burn.",
+  SupplySideRevenue: "The 60% of every swap fee and all creator tax paid to token creators, and the 20% of every swap fee paid to Loopers, the verified callers who earn on the trades of tokens they call. The $LOOP token's own creator share is burned instead and is not included.",
+  ProtocolRevenue: "Flat ETH launch fees paid to the LoopUP treasury.",
+  HoldersRevenue: "The 20% of every swap fee used to buy back and burn $LOOP, plus the creator share and creator tax of the $LOOP token itself, whose creator fee recipient is the burn wallet.",
 };
 
 const breakdownMethodology = {
@@ -238,19 +235,17 @@ const breakdownMethodology = {
   },
   Revenue: {
     [LABEL.toTreasury]: "Launch fees sent to the LoopUP treasury leg of the LoopFeeSplitter.",
+    [LABEL.toBurn]: "20% of the swap fee (half of the 40% protocol share) used to buy back and burn $LOOP, plus the creator share of tokens whose creator fee recipient is the burn wallet ($LOOP itself).",
+    [LABEL.taxToBurn]: "Creator tax of tokens whose creator fee recipient is the $LOOP burn wallet.",
+  },
+  SupplySideRevenue: {
     [LABEL.toCreators]: "60% of the swap fee, paid to each token's creator fee recipient.",
     [LABEL.toLoopers]: "20% of the swap fee (half of the 40% protocol share), paid to the KolRewardsDistributor for Looper (caller) rewards.",
-    [LABEL.toBurn]: "20% of the swap fee (half of the 40% protocol share) used to buy back and burn $LOOP, plus the creator share of tokens whose creator fee recipient is the burn wallet ($LOOP itself).",
     [LABEL.toMemeBuyback]: "Part of the creator share used to buy back and lock the traded memecoin when a creator enables it (0% on all current launches).",
     [LABEL.taxToCreators]: "Creator tax, paid in full to the token's creator fee recipient.",
-    [LABEL.taxToBurn]: "Creator tax of tokens whose creator fee recipient is the $LOOP burn wallet.",
   },
   ProtocolRevenue: {
     [LABEL.toTreasury]: "Launch fees sent to the LoopUP treasury leg of the LoopFeeSplitter.",
-    [LABEL.toCreators]: "60% of the swap fee, paid to each token's creator fee recipient.",
-    [LABEL.toLoopers]: "20% of the swap fee, paid to the KolRewardsDistributor for Looper (caller) rewards.",
-    [LABEL.toMemeBuyback]: "Part of the creator share used to buy back and lock the traded memecoin when a creator enables it.",
-    [LABEL.taxToCreators]: "Creator tax, paid in full to the token's creator fee recipient.",
   },
   HoldersRevenue: {
     [LABEL.toBurn]: "20% of the swap fee used to buy back and burn $LOOP, plus the creator share of $LOOP itself, whose creator fee recipient is the burn wallet.",
