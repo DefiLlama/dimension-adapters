@@ -1,3 +1,4 @@
+import { Interface } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { PHEASANT_SWAP_NEW_TRADE, pheasantSwapChainConfig } from "../helpers/aggregators/pheasant-network";
@@ -15,6 +16,9 @@ const SWAP_REFUND =
   "event SwapRefundTrade(address indexed userAddress, address indexed token, bytes32 tradeHash, uint256 refunded, uint256 fee, bytes data)";
 const SWAP_CANCEL =
   "event SwapCancelUnbackedTrade(address indexed userAddress, address indexed token, bytes32 tradeHash, uint256 fee)";
+// The three Swap events are fetched in one getLogs call and decoded here.
+const swapInterface = new Interface([PHEASANT_SWAP_NEW_TRADE, SWAP_REFUND, SWAP_CANCEL]);
+const swapTopics = [swapInterface.fragments.map((fragment: any) => fragment.topicHash)];
 
 const BRIDGE_FEES = "Bridge Relayer Fees";
 const SWAP_FEES = "Swap Relayer Fees";
@@ -64,12 +68,13 @@ const fetch = async (options: FetchOptions) => {
   }
 
   if (swap) {
-    const trades = await options.getLogs({ target: swap, eventAbi: PHEASANT_SWAP_NEW_TRADE });
-    const refunds = await options.getLogs({ target: swap, eventAbi: SWAP_REFUND });
-    const cancels = await options.getLogs({ target: swap, eventAbi: SWAP_CANCEL });
-    for (const log of trades) dailyFees.add(log.token, log.trade.relayerFee, SWAP_FEES);
-    for (const log of refunds) dailyFees.subtractToken(log.token, log.refunded, SWAP_FEES);
-    for (const log of cancels) dailyFees.subtractToken(log.token, log.fee, SWAP_FEES);
+    const logs = await options.getLogs({ target: swap, topics: swapTopics as any, entireLog: true });
+    for (const log of logs) {
+      const { name, args } = swapInterface.parseLog(log)!;
+      if (name === "SwapNewTrade") dailyFees.add(args.token, args.trade.relayerFee, SWAP_FEES);
+      else if (name === "SwapRefundTrade") dailyFees.subtractToken(args.token, args.refunded, SWAP_FEES);
+      else dailyFees.subtractToken(args.token, args.fee, SWAP_FEES);
+    }
   }
 
   return { dailyFees, dailyRevenue: 0, dailyProtocolRevenue: 0, dailyHoldersRevenue: 0, dailySupplySideRevenue: dailyFees };
