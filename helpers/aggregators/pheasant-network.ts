@@ -12,7 +12,7 @@ import { CHAIN } from "../chains";
 // https://docs.pheasant.network/products/swap/supported-networks
 // Chains retired on 2026-10-08 (no new swaps accepted, contracts still settle) keep their history with `deadFrom`.
 // Sei (chain id 1329, same proxy, created 2025-02-25) is not listed: getLogs is disabled for sei in adapters/utils/runAdapter.ts.
-const SWAP_NEW_TRADE =
+export const PHEASANT_SWAP_NEW_TRADE =
   "event SwapNewTrade(address indexed userAddress, address indexed token, (string toChainId, uint16 swapToolIndex, address toolContract, address toToken, uint256 amount, uint256 relayerFee, uint256 timestamp) trade)";
 
 const SWAP = "0xfC9C6B6e0D02EaDE37aC8b6c59e7181726075696";
@@ -79,7 +79,7 @@ export const pheasantSwapChainConfig = () => Object.fromEntries(Object.entries(p
 export async function fetchPheasantSwapVolume(options: FetchOptions, mode: "same-chain" | "cross-chain") {
   const { chainId, swap } = pheasantSwapConfig[options.chain];
   const volume = options.createBalances();
-  const logs = await options.getLogs({ target: swap, eventAbi: SWAP_NEW_TRADE });
+  const logs = await options.getLogs({ target: swap, eventAbi: PHEASANT_SWAP_NEW_TRADE });
   for (const log of logs) {
     const { toChainId, amount, relayerFee } = log.trade;
     const sameChain = Number(toChainId) === chainId;
