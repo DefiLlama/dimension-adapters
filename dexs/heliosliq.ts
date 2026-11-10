@@ -21,7 +21,9 @@ import { METRIC } from "../helpers/metrics";
 //
 // Token holders: Helios pays HYPE to $HELIOS stakers (HeliosStaking.RewardAdded) and buys $HELIOS back
 // and burns it. Both are funded from the creator fee of the $HELIOS pool on Boxa (another protocol's
-// pool), not from the fees above, so they are holders revenue only.
+// pool), not from the fees above, so they are holders revenue only. $HELIOS has no price on DefiLlama's
+// price API, so burned $HELIOS is valued in HYPE at the price of its main market, that Boxa pool, read
+// at the end of the window.
 // Contracts: https://heliosliq.app/#contracts (explorer: https://elysium.kinetiq.xyz)
 
 const POOL_MANAGER = "0xE2e105d3F7209A9DA11f83cCf3E7398a753823F1"; // Uniswap v4 PoolManager on Elysium
@@ -37,8 +39,14 @@ const STAKING = "0x4f08ca6FEe7b5121Abaeb1006647F8df98cD7DBE";
 // The wallet that buys $HELIOS back and burns it (sample burn: tx 0x66538ec48e277934d073240bb2d72db7d267de540ecff8101f6abcd99c05f6fd).
 const BUYBACK_WALLET = "0x8176632892683e306dbc25636985cac75540d374";
 const DEAD = "0x000000000000000000000000000000000000dEaD";
+// The pool $HELIOS was launched in on Boxa, its deepest market: a Uniswap v4 pool on the PoolManager above,
+// currency0 native HYPE, currency1 HELIOS (Initialize log in the launch transaction, block 3402772).
+const HELIOS_MARKET = "0x401353099cac6802708b83a50d7980bda7d5f585d5cfdef1deb49c1fd0f6b8e1";
+const STATE_VIEW = "0x27eD73aE0652fdCf71d6793412A7525f32bE9dfE"; // Uniswap v4 StateView on Elysium
 
 // Priced majors on Elysium: a swap is valued on this leg, so a thin token can't set its value.
+// Addresses as in the `elysium` entry of DefiLlama-Adapters' projects/helper/coreAssets.json
+// (https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/helper/coreAssets.json).
 const MAJORS = new Set(
   [
     ADDRESSES.null, // native HYPE
@@ -55,6 +63,7 @@ const SWAP =
 const PROTOCOL_FEE_TAKEN = "event ProtocolFeeTaken(bytes32 indexed id, address indexed currency, uint256 amount)";
 const REWARD_ADDED = "event RewardAdded(address indexed from, uint256 amount, uint256 rewardRate, uint256 periodFinish)";
 const TRANSFER = "event Transfer(address indexed from, address indexed to, uint256 value)";
+const GET_SLOT0 = "function getSlot0(bytes32 poolId) view returns (uint160 sqrtPriceX96, int24 tick, uint24 protocolFee, uint24 lpFee)";
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f"; // v4 Swap topic0
 const POOLS_PER_CALL = 100;
@@ -149,9 +158,15 @@ const fetch = async (options: FetchOptions) => {
   const rewards = await options.getLogs({ target: STAKING, eventAbi: REWARD_ADDED });
   for (const log of rewards) dailyHoldersRevenue.addGasToken(log.amount, STAKING_DISTRIBUTIONS);
 
-  // $HELIOS bought back and burned: the buyback wallet's transfers to the dead address.
+  // $HELIOS bought back and burned: the buyback wallet's transfers to the dead address, valued in HYPE
+  // at the HELIOS market's price at the end of the window (sqrtPriceX96 squared is HELIOS per HYPE).
   const burns = await options.getLogs({ target: HELIOS, eventAbi: TRANSFER, topics: [TRANSFER_TOPIC, topicOf(BUYBACK_WALLET), topicOf(DEAD)] as any });
-  for (const log of burns) dailyHoldersRevenue.add(HELIOS, log.value, METRIC.TOKEN_BUY_BACK);
+  if (burns.length) {
+    const slot0 = await options.toApi.call({ target: STATE_VIEW, abi: GET_SLOT0, params: [HELIOS_MARKET] });
+    const sqrtPrice = BigInt(slot0.sqrtPriceX96);
+    if (sqrtPrice === 0n) throw new Error("heliosliq: the HELIOS market has no price");
+    for (const log of burns) dailyHoldersRevenue.addGasToken((BigInt(log.value) << 192n) / (sqrtPrice * sqrtPrice), METRIC.TOKEN_BUY_BACK);
+  }
 
   return {
     dailyVolume,
@@ -171,7 +186,7 @@ const methodology = {
   SupplySideRevenue: "The LP fee of every swap in Helios DLMM and DAMM pools, which stays in the pool for its liquidity providers.",
   Revenue: "Helios' 0.1% protocol fee on every swap in its DLMM and DAMM pools, taken by the fee hook.",
   ProtocolRevenue: "Helios' 0.1% protocol fee on every swap in its DLMM and DAMM pools, taken by the fee hook for the Helios treasury.",
-  HoldersRevenue: "HYPE that Helios pays to $HELIOS stakers and $HELIOS that Helios buys back and burns, since the token's relaunch on 2026-11-09. Both are funded from the creator fee of the $HELIOS pool on Boxa, not from Helios pool fees.",
+  HoldersRevenue: "HYPE that Helios pays to $HELIOS stakers and $HELIOS that Helios buys back and burns (valued in HYPE at the token's market price when burned), since the token's relaunch on 2026-11-09. Both are funded from the creator fee of the $HELIOS pool on Boxa, not from Helios pool fees.",
 };
 
 const breakdownMethodology = {
@@ -194,7 +209,7 @@ const breakdownMethodology = {
   },
   HoldersRevenue: {
     [STAKING_DISTRIBUTIONS]: "Native HYPE sent to the HeliosStaking contract for $HELIOS stakers, counted when it is added (RewardAdded).",
-    [METRIC.TOKEN_BUY_BACK]: "$HELIOS that Helios bought back from the market and sent to the dead address, counted when it is burned.",
+    [METRIC.TOKEN_BUY_BACK]: "$HELIOS that Helios bought back from the market and sent to the dead address, counted when it is burned and valued in HYPE at the price of the HELIOS/HYPE pool on Boxa at the end of that hour.",
   },
 };
 
