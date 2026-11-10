@@ -7,14 +7,14 @@ import { METRIC } from '../../helpers/metrics';
 // manager mints each position and sends the NFT to the user's own smart wallet. Commissions are paid to the treasury by
 // the manager. Rates are on-chain (CommissionUpdated events) and have changed over time, so revenue is read from the
 // actual treasury transfers, not from a hardcoded rate.
-const TREASURY = '0x456C2C950Ee2AE7cdd08bBE6ec0D46212D42FCF1'; // manager.treasury(), never changed
+const TREASURY = '0x456C2C950Ee2AE7cdd08bBE6ec0D46212D42FCF1'; // manager.treasury(), never changed (no TreasuryUpdated event): https://basescan.org/address/0x456C2C950Ee2AE7cdd08bBE6ec0D46212D42FCF1
 
 type ChainConfig = { start: string; manager: string; managerFromBlock: number; nfpm: string };
 
 const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.BASE]: {
     start: '2026-04-09', // manager deploy, block 44474281
-    manager: '0xE20435aC8160aa58ADea4A1fc5641bB5aDAED053',
+    manager: '0xE20435aC8160aa58ADea4A1fc5641bB5aDAED053', // Flowlex LP manager, https://basescan.org/address/0xE20435aC8160aa58ADea4A1fc5641bB5aDAED053
     managerFromBlock: 44474281,
     nfpm: '0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1', // Uniswap V3 NonfungiblePositionManager
   },
