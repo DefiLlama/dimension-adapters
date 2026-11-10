@@ -44,10 +44,16 @@ const HOMER_LP_SHARE = "Homer share of LP fees";
 const SWAP_FEE = "Homer Swap fees";
 const HOOK_FEE = "Homer pool hook fees";
 
+const NATIVE = "0x0000000000000000000000000000000000000000";
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  // Homer's share of every fee, by token: the fee router splits HYPE and pays other tokens to the team.
+  const revenue: { token: string; amount: bigint; label: string }[] = [];
 
   const collects = await options.getLogs({ targets: LIQUIDITY_MANAGERS, eventAbi: FEES_COLLECTED });
   for (const l of collects) {
@@ -57,26 +63,51 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.add(l.token1, l.lp1, METRIC.LP_FEES);
     dailyFees.add(l.token0, l.fee0, HOMER_LP_SHARE);
     dailyFees.add(l.token1, l.fee1, HOMER_LP_SHARE);
-    dailyRevenue.add(l.token0, l.fee0, HOMER_LP_SHARE);
-    dailyRevenue.add(l.token1, l.fee1, HOMER_LP_SHARE);
+    revenue.push({ token: l.token0, amount: BigInt(l.fee0), label: HOMER_LP_SHARE });
+    revenue.push({ token: l.token1, amount: BigInt(l.fee1), label: HOMER_LP_SHARE });
   }
 
   const swaps = await options.getLogs({ targets: HOMER_SWAPS, eventAbi: SWAPPED });
   for (const l of swaps) {
     dailyFees.addGasToken(l.fee, SWAP_FEE);
-    dailyRevenue.addGasToken(l.fee, SWAP_FEE);
+    revenue.push({ token: NATIVE, amount: BigInt(l.fee), label: SWAP_FEE });
   }
 
   const hookFees = await options.getLogs({ target: POOL_HOOK, eventAbi: HOMER_FEE });
   for (const l of hookFees) {
     dailyFees.add(l.currency, l.amount, HOOK_FEE);
-    dailyRevenue.add(l.currency, l.amount, HOOK_FEE);
+    revenue.push({ token: l.currency, amount: BigInt(l.amount), label: HOOK_FEE });
   }
 
-  // The fee router's current staker share, in basis points (6000 = 60%).
-  const stakerBps = Number(await options.api.call({ target: FEE_ROUTER, abi: "uint16:stakerBps" }));
-  const dailyHoldersRevenue = dailyRevenue.clone(stakerBps / 10_000);
-  const dailyProtocolRevenue = dailyRevenue.clone(1 - stakerBps / 10_000);
+  // The fee router splits only HYPE between stakers and the team: native HYPE, its reward token
+  // (WHYPE) and the other venues' wrapped HYPE it unwraps (isWrapped). Fees in any other token can
+  // only be forwarded to the team, so they are all protocol revenue.
+  const tokens = [...new Set(revenue.map((r) => r.token.toLowerCase()))].filter((t) => t !== NATIVE);
+  const [stakerBpsRaw, rewardToken, wrapped] = await Promise.all([
+    options.api.call({ target: FEE_ROUTER, abi: "uint16:stakerBps" }),
+    options.api.call({ target: FEE_ROUTER, abi: "address:rewardToken" }),
+    tokens.length
+      ? options.api.multiCall({ abi: "function isWrapped(address) view returns (bool)", calls: tokens.map((t) => ({ target: FEE_ROUTER, params: [t] })) })
+      : Promise.resolve([]),
+  ]);
+  const stakerBps = BigInt(stakerBpsRaw); // 6000 = 60% at the time of writing
+  const hype = new Set<string>([NATIVE, String(rewardToken).toLowerCase(), ...tokens.filter((_, i) => wrapped[i])]);
+
+  const add = (b: any, token: string, amount: bigint, label: string) => {
+    if (amount <= 0n) return;
+    if (token.toLowerCase() === NATIVE) b.addGasToken(amount.toString(), label);
+    else b.add(token, amount.toString(), label);
+  };
+  for (const r of revenue) {
+    add(dailyRevenue, r.token, r.amount, r.label);
+    if (hype.has(r.token.toLowerCase())) {
+      const toStakers = (r.amount * stakerBps) / 10_000n;
+      add(dailyHoldersRevenue, r.token, toStakers, r.label);
+      add(dailyProtocolRevenue, r.token, r.amount - toStakers, r.label);
+    } else {
+      add(dailyProtocolRevenue, r.token, r.amount, r.label);
+    }
+  }
 
   return { dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
@@ -85,8 +116,8 @@ const methodology = {
   Fees: "Trading fees collected from liquidity positions opened through Homer, Homer Swap's 0.25% fee on routed trades, and the Homer pool hook's cut of swaps in pools created on Homer.",
   UserFees: "Same as Fees: paid by traders and by liquidity providers' collected fees.",
   Revenue: "Homer's share of collected LP fees (set per manager, 14% at the time of writing, capped at 25% by the contract), plus all Homer Swap and pool hook fees. All of it goes to the Homer fee router.",
-  ProtocolRevenue: "The part of revenue the fee router sends to the team (100% minus the staker share).",
-  HoldersRevenue: "The part of revenue the fee router streams to $HOMER stakers, in HYPE (stakerBps on the fee router, 60% at the time of writing).",
+  ProtocolRevenue: "The part of revenue the fee router sends to the team: 100% minus the staker share of HYPE fees, and all fees in other tokens (the router can only forward those to the team).",
+  HoldersRevenue: "The part of HYPE revenue (native HYPE, WHYPE and other wrapped HYPE) the fee router streams to $HOMER stakers (stakerBps on the fee router, 60% at the time of writing). Fees in other tokens go to the team only.",
   SupplySideRevenue: "The rest of the collected LP fees, paid to the liquidity providers.",
 };
 
@@ -104,6 +135,16 @@ const breakdownMethodology = {
   },
   SupplySideRevenue: {
     [METRIC.LP_FEES]: "Collected LP fees kept by the liquidity providers.",
+  },
+  HoldersRevenue: {
+    [HOMER_LP_SHARE]: "The stakers' share (stakerBps) of Homer's LP fee share, when it is in HYPE.",
+    [SWAP_FEE]: "The stakers' share (stakerBps) of Homer Swap fees (always HYPE).",
+    [HOOK_FEE]: "The stakers' share (stakerBps) of pool hook fees, when they are in HYPE.",
+  },
+  ProtocolRevenue: {
+    [HOMER_LP_SHARE]: "The team's part of Homer's LP fee share: the rest of it in HYPE, and all of it in other tokens.",
+    [SWAP_FEE]: "The team's part of Homer Swap fees (100% minus the stakers' share).",
+    [HOOK_FEE]: "The team's part of pool hook fees: the rest of them in HYPE, and all of them in other tokens.",
   },
 };
 
