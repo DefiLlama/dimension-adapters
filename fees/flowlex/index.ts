@@ -157,12 +157,12 @@ const fetch = async (options: FetchOptions) => {
   // 1. LP fees earned by Flowlex positions in the window:
   //    (collectable at end - collectable at start) + collected during the window - principal removed during the window
   const factory = await options.toApi.call({ abi: abi.factory, target: cfg.nfpm });
-  const [before, after] = await Promise.all([readPositions(options.fromApi, cfg.nfpm, ids), readPositions(options.toApi, cfg.nfpm, ids)]);
-  const [owedBefore, owedAfter] = await Promise.all([owedAt(options.fromApi, factory, before), owedAt(options.toApi, factory, after)]);
-  const [collects, decreases] = await Promise.all([
-    options.getLogs({ target: cfg.nfpm, eventAbi: abi.collect }),
-    options.getLogs({ target: cfg.nfpm, eventAbi: abi.decreaseLiquidity }),
-  ]);
+  const before = await readPositions(options.fromApi, cfg.nfpm, ids);
+  const after = await readPositions(options.toApi, cfg.nfpm, ids);
+  const owedBefore = await owedAt(options.fromApi, factory, before);
+  const owedAfter = await owedAt(options.toApi, factory, after);
+  const collects = await options.getLogs({ target: cfg.nfpm, eventAbi: abi.collect });
+  const decreases = await options.getLogs({ target: cfg.nfpm, eventAbi: abi.decreaseLiquidity });
 
   const earned: Record<string, [bigint, bigint]> = {};
   ids.forEach((id, i) => { earned[id] = [owedAfter[i][0] - owedBefore[i][0], owedAfter[i][1] - owedBefore[i][1]]; });
@@ -183,10 +183,8 @@ const fetch = async (options: FetchOptions) => {
   const missing = ids.filter((id, i) => !after[i] && !before[i] && (earned[id][0] !== 0n || earned[id][1] !== 0n));
   const missingPools = [...new Set(missing.map(id => poolOf[id]))];
   if (missingPools.some(p => !p)) throw new Error(`Flowlex: no token pair for positions ${missing.filter(id => !poolOf[id]).join(',')}`);
-  const [mt0, mt1] = await Promise.all([
-    options.toApi.multiCall({ abi: abi.token0, calls: missingPools }),
-    options.toApi.multiCall({ abi: abi.token1, calls: missingPools }),
-  ]);
+  const mt0 = await options.toApi.multiCall({ abi: abi.token0, calls: missingPools });
+  const mt1 = await options.toApi.multiCall({ abi: abi.token1, calls: missingPools });
   const pairOfPool: Record<string, [string, string]> = {};
   missingPools.forEach((pool, k) => { pairOfPool[pool] = [mt0[k], mt1[k]]; });
 
@@ -210,9 +208,11 @@ const fetch = async (options: FetchOptions) => {
     : [];
 
   if (transfers.length) {
-    const opLogs = (await Promise.all(Object.keys(KIND_BY_EVENT).map(e =>
-      options.getLogs({ target: cfg.manager, eventAbi: managerAbi[e], entireLog: true, parseLog: true }).then(ls => ls.map(l => ({ ...l, kind: KIND_BY_EVENT[e] })))
-    ))).flat();
+    const opLogs: any[] = [];
+    for (const event of Object.keys(KIND_BY_EVENT)) {
+      const logs = await options.getLogs({ target: cfg.manager, eventAbi: managerAbi[event], entireLog: true, parseLog: true });
+      opLogs.push(...logs.map(l => ({ ...l, kind: KIND_BY_EVENT[event] })));
+    }
 
     for (const t of transfers) {
       const next = opLogs
