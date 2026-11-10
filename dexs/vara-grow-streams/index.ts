@@ -7,10 +7,10 @@ import { postURL } from "../../utils/fetchURL";
 const VARA_RPC = "https://rpc.vara.network";
 
 // Vara Mainnet program IDs from `deploy-state.json` in https://github.com/Satyam-10124/growstreams-v3
-// StonkBase Spot CLOB Orderbook (`stonkbase-orderbook`): On-chain Central Limit Order Book DEX (`PlaceSpotOrder`, `FillSpotOrder`, `GetSpotTrade`)
-const STONKBASE_ORDERBOOK = "0x2c1dd07810480a34b7369fbf0ff0c97651c6db1f26ffc5eaff6490d6b20263cf";
-// StonkBase 5x RWA Perps Desk (`stonkbase-vara-desk`): On-chain 1x–5x Leveraged RWA Perpetuals & Stock Desk (`OpenStockPosition`, `CloseStockPosition`, `GetPosition`)
-const STONKBASE_PERPS_DESK = "0x8073da7aa8e51624ef4c1d41a8e22065cfe8b9ff9e6d5b7f969158397465da81";
+// GrowStreams Spot CLOB Orderbook (`GROWSTREAMS_ORDERBOOK`): On-chain Central Limit Order Book DEX (`PlaceSpotOrder`, `FillSpotOrder`, `GetSpotTrade`)
+const GROWSTREAMS_ORDERBOOK = "0x2c1dd07810480a34b7369fbf0ff0c97651c6db1f26ffc5eaff6490d6b20263cf";
+// GrowStreams 5x RWA Perps Desk (`GROWSTREAMS_PERPS_DESK`): On-chain 1x–5x Leveraged RWA Perpetuals & Stock Desk (`OpenStockPosition`, `CloseStockPosition`, `GetPosition`)
+const GROWSTREAMS_PERPS_DESK = "0x8073da7aa8e51624ef4c1d41a8e22065cfe8b9ff9e6d5b7f969158397465da81";
 
 const ZERO_ACCOUNT = "0x" + "0".repeat(64);
 // 750B gas units: Vara Mainnet read-only block gas allowance for `gear_calculateReplyForHandle` state queries (from `api/deploy-stonkbase-vara-dex-and-perps.mjs`).
@@ -25,14 +25,14 @@ const POOL_CONCURRENCY = 8;
 const POOL_THROTTLE_BASE_MS = 20;
 const POOL_THROTTLE_JITTER_MS = 40;
 
-// Basis-point denominator (10,000 bps = 100%) matching `pub const BPS: u128 = 10_000` in `agents/contracts/stonkbase-vara-desk/src/lib.rs` (line 10).
+// Basis-point denominator (10,000 bps = 100%) matching `pub const BPS: u128 = 10_000` in `agents/contracts/stonkbase-vara-desk/src/lib.rs` (line 11).
 const BPS_DENOMINATOR = 10_000n;
-// Spot CLOB fee constants matching `pub const SPOT_FEE_BPS: u128 = 30` in `agents/contracts/stonkbase-vara-desk/src/lib.rs` (line 11):
+// Spot CLOB fee constants matching `pub const SPOT_FEE_BPS: u128 = 30` in `agents/contracts/stonkbase-vara-desk/src/lib.rs` (line 12):
 // 30 bps (0.30%) total fee split into 25 bps (0.25%) maker/LP rebate and 5 bps (0.05%) protocol treasury fee.
 const SPOT_MAKER_REBATE_BPS = 25n;
 const SPOT_PROTOCOL_FEE_BPS = 5n;
 const SPOT_FEE_BPS = SPOT_MAKER_REBATE_BPS + SPOT_PROTOCOL_FEE_BPS;
-// Perpetuals open/close execution fee matching `pub const PERPS_FEE_BPS: u128 = 10` (10 bps = 0.10% on notional) in `agents/contracts/stonkbase-vara-desk/src/lib.rs` (line 12).
+// Perpetuals open/close execution fee matching `pub const PERPS_FEE_BPS: u128 = 10` (10 bps = 0.10% on notional) in `agents/contracts/stonkbase-vara-desk/src/lib.rs` (line 13).
 const PERPS_FEE_BPS = 10n;
 
 /**
@@ -177,14 +177,14 @@ function decodeSpotTrade(raw: Buffer): SpotTradeRecord | null {
 }
 
 /**
- * Fetches and caches an immutable `SpotTradeRecord` by `id` from `STONKBASE_ORDERBOOK`, evicting failed reads.
+ * Fetches and caches an immutable `SpotTradeRecord` by `id` from `GROWSTREAMS_ORDERBOOK`, evicting failed reads.
  */
 function getSpotTrade(id: number): Promise<SpotTradeRecord | null> {
   let p = spotTradeCache.get(id);
   if (!p) {
     const idBuf = Buffer.alloc(8);
     idBuf.writeBigUInt64LE(BigInt(id), 0);
-    p = rpcCall(STONKBASE_ORDERBOOK, "0x" + Buffer.concat([ROUTE_GET_SPOT_TRADE, idBuf]).toString("hex"))
+    p = rpcCall(GROWSTREAMS_ORDERBOOK, "0x" + Buffer.concat([ROUTE_GET_SPOT_TRADE, idBuf]).toString("hex"))
       .then(decodeSpotTrade)
       .catch((e) => {
         spotTradeCache.delete(id);
@@ -197,7 +197,7 @@ function getSpotTrade(id: number): Promise<SpotTradeRecord | null> {
 
 /**
  * Binary-searches spot trade IDs `[1, lastId]` to find the first trade with `timestamp >= ts`.
- * `FillSpotOrder` in `agents/contracts/stonkbase-vara-desk/src/lib.rs` assigns sequential `next_spot_trade_id` with `exec::block_timestamp()`, so timestamps are monotonically non-decreasing with ID.
+ * `FillSpotOrder` in `agents/contracts/stonkbase-vara-desk/src/lib.rs` assigns sequential `next_trade_id` with `exec::block_timestamp()`, so timestamps are monotonically non-decreasing with ID.
  */
 async function firstSpotTradeAtOrAfter(ts: number, lastId: number): Promise<number> {
   let lo = 1;
@@ -264,14 +264,14 @@ function decodePosition(raw: Buffer): StockPositionRecord | null {
 }
 
 /**
- * Fetches a `StockPositionRecord` by `id` from `STONKBASE_PERPS_DESK`, retaining only terminal closed positions (`!isOpen`) in cache.
+ * Fetches a `StockPositionRecord` by `id` from `GROWSTREAMS_PERPS_DESK`, retaining only terminal closed positions (`!isOpen`) in cache.
  */
 function getPosition(id: number): Promise<StockPositionRecord | null> {
   let p = closedPositionCache.get(id);
   if (!p) {
     const idBuf = Buffer.alloc(8);
     idBuf.writeBigUInt64LE(BigInt(id), 0);
-    p = rpcCall(STONKBASE_PERPS_DESK, "0x" + Buffer.concat([ROUTE_GET_POSITION, idBuf]).toString("hex"))
+    p = rpcCall(GROWSTREAMS_PERPS_DESK, "0x" + Buffer.concat([ROUTE_GET_POSITION, idBuf]).toString("hex"))
       .then((raw) => {
         const decoded = decodePosition(raw);
         if (!decoded || decoded.isOpen) {
@@ -290,7 +290,7 @@ function getPosition(id: number): Promise<StockPositionRecord | null> {
 
 /**
  * Binary-searches position IDs `[1, lastId]` to find the first position with `openedAt >= ts`.
- * `OpenStockPosition` in `agents/contracts/stonkbase-vara-desk/src/lib.rs` assigns sequential `next_position_id` with `exec::block_timestamp()`, so `openedAt` is monotonically non-decreasing with ID.
+ * `OpenStockPosition` in `agents/contracts/stonkbase-vara-desk/src/lib.rs` assigns sequential `next_pos_id` with `exec::block_timestamp()`, so `openedAt` is monotonically non-decreasing with ID.
  */
 async function firstPositionOpenedAtOrAfter(ts: number, lastId: number): Promise<number> {
   let lo = 1;
@@ -322,7 +322,7 @@ async function firstPositionOpenedAtOrAfter(ts: number, lastId: number): Promise
 }
 
 /**
- * Computes StonkBase daily volume, open interest, fees, protocol revenue, and maker/LP supply-side revenue across `stonkbase-orderbook` and `stonkbase-vara-desk`.
+ * Computes GrowStreams daily DEX & Perps volume, open interest, swap fees, protocol revenue, and maker/LP supply-side revenue across `GROWSTREAMS_ORDERBOOK` and `GROWSTREAMS_PERPS_DESK`.
  */
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -332,8 +332,8 @@ const fetch = async (options: FetchOptions) => {
   const openInterestAtEnd = options.createBalances();
 
   const [rawTradesCount, rawPositionsCount] = await Promise.all([
-    rpcCall(STONKBASE_ORDERBOOK, "0x" + ROUTE_SPOT_TRADES_COUNT.toString("hex")),
-    rpcCall(STONKBASE_PERPS_DESK, "0x" + ROUTE_POSITIONS_COUNT.toString("hex")),
+    rpcCall(GROWSTREAMS_ORDERBOOK, "0x" + ROUTE_SPOT_TRADES_COUNT.toString("hex")),
+    rpcCall(GROWSTREAMS_PERPS_DESK, "0x" + ROUTE_POSITIONS_COUNT.toString("hex")),
   ]);
   const totalTrades = u64LE(rawTradesCount, ROUTE_SPOT_TRADES_COUNT.length);
   const totalPositions = u64LE(rawPositionsCount, ROUTE_POSITIONS_COUNT.length);
@@ -450,9 +450,9 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume:
-    "Sum of matched maker/taker Spot CLOB Orderbook fills on stonkbase-orderbook (0x2c1dd078...) and 1x-5x leveraged RWA perpetuals positions opened/closed on stonkbase-vara-desk (0x8073da7a...) on Vara Mainnet.",
+    "Sum of matched maker/taker Spot CLOB Orderbook fills on GrowStreams Orderbook (0x2c1dd078...) and 1x-5x leveraged RWA perpetuals positions opened/closed on GrowStreams Perps Desk (0x8073da7a...) on Vara Mainnet.",
   OpenInterest:
-    "Sum of active VARA-denominated notional across leveraged RWA perpetual positions on stonkbase-vara-desk (0x8073da7a...) that remain open at the end of the window.",
+    "Sum of active VARA-denominated notional across leveraged RWA perpetual positions on GrowStreams Perps Desk (0x8073da7a...) that remain open at the end of the window.",
   Fees: "0.30% (30 bps) fee paid by takers on Spot CLOB Orderbook fills (0.25% maker/LP rebate + 0.05% protocol fee) and 0.10% (10 bps) execution fee paid by traders on RWA perpetual opens and closes.",
   Revenue:
     "0.05% protocol share of Spot CLOB Orderbook fills plus 0.10% execution fee on RWA perpetual positions.",
