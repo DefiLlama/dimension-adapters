@@ -14,6 +14,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 // Every HomerLiquidityManager version (v3 positions) and HomerV4Manager version (v4 positions):
 // positions opened in an earlier version keep collecting fees there.
@@ -40,11 +41,10 @@ const FEES_COLLECTED = "event FeesCollected(address indexed user, address indexe
 const SWAPPED = "event Swapped(address indexed user, address indexed target, address indexed token, bool buy, uint256 hypeAmount, uint256 tokenAmount, uint256 fee)";
 const HOMER_FEE = "event HomerFee(bytes32 indexed poolId, address indexed currency, uint256 amount)";
 
-const HOMER_LP_SHARE = "Homer share of LP fees";
 const SWAP_FEE = "Homer Swap fees";
 const HOOK_FEE = "Homer pool hook fees";
 
-const NATIVE = "0x0000000000000000000000000000000000000000";
+const NATIVE = ADDRESSES.null;
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -61,10 +61,10 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(l.token1, l.lp1, METRIC.LP_FEES);
     dailySupplySideRevenue.add(l.token0, l.lp0, METRIC.LP_FEES);
     dailySupplySideRevenue.add(l.token1, l.lp1, METRIC.LP_FEES);
-    dailyFees.add(l.token0, l.fee0, HOMER_LP_SHARE);
-    dailyFees.add(l.token1, l.fee1, HOMER_LP_SHARE);
-    revenue.push({ token: l.token0, amount: BigInt(l.fee0), label: HOMER_LP_SHARE });
-    revenue.push({ token: l.token1, amount: BigInt(l.fee1), label: HOMER_LP_SHARE });
+    dailyFees.add(l.token0, l.fee0, METRIC.LP_FEES);
+    dailyFees.add(l.token1, l.fee1, METRIC.LP_FEES);
+    revenue.push({ token: l.token0, amount: BigInt(l.fee0), label: METRIC.LP_FEES });
+    revenue.push({ token: l.token1, amount: BigInt(l.fee1), label: METRIC.LP_FEES });
   }
 
   const swaps = await options.getLogs({ targets: HOMER_SWAPS, eventAbi: SWAPPED });
@@ -113,38 +113,37 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Trading fees collected from liquidity positions opened through Homer, Homer Swap's 0.25% fee on routed trades, and the Homer pool hook's cut of swaps in pools created on Homer.",
-  UserFees: "Same as Fees: paid by traders and by liquidity providers' collected fees.",
-  Revenue: "Homer's share of collected LP fees (set per manager, 14% at the time of writing, capped at 25% by the contract), plus all Homer Swap and pool hook fees. All of it goes to the Homer fee router.",
-  ProtocolRevenue: "The part of revenue the fee router sends to the team: 100% minus the staker share of HYPE fees, and all fees in other tokens (the router can only forward those to the team).",
-  HoldersRevenue: "The part of HYPE revenue (native HYPE, WHYPE and other wrapped HYPE) the fee router streams to $HOMER stakers (stakerBps on the fee router, 60% at the time of writing). Fees in other tokens go to the team only.",
-  SupplySideRevenue: "The rest of the collected LP fees, paid to the liquidity providers.",
+  Fees: "Trading fees earned by liquidity positions opened through Homer (counted when collected), Homer Swap's routing fee on every trade it routes, and the Homer pool hook's fee on swaps in pools created on Homer.",
+  UserFees: "Fees paid by traders: the pool trading fees earned by positions opened through Homer, Homer Swap's routing fee and the Homer pool hook's fee.",
+  Revenue: "Homer's cut of the trading fees collected by positions opened through Homer (14% as of November 2026, capped at 25% by the contracts) plus all Homer Swap and pool hook fees, all sent to Homer's fee router.",
+  ProtocolRevenue: "The part of Homer's revenue that goes to the team: the share of HYPE fees not paid to $HOMER stakers (40% as of November 2026) and all fees paid in other tokens.",
+  HoldersRevenue: "The share of Homer's HYPE and wrapped HYPE revenue that the fee router streams to $HOMER stakers (60% as of November 2026); fees in other tokens go only to the team.",
+  SupplySideRevenue: "The trading fees collected by positions opened through Homer that stay with the liquidity providers who own them (86% as of November 2026).",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.LP_FEES]: "Trading fees earned by positions opened through Homer, paid to their liquidity providers.",
-    [HOMER_LP_SHARE]: "Homer's share of those collected LP fees.",
-    [SWAP_FEE]: "0.25% of the HYPE side of every trade routed through Homer Swap.",
-    [HOOK_FEE]: "The Homer pool hook's cut of every swap in pools created on Homer.",
+    [METRIC.LP_FEES]: "Trading fees earned by liquidity positions opened through Homer on Elysium DEXs (Uniswap v4, KleosSwap, ElysPump and others), counted when the owner collects them, including both the liquidity provider's part and Homer's cut.",
+    [SWAP_FEE]: "Homer Swap's routing fee, 0.25% of the HYPE side of every trade it routes as of November 2026; the pool fees on those trades go to the pools' own liquidity providers and are not counted.",
+    [HOOK_FEE]: "The fee the Homer pool hook takes on every swap in pools created on Homer.",
   },
   Revenue: {
-    [HOMER_LP_SHARE]: "Homer's share of collected LP fees, sent to the fee router.",
-    [SWAP_FEE]: "All Homer Swap fees, sent to the fee router.",
-    [HOOK_FEE]: "All pool hook fees, sent to the fee router.",
+    [METRIC.LP_FEES]: "Homer's cut of the collected LP fees (14% as of November 2026), sent to Homer's fee router.",
+    [SWAP_FEE]: "All Homer Swap routing fees, sent to Homer's fee router.",
+    [HOOK_FEE]: "All Homer pool hook fees, sent to Homer's fee router.",
   },
   SupplySideRevenue: {
-    [METRIC.LP_FEES]: "Collected LP fees kept by the liquidity providers.",
+    [METRIC.LP_FEES]: "The rest of the collected LP fees (86% as of November 2026), kept by the liquidity providers who own the positions.",
   },
   HoldersRevenue: {
-    [HOMER_LP_SHARE]: "The stakers' share (stakerBps) of Homer's LP fee share, when it is in HYPE.",
-    [SWAP_FEE]: "The stakers' share (stakerBps) of Homer Swap fees (always HYPE).",
-    [HOOK_FEE]: "The stakers' share (stakerBps) of pool hook fees, when they are in HYPE.",
+    [METRIC.LP_FEES]: "The $HOMER stakers' share (60% as of November 2026) of Homer's cut of LP fees, when that cut is paid in HYPE or wrapped HYPE.",
+    [SWAP_FEE]: "The $HOMER stakers' share (60% as of November 2026) of Homer Swap fees, which are always paid in HYPE.",
+    [HOOK_FEE]: "The $HOMER stakers' share (60% as of November 2026) of Homer pool hook fees, when they are paid in HYPE or wrapped HYPE.",
   },
   ProtocolRevenue: {
-    [HOMER_LP_SHARE]: "The team's part of Homer's LP fee share: the rest of it in HYPE, and all of it in other tokens.",
-    [SWAP_FEE]: "The team's part of Homer Swap fees (100% minus the stakers' share).",
-    [HOOK_FEE]: "The team's part of pool hook fees: the rest of them in HYPE, and all of them in other tokens.",
+    [METRIC.LP_FEES]: "The team's part of Homer's cut of LP fees: the remaining 40% when paid in HYPE, and all of it when paid in other tokens.",
+    [SWAP_FEE]: "The team's part of Homer Swap fees, the remaining 40% as of November 2026.",
+    [HOOK_FEE]: "The team's part of Homer pool hook fees: the remaining 40% when paid in HYPE, and all of it when paid in other tokens.",
   },
 };
 
