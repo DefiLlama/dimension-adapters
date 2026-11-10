@@ -15,6 +15,7 @@ const DEV_WALLET_1 = "0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7";
 const DEV_WALLET_2 = "0x3B523ec5AC7f37A151142b756040301729061348";
 
 const RECEIVER_MIGRATION_TIMESTAMP = 1790812800; // 2026-10-01 00:00:00 UTC
+const LEGACY_FEE_RATE_CHANGE_TIMESTAMP = 1780876800; // 2026-06-08 00:00:00 UTC
 
 const SWAP_FEE_RATE = 0.005; // 0.5%
 const LIMIT_ORDER_FEE_RATE = 0.001; // 0.1%
@@ -41,14 +42,15 @@ const safeGetETHReceived = async (params: {
 const fetch = async (options: FetchOptions) => {
 	const timestamp = options.endTimestamp ?? (options.startTimestamp + 86400);
 
-	// Pre-migration (before Oct 1, 2026): Legacy single receiver at 0.1% fee rate
+	// Pre-migration: legacy receiver with historical fee-rate change (0.1% before June 8, 2026, 0.5% thereafter)
 	if (timestamp <= RECEIVER_MIGRATION_TIMESTAMP) {
 		const dailyFees = await addTokensReceived({
 			options,
 			targets: [DEV_WALLET_1],
 		});
 		await safeGetETHReceived({ options, target: DEV_WALLET_1, balances: dailyFees });
-		const dailyVolume = dailyFees.clone(1 / LEGACY_FEE_RATE);
+		const feeRate = options.startTimestamp < LEGACY_FEE_RATE_CHANGE_TIMESTAMP ? LEGACY_FEE_RATE : SWAP_FEE_RATE;
+		const dailyVolume = dailyFees.clone(1 / feeRate);
 
 		return {
 			dailyFees,
@@ -91,7 +93,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
 	Volume:
-		"Trading volume inferred from collected protocol fees: DEX swap fees divided by 0.5% (200x), limit order fees divided by 0.1% (1000x), and developer commission divided by 4% (25x). Pre-October 1, 2026 volume is inferred from the legacy receiver at 0.1%.",
+		"Trading volume inferred from collected protocol fees: DEX swap fees divided by 0.5% (200x), limit order fees divided by 0.1% (1000x), and developer commission divided by 4% (25x). Pre-October 1, 2026 volume is inferred from the legacy receiver at 0.1% before June 8, 2026 and 0.5% thereafter.",
 	Fees:
 		"Protocol routing and developer fees collected from trades executed via Arbitrage Inc on BSC: 0.5% on DEX swaps to 0x0F477f8c88b48E299AcE83B14303157d032382EC, 0.1% on limit orders to 0x75F7F06a5C5c440c1aDbd586826CD26253EDE219, and developer commission to developer wallets (50% Developer 1 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7, 50% Developer 2 0x3B523ec5AC7f37A151142b756040301729061348) across BEP-20 tokens and native BNB.",
 	Revenue:
