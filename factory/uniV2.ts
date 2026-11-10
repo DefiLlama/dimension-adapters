@@ -28,6 +28,14 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "arbswap": {
+    // Factories create SwapPair contracts with a 3/1000 swap fee; deployment blocks give the UTC start dates:
+    // https://sourcify.dev/server/v2/contract/42161/0xd394e9cc20f43d2651293756f8d320668e850f1b?fields=all (block 3692134)
+    // https://sourcify.dev/server/v2/contract/42170/0xf6239423fcf1c19ed2791d9648a90836074242fd?fields=all (block 727)
+    // volume only: fee split not documented
+    [CHAIN.ARBITRUM]: { factory: '0xd394e9cc20f43d2651293756f8d320668e850f1b', start: '2021-12-09', fees: 0.003, customLogic: volumeOnly },
+    [CHAIN.ARBITRUM_NOVA]: { factory: '0xf6239423fcf1c19ed2791d9648a90836074242fd', start: '2022-08-09', fees: 0.003, customLogic: volumeOnly },
+  },
   "bdex-v2": {
     // stock uniV2 fork on BOT Chain. Factory: https://dev-docs.botchain.ai/docs/DEX/contract-addresses/
     // feeTo() is the zero address (https://scan.botchain.ai/address/0x117115f3B72C8d1989178089A67D0C26f8EE0AA3, checked 2026-09-22) => 0.3% swap fee, 100% to LPs
