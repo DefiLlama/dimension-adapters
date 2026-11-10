@@ -1102,6 +1102,16 @@ protocols['kalos-dex'].breakdownMethodology = {
   ProtocolRevenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collected to the Kalos revenue splitter.' },
   SupplySideRevenue: { 'LP fees': 'The part of swap fees earned by liquidity providers.' },
 }
+// Kalos DEX pools from the factory's own PoolCreated logs, so the adapter does not depend on a TVL adapter's pool cache
+protocols['kalos-dex'].adapter[CHAIN.ELYSIUM].fetch = async (options: FetchOptions) => {
+  const config = configs['kalos-dex'][CHAIN.ELYSIUM]
+  const poolLogs = await options.getLogs({
+    target: config.factory, fromBlock: 915221, toBlock: await options.getToBlock(), // block of the factory's creation
+    eventAbi: 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)',
+    cacheInCloud: true,
+  })
+  return getUniV3LogAdapter({ ...config, factory: undefined, pools: poolLogs.map(log => log.pool) })(options)
+}
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols)
 export const fees = createFactoryExports(feesProtocols)
