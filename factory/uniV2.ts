@@ -28,6 +28,13 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "koffeeswap": {
+    // Factory and V2 pair source: https://koffeeswap.medium.com/exchange-contracts-dba53d7bae14
+    // Pair swap charges 3/1000: https://github.com/KoffeeSwap/koffeeswap-contracts/blob/master/factory/KoffeeSwapPair.sol
+    // Factory deployment 2021-06-17: https://scan.kcc.io/tx/0x48c06beb59797b7fc8537341537d5cbd934e381b33256166882aba188e36b402
+    // volume only: fee split not documented
+    [CHAIN.KCC]: { factory: '0xc0ffee00000e1439651c6ad025ea2a71ed7f3eab', start: '2021-06-17', fees: 0.003, customLogic: volumeOnly },
+  },
   "pureswap": {
     // Factory creates V2 pairs; swap invariant charges 3/1000: https://sourcify.dev/server/v2/contract/56/0x94b4188d143b9dd6bd7083ae38a461fcc6aad07e?fields=all
     // volume only: fee split not documented; feeTo is mutable and pair mints to two recipients.
