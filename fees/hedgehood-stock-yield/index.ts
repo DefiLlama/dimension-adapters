@@ -2,6 +2,7 @@ import * as sdk from '@defillama/sdk';
 import ADDRESSES from '../../helpers/coreAssets.json';
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
+import { V2_REGISTRIES } from '../../helpers/hedgehood-stock-yield';
 
 // Stock Yield by HedgeHood: option-selling vaults on tokenized stocks.
 // v1 (BrokerEpochVault, Robinhood Chain): depositors' stock backs one call a week, sold through the vault's quoted
@@ -30,18 +31,6 @@ const ABI = {
   getEpoch: `function getEpoch(uint256) view returns (${EPOCH})`,
 };
 
-// v2: every EpochFund is listed in a VaultRegistry (vaults()). v2.0 is closing (exits only); v2.1 runs on Robinhood
-// Chain (weekly, USDG) and on BNB Chain (monthly covered calls on bStocks, USDT). Same registries as the TVL adapter.
-// https://sourcify.dev/server/v2/contract/4663/0xbc2cf782d3530c867157E6b7A7bBe2E0b636cDAf
-const V2_REGISTRIES: Record<string, { registry: string, block: number }[]> = {
-  [CHAIN.ROBINHOOD]: [
-    { registry: '0x868502F926AE068B61EA9CC55042A9F962651e76', block: 88943541 }, // v2.0, 2026-10-15
-    { registry: '0xbc2cf782d3530c867157E6b7A7bBe2E0b636cDAf', block: 103790627 }, // v2.1, 2026-11-01
-  ],
-  [CHAIN.BSC]: [
-    { registry: '0xC78b6A83d75C5612a1A7323702B56038254a6459', block: 131164584 }, // v2.1, 2026-11-02
-  ],
-};
 const V2_ABI = {
   vaults: 'address[]:vaults',
   usdg: 'address:usdg',
@@ -77,17 +66,17 @@ async function addV2Fees(options: FetchOptions, dailyFees: any, fromBlock: numbe
 
 // Only the desk's fee is reported as fees. The premium itself is the buyer's payment for the option, carried by
 // depositors against the risk of the call settling in the money, so it is premium volume (options adapter), not fees.
-async function fetchV1(options: FetchOptions, dailyFees: any, previousBlock: number, toBlock: number) {
+async function fetchV1(options: FetchOptions, dailyFees: any, firstBlock: number, toBlock: number) {
   // Sales are recognized when their void window closes, so they come from the window one VOID_WINDOW earlier.
   const blocks = await Promise.all([
-    options.getBlock(options.fromTimestamp - VOID_WINDOW, options.chain, {}),
+    // the block that closed the previous window's sales, as getFromBlock() does for the window itself
+    options.getBlock(options.fromTimestamp - 1 - VOID_WINDOW, options.chain, {}),
     options.getBlock(options.toTimestamp - VOID_WINDOW, options.chain, {}),
   ]);
   // A failed lookup returns null: rescanning from deployment would count earlier sales and settlements again
   if (!blocks.every(Number.isInteger)) throw new Error('Stock Yield: block lookup failed');
   const [previousSaleBlock, saleToBlock] = blocks;
-  // The previous window's closing block opens this one; skip it so adjacent pulls do not repeat an event.
-  const fromBlock = Math.max(previousBlock + 1, DEPLOYMENT_BLOCK);
+  const fromBlock = Math.max(firstBlock, DEPLOYMENT_BLOCK);
   const saleFromBlock = Math.max(previousSaleBlock + 1, DEPLOYMENT_BLOCK);
 
   const desks = VAULTS.map(({ desk }) => desk);
@@ -128,12 +117,12 @@ async function fetchV1(options: FetchOptions, dailyFees: any, previousBlock: num
 // depositors against the risk of the option settling in the money, so it is premium volume (options adapter), not fees.
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
-  const [previousBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+  // getFromBlock() is already the block after the previous window's closing block, so adjacent pulls do not overlap
+  const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
   // A failed lookup returns null: rescanning from deployment would count earlier settlements again
-  if (!Number.isInteger(previousBlock) || !Number.isInteger(toBlock)) throw new Error('Stock Yield: block lookup failed');
-  if (options.chain === CHAIN.ROBINHOOD) await fetchV1(options, dailyFees, previousBlock, toBlock);
-  // The previous window's closing block opens this one; skip it so adjacent pulls do not repeat a settlement.
-  await addV2Fees(options, dailyFees, previousBlock + 1, toBlock);
+  if (!Number.isInteger(fromBlock) || !Number.isInteger(toBlock)) throw new Error('Stock Yield: block lookup failed');
+  if (options.chain === CHAIN.ROBINHOOD) await fetchV1(options, dailyFees, fromBlock, toBlock);
+  await addV2Fees(options, dailyFees, fromBlock, toBlock);
   return { dailyFees, dailyRevenue: dailyFees.clone(), dailyProtocolRevenue: dailyFees.clone() };
 }
 

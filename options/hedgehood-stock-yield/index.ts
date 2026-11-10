@@ -2,6 +2,7 @@ import * as sdk from '@defillama/sdk';
 import ADDRESSES from '../../helpers/coreAssets.json';
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
+import { V2_REGISTRIES } from '../../helpers/hedgehood-stock-yield';
 
 // Stock Yield by HedgeHood: option-selling vaults on tokenized stocks.
 // v1 (BrokerEpochVault, Robinhood Chain): each vault sells one call a week through its quoted desk, created by the
@@ -26,17 +27,6 @@ const ABI = {
   epochLocked: 'event EpochLocked(uint256 indexed epoch, uint256 stockAmount, uint256 coveredStock, uint256 strike, uint64 expiry, bytes32 instructionHash)',
 };
 
-// v2: same registries as the fees and TVL adapters. v2.0 is closing (exits only); v2.1 runs on Robinhood Chain
-// (weekly, USDG) and on BNB Chain (monthly covered calls on bStocks, USDT).
-const V2_REGISTRIES: Record<string, { registry: string, block: number }[]> = {
-  [CHAIN.ROBINHOOD]: [
-    { registry: '0x868502F926AE068B61EA9CC55042A9F962651e76', block: 88943541 }, // v2.0, 2026-10-15
-    { registry: '0xbc2cf782d3530c867157E6b7A7bBe2E0b636cDAf', block: 103790627 }, // v2.1, 2026-11-01
-  ],
-  [CHAIN.BSC]: [
-    { registry: '0xC78b6A83d75C5612a1A7323702B56038254a6459', block: 131164584 }, // v2.1, 2026-11-02
-  ],
-};
 const V2_ABI = {
   vaults: 'address[]:vaults',
   engines: 'address[]:engines',
@@ -46,9 +36,8 @@ const V2_ABI = {
   positionOpened: 'event PositionOpened(uint256 indexed epoch, uint8 indexed legId, address indexed buyer, uint8 slot, uint256 size, uint256 strike, uint256 premium, uint256 fee, bytes32 quoteDigest)',
 };
 
-async function fetchV1(options: FetchOptions, dailyNotionalVolume: any, dailyPremiumVolume: any, previousBlock: number, toBlock: number) {
-  // The previous window's closing block opens this one; skip it so adjacent pulls do not repeat a sale.
-  const fromBlock = Math.max(previousBlock + 1, DEPLOYMENT_BLOCK);
+async function fetchV1(options: FetchOptions, dailyNotionalVolume: any, dailyPremiumVolume: any, firstBlock: number, toBlock: number) {
+  const fromBlock = Math.max(firstBlock, DEPLOYMENT_BLOCK);
   if (fromBlock > toBlock) return;
   // Every call the vault sells is an EpochLocked; a desk sale also emits QuotedLocked, with its premium, in the
   // same transaction.
@@ -65,10 +54,10 @@ async function fetchV1(options: FetchOptions, dailyNotionalVolume: any, dailyPre
   for (const sale of sales) dailyPremiumVolume.add(USDG, sale.premium);
 }
 
-async function fetchV2(options: FetchOptions, dailyNotionalVolume: any, dailyPremiumVolume: any, previousBlock: number, toBlock: number) {
+async function fetchV2(options: FetchOptions, dailyNotionalVolume: any, dailyPremiumVolume: any, firstBlock: number, toBlock: number) {
   const registries = (V2_REGISTRIES[options.chain] ?? []).filter(({ block }) => block <= toBlock);
   if (!registries.length) return;
-  const fromBlock = Math.max(previousBlock + 1, Math.min(...registries.map(({ block }) => block)));
+  const fromBlock = Math.max(firstBlock, Math.min(...registries.map(({ block }) => block)));
   if (fromBlock > toBlock) return;
   // The registry only adds funds and a fund only adds books, and logs are filtered by block, so these are read at the
   // latest block: the
@@ -97,11 +86,12 @@ async function fetchV2(options: FetchOptions, dailyNotionalVolume: any, dailyPre
 async function fetch(options: FetchOptions) {
   const dailyNotionalVolume = options.createBalances();
   const dailyPremiumVolume = options.createBalances();
-  const [previousBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+  // getFromBlock() is already the block after the previous window's closing block, so adjacent pulls do not overlap
+  const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
   // A failed lookup returns null: rescanning from deployment would count earlier sales again
-  if (!Number.isInteger(previousBlock) || !Number.isInteger(toBlock)) throw new Error('Stock Yield: block lookup failed');
-  if (options.chain === CHAIN.ROBINHOOD) await fetchV1(options, dailyNotionalVolume, dailyPremiumVolume, previousBlock, toBlock);
-  await fetchV2(options, dailyNotionalVolume, dailyPremiumVolume, previousBlock, toBlock);
+  if (!Number.isInteger(fromBlock) || !Number.isInteger(toBlock)) throw new Error('Stock Yield: block lookup failed');
+  if (options.chain === CHAIN.ROBINHOOD) await fetchV1(options, dailyNotionalVolume, dailyPremiumVolume, fromBlock, toBlock);
+  await fetchV2(options, dailyNotionalVolume, dailyPremiumVolume, fromBlock, toBlock);
   return { dailyNotionalVolume, dailyPremiumVolume };
 }
 
