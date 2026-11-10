@@ -3,6 +3,10 @@
 // Uniswap v4, launchpad pools...) and routes each trade through the best one. Every trade has
 // HYPE on one side; its Swapped event gives that HYPE amount, which is the trade's volume.
 // Contracts are verified on Kinetiq's explorer: https://elysium.kinetiq.xyz
+// Address source: the current contracts are in Homer's contract list (https://homer.finance/docs,
+// Contracts section; JSON at https://homer.finance/api/contracts). The others are the earlier versions
+// they replaced, deployed by the same owner (0x206e52b4b2ef813a1b34793091c9b87761e775f4); each one
+// can be checked at https://elysium.kinetiq.xyz/address/<address>.
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
