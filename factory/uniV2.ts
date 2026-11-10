@@ -973,6 +973,12 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.ANCIENT8]: { factory: '0xAE12C5930881c53715B369ceC7606B70d8EB229f', start: '2023-08-12', customLogic: volumeOnly },
     [CHAIN.BITKUB]: { factory: '0xf7eEe3A8363731C611A24CdDfCBcaDE9C153Cfe8', start: '2023-08-12', customLogic: volumeOnly },
   },
+  "diamond-fi": {
+    // Factory creates V2-style pairs; the 0.3% swap fee's protocol share varies by pair and feeTo:
+    // https://www.kubscan.com/address/0x6E906Dc4749642a456907deCB323A0065dC6F26E?tab=contract
+    // Factory deployed 2021-10-23: https://www.kubscan.com/tx/0x1ca9e708fde620d2f08884d944a7f3b4a95c94c8907ecfdeb5ce64645353f041
+    [CHAIN.BITKUB]: { factory: '0x6E906Dc4749642a456907deCB323A0065dC6F26E', start: '2021-10-23', customLogic: volumeOnly },
+  },
   "fvm-exchange": {
     [CHAIN.FANTOM]: { factory: '0x472f3C3c9608fe0aE8d702f3f8A2d12c410C881A', blacklistTokens: ['0xB8a32897016C1B2ee0797090162eAFe58f032795'] },
   },
