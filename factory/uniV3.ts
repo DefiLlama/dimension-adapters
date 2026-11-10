@@ -3,6 +3,8 @@ import { getUniV3LogAdapter, UniGetRevenueRatioProps, uniV3Exports } from "../he
 import { createFactoryExports } from "./registry";
 import { FetchOptions } from "../adapters/types";
 import { getLogsSplitAtCap } from "../helpers/logs";
+import { getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
+import { ethers } from "ethers";
 
 const algebraV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)'
 const algebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
@@ -67,6 +69,8 @@ const fluxionWashTraders = [
   '0xbb94992da15920ae8d7a028e142308617b490485', '0xca100f5b7425eb3f2448b57c4b6aaa9a3185ab34', '0xde588a6f38c92d0b2dcea7ea4daa720415a7321a',
   '0xe733f8a1b67401dd7c0ca4e95f81b9a0e765c88f', '0xf4fa88b20e2adc5e25fe57865f229424f27216fc',
 ]
+
+const ALIENBASE_V3_FACTORY = '0x0Fd83557b2be93617c9C1C1B6fd549401C74558C'
 
 // https://docs.roninchain.com/apps/katana/swap-tokens
 const katanaV3RevenueRatio = ({ poolFeeTier }: UniGetRevenueRatioProps) => {
@@ -305,7 +309,11 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.IMX]: { factory: '0x464Ea59a3AA5Ea35e961Ff8aA4CCC7183eAA197e' },
   },
   "alienbase-v3": {
-    [CHAIN.BASE]: { factory: '0x0Fd83557b2be93617c9C1C1B6fd549401C74558C' },
+    // stock uniV3 pools, fee tiers 0.01% to 1%. Volume sits in the 0.01%/0.02% pools (WETH/cbBTC, WETH/USDC, USDC/USDbC, EURC),
+    // so fees/volume of ~2.6 bps is expected. slot0().feeProtocol = 0 on every pool (ALB/WETH 0.3% checked 2026-11-10) => 100% to LPs
+    // today; the factory owner 0x4aB9070B7680f802cBf8322e597a4409902171e5 can switch it on, so it is read per pool.
+    // fetch is wrapped below to add the Bunni vault fee share paid to esALB/govALB stakers
+    [CHAIN.BASE]: { factory: ALIENBASE_V3_FACTORY, userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
   },
   "apertureSwap": {
     [CHAIN.MANTA]: { factory: '0x5bd1F6735B80e58aAC88B8A94836854d3068a13a' },
@@ -1068,6 +1076,15 @@ const methodologyMap: Record<string, any> = {
     Revenue: "Treasury receives 20% of fees each swap.",
     Fees: "User pays fees on each swap based pool tier: 0.01%, 0.05%, 0.1%, 0.20%, 0.50%, and 1%."
   },
+  "alienbase-v3": {
+    Volume: "Swap volume from all Alien Base V3 pools deployed by the V3 factory on Base, including the liquidity managed by Alien Base vaults.",
+    Fees: "Swap fees paid by traders at each pool's fee tier (0.01% to 1%); most volume trades in the 0.01% and 0.02% pools, so fees are about 0.026% of volume.",
+    UserFees: "Swap fees paid by traders at each pool's fee tier.",
+    Revenue: "The protocol's share of pool swap fees read from slot0.feeProtocol (0% on every pool so far), plus the half of Alien Base vault swap fees skimmed for esALB and govALB stakers.",
+    ProtocolRevenue: "The protocol's share of pool swap fees read from slot0.feeProtocol, sent to the treasury (0% on every pool so far).",
+    HoldersRevenue: "Half of the swap fees earned by Alien Base vault positions, skimmed at each vault compound, converted to WETH and paid to esALB and govALB stakers.",
+    SupplySideRevenue: "Swap fees kept by liquidity providers, including the vault depositors' half of vault fees.",
+  },
   "baseswap-v3": {
     Fees: "Swap fees paid by traders at each pool's fee tier.",
     UserFees: "Swap fees paid by traders at each pool's fee tier.",
@@ -1307,6 +1324,95 @@ protocols['hybra-v3'].adapter[CHAIN.ROBINHOOD].fetch = async (options: FetchOpti
     for (const key of Object.keys(result)) if (values[key]) result[key].add(values[key])
   }
   return result
+}
+
+// Alien Base vaults are Bunni hubs holding positions in Alien Base V3 pools, so their swap fees are already in the pool fees.
+// Every ~56h the ops key 0xDD3705A1c50Fc84B6d31394aA8F4D568B98a8AD5 compounds each vault: on the new hub through the BunniHubController
+// 0x4BCC584979817219585b6a62A5bb6C15C1fa0F38, which sets protocolFee to 0.5e18, calls compoundSkim and resets it to 1e18
+// (tx 0x044837399d938ab322891a92eda95530f10df5366ba6f0f6b0f1bdfc652663db); the old hub has protocolFee 0.5e18 and uses compound().
+// PayProtocolFee is the 50% of the re-addable fees taken out of the vault. The part compoundSkim cannot re-add at the position's
+// ratio also stays in the hub; its destination is not verifiable on chain, so it is not counted. The hubs keep the skim until
+// sweepTokens, then it is swapped to WETH and paid to esALB/govALB stakers (WETH stream of the staking contract
+// 0x28a3c9852383eef436a874b74d2acf23047e85cf, earlier the WETH rewarders of the locked-esALB farm). Those payouts are not used
+// here: they are manual, pooled with other fee sources and land days later.
+const ALIENBASE_BUNNI_HUBS = [
+  '0xDC53487e2a6eF468260Bc938F645f84caaccAC6F', // BunniHub (original)
+  '0xd1Fac4F51457E4a6D35BdC7311718e5D6de92BB9', // BunniHubA, owned by the BunniHubController
+]
+const ALIENBASE_VAULT_FEES = 'Vault Fees To esALB Stakers'
+const v3CollectEvent = new ethers.Interface(['event Collect(address indexed owner, address recipient, int24 indexed tickLower, int24 indexed tickUpper, uint128 amount0, uint128 amount1)'])
+const v3CollectTopic = v3CollectEvent.getEvent('Collect')!.topicHash
+
+const getAlienbaseBunniSkims = async (options: FetchOptions) => {
+  const dailySkims = options.createBalances()
+  const skims = await options.getLogs({ targets: ALIENBASE_BUNNI_HUBS, eventAbi: 'event PayProtocolFee(uint256 amount0, uint256 amount1)', onlyArgs: false })
+  if (!skims.length) return dailySkims
+
+  // PayProtocolFee carries no pool: the vault's pool is the one whose Collect (owner = hub) the hub emitted just before, in the same tx
+  const txHashes = [...new Set(skims.map((skim: any) => skim.transactionHash.toLowerCase()))]
+  const receipts = await getTxReceiptsWithRetry(options.chain, txHashes)
+  const receiptByTx: Record<string, any> = {}
+  txHashes.forEach((hash, i) => {
+    if (!receipts[i]) throw new Error(`alienbase-v3: missing receipt for vault compound tx ${hash}`)
+    receiptByTx[hash] = receipts[i]
+  })
+  const skimPools = skims.map((skim: any) => {
+    const hub = skim.address.toLowerCase()
+    const skimIndex = Number(skim.logIndex ?? skim.index)
+    const collect = receiptByTx[skim.transactionHash.toLowerCase()].logs
+      .filter((log: any) => log.topics?.[0] === v3CollectTopic && Number(log.logIndex ?? log.index) < skimIndex
+        && v3CollectEvent.parseLog(log)!.args.owner.toLowerCase() === hub)
+      .sort((a: any, b: any) => Number(b.logIndex ?? b.index) - Number(a.logIndex ?? a.index))[0]
+    if (!collect) throw new Error(`alienbase-v3: no pool Collect before PayProtocolFee in tx ${skim.transactionHash}`)
+    return collect.address.toLowerCase()
+  })
+  const pools = [...new Set(skimPools)]
+  const [factories, token0s, token1s] = await Promise.all(['address:factory', 'address:token0', 'address:token1'].map(abi => options.api.multiCall({ abi, calls: pools })))
+  skims.forEach((skim: any, i: number) => {
+    const p = pools.indexOf(skimPools[i])
+    // only vaults on Alien Base V3 pools: their fees are the ones counted in this adapter
+    if (factories[p].toLowerCase() !== ALIENBASE_V3_FACTORY.toLowerCase()) return
+    dailySkims.add(token0s[p], skim.args.amount0, ALIENBASE_VAULT_FEES)
+    dailySkims.add(token1s[p], skim.args.amount1, ALIENBASE_VAULT_FEES)
+  })
+  return dailySkims
+}
+
+protocols['alienbase-v3'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': "Swap fees paid by traders at each pool's fee tier, vault positions included." },
+  UserFees: { 'Trading fees': "Swap fees paid by traders at each pool's fee tier." },
+  Revenue: {
+    'Protocol fees': "Per-pool protocol share of swap fees from slot0.feeProtocol, 0% on every pool so far.",
+    [ALIENBASE_VAULT_FEES]: "50% of vault swap fees, skimmed by the vault hubs at each compound (PayProtocolFee) for esALB/govALB stakers.",
+  },
+  ProtocolRevenue: { 'Protocol fees': "Per-pool protocol share of swap fees from slot0.feeProtocol, sent to the treasury." },
+  HoldersRevenue: { [ALIENBASE_VAULT_FEES]: "50% of vault swap fees, skimmed at each compound, converted to WETH and paid to esALB/govALB stakers." },
+  SupplySideRevenue: { 'LP fees': "Swap fees left to liquidity providers after the protocol share and the vault skim." },
+}
+// the vault skim is realised every ~56h on fees accrued since the last compound, so the hour (or day) of a compound can
+// take more out of the LP share than that window's swap fees
+protocols['alienbase-v3'].allowNegativeValue = true
+protocols['alienbase-v3'].adapter[CHAIN.BASE].fetch = async (options: FetchOptions) => {
+  const result = await getUniV3LogAdapter(configs['alienbase-v3'][CHAIN.BASE])(options)
+  const fromHelper = (value: any) => {
+    const balances = options.createBalances()
+    if (value) balances.add(value)
+    return balances
+  }
+  const dailySkims = await getAlienbaseBunniSkims(options)
+  const dailyRevenue = fromHelper(result.dailyRevenue)
+  dailyRevenue.add(dailySkims)
+  const dailySupplySideRevenue = fromHelper(result.dailySupplySideRevenue)
+  dailySupplySideRevenue.subtract(dailySkims, 'LP fees')
+  return {
+    dailyVolume: result.dailyVolume,
+    dailyFees: result.dailyFees,
+    dailyUserFees: result.dailyUserFees,
+    dailyRevenue,
+    dailyProtocolRevenue: fromHelper(result.dailyProtocolRevenue),
+    dailyHoldersRevenue: dailySkims,
+    dailySupplySideRevenue,
+  }
 }
 
 protocols['somnex-v3'].breakdownMethodology = {
