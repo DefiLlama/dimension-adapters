@@ -19,15 +19,18 @@ import { METRIC } from "../helpers/metrics";
 // The pools sit in the canonical Uniswap v4 PoolManager, so dexs/uniswap-v4 can count the same swaps:
 // hence doublecounted.
 //
-// Token holders: Helios pays HYPE to $HELIOS stakers (HeliosStaking.RewardAdded) and buys $HELIOS back
-// and burns it. Both are funded from the creator fee of the $HELIOS pool on Boxa (another protocol's
-// pool), not from the fees above, so they are holders revenue only. A buyback is counted when it is
-// made, as the native HYPE spent on it: the buyback wallet buys through KyberSwap's router, whose
-// Swapped event carries the amount spent, so no $HELIOS price is needed. The $HELIOS bought is burned
-// afterwards and is not counted a second time. That creator fee is a tax on trading the token in
-// Boxa's pool, not a fee of a Helios pool, so it is left out of fees and revenue (Boxa's pool fees are
-// Boxa's to report) and only what reaches $HELIOS holders is counted, under holders revenue, as the
-// repository's guidelines ask for token taxes.
+// Helios also earns the creator fee of the $HELIOS token's own market, the pool it was launched in on
+// Boxa (a Uniswap v4 pool with Boxa's hook): the hook splits each swap's fee between Boxa and the
+// token's creator and logs it as FeeTaken. Only the creator's part, which is Helios', is counted here;
+// Boxa's part is Boxa's revenue. Helios' stated policy for it (https://heliosliq.app/docs, Fees): half
+// buys $HELIOS back to burn it, half goes to the treasury, and a tenth of the treasury half is paid to
+// $HELIOS stakers.
+//
+// Token holders: what reaches them is measured where it happens, not derived from that split. Staker
+// payments are HeliosStaking's RewardAdded events. A buyback is counted when it is made, as the native
+// HYPE spent on it: the buyback wallet buys through KyberSwap's router, whose Swapped event carries the
+// amount spent, so no $HELIOS price is needed. The $HELIOS bought is burned afterwards and is not
+// counted a second time.
 // Contracts: https://heliosliq.app/#contracts (explorer: https://elysium.kinetiq.xyz)
 
 const POOL_MANAGER = "0xE2e105d3F7209A9DA11f83cCf3E7398a753823F1"; // Uniswap v4 PoolManager on Elysium
@@ -45,6 +48,13 @@ const STAKING = "0x4f08ca6FEe7b5121Abaeb1006647F8df98cD7DBE";
 const BUYBACK_WALLET = "0x8176632892683e306dbc25636985cac75540d374";
 const KYBER_ROUTER = "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5";
 const KYBER_NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"; // how the router names the native token
+// Boxa's fee hook and the $HELIOS pool on it (currency0 native HYPE, currency1 HELIOS; Initialize log in
+// the token's launch transaction, block 3402772). The pool's fee is taken in native HYPE.
+const BOXA_HOOK = "0x10f11002b148be522005f9b5d666bef339392aec";
+const HELIOS_BOXA_POOL = "0x401353099cac6802708b83a50d7980bda7d5f585d5cfdef1deb49c1fd0f6b8e1";
+// The treasury's part of the creator fee: half of it, less the tenth of that half paid to stakers
+// (https://heliosliq.app/docs, Fees). The holders' part is measured from the payments themselves.
+const CREATOR_FEE_TREASURY_PERCENT = 45n;
 
 // Priced majors on Elysium: a swap is valued on this leg, so a thin token can't set its value.
 // Addresses as in the `elysium` entry of DefiLlama-Adapters' projects/helper/coreAssets.json
@@ -66,11 +76,17 @@ const PROTOCOL_FEE_TAKEN = "event ProtocolFeeTaken(bytes32 indexed id, address i
 const REWARD_ADDED = "event RewardAdded(address indexed from, uint256 amount, uint256 rewardRate, uint256 periodFinish)";
 const KYBER_SWAPPED = "event Swapped(address sender, address srcToken, address dstToken, address dstReceiver, uint256 spentAmount, uint256 returnAmount)";
 const SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f"; // v4 Swap topic0
+// Boxa hook: the fee of one swap and how it was split (the last two parts are zero for this pool)
+const BOXA_FEE_TAKEN = "event FeeTaken(bytes32 indexed poolId, uint256 fee, uint256 platformFee, uint256 creatorFee, uint256 buybackFee, uint256 holdersFee)";
+const BOXA_FEE_TAKEN_TOPIC = "0x72c3c882bcda09de4c633a8de6bf00817a8a1d512ba53bdbdb62bd46c5cf6b32";
 const POOLS_PER_CALL = 100;
 
 const PROTOCOL_SWAP_FEE = "Protocol Swap Fees";
 const SWAP_FEES_TO_LPS = "Swap Fees To LPs";
 const PROTOCOL_SWAP_FEE_TO_TREASURY = "Protocol Swap Fees To Treasury";
+const CREATOR_FEES = "HELIOS Creator Fees";
+const CREATOR_FEES_TO_HELIOS = "HELIOS Creator Fees To Helios";
+const CREATOR_FEES_TO_TREASURY = "HELIOS Creator Fees To Treasury";
 const STAKING_DISTRIBUTIONS = "HYPE Paid To HELIOS Stakers";
 
 const FEE_UNITS = 1_000_000n; // v4 fees are in hundredths of a bip
@@ -85,6 +101,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
   // From the hook's first block, not the window: a pool launched earlier still trades today.
@@ -150,7 +167,17 @@ const fetch = async (options: FetchOptions) => {
       }
       dailyFees.add(token, amount, PROTOCOL_SWAP_FEE);
       dailyRevenue.add(token, amount, PROTOCOL_SWAP_FEE_TO_TREASURY);
+      dailyProtocolRevenue.add(token, amount, PROTOCOL_SWAP_FEE_TO_TREASURY);
     }
+  }
+
+  // The creator's part of every swap fee in the $HELIOS pool on Boxa, in native HYPE.
+  const creatorFees = await options.getLogs({ target: BOXA_HOOK, eventAbi: BOXA_FEE_TAKEN, topics: [BOXA_FEE_TAKEN_TOPIC, HELIOS_BOXA_POOL] as any });
+  for (const log of creatorFees) {
+    const creatorFee = BigInt(log.creatorFee);
+    dailyFees.addGasToken(creatorFee, CREATOR_FEES);
+    dailyRevenue.addGasToken(creatorFee, CREATOR_FEES_TO_HELIOS);
+    dailyProtocolRevenue.addGasToken((creatorFee * CREATOR_FEE_TREASURY_PERCENT) / 100n, CREATOR_FEES_TO_TREASURY);
   }
 
   // HYPE paid to $HELIOS stakers.
@@ -170,33 +197,36 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailySupplySideRevenue,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue.clone(),
+    dailyProtocolRevenue,
     dailyHoldersRevenue,
   };
 };
 
 const methodology = {
   Volume: "Swap volume in Helios DLMM and DAMM pools (the Uniswap v4 pools that carry the Helios fee hook), counted once per trade as what the trader paid in, on the HYPE or stablecoin side of the pool.",
-  Fees: "Fees paid by traders on swaps in Helios DLMM and DAMM pools: each pool's LP fee, which the Helios hook sets per swap, plus Helios' 0.1% protocol fee.",
+  Fees: "Fees paid by traders on swaps in Helios DLMM and DAMM pools (each pool's LP fee, which the Helios hook sets per swap, plus Helios' 0.1% protocol fee), and since 2026-11-09 the creator fee Helios earns on trades of $HELIOS in the token's pool on Boxa.",
   SupplySideRevenue: "The LP fee of every swap in Helios DLMM and DAMM pools, which stays in the pool for its liquidity providers.",
-  Revenue: "Helios' 0.1% protocol fee on every swap in its DLMM and DAMM pools, taken by the fee hook.",
-  ProtocolRevenue: "Helios' 0.1% protocol fee on every swap in its DLMM and DAMM pools, taken by the fee hook for the Helios treasury.",
-  HoldersRevenue: "HYPE that Helios pays to $HELIOS stakers and HYPE that Helios spends buying $HELIOS back from the market to burn it, since the token's relaunch on 2026-11-09. Both are funded from the creator fee of the $HELIOS pool on Boxa, not from Helios pool fees.",
+  Revenue: "Helios' 0.1% protocol fee on every swap in its DLMM and DAMM pools, taken by the fee hook, and since 2026-11-09 the creator fee Helios earns on trades of $HELIOS in the token's pool on Boxa.",
+  ProtocolRevenue: "Helios' 0.1% protocol fee on every swap in its DLMM and DAMM pools, taken by the fee hook for the Helios treasury, and the treasury's 45% of the creator fee Helios earns on trades of $HELIOS in the token's pool on Boxa.",
+  HoldersRevenue: "HYPE that Helios pays to $HELIOS stakers and HYPE that Helios spends buying $HELIOS back from the market to burn it, since the token's relaunch on 2026-11-09. Both are paid out of the creator fee Helios earns on trades of $HELIOS in the token's pool on Boxa (half of it for buybacks, 5% for stakers), and are counted when they are paid.",
 };
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.SWAP_FEES]: "The LP fee of each swap in a Helios DLMM or DAMM pool, at the rate the hook set for that swap (carried in the Uniswap v4 Swap event).",
     [PROTOCOL_SWAP_FEE]: "Helios' 0.1% protocol fee on each swap in a Helios DLMM or DAMM pool, from the hook's ProtocolFeeTaken events.",
+    [CREATOR_FEES]: "The token creator's part of each swap fee in the $HELIOS pool on Boxa, which Helios receives as the token's creator, from the Boxa hook's FeeTaken events. Boxa's own part of that fee is not counted.",
   },
   SupplySideRevenue: {
     [SWAP_FEES_TO_LPS]: "All LP fees, which stay in the pools for their liquidity providers.",
   },
   Revenue: {
     [PROTOCOL_SWAP_FEE_TO_TREASURY]: "All of Helios' 0.1% protocol fee, held by the hook for the Helios treasury.",
+    [CREATOR_FEES_TO_HELIOS]: "All of the creator fee from the $HELIOS pool on Boxa. Helios uses half to buy $HELIOS back and burn it, keeps 45% in the treasury and pays 5% to $HELIOS stakers.",
   },
   ProtocolRevenue: {
     [PROTOCOL_SWAP_FEE_TO_TREASURY]: "All of Helios' 0.1% protocol fee, held by the hook for the Helios treasury.",
+    [CREATOR_FEES_TO_TREASURY]: "The treasury's 45% of the creator fee from the $HELIOS pool on Boxa: the half not used for buybacks, less the tenth of it paid to stakers.",
   },
   HoldersRevenue: {
     [STAKING_DISTRIBUTIONS]: "Native HYPE sent to the HeliosStaking contract for $HELIOS stakers, counted when it is added (RewardAdded).",
