@@ -81,6 +81,12 @@ const chainConfig: MetricFactoriesChainConfig = {
   [CHAIN.AVAX]: { start: "2026-09-15", factories: [current(95361488)] }, // https://snowscan.xyz/block/95361488
   [CHAIN.MONAD]: { start: "2026-09-15", factories: [current(105093301)] }, // https://monadscan.com/block/105093301
   [CHAIN.MEGAETH]: { start: "2026-09-15", factories: [current(26696516)] }, // https://mega.etherscan.io/block/26696516
+  // Elysium (Kinetiq's Arbitrum Orbit chain, chain id 99901, explorer
+  // https://elysium.kinetiq.xyz/explorer): the factory was deployed on 2026-10-29
+  // and 49753 is the first block where eth_getCode(FACTORY) is non-empty (binary
+  // search over archive state). The first pool was created on 2026-11-05; 13 pools
+  // per FACTORY.nextPoolIdx() on 2026-11-10.
+  [CHAIN.ELYSIUM]: { start: "2026-10-29", factories: [current(49753)] },
 };
 
 const adapter = getMetricFactoriesAdapter(chainConfig);
