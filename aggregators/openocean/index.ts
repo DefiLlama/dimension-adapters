@@ -68,6 +68,7 @@ const chainConfig: Record<string, { chainCode: string; start: string }> = {
   [CHAIN.TAC]: { chainCode: "tac", start: "2026-01-01" },
   [CHAIN.ONTOLOGY_EVM]: { chainCode: "ont", start: "2026-01-01" },
   [CHAIN.ARC]: { chainCode: "arc", start: "2026-09-17" },
+  [CHAIN.ELYSIUM]: { chainCode: "elysium", start: "2026-11-01" },
 };
 
 const fetch = async (options: FetchOptions) => {
