@@ -162,30 +162,30 @@ const adapter: SimpleAdapter = {
   // First live Jitter market was created on 2026-10-18; event type origins remain unchanged in Core v3.
   adapter: { [CHAIN.SUI]: { start: '2026-10-18', fetch } },
   methodology: {
-    Fees: 'AMM swap fees, gross yield recognized in on-chain MarketInterestCollectedEvent checkpoints, and actual maker/taker fees accrued by the Jitter Points USDC orderbook. No deposits, treasury collections, donations, returned-input dust, token incentives or other projects fees.',
-    Revenue: 'Actual swap reserve_fee, checkpointed treasury_interest_raw, and Jitter Points maker/taker fees. Not treasury-wallet inflows, prepaid fee reserves or gross trade proceeds.',
-    ProtocolRevenue: 'All recognized Jitter revenue accrues to the protocol treasury; no governance-token-holder distribution is assumed.',
-    SupplySideRevenue: 'Swap fees minus reserve_fee retained for LPs, plus user_interest_raw accrued to YT holders.',
+    Fees: 'Swap fees paid by traders in Jitter markets, yield earned by the assets deposited in Jitter markets, and trading fees on the Jitter Points (JITTER_POINT/USDC) orderbook.',
+    Revenue: 'The protocol share of swap fees and of deposited-asset yield, plus all trading fees on the Jitter Points orderbook.',
+    ProtocolRevenue: 'The protocol share of swap fees and of deposited-asset yield, plus all trading fees on the Jitter Points orderbook, all kept by the Jitter treasury.',
+    SupplySideRevenue: 'Swap fees paid to liquidity providers and yield paid to YT holders, after the protocol share.',
   },
   breakdownMethodology: {
     Fees: {
-      'AMM Swap Fees': 'MarketSwapEvent.fee, converted from SY to underlying using the price consumed before the swap in the same transaction.',
-      'Checkpointed Yield': 'Q64 user_interest_raw plus treasury_interest_raw, valued using that checkpoint py_index_raw. Lazy yield is recognized when checkpointed, not when later claimed; not an interpolated calendar-day yield series.',
-      'Point Trading Fees': 'OrderbookCoinQuoteFeeAccrued.fee_amount for the verified Jitter Points book only. Each maker/taker fee is counted once when accrued; not when fee reserves are deposited or fees collected.',
+      'AMM Swap Fees': 'Swap fees paid by traders in Jitter markets, valued in the underlying asset at the price used for each swap.',
+      'Checkpointed Yield': 'Yield earned by the Scallop, Haedal and Ember yield-bearing assets held in Jitter markets, counted when a market checkpoints accrued interest, so daily amounts can be uneven.',
+      'Point Trading Fees': 'Maker and taker fees charged on trades in the Jitter Points (JITTER_POINT/USDC) orderbook, counted when charged; other projects orderbooks on the same contracts are excluded.',
     },
     Revenue: {
-      'AMM Swap Fees To Treasury': 'MarketSwapEvent.reserve_fee; uses the actual event split, not a hardcoded current fee rate.',
-      'Checkpointed Yield To Treasury': 'Q64 treasury_interest_raw at its on-chain accrual checkpoint, not collection time.',
-      'Point Trading Fees To Treasury': 'All actual fee_amount accrued to this Jitter Points fee vault; no LP rebate is recorded by these events.',
+      'AMM Swap Fees To Treasury': 'The protocol share of each swap fee, as recorded on-chain for that swap.',
+      'Checkpointed Yield To Treasury': 'The protocol share of deposited-asset yield, counted at each interest checkpoint.',
+      'Point Trading Fees To Treasury': 'All Jitter Points orderbook trading fees, which accrue to the Jitter fee vault.',
     },
     ProtocolRevenue: {
-      'AMM Swap Fees To Treasury': 'The protocol reserve share of swap fees.',
-      'Checkpointed Yield To Treasury': 'The protocol share of checkpointed yield.',
-      'Point Trading Fees To Treasury': 'Jitter Points fees accrue to its protocol-controlled fee vault.',
+      'AMM Swap Fees To Treasury': 'The protocol share of each swap fee, kept by the Jitter treasury.',
+      'Checkpointed Yield To Treasury': 'The protocol share of deposited-asset yield, kept by the Jitter treasury.',
+      'Point Trading Fees To Treasury': 'All Jitter Points orderbook trading fees, kept by the Jitter fee vault.',
     },
     SupplySideRevenue: {
-      'Swap Fees To LPs': 'MarketSwapEvent.fee minus reserve_fee.',
-      'Yield To YT Holders': 'Q64 user_interest_raw at the interest checkpoint.',
+      'Swap Fees To LPs': 'Swap fees left to liquidity providers after the protocol share.',
+      'Yield To YT Holders': 'Deposited-asset yield paid to YT holders after the protocol share.',
     },
   },
 };
