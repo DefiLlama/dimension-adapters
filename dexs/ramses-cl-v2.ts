@@ -41,14 +41,11 @@ const chainConfig: Record<string, ChainConfig> = {
   },
 };
 
-const productConfig: Record<RamsesProduct, { hourData: string; tokenVolumes: string[]; bribePool: string; feeEvents: { root: string; weight: string } }> = {
+const productConfig: Record<RamsesProduct, { hourData: string; tokenVolumes: string[]; bribePool: string }> = {
   // tokenVolumes are the hour's swap volume in each pool token, set whether or not the subgraph could price the swap.
-  // feeEvents weight each pool's fees inside the hour that contains holderTreasuryFrom. Swap volume is
-  // proportional to fees while a CL or Legacy pool's fee rate is unchanged; DLMM fees are dynamic, so its
-  // fee events are used.
-  cl: { hourData: "ClPoolHourData", tokenVolumes: ["volumeToken0", "volumeToken1"], bribePool: "clPool", feeEvents: { root: "ClSwap", weight: "amountUSD" } },
-  legacy: { hourData: "LegacyPoolHourData", tokenVolumes: ["volumeToken0", "volumeToken1"], bribePool: "legacyPool", feeEvents: { root: "LegacySwap", weight: "amountUSD" } },
-  dlmm: { hourData: "DLMMPoolHourData", tokenVolumes: ["volumeTokenX", "volumeTokenY"], bribePool: "dlmmPool", feeEvents: { root: "DLMMFeeEvent", weight: "totalFeesUSD" } },
+  cl: { hourData: "ClPoolHourData", tokenVolumes: ["volumeToken0", "volumeToken1"], bribePool: "clPool" },
+  legacy: { hourData: "LegacyPoolHourData", tokenVolumes: ["volumeToken0", "volumeToken1"], bribePool: "legacyPool" },
+  dlmm: { hourData: "DLMMPoolHourData", tokenVolumes: ["volumeTokenX", "volumeTokenY"], bribePool: "dlmmPool" },
 };
 
 const HOUR = 3600;
@@ -97,26 +94,6 @@ async function assertIndexedThrough(chain: ChainConfig, endTimestamp: number) {
     throw new Error(`Ramses ${chain.path} indexer is at ${meta?.progressBlockTime}, before window end ${endTimestamp}`);
 }
 
-// Fraction of each pool's fees in [hourStart, hourStart + 1h) that accrued at or after `from`.
-async function shareOfHourFeesFrom(chain: ChainConfig, product: RamsesProduct, hourStart: number, from: number) {
-  const { root, weight } = productConfig[product].feeEvents;
-  // Timestamps are fixed-width decimal strings, so string comparison orders them numerically.
-  const events = await fetchAll(chain, root, `timestamp: { _gte: "${hourStart}", _lt: "${hourStart + HOUR}" }`, `pool timestamp ${weight}`);
-  const totals = new Map<string, { all: number; after: number }>();
-  for (const event of events) {
-    const total = totals.get(event.pool) ?? { all: 0, after: 0 };
-    const amount = parseAmount(event, weight);
-    total.all += amount;
-    if (Number(event.timestamp) >= from) total.after += amount;
-    totals.set(event.pool, total);
-  }
-  return (pool: string) => {
-    const total = totals.get(pool);
-    if (!total?.all) throw new Error(`No ${root} rows to split pool ${pool} fees in hour ${hourStart}`);
-    return total.after / total.all;
-  };
-}
-
 async function fetchBribesUSD(chain: ChainConfig, product: RamsesProduct, options: FetchOptions) {
   const bribes = await fetchAll(chain, "VoteBribe",
     `${productConfig[product].bribePool}: { _is_null: false }, timestamp: { _gte: "${options.startTimestamp}", _lt: "${options.endTimestamp}" }`,
@@ -148,12 +125,9 @@ async function fetchProduct(options: FetchOptions, product: RamsesProduct) {
   const { hourData, tokenVolumes } = productConfig[product];
   const hours = await fetchAll(chain, hourData,
     `startOfHour: { _gte: ${startTimestamp}, _lt: ${endTimestamp} }`,
-    `pool startOfHour volumeUSD ${tokenVolumes.join(" ")} feesUSD voterFeesUSD treasuryFeesUSD`);
+    `startOfHour volumeUSD ${tokenVolumes.join(" ")} feesUSD voterFeesUSD treasuryFeesUSD`);
 
   const holderFrom = chain.holderTreasuryFrom;
-  const transitionHour = holderFrom === undefined ? undefined : Math.floor(holderFrom / HOUR) * HOUR;
-  let holderShareInTransitionHour: ((pool: string) => number) | undefined;
-
   let hasTokenVolume = false;
   let volume = 0, fees = 0, voterFees = 0, holderTreasuryFees = 0, protocolTreasuryFees = 0, lpFees = 0;
   for (const row of hours) {
@@ -165,12 +139,9 @@ async function fetchProduct(options: FetchOptions, product: RamsesProduct) {
     if (rowLpFees < -PARTITION_TOLERANCE * Math.max(rowFees, 1))
       throw new Error(`Ramses row ${row.id} voter + treasury fees exceed total fees`);
 
-    let holderShare = 0;
-    if (holderFrom !== undefined && row.startOfHour >= holderFrom) holderShare = 1;
-    else if (row.startOfHour === transitionHour && rowTreasuryFees > 0) {
-      holderShareInTransitionHour ??= await shareOfHourFeesFrom(chain, product, transitionHour!, holderFrom!);
-      holderShare = holderShareInTransitionHour(row.pool);
-    }
+    // Hourly buckets do not split fees by recipient, so the hour containing holderTreasuryFrom is prorated by time;
+    // hours wholly before it give 0 and hours wholly after give 1.
+    const holderShare = holderFrom === undefined ? 0 : Math.min(1, Math.max(0, (row.startOfHour + HOUR - holderFrom) / HOUR));
 
     volume += parseAmount(row, "volumeUSD");
     fees += rowFees;
@@ -242,7 +213,7 @@ const breakdownMethodology = {
     "Swap Fees to protocol": "Treasury share of swap fees accrued while the recipient was not a Ramses holder module.",
   },
   HoldersRevenue: {
-    "Swap Fees to holders": "Voter share of swap fees, plus the treasury share accrued while routed to the Sarcophagus or Buyback Module. In the hour of the Robinhood routing change, each pool's treasury share is split by the fees accrued before and after the change.",
+    "Swap Fees to holders": "Voter share of swap fees, plus the treasury share accrued while routed to the Sarcophagus or Buyback Module. In the hour of the Robinhood routing change, the treasury share is split by the time before and after the change.",
     "Bribes to holders": "External bribes paid to voters.",
   },
   SupplySideRevenue: {
