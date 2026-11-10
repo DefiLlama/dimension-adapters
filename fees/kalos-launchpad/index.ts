@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { KALOS_SPLITTER } from "../../aggregators/kalos-trade";
+import { eventTopic, KALOS_REFERRAL_NOTE, KALOS_SPLITTER, padAddress } from "../../helpers/kalos";
 
 // Kalos Launchpad (https://www.kalos.fun) on Kinetiq Elysium: creator NFT drops on OpenSea's SeaDrop contracts.
 // Every drop launched on Kalos (collections deployed by the Kalos launcher 0xcA105642B3890B42927F50c1bEf3F6288448421c or
@@ -18,13 +18,19 @@ const LABELS = {
   MINT_PROTOCOL: 'NFT Mint Fees To Protocol',
 };
 
+/** Primary mint volume and the Kalos mint fee of drops launched on Kalos, minted in the window */
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const mints = await options.getLogs({ target: KALOS_SEADROP, eventAbi: SeaDropMintEvent });
+  // feeRecipient is indexed: the node returns only mints that pay the Kalos fee (a drop with another fee recipient is not a Kalos drop)
+  const mints = await options.getLogs({
+    target: KALOS_SEADROP,
+    eventAbi: SeaDropMintEvent,
+    topics: [eventTopic(SeaDropMintEvent), null, null, padAddress(KALOS_SPLITTER)],
+  });
   for (const mint of mints) {
-    // a Kalos drop's fee recipient is the splitter; any other recipient is not a Kalos fee
+    // the same check on the decoded log
     if (String(mint.feeRecipient).toLowerCase() !== KALOS_SPLITTER.toLowerCase()) continue;
     const paid = BigInt(mint.quantityMinted) * BigInt(mint.unitMintPrice);
     const mintFee = paid * BigInt(mint.feeBps) / BASIS_POINTS;
@@ -48,7 +54,7 @@ const adapter: SimpleAdapter = {
     Fees: description,
     UserFees: description,
     Revenue: 'All mint fees are paid to the Kalos revenue splitter.',
-    ProtocolRevenue: 'All mint fees are paid to the Kalos revenue splitter, which pays them to the Kalos vaults and the KalosReferralPool (referral rewards are not deducted).',
+    ProtocolRevenue: 'All mint fees are paid to the Kalos revenue splitter, which pays them to the Kalos vaults and the KalosReferralPool. ' + KALOS_REFERRAL_NOTE,
   },
   breakdownMethodology: {
     Fees: { [LABELS.MINT]: description },

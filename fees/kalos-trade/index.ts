@@ -1,18 +1,19 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { getKalosTradeFees, KALOS_START } from "../../aggregators/kalos-trade";
+import { getKalosTradeFees, KALOS_REFERRAL_NOTE, KALOS_START } from "../../helpers/kalos";
 
 // Kalos Trade (https://www.kalos.fun) on Kinetiq Elysium: the Kalos fee on Trade terminal (Sniper) and Swap panel trades,
 // 1% on the Trade terminal and on launchpad tokens, 0.2% on other Swap panel trades (https://www.kalos.fun/learn/fees).
 // The router executing the trade (0x's Settler, the Ascend router or the Kalos Universal Router) pays it to the Kalos
-// revenue splitter inside the trade transaction; see aggregators/kalos-trade for how those transfers are found.
+// revenue splitter inside the trade transaction; see helpers/kalos.ts for how those transfers are found.
 
 const LABELS = {
   TRADING: METRIC.TRADING_FEES,
   TRADING_PROTOCOL: 'Trading Fees To Protocol',
 };
 
+/** Kalos fees paid to the revenue splitter by the routers of Kalos trades in the window */
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -41,7 +42,7 @@ const adapter: SimpleAdapter = {
     Fees: description,
     UserFees: description,
     Revenue: 'All trade fees are paid to the Kalos revenue splitter.',
-    ProtocolRevenue: 'All trade fees are paid to the Kalos revenue splitter, which pays them to the Kalos vaults and the KalosReferralPool (referral rewards are not deducted).',
+    ProtocolRevenue: 'All trade fees are paid to the Kalos revenue splitter, which pays them to the Kalos vaults and the KalosReferralPool. ' + KALOS_REFERRAL_NOTE,
   },
   breakdownMethodology: {
     Fees: { [LABELS.TRADING]: description },

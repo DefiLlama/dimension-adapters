@@ -18,6 +18,7 @@ const STATUS_LOST = 3;
 
 const LABEL = 'Fate Gross Gaming Revenue';
 
+/** Fate stakes entered in the window, and the house result of attempts settled in the window */
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();

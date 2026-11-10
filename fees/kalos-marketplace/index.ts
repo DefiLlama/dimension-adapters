@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { KALOS_REFERRAL_NOTE } from "../../helpers/kalos";
 
 // Kalos Marketplace (https://www.kalos.fun) on Kinetiq Elysium. KalosMarket (proxy) is TreasureMarketplace b2cc323 with
 // a Kalos patch for native payouts (implementation 0xCa105Aa6264C0816c808a19A8Eec98A789eb8D3F). On every sale it pays
@@ -22,6 +23,7 @@ const LABELS = {
   CREATOR_CREATORS: 'Creator Fees To Creators',
 };
 
+/** NFT sales on KalosMarket in the window, with the KalosMarket fee and the creator fee of each sale */
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
@@ -34,8 +36,11 @@ const fetch = async (options: FetchOptions) => {
   const sales = [...sold, ...accepted];
   if (!sales.length) return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 
-  const fee = BigInt(await options.toApi.call({ target: KALOS_MARKET, abi: 'uint256:fee' }));
-  const feeWithCollectionOwner = BigInt(await options.toApi.call({ target: KALOS_MARKET, abi: 'uint256:feeWithCollectionOwner' }));
+  // fee rates read at the window's end (both 50 bps = 0.5%)
+  const [fee, feeWithCollectionOwner] = (await options.toApi.batchCall([
+    { target: KALOS_MARKET, abi: 'uint256:fee' },
+    { target: KALOS_MARKET, abi: 'uint256:feeWithCollectionOwner' },
+  ])).map((value: any) => BigInt(value));
   const collections = [...new Set(sales.map((sale: any) => String(sale.nftAddress).toLowerCase()))];
   const ownerFees = await options.toApi.multiCall({
     target: KALOS_MARKET,
@@ -72,7 +77,7 @@ const adapter: SimpleAdapter = {
     Fees: 'The 0.5% KalosMarket fee plus the collection creator fee on every sale.',
     UserFees: 'The 0.5% KalosMarket fee plus the collection creator fee on every sale, taken out of the sale price.',
     Revenue: 'The 0.5% KalosMarket fee, paid to the Kalos revenue splitter.',
-    ProtocolRevenue: 'The 0.5% KalosMarket fee, paid to the Kalos revenue splitter, which pays it to the Kalos vaults and the KalosReferralPool (referral rewards are not deducted).',
+    ProtocolRevenue: 'The 0.5% KalosMarket fee, paid to the Kalos revenue splitter, which pays it to the Kalos vaults and the KalosReferralPool. ' + KALOS_REFERRAL_NOTE,
     SupplySideRevenue: 'Creator fees paid to collection creators.',
   },
   breakdownMethodology: {
