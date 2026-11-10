@@ -3,61 +3,29 @@ import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { METRIC } from '../../helpers/metrics';
 
-// Flowlex (https://flowlex.com) opens and manages Uniswap V3 positions for its users. It is non-custodial:
-//  - Manual positions are minted by the LP manager and sent to the user's own smart wallet.
-//  - Auto Vaults are single-owner vaults from the vault factory that hold their position NFTs.
-// Commissions are paid to the treasury by the manager and the vaults. Rates are on-chain (CommissionUpdated events)
-// and have changed over time, so revenue is read from the actual treasury transfers, not from a hardcoded rate.
-const TREASURY = '0x456C2C950Ee2AE7cdd08bBE6ec0D46212D42FCF1'; // manager.treasury() and factory.treasury() on both chains
+// Flowlex (https://flowlex.com) opens and manages Uniswap V3 positions for its users. It is non-custodial: the LP
+// manager mints each position and sends the NFT to the user's own smart wallet. Commissions are paid to the treasury by
+// the manager. Rates are on-chain (CommissionUpdated events) and have changed over time, so revenue is read from the
+// actual treasury transfers, not from a hardcoded rate.
+const TREASURY = '0x456C2C950Ee2AE7cdd08bBE6ec0D46212D42FCF1'; // manager.treasury(), never changed
 
-type ChainConfig = {
-  start: string;
-  manager: string;
-  managerFromBlock: number;
-  managerOpenEvents: string[];
-  vaultFactory?: string;
-  vaultFactoryFromBlock?: number;
-  nfpm: string;
-};
+type ChainConfig = { start: string; manager: string; managerFromBlock: number; nfpm: string };
 
 const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.BASE]: {
     start: '2026-04-09', // manager deploy, block 44474281
     manager: '0xE20435aC8160aa58ADea4A1fc5641bB5aDAED053',
     managerFromBlock: 44474281,
-    managerOpenEvents: ['PositionOpened'],
-    vaultFactory: '0x002dADf330A4746ac16c21f1B0828396AcF132c1',
-    vaultFactoryFromBlock: 46821794,
     nfpm: '0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1', // Uniswap V3 NonfungiblePositionManager
-  },
-  [CHAIN.ROBINHOOD]: {
-    start: '2026-11-04', // manager deploy, block 106211342 (same address as on Base)
-    manager: '0xE20435aC8160aa58ADea4A1fc5641bB5aDAED053',
-    managerFromBlock: 106211342,
-    managerOpenEvents: ['PositionOpened', 'PositionOpenedDual'],
-    nfpm: '0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3',
   },
 };
 
 const managerAbi: Record<string, string> = {
   PoolAdded: 'event PoolAdded(address indexed pool, address token0, address token1, uint24 fee)',
   PositionOpened: 'event PositionOpened(address indexed user, uint256 indexed tokenId, address pool, uint256 depositAmount, uint256 commission)',
-  PositionOpenedDual: 'event PositionOpenedDual(address indexed user, uint256 indexed tokenId, address pool, uint256 amountUsdc, uint256 amountOther, uint256 commissionUsdc, uint256 commissionOther)',
   FeesClaimed: 'event FeesClaimed(address indexed user, uint256 indexed tokenId, uint256 grossAmount0, uint256 grossAmount1, uint256 netToUser0, uint256 netToUser1)',
   PositionWithdrawn: 'event PositionWithdrawn(address indexed user, uint256 indexed tokenId, uint256 grossAmount0, uint256 grossAmount1, uint256 netToUser0, uint256 netToUser1)',
   PositionRebalanced: 'event PositionRebalanced(address indexed user, uint256 indexed oldTokenId, uint256 indexed newTokenId)',
-};
-
-const vaultAbi: Record<string, string> = {
-  VaultCreated: 'event VaultCreated(address indexed user, address indexed vault)',
-  PoolAdded: 'event PoolAdded(address indexed pool, address token0, address token1, uint24 fee)',
-  PositionAdded: 'event PositionAdded(uint256 indexed tokenId)',
-  PositionOpened: 'event PositionOpened(uint256 indexed tokenId, address indexed pool, uint256 depositAmount, uint256 commission)',
-  FeesClaimed: 'event FeesClaimed(uint256 indexed tokenId, uint256 grossAmount0, uint256 grossAmount1, uint256 netToOwner0, uint256 netToOwner1)',
-  PositionWithdrawn: 'event PositionWithdrawn(uint256 indexed tokenId, uint256 grossAmount0, uint256 grossAmount1, uint256 netToOwner0, uint256 netToOwner1)',
-  PositionClosedInVault: 'event PositionClosedInVault(uint256 indexed tokenId, address indexed initiator, uint256 grossAmount0, uint256 grossAmount1)',
-  PositionCompounded: 'event PositionCompounded(uint256 indexed tokenId, address indexed initiator, uint256 grossAmount0, uint256 grossAmount1, uint128 liquidityAdded)',
-  PositionRebalanced: 'event PositionRebalanced(uint256 indexed oldTokenId, uint256 indexed newTokenId, address indexed initiator)',
 };
 
 const abi = {
@@ -75,16 +43,13 @@ const abi = {
   token1: 'address:token1',
 };
 
-// Which operation a commission belongs to. Claim and Compound commissions are a cut of the LP fees the position
-// earned; the others are charged on the position's capital (deposit, close, rebalance).
+// Which operation a commission belongs to. Claim commissions are a cut of the LP fees the position earned; the others
+// are charged on the position's capital (deposit, close, rebalance).
 type Kind = 'claim' | 'open' | 'close' | 'rebalance';
 const KIND_BY_EVENT: Record<string, Kind> = {
   FeesClaimed: 'claim',
-  PositionCompounded: 'claim',
   PositionOpened: 'open',
-  PositionOpenedDual: 'open',
   PositionWithdrawn: 'close',
-  PositionClosedInVault: 'close',
   PositionRebalanced: 'rebalance',
 };
 
@@ -109,33 +74,20 @@ const topicOf = (address: string) => '0x' + address.toLowerCase().replace('0x', 
 
 type Position = { token0: string; token1: string; fee: string; tickLower: number; tickUpper: number; liquidity: bigint; last: [bigint, bigint]; owed: [bigint, bigint] };
 
-// Every position Flowlex ever minted or took into a vault, plus the pool each manager position belongs to
-// (used for the token pair of positions minted and burned within one window).
-async function getPositionIds(options: FetchOptions, cfg: ChainConfig, vaults: string[]) {
+// Every position the manager ever minted, plus the pool of each (used for the token pair of positions minted and
+// burned within one window).
+async function getPositionIds(options: FetchOptions, cfg: ChainConfig) {
   const toBlock = await options.getToBlock();
-  const managerLogs = (event: string) => options.getLogs({ target: cfg.manager, eventAbi: managerAbi[event], fromBlock: cfg.managerFromBlock, toBlock, cacheInCloud: true });
-  const vaultLogs = (event: string) => vaults.length
-    ? options.getLogs({ targets: vaults, eventAbi: vaultAbi[event], fromBlock: cfg.vaultFactoryFromBlock, toBlock, cacheInCloud: true })
-    : Promise.resolve([]);
-
-  const opened = (await Promise.all(cfg.managerOpenEvents.map(managerLogs))).flat();
-  const rebalanced = await managerLogs('PositionRebalanced');
-  const vaultOpened = await vaultLogs('PositionOpened');
-  const vaultAdded = await vaultLogs('PositionAdded');
-  const vaultRebalanced = await vaultLogs('PositionRebalanced');
+  const logs = (event: string) => options.getLogs({ target: cfg.manager, eventAbi: managerAbi[event], fromBlock: cfg.managerFromBlock, toBlock, cacheInCloud: true });
+  const opened = await logs('PositionOpened');
+  const rebalanced = await logs('PositionRebalanced');
 
   const poolOf: Record<string, string> = {};
-  for (const l of [...opened, ...vaultOpened]) poolOf[String(l.tokenId)] = l.pool;
+  for (const l of opened) poolOf[String(l.tokenId)] = l.pool;
   // A rebalance keeps the pool
-  for (const l of [...rebalanced, ...vaultRebalanced]) if (poolOf[String(l.oldTokenId)]) poolOf[String(l.newTokenId)] = poolOf[String(l.oldTokenId)];
+  for (const l of rebalanced) if (poolOf[String(l.oldTokenId)]) poolOf[String(l.newTokenId)] = poolOf[String(l.oldTokenId)];
 
-  const ids = new Set<string>([
-    ...opened.map(l => String(l.tokenId)),
-    ...rebalanced.map(l => String(l.newTokenId)),
-    ...vaultOpened.map(l => String(l.tokenId)),
-    ...vaultAdded.map(l => String(l.tokenId)),
-    ...vaultRebalanced.map(l => String(l.newTokenId)),
-  ]);
+  const ids = new Set<string>([...opened.map(l => String(l.tokenId)), ...rebalanced.map(l => String(l.newTokenId))]);
   return { ids: [...ids], poolOf };
 }
 
@@ -189,10 +141,7 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const toBlock = await options.getToBlock();
 
-  const vaults: string[] = cfg.vaultFactory
-    ? (await options.getLogs({ target: cfg.vaultFactory, eventAbi: vaultAbi.VaultCreated, fromBlock: cfg.vaultFactoryFromBlock, toBlock, cacheInCloud: true })).map(l => l.vault)
-    : [];
-  const { ids, poolOf } = await getPositionIds(options, cfg, vaults);
+  const { ids, poolOf } = await getPositionIds(options, cfg);
   const idSet = new Set(ids);
 
   // 1. LP fees earned by Flowlex positions in the window:
@@ -241,27 +190,23 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.add(t1, earned[id][1], LABELS.lpFeesToUsers);
   });
 
-  // 2. Commissions: every token transfer from the manager or a vault to the treasury in the window, attributed to the
-  //    operation event that the same contract emits next in the same transaction (commissions are paid before the
-  //    operation's event, and one transaction can batch several operations).
-  const payers = new Set([cfg.manager, ...vaults].map(a => a.toLowerCase()));
-  const poolAdded = await options.getLogs({ targets: [cfg.manager, ...(cfg.vaultFactory ? [cfg.vaultFactory] : [])], eventAbi: managerAbi.PoolAdded, fromBlock: cfg.managerFromBlock, toBlock, cacheInCloud: true });
+  // 2. Commissions: every token transfer from the manager to the treasury in the window, attributed to the operation
+  //    event the manager emits next in the same transaction (commissions are paid before the operation's event, and one
+  //    transaction can batch several operations).
+  const poolAdded = await options.getLogs({ target: cfg.manager, eventAbi: managerAbi.PoolAdded, fromBlock: cfg.managerFromBlock, toBlock, cacheInCloud: true });
   const tokens = [...new Set(poolAdded.flatMap(l => [l.token0.toLowerCase(), l.token1.toLowerCase()]))];
   const transfers = tokens.length
-    ? await options.getLogs({ targets: tokens, eventAbi: abi.transfer, topics: [TRANSFER_TOPIC, null, topicOf(TREASURY)], entireLog: true, parseLog: true })
+    ? await options.getLogs({ targets: tokens, eventAbi: abi.transfer, topics: [TRANSFER_TOPIC, topicOf(cfg.manager), topicOf(TREASURY)], entireLog: true, parseLog: true })
     : [];
-  const commissions = transfers.filter(l => payers.has(String(l.args.from).toLowerCase()));
 
-  if (commissions.length) {
-    const opLogs = (await Promise.all([
-      ...Object.keys(KIND_BY_EVENT).filter(e => managerAbi[e]).map(e => options.getLogs({ target: cfg.manager, eventAbi: managerAbi[e], entireLog: true, parseLog: true }).then(ls => ls.map(l => ({ ...l, kind: KIND_BY_EVENT[e] })))),
-      ...(vaults.length ? Object.keys(KIND_BY_EVENT).filter(e => vaultAbi[e]).map(e => options.getLogs({ targets: vaults, eventAbi: vaultAbi[e], entireLog: true, parseLog: true }).then(ls => ls.map(l => ({ ...l, kind: KIND_BY_EVENT[e] })))) : []),
-    ])).flat();
+  if (transfers.length) {
+    const opLogs = (await Promise.all(Object.keys(KIND_BY_EVENT).map(e =>
+      options.getLogs({ target: cfg.manager, eventAbi: managerAbi[e], entireLog: true, parseLog: true }).then(ls => ls.map(l => ({ ...l, kind: KIND_BY_EVENT[e] })))
+    ))).flat();
 
-    for (const t of commissions) {
-      const from = String(t.args.from).toLowerCase();
+    for (const t of transfers) {
       const next = opLogs
-        .filter(o => o.transactionHash === t.transactionHash && String(o.address).toLowerCase() === from && Number(o.logIndex) > Number(t.logIndex))
+        .filter(o => o.transactionHash === t.transactionHash && Number(o.logIndex) > Number(t.logIndex))
         .sort((a, b) => Number(a.logIndex) - Number(b.logIndex))[0];
       if (!next) throw new Error(`Flowlex: commission transfer without an operation event in ${t.transactionHash}`);
       const token = t.address;
@@ -283,6 +228,13 @@ const fetch = async (options: FetchOptions) => {
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
 };
 
+const revenueBreakdown = {
+  [LABELS.lpFeesToTreasury]: 'Commission taken from LP fees when they are claimed.',
+  [LABELS.depositFeesToTreasury]: 'Deposit commissions paid to the treasury.',
+  [LABELS.closeFeesToTreasury]: 'Close commissions paid to the treasury.',
+  [LABELS.rebalanceFeesToTreasury]: 'Rebalance commissions paid to the treasury.',
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
@@ -294,10 +246,10 @@ const adapter: SimpleAdapter = {
   // fees it is taken from, so users' share of a single window can dip below zero.
   allowNegativeValue: true,
   methodology: {
-    Fees: 'Swap fees earned by Uniswap V3 positions opened through Flowlex (manual positions minted by the LP manager and positions held by Auto Vaults), including fees not collected yet, plus commissions charged on deposits, closes and rebalances.',
-    Revenue: 'Commissions paid to the Flowlex treasury, read from token transfers to the treasury.',
+    Fees: 'Swap fees earned by Uniswap V3 positions opened through the Flowlex LP manager, including fees not collected yet, plus commissions charged on deposits, closes and rebalances.',
+    Revenue: 'Commissions paid to the Flowlex treasury, read from token transfers from the LP manager to the treasury.',
     ProtocolRevenue: 'Commissions paid to the Flowlex treasury.',
-    SupplySideRevenue: 'Swap fees earned by users\' positions, minus the commission Flowlex takes when fees are claimed or compounded.',
+    SupplySideRevenue: 'Swap fees earned by users\' positions, minus the commission Flowlex takes when fees are claimed.',
   },
   breakdownMethodology: {
     Fees: {
@@ -306,20 +258,10 @@ const adapter: SimpleAdapter = {
       [LABELS.closeFees]: 'Commission charged when a position is closed. It is charged on the closed amount, which includes the position\'s uncollected fees.',
       [LABELS.rebalanceFees]: 'Commission charged when a position is moved to a new range.',
     },
-    Revenue: {
-      [LABELS.lpFeesToTreasury]: 'Commission taken from LP fees when they are claimed or compounded.',
-      [LABELS.depositFeesToTreasury]: 'Deposit commissions paid to the treasury.',
-      [LABELS.closeFeesToTreasury]: 'Close commissions paid to the treasury.',
-      [LABELS.rebalanceFeesToTreasury]: 'Rebalance commissions paid to the treasury.',
-    },
-    ProtocolRevenue: {
-      [LABELS.lpFeesToTreasury]: 'Commission taken from LP fees when they are claimed or compounded.',
-      [LABELS.depositFeesToTreasury]: 'Deposit commissions paid to the treasury.',
-      [LABELS.closeFeesToTreasury]: 'Close commissions paid to the treasury.',
-      [LABELS.rebalanceFeesToTreasury]: 'Rebalance commissions paid to the treasury.',
-    },
+    Revenue: revenueBreakdown,
+    ProtocolRevenue: revenueBreakdown,
     SupplySideRevenue: {
-      [LABELS.lpFeesToUsers]: 'Swap fees earned by users\' positions after the commission taken on claims and compounds.',
+      [LABELS.lpFeesToUsers]: 'Swap fees earned by users\' positions after the commission taken on claims.',
     },
   },
 };
