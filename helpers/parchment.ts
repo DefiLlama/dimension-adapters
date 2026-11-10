@@ -1,5 +1,6 @@
 // Parchment perps on Sui (https://parchment.trade). Shared by dexs/parchment, fees/parchment and open-interest/parchment.
 // Contracts: https://docs.parchment.trade/contracts , fees: https://docs.parchment.trade/trading/fees
+import { PromisePool } from "@supercharge/promise-pool";
 import ADDRESSES from "./coreAssets.json";
 import { getObject, graphqlCall, queryEvents } from "./sui";
 
@@ -31,6 +32,24 @@ export async function getParchmentEvents(name: string, startTimestamp: number, e
 
 // Events that carry `exchange_id` are filtered to the Parchment USDC Exchange.
 export const isParchmentExchange = (e: any) => e.exchange_id === PARCHMENT_EXCHANGE;
+
+// Markets of the Parchment Exchange with their current state. Markets are discovered from their creation events
+// (`CreateMarketEventV1` carries only `market_id`) and kept if their state names the Parchment Exchange; a market's
+// exchange is fixed at creation.
+export async function getParchmentMarkets(endTimestamp: number): Promise<{ marketId: string; state: any }[]> {
+  const created = await getParchmentEvents("CreateMarketEventV1", Date.parse(PARCHMENT_START) / 1e3, endTimestamp);
+  const { results } = await PromisePool.withConcurrency(5)
+    .for(created)
+    .handleError((error) => { throw error; })
+    .process(async ({ market_id }: any) => ({ marketId: market_id as string, state: await getVersionedState(market_id) }));
+  return results.filter(({ state }) => state.exchange_id === PARCHMENT_EXCHANGE);
+}
+
+// Events that carry only `market_id` (opens, liquidations, orders) are filtered to the markets of the Parchment Exchange.
+export async function getParchmentMarketFilter(endTimestamp: number): Promise<(e: any) => boolean> {
+  const ids = new Set((await getParchmentMarkets(endTimestamp)).map(({ marketId }) => marketId));
+  return (e: any) => ids.has(e.market_id);
+}
 
 // Closed notional of a voluntary close, keeper close or session force close, in USDC base units, from its
 // close charge. Rounding is at most 1e6 / 40 - 1 base units (< $0.025) per close.

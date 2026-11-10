@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { PARCHMENT_START, PARCHMENT_USDC, getParchmentEvents, isParchmentExchange } from "../../helpers/parchment";
+import { PARCHMENT_START, PARCHMENT_USDC, getParchmentEvents, getParchmentMarketFilter, isParchmentExchange } from "../../helpers/parchment";
 
 // Fee schedule (https://docs.parchment.trade/trading/fees and /house-pool), all read from
 // events rather than assumed:
@@ -20,6 +20,7 @@ const LABELS = {
   OPEN: "Open Fees",
   CLOSE: "Close Fees",
   WIN: "Win Fees",
+  QUEUED: "Queued Win Fees",
   LOSS: "Loss Fees",
   EXEC: "Execution Fees",
   BUILDER: "Builder Fees",
@@ -33,6 +34,7 @@ const LABELS = {
   LIQ_TO_LIQUIDATORS: "Liquidation Bounties To Liquidators",
 };
 
+// `parchment_trade::order` constants `KIND_OPEN` and `OUTCOME_FILLED` (order kind / finalized outcome of a filled open).
 const KIND_OPEN = 0;
 const OUTCOME_FILLED = 0;
 // A two-step open is filled at most 10 s after its request (`fill_deadline_ms`); 60 s of lookback finds the
@@ -50,29 +52,49 @@ const fetch = async (options: FetchOptions) => {
     if (BigInt(amount) > 0n) balances.add(PARCHMENT_USDC, String(amount), label);
   };
 
-  const [closeFees, builderPaid, liquidations, harvestFees, opens, finalized, requests, routed, referralPayouts] = [
-    (await getParchmentEvents("CloseFeesEventV2", start, end)).filter(isParchmentExchange),
-    (await getParchmentEvents("BuilderOnTopAccruedEventV1", start, end)).filter(isParchmentExchange),
-    await getParchmentEvents("LiquidationDetailEventV1", start, end),
-    (await getParchmentEvents("HarvestFeesEventV2", start, end)).filter(isParchmentExchange),
-    await getParchmentEvents("OpenPositionEventV1", start, end),
-    await getParchmentEvents("OrderFinalizedEventV1", start, end),
-    await getParchmentEvents("OrderRequestedEventV1", start - REQUEST_LOOKBACK_SECONDS, end),
-    (await getParchmentEvents("FeesRoutedEventV1", start, end)).filter(isParchmentExchange),
-    await getParchmentEvents("ReferralPayoutEventV1", start, end),
-  ];
+  const [isParchmentMarket, closeFees, enqueued, builderPaid, liquidations, harvestFees, opens, finalized, requests, routed, referralPayouts] = await Promise.all([
+    getParchmentMarketFilter(end),
+    getParchmentEvents("CloseFeesEventV2", start, end),
+    getParchmentEvents("EnqueuePayoutEventV2", start, end),
+    getParchmentEvents("BuilderOnTopAccruedEventV1", start, end),
+    getParchmentEvents("LiquidationDetailEventV1", start, end),
+    getParchmentEvents("HarvestFeesEventV2", start, end),
+    getParchmentEvents("OpenPositionEventV1", start, end),
+    getParchmentEvents("OrderFinalizedEventV1", start, end),
+    getParchmentEvents("OrderRequestedEventV1", start - REQUEST_LOOKBACK_SECONDS, end),
+    getParchmentEvents("FeesRoutedEventV1", start, end),
+    // Carries neither `exchange_id` nor `market_id`; only paid out of the Exchange's fees.
+    getParchmentEvents("ReferralPayoutEventV1", start, end),
+  ]);
+  // Events with `exchange_id` are kept for the Parchment Exchange, events with only `market_id` for its markets.
+  const byExchange = (events: any[]) => events.filter(isParchmentExchange);
+  const byMarket = (events: any[]) => events.filter(isParchmentMarket);
 
-  // Close, win and loss fees, accrued at the close (a queued win's fee is routed when the claim is harvested).
-  for (const e of closeFees) {
-    add(dailyFees, e.close_charge, LABELS.CLOSE);
-    add(dailyFees, e.win_fee, LABELS.WIN);
+  // Close, win and loss fees, recognized when collected, which is also when they are split and routed. A winning
+  // close paid out at once collects all of them at the close. A winning close whose profit is queued (payout queue
+  // non-empty or pool cash short) collects at the close only the part of the close fee its margin covers; the win
+  // fee and the part of the close fee taken out of profit (`EnqueuePayoutEventV2.fee`) are collected, split and
+  // routed when the claim is harvested (`HarvestFeesEventV2.fee`), possibly in parts and in later periods.
+  const queuedFee = new Map<string, bigint>();
+  for (const e of byExchange(enqueued)) queuedFee.set(String(e.position_id), BigInt(e.fee));
+  for (const e of byExchange(closeFees)) {
+    const queued = queuedFee.get(String(e.position_id)) ?? 0n;
+    const win = BigInt(e.win_fee);
+    const queuedWin = queued < win ? queued : win;
+    const closeNow = BigInt(e.close_charge) - (queued - queuedWin);
+    if (closeNow < 0n) throw new Error(`Parchment: queued fee ${queued} above the fees of close ${e.position_id}`);
+    add(dailyFees, closeNow, LABELS.CLOSE);
+    add(dailyFees, win - queuedWin, LABELS.WIN);
     add(dailyFees, e.loss_fee, LABELS.LOSS);
     add(dailySupplySideRevenue, e.referral_discount, LABELS.REFERRAL_DISCOUNT);
   }
-  for (const e of harvestFees) add(dailySupplySideRevenue, e.referral_discount, LABELS.REFERRAL_DISCOUNT);
+  for (const e of byExchange(harvestFees)) {
+    add(dailyFees, e.fee, LABELS.QUEUED);
+    add(dailySupplySideRevenue, e.referral_discount, LABELS.REFERRAL_DISCOUNT);
+  }
 
   // Liquidations: loss fee on the forfeited margin, and the liquidator's bounty.
-  for (const e of liquidations) {
+  for (const e of byMarket(liquidations)) {
     add(dailyFees, e.loss_fee, LABELS.LOSS);
     add(dailyFees, e.bounty, LABELS.LIQ);
     add(dailySupplySideRevenue, e.bounty, LABELS.LIQ_TO_LIQUIDATORS);
@@ -80,10 +102,10 @@ const fetch = async (options: FetchOptions) => {
 
   // Open fee charged = gross margin escrowed by the request - margin locked on the position.
   const requestMargin = new Map<string, bigint>();
-  for (const r of requests) if (Number(r.kind) === KIND_OPEN) requestMargin.set(r.order_id, BigInt(r.margin));
+  for (const r of byMarket(requests)) if (Number(r.kind) === KIND_OPEN) requestMargin.set(r.order_id, BigInt(r.margin));
   const openMargin = new Map<string, bigint>();
-  for (const o of opens) openMargin.set(String(o.position_id), BigInt(o.margin));
-  for (const f of finalized) {
+  for (const o of byMarket(opens)) openMargin.set(String(o.position_id), BigInt(o.margin));
+  for (const f of byMarket(finalized)) {
     // Execution fee actually paid (0 when it was refunded on a cancel / expiry / halted fill).
     add(dailyFees, f.exec_fee, LABELS.EXEC);
     add(dailySupplySideRevenue, f.exec_fee, LABELS.EXEC_TO_KEEPER);
@@ -96,7 +118,7 @@ const fetch = async (options: FetchOptions) => {
 
   // Builder on-top fees, counted when credited to the builder (at the close, or at harvest for a queued win).
   // An on-top that is refunded to the trader instead (builder revoked while queued) is never credited.
-  for (const e of builderPaid) {
+  for (const e of byExchange(builderPaid)) {
     add(dailyFees, e.amount, LABELS.BUILDER);
     add(dailySupplySideRevenue, e.amount, LABELS.BUILDER_TO_BUILDERS);
   }
@@ -105,7 +127,7 @@ const fetch = async (options: FetchOptions) => {
   for (const e of referralPayouts) add(dailySupplySideRevenue, e.amount, LABELS.REFERRAL);
 
   // What the protocol keeps, split on chain between stakers and the treasury.
-  for (const e of routed) {
+  for (const e of byExchange(routed)) {
     add(dailyHoldersRevenue, e.to_stakers, LABELS.TO_STAKERS);
     add(dailyRevenue, e.to_stakers, LABELS.TO_STAKERS);
     add(dailyProtocolRevenue, e.to_treasury, LABELS.TO_TREASURY);
@@ -127,7 +149,8 @@ const methodology = {
 const FEE_SOURCES = {
   [LABELS.OPEN]: "Open fee charged on position notional at open (market taker fee, 0 bp since launch).",
   [LABELS.CLOSE]: "Close fee of 0.4 bp of position notional, charged on every close.",
-  [LABELS.WIN]: "Win fee of 2% of adjusted profit on winning closes.",
+  [LABELS.WIN]: "Win fee of 2% of adjusted profit on winning closes paid out at once.",
+  [LABELS.QUEUED]: "Win fee, and the part of the close fee taken out of profit, on winning closes whose profit was queued; counted when the queued claim is paid out.",
   [LABELS.LOSS]: "Loss fee of 2% of the margin a trader loses on a losing close or a liquidation, a protocol cut taken before the rest goes to the house pool.",
   [LABELS.EXEC]: "Flat execution fee (0.02 USDC) per filled two-step order, refunded when the order is not filled.",
   [LABELS.BUILDER]: "On-top fee on profit for orders placed through a builder code.",

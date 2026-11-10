@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { graphqlCall } from "../helpers/sui";
-import { PARCHMENT_EXCHANGE, PARCHMENT_START, PARCHMENT_USDC, getParchmentEvents, getVersionedState } from "../helpers/parchment";
+import { PARCHMENT_USDC, getParchmentMarkets } from "../helpers/parchment";
 
 // Every open position of a market has a record in the market's liquidation book (`liq.records`, a
 // Table<u64 position_id, LiqRecord>) with its side, entry notional (USDC base units) and entry price (wad). The
@@ -28,11 +28,8 @@ const fetch = async (options: FetchOptions) => {
   const longOpenInterestAtEnd = options.createBalances();
   const shortOpenInterestAtEnd = options.createBalances();
 
-  // Markets are discovered from their creation events and kept only if they belong to the Parchment Exchange.
-  const created = await getParchmentEvents("CreateMarketEventV1", Date.parse(PARCHMENT_START) / 1e3, options.endTimestamp);
-  for (const { market_id } of created) {
-    const market = await getVersionedState(market_id);
-    if (market.exchange_id !== PARCHMENT_EXCHANGE) continue;
+  // Markets of the Parchment Exchange (see `getParchmentMarkets`).
+  for (const { marketId: market_id, state: market } of await getParchmentMarkets(options.endTimestamp)) {
     const mark = BigInt(market.track.last_mark_wad);
     for (const record of await getPositionRecords(market.liq.records.id)) {
       if (mark === 0n) throw new Error(`Parchment: open position on market ${market_id} without a mark price`);
