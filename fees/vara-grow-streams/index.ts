@@ -424,7 +424,7 @@ const fetch = async (options: FetchOptions) => {
     if (!linkedStream) continue;
 
     // If the underlying StreamCore stream has settled/stopped, enforce its on-chain settled cap (`streamed`) across periods
-    const isStreamEnded = linkedStream.status !== STREAM_STATUS_ACTIVE || b.status === BOUNTY_STATUS_COMPLETED;
+    const isStreamEnded = linkedStream.status === STREAM_STATUS_STOPPED || b.status === BOUNTY_STATUS_COMPLETED;
     if (isStreamEnded && linkedStream.streamed > 0n) {
       const settledCap = isLeveragedDesk ? linkedStream.streamed / STONKBASE_MAX_LEVERAGE : linkedStream.streamed;
       if (settledCap > 0n && settledCap < effectiveBudgetCap) {
