@@ -35,11 +35,11 @@ async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const [previousBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
+  // getFromBlock() is already the block after the previous window's closing block, so adjacent pulls do not overlap
+  const [firstBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
   // A failed lookup returns null: rescanning from deployment would count earlier loans again
-  if (!Number.isInteger(previousBlock) || !Number.isInteger(toBlock)) throw new Error('StockLend: block lookup failed');
-  // The previous window's closing block opens this one; skip it so adjacent pulls do not repeat a loan.
-  const fromBlock = Math.max(previousBlock + 1, FIRST_BLOCK);
+  if (!Number.isInteger(firstBlock) || !Number.isInteger(toBlock)) throw new Error('StockLend: block lookup failed');
+  const fromBlock = Math.max(firstBlock, FIRST_BLOCK);
   if (fromBlock <= toBlock) {
     // The collateral token is immutable; the protocol's share (10% on every market) is read at the latest block,
     // because the chain's public RPCs do not serve historical state for a backfill.
