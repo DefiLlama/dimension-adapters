@@ -34,6 +34,17 @@ const configs: Record<string, Record<string, any>> = {
     // volume only: feeTo is mutable and its historical protocol share is not established.
     [CHAIN.BSC]: { factory: '0x97bCD9BB482144291D77ee53bFa99317A82066E8', start: '2021-09-14', fees: 0.003, customLogic: volumeOnly },
   },
+  "inkyswap": {
+    // Verified V2 factory and 0.3% pair fee: https://explorer.inkonchain.com/address/0x458c5d5b75ccba22651d2c5b61cb1ea1e0b0f95d?tab=contract
+    // Factory deployed 2024-12-17: https://explorer.inkonchain.com/tx/0x6d777441da3a1df1e2317d7bd00f9ed56a176f6a21bf8167aef212534e029b96
+    // volume only: fee split not documented
+    [CHAIN.INK]: { factory: '0x458C5d5B75ccBA22651D2C5b61cB1EA1e0b0f95D', start: '2024-12-17', customLogic: volumeOnly },
+  },
+  "beam-swap": {
+    // Factory and 0.3% V2 pair invariant: https://sourcify.dev/server/v2/contract/4337/0x662b526fb70ebb508962f3f61c9f735f687c8fa5?fields=sources,compilation,deployment
+    // Factory deployment block 295 is 2023-08-18 UTC; volume only: fee split not documented.
+    [CHAIN.BEAM]: { factory: '0x662b526FB70EBB508962f3f61c9F735f687C8fA5', start: '2023-08-18', fees: 0.003, customLogic: volumeOnly },
+  },
   "bdex-v2": {
     // stock uniV2 fork on BOT Chain. Factory: https://dev-docs.botchain.ai/docs/DEX/contract-addresses/
     // feeTo() is the zero address (https://scan.botchain.ai/address/0x117115f3B72C8d1989178089A67D0C26f8EE0AA3, checked 2026-09-22) => 0.3% swap fee, 100% to LPs
