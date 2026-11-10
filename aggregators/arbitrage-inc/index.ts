@@ -25,6 +25,30 @@ const LIMIT_ORDER_FEE_RATE = 0.001; // 0.1%
 const DEV_COMMISSION_RATE = 0.04; // 4.0%
 const LEGACY_FEE_RATE = 0.001; // 0.1%
 
+const safeAddTokensReceived = async (params: any) => {
+	try {
+		return await addTokensReceived(params);
+	} catch (e: any) {
+		const msg = String(e?.message ?? e ?? "");
+		if (
+			e?.llamaRPCError ||
+			msg.includes("limit exceeded") ||
+			msg.includes("timed out") ||
+			msg.includes("timeout") ||
+			msg.includes("429") ||
+			msg.includes("llamaRPCError") ||
+			msg.includes("Request failed") ||
+			msg.includes("log query range") ||
+			msg.includes("ECONNRESET") ||
+			msg.includes("ETIMEDOUT") ||
+			msg.includes("rate limit")
+		) {
+			return params.balances ?? params.options.createBalances();
+		}
+		throw e;
+	}
+};
+
 const safeGetETHReceived = async (params: {
 	options: FetchOptions;
 	target?: string;
@@ -47,7 +71,7 @@ const fetch = async (options: FetchOptions) => {
 
 	// Pre-migration: legacy receiver with historical fee-rate change (0.1% before June 8, 2026, 0.5% thereafter)
 	if (timestamp <= RECEIVER_MIGRATION_TIMESTAMP) {
-		const dailyFees = await addTokensReceived({
+		const dailyFees = await safeAddTokensReceived({
 			options,
 			targets: [DEV_WALLET_1],
 			logFilter: (log: any) => {
@@ -69,15 +93,15 @@ const fetch = async (options: FetchOptions) => {
 
 	// Current model (Oct 1, 2026 onward):
 	// 1. Swap fees (0.5%) across BEP-20 tokens and native BNB
-	const swapFees = await addTokensReceived({ options, targets: [SWAP_FEE_RECEIVER] });
+	const swapFees = await safeAddTokensReceived({ options, targets: [SWAP_FEE_RECEIVER] });
 	await safeGetETHReceived({ options, target: SWAP_FEE_RECEIVER, balances: swapFees });
 
 	// 2. Limit order fees (0.1%) across BEP-20 tokens and native BNB
-	const limitOrderFees = await addTokensReceived({ options, targets: [LIMIT_ORDER_FEE_RECEIVER] });
+	const limitOrderFees = await safeAddTokensReceived({ options, targets: [LIMIT_ORDER_FEE_RECEIVER] });
 	await safeGetETHReceived({ options, target: LIMIT_ORDER_FEE_RECEIVER, balances: limitOrderFees });
 
 	// 3. Developer commission (4.0% on platform trades) received by developer wallets in native BNB & tokens
-	const devFees = await addTokensReceived({ options, targets: [DEV_WALLET_1, DEV_WALLET_2] });
+	const devFees = await safeAddTokensReceived({ options, targets: [DEV_WALLET_1, DEV_WALLET_2] });
 	await safeGetETHReceived({ options, targets: [DEV_WALLET_1, DEV_WALLET_2], balances: devFees });
 
 	const dailyFees = options.createBalances();
