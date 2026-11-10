@@ -34,6 +34,9 @@ const SPOT_PROTOCOL_FEE_BPS = 5n;
 const SPOT_FEE_BPS = SPOT_MAKER_REBATE_BPS + SPOT_PROTOCOL_FEE_BPS;
 // Perpetuals open/close execution fee matching `pub const PERPS_FEE_BPS: u128 = 10` (10 bps = 0.10% on notional) in `agents/contracts/stonkbase-vara-desk/src/lib.rs` (line 13).
 const PERPS_FEE_BPS = 10n;
+// Post-deployment live cutoff IDs (`Trades #1..#12` and `Positions #1..#7` were initial contract deployment verification records closed on-chain).
+const FIRST_LIVE_SPOT_TRADE_ID = 13;
+const FIRST_LIVE_POSITION_ID = 8;
 
 /**
  * Encodes a short UTF-8 string (< 64 bytes) with its single-byte SCALE compact length prefix.
@@ -200,7 +203,7 @@ function getSpotTrade(id: number): Promise<SpotTradeRecord | null> {
  * `FillSpotOrder` in `agents/contracts/stonkbase-vara-desk/src/lib.rs` assigns sequential `next_trade_id` with `exec::block_timestamp()`, so timestamps are monotonically non-decreasing with ID.
  */
 async function firstSpotTradeAtOrAfter(ts: number, lastId: number): Promise<number> {
-  let lo = 1;
+  let lo = FIRST_LIVE_SPOT_TRADE_ID;
   let hi = lastId + 1;
   while (lo < hi) {
     const mid = Math.floor((lo + hi) / 2);
@@ -230,8 +233,8 @@ async function firstSpotTradeAtOrAfter(ts: number, lastId: number): Promise<numb
 
 // Cache for terminal closed positions (`!isOpen`); open positions are evicted once settled so later fetches observe closures.
 const closedPositionCache = new Map<number, Promise<StockPositionRecord | null>>();
-// Contiguous prefix watermark `[1..settledPrefixId]` where every position is permanently closed (`!isOpen`), with `settledPrefixMaxClosedAt = max(closedAt)`.
-let settledPrefixId = 0;
+// Contiguous prefix watermark `[FIRST_LIVE_POSITION_ID..settledPrefixId]` where every position is permanently closed (`!isOpen`), with `settledPrefixMaxClosedAt = max(closedAt)`.
+let settledPrefixId = FIRST_LIVE_POSITION_ID - 1;
 let settledPrefixMaxClosedAt = 0;
 
 /**
@@ -293,7 +296,7 @@ function getPosition(id: number): Promise<StockPositionRecord | null> {
  * `OpenStockPosition` in `agents/contracts/stonkbase-vara-desk/src/lib.rs` assigns sequential `next_pos_id` with `exec::block_timestamp()`, so `openedAt` is monotonically non-decreasing with ID.
  */
 async function firstPositionOpenedAtOrAfter(ts: number, lastId: number): Promise<number> {
-  let lo = 1;
+  let lo = FIRST_LIVE_POSITION_ID;
   let hi = lastId + 1;
   while (lo < hi) {
     const mid = Math.floor((lo + hi) / 2);
@@ -374,11 +377,11 @@ const fetch = async (options: FetchOptions) => {
     // Positions opened at or after `options.toTimestamp` neither traded inside `[fromTimestamp, toTimestamp)` nor contributed to open interest at `toTimestamp`.
     const endExclusivePosId = await firstPositionOpenedAtOrAfter(options.toTimestamp, totalPositions);
     const maxPosId = endExclusivePosId - 1;
-    // Skip the settled prefix `[1..settledPrefixId]` when every position in that prefix was already closed strictly before `options.fromTimestamp`.
+    // Skip the settled prefix `[FIRST_LIVE_POSITION_ID..settledPrefixId]` when every position in that prefix was already closed strictly before `options.fromTimestamp`.
     const startPosId =
-      settledPrefixId > 0 && settledPrefixMaxClosedAt < options.fromTimestamp
+      settledPrefixId >= FIRST_LIVE_POSITION_ID && settledPrefixMaxClosedAt < options.fromTimestamp
         ? Math.min(settledPrefixId + 1, maxPosId + 1)
-        : 1;
+        : FIRST_LIVE_POSITION_ID;
     const posIds = Array.from({ length: Math.max(0, maxPosId - startPosId + 1) }, (_, i) => startPosId + i);
     const positionsById = new Map<number, StockPositionRecord | null>();
     const { errors } = await PromisePool.withConcurrency(POOL_CONCURRENCY)
