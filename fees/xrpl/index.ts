@@ -1,7 +1,7 @@
 import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import "../../helpers/env";
+import { METRIC } from "../../helpers/metrics";
 
 // Every transaction included in a validated ledger burns its fee, whether it succeeded (tes) or failed with a tec
 // code, and burning is the only way XRP leaves the supply. So the fees for a period are the drop in the ledger's
@@ -21,8 +21,8 @@ const fetch = async (options: FetchOptions) => {
   if (burnedDrops < 0n) throw new Error(`xrpl: total_coins grew between ${options.startTimestamp} and ${options.endTimestamp}`);
 
   const dailyFees = options.createBalances();
-  dailyFees.addCGToken("ripple", Number(burnedDrops) / 1e6);
-  return { dailyFees, dailyRevenue: dailyFees };
+  dailyFees.addCGToken("ripple", Number(burnedDrops) / 1e6, METRIC.TRANSACTION_GAS_FEES);
+  return { dailyFees, dailyRevenue: dailyFees.clone(), dailyHoldersRevenue: dailyFees.clone() };
 };
 
 const adapter: SimpleAdapter = {
@@ -32,8 +32,20 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.RIPPLE],
   start: '2023-12-16',
   methodology: {
-    Fees: 'Transaction fees paid on the XRPL, measured as the drop in total XRP supply (total_coins) between validated ledgers. Includes fees of transactions that were included but failed (tec results), which are burned too.',
-    Revenue: 'All fees are burned.',
+    Fees: 'Transaction fees paid by users on the XRP Ledger, including fees of transactions that were included in a ledger but failed (tec results).',
+    Revenue: 'All transaction fees paid by users on the XRP Ledger, which are burned rather than paid to validators.',
+    HoldersRevenue: 'All transaction fees paid by users on the XRP Ledger are burned, reducing the XRP supply for holders.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRANSACTION_GAS_FEES]: 'Transaction fees paid by users, including fees of failed (tec) transactions.',
+    },
+    Revenue: {
+      [METRIC.TRANSACTION_GAS_FEES]: 'All transaction fees are burned, removing the XRP from the supply.',
+    },
+    HoldersRevenue: {
+      [METRIC.TRANSACTION_GAS_FEES]: 'All transaction fees are burned, removing the XRP from the supply.',
+    },
   },
 };
 
