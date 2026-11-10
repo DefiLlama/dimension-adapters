@@ -2229,13 +2229,24 @@ export default (
       name: "Alien Base",
       addresses: {
         base: [
-          "0x52eaeCAC2402633d98b95213d0b473E069D86590", // BasedDistributorV2
-          "0x7f2ff89d3C45010c976Ea6bb7715DC7098AF786E", // UniswapV2Router02
-          "0x927860797d07b1C46fbBe7f6f73D45C7E1BFBb27", // SwapFlashLoan
-          "0x8c1A3cF8f83074169FE5D7aD50B978e1cD6b37c7", // UniswapV2Router02
-          "0x3485F8E155973cC247CBEa9E77C0dBBB4BBb79E7", // UniswapV2Router02
-          "0xe0808b8e2bDD70D70e540f977cF40E26e5811054", // AlienbaseZapV1
-          "0xFBE87Ee1Ee62244A2dF80a8093Eab829C52863e8", // PredictionETH
+          "0xB20C411FC84FBB27e78608C24d0056D974ea9411", // SmartRouter (v2 + v3 swaps)
+          "0x8cFe327CEc66d1C090Dd72bd0FF11d690C33a2Eb", // SmartRouterV2
+          "0x8c1A3cF8f83074169FE5D7aD50B978e1cD6b37c7", // UniswapV2Router02 (v2 swaps and liquidity)
+          "0xB7996D1ECD07fB227e8DcA8CD5214bDfb04534E5", // NonfungiblePositionManager (v3 liquidity)
+          "0x303ca5c65AabCb1CE242DF93F478c41E0E4D2580", // Epsilon router v6 (swaps, limit/DCA/trailing orders)
+          "0xDC53487e2a6eF468260Bc938F645f84caaccAC6F", // BunniHub (vaults, original)
+          "0xd1Fac4F51457E4a6D35BdC7311718e5D6de92BB9", // BunniHubA (vaults)
+          "0x4BCC584979817219585b6a62A5bb6C15C1fa0F38", // BunniHubController
+          "0x6947DA282E447a2e9d65ff00aAf80efB5116D75d", // vault zap
+          "0x77c18D8AEa11147B65d9E3eE7b3a9e89910aB7f0", // vault zap
+          "0xe98af15fdc6f64ef81e53e0ae8ac8da31c577fc4", // Distributor (farm rewards)
+          "0x62D58b4Cdd96B590ff4174E272b5f41693C8fBa9", // UniversalDistributorController (farms)
+          "0xd3968A4a07d64C6E16982d45191b9A09a261Ec88", // EsProxyMaster (locked esALB farm)
+          "0x28a3c9852383eef436a874b74d2acf23047e85cf", // StakingContract (esALB + govALB staking)
+          "0xa53d1fd0aae780f5f4f3c2f75a35ca9e74269d3d", // ALB migration
+          "0x4f1debde1bfe0e5a6828d9958bf02dbbb5104fa2", // LoC factory (ALB credit lines)
+          "0xBcE75497D72b25c3509B62ae1a47CCfb502AD08d", // token generator
+          "0x52eaeCAC2402633d98b95213d0b473E069D86590", // BasedDistributorV2 (legacy masterchef, kept for history)
         ],
       },
     },
