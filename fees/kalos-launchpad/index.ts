@@ -1,0 +1,61 @@
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { CHAIN } from "../../helpers/chains";
+import { KALOS_SPLITTER } from "../../aggregators/kalos-trade";
+
+// Kalos Launchpad (https://www.kalos.fun) on Kinetiq Elysium: creator NFT drops on OpenSea's SeaDrop contracts.
+// Every drop launched on Kalos (collections deployed by the Kalos launcher 0xcA105642B3890B42927F50c1bEf3F6288448421c or
+// set up and handed over through KalosCollectionDeployer 0x0a5fB5F91cB4424925E10d5b2d6DB1D2298CAf5C) mints through the
+// Kalos SeaDrop hub below, which pays feeBps (1000 = 10%) of each mint to the feeRecipient, the Kalos revenue splitter,
+// in native HYPE, and the rest to the creator. Fees: https://www.kalos.fun/learn/fees
+const KALOS_SEADROP = '0xCa10569ec3EdA292f435041d7610150e53119BaE';
+const KALOS_LAUNCHPAD_START = '2026-11-06';
+const BASIS_POINTS = 10_000n;
+
+const SeaDropMintEvent = 'event SeaDropMint(address indexed nftContract, address indexed minter, address indexed feeRecipient, address payer, uint256 quantityMinted, uint256 unitMintPrice, uint256 feeBps, uint256 dropStageIndex)';
+
+const LABELS = {
+  MINT: 'NFT Mint Fees',
+  MINT_PROTOCOL: 'NFT Mint Fees To Protocol',
+};
+
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const mints = await options.getLogs({ target: KALOS_SEADROP, eventAbi: SeaDropMintEvent });
+  for (const mint of mints) {
+    // a Kalos drop's fee recipient is the splitter; any other recipient is not a Kalos fee
+    if (String(mint.feeRecipient).toLowerCase() !== KALOS_SPLITTER.toLowerCase()) continue;
+    const paid = BigInt(mint.quantityMinted) * BigInt(mint.unitMintPrice);
+    const mintFee = paid * BigInt(mint.feeBps) / BASIS_POINTS;
+    dailyVolume.addGasToken(paid);
+    dailyFees.addGasToken(mintFee, LABELS.MINT);
+    dailyRevenue.addGasToken(mintFee, LABELS.MINT_PROTOCOL);
+  }
+  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+};
+
+const description = 'The 10% Kalos fee on mints of drops launched on Kalos: quantity x mint price x feeBps / 10000 from SeaDropMint events of the Kalos SeaDrop hub whose fee recipient is the Kalos revenue splitter.';
+
+const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  fetch,
+  chains: [CHAIN.ELYSIUM],
+  start: KALOS_LAUNCHPAD_START,
+  methodology: {
+    Volume: 'Primary mint volume: native HYPE paid for mints of drops launched on Kalos (quantity x mint price).',
+    Fees: description,
+    UserFees: description,
+    Revenue: 'All mint fees are paid to the Kalos revenue splitter.',
+    ProtocolRevenue: 'All mint fees are paid to the Kalos revenue splitter, which pays them to the Kalos vaults and the KalosReferralPool (referral rewards are not deducted).',
+  },
+  breakdownMethodology: {
+    Fees: { [LABELS.MINT]: description },
+    UserFees: { [LABELS.MINT]: description },
+    Revenue: { [LABELS.MINT_PROTOCOL]: 'Mint fees paid to the Kalos revenue splitter.' },
+    ProtocolRevenue: { [LABELS.MINT_PROTOCOL]: 'Mint fees paid to the Kalos revenue splitter.' },
+  },
+};
+
+export default adapter;
