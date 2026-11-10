@@ -28,6 +28,12 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "gibxswap": {
+    // Verified factory and pair: https://sourcify.dev/server/v2/contract/56/0x97bCD9BB482144291D77ee53bFa99317A82066E8?fields=all
+    // V2 PairCreated and Swap events; swap fee 3/1000. Factory deployed at block 10913313 on 2021-09-14.
+    // volume only: feeTo is mutable and its historical protocol share is not established.
+    [CHAIN.BSC]: { factory: '0x97bCD9BB482144291D77ee53bFa99317A82066E8', start: '2021-09-14', fees: 0.003, customLogic: volumeOnly },
+  },
   "bdex-v2": {
     // stock uniV2 fork on BOT Chain. Factory: https://dev-docs.botchain.ai/docs/DEX/contract-addresses/
     // feeTo() is the zero address (https://scan.botchain.ai/address/0x117115f3B72C8d1989178089A67D0C26f8EE0AA3, checked 2026-09-22) => 0.3% swap fee, 100% to LPs
