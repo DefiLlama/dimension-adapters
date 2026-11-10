@@ -94,6 +94,16 @@ async function getPositionIds(options: FetchOptions, cfg: ChainConfig) {
 async function readPositions(api: ChainApi, nfpm: string, ids: string[]): Promise<(Position | null)[]> {
   // positions() reverts for a token id that is not minted yet or already burned: it holds nothing then
   const raw = await api.multiCall({ abi: abi.positions, target: nfpm, calls: ids, permitFailure: true });
+  // A failed call in the batch is retried alone: it counts as empty only when the position manager confirms the id
+  // does not exist; any other failure (e.g. RPC) throws instead of booking a false change in collectable fees.
+  for (let i = 0; i < ids.length; i++) {
+    if (raw[i]) continue;
+    try {
+      raw[i] = await api.call({ abi: abi.positions, target: nfpm, params: [ids[i]] });
+    } catch (e: any) {
+      if (!String(e?.message ?? e).includes('Invalid token ID')) throw e;
+    }
+  }
   return raw.map((p: any) => p ? {
     token0: p.token0, token1: p.token1, fee: String(p.fee), tickLower: Number(p.tickLower), tickUpper: Number(p.tickUpper),
     liquidity: BigInt(p.liquidity),
