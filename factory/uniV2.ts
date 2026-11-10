@@ -28,6 +28,11 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "beam-swap": {
+    // Factory and 0.3% V2 pair invariant: https://sourcify.dev/server/v2/contract/4337/0x662b526fb70ebb508962f3f61c9f735f687c8fa5?fields=sources,compilation,deployment
+    // Factory deployment block 295 is 2023-08-18 UTC; volume only: fee split not documented.
+    [CHAIN.BEAM]: { factory: '0x662b526FB70EBB508962f3f61c9F735f687C8fA5', start: '2023-08-18', fees: 0.003, customLogic: volumeOnly },
+  },
   "bdex-v2": {
     // stock uniV2 fork on BOT Chain. Factory: https://dev-docs.botchain.ai/docs/DEX/contract-addresses/
     // feeTo() is the zero address (https://scan.botchain.ai/address/0x117115f3B72C8d1989178089A67D0C26f8EE0AA3, checked 2026-09-22) => 0.3% swap fee, 100% to LPs
