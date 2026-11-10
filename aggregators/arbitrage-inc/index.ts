@@ -14,6 +14,9 @@ const DEV_WALLET_1 = "0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7";
 // - Developer 2 (50%): 0x3B523ec5AC7f37A151142b756040301729061348
 const DEV_WALLET_2 = "0x3B523ec5AC7f37A151142b756040301729061348";
 
+// Legacy tax accumulator address used strictly to exclude transfer tax forwards from legacy swap fees.
+const TAX_ACCUMULATOR = "0x4c1caA917FD012b285Ba35E93535675e5B59806C";
+
 const RECEIVER_MIGRATION_TIMESTAMP = 1790812800; // 2026-10-01 00:00:00 UTC
 const LEGACY_FEE_RATE_CHANGE_TIMESTAMP = 1780876800; // 2026-06-08 00:00:00 UTC
 
@@ -47,6 +50,10 @@ const fetch = async (options: FetchOptions) => {
 		const dailyFees = await addTokensReceived({
 			options,
 			targets: [DEV_WALLET_1],
+			logFilter: (log: any) => {
+				const from = String(log.from ?? log.fromAddress ?? log.from_address ?? "").toLowerCase();
+				return from !== TAX_ACCUMULATOR.toLowerCase();
+			},
 		});
 		await safeGetETHReceived({ options, target: DEV_WALLET_1, balances: dailyFees });
 		const feeRate = options.startTimestamp < LEGACY_FEE_RATE_CHANGE_TIMESTAMP ? LEGACY_FEE_RATE : SWAP_FEE_RATE;
