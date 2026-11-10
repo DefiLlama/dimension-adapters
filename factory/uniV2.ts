@@ -28,6 +28,11 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "pureswap": {
+    // Factory creates V2 pairs; swap invariant charges 3/1000: https://sourcify.dev/server/v2/contract/56/0x94b4188d143b9dd6bd7083ae38a461fcc6aad07e?fields=all
+    // volume only: fee split not documented; feeTo is mutable and pair mints to two recipients.
+    [CHAIN.BSC]: { factory: '0x94b4188D143b9dD6bd7083aE38A461FcC6AAd07E', fees: 0.003, customLogic: volumeOnly },
+  },
   "arbswap": {
     // Factories create SwapPair contracts with a 3/1000 swap fee; deployment blocks give the UTC start dates:
     // https://sourcify.dev/server/v2/contract/42161/0xd394e9cc20f43d2651293756f8d320668e850f1b?fields=all (block 3692134)
