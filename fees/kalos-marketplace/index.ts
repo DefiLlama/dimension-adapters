@@ -1,7 +1,9 @@
+import { ChainApi } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { KALOS_REFERRAL_NOTE } from "../../helpers/kalos";
+import { getPositionedLogArgs, PositionedLogArgs } from "../../helpers/logs";
 
 // Kalos Marketplace (https://www.kalos.fun) on Kinetiq Elysium. KalosMarket (proxy) is TreasureMarketplace b2cc323 with
 // a Kalos patch for native payouts (implementation 0xCa105Aa6264C0816c808a19A8Eec98A789eb8D3F). On every sale it pays
@@ -15,6 +17,27 @@ const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 const ItemSoldEvent = 'event ItemSold(address seller, address buyer, address nftAddress, uint256 tokenId, uint64 quantity, uint128 pricePerItem, address paymentToken)';
 const BidAcceptedEvent = 'event BidAccepted(address seller, address bidder, address nftAddress, uint256 tokenId, uint64 quantity, uint128 pricePerItem, address paymentToken, uint8 bidType)';
+// fee settings changes (setFee, setCollectionOwnerFee), each carrying the new value
+const UpdateFeeEvent = 'event UpdateFee(uint256 fee)';
+const UpdateFeeWithCollectionOwnerEvent = 'event UpdateFeeWithCollectionOwner(uint256 fee)';
+const UpdateCollectionOwnerFeeEvent = 'event UpdateCollectionOwnerFee(address _collection, address _recipient, uint256 _fee)';
+const CollectionOwnerFeeAbi = 'function collectionToCollectionOwnerFee(address) view returns (uint32 fee, address recipient)';
+
+type OwnerFee = { fee: bigint, recipient: string };
+type Change<T> = { at: PositionedLogArgs, value: T };
+
+const isBefore = (a: PositionedLogArgs, b: PositionedLogArgs) => a.blockNumber < b.blockNumber || (a.blockNumber === b.blockNumber && a.logIndex < b.logIndex);
+const byPosition = (a: PositionedLogArgs, b: PositionedLogArgs) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex;
+
+/** The value in effect at a log: the last change before it in the window, else the value at the window's opening */
+function valueAt<T>(opening: T, changes: Change<T>[], at: PositionedLogArgs): T {
+  let value = opening;
+  for (const change of changes) {
+    if (!isBefore(change.at, at)) break;
+    value = change.value;
+  }
+  return value;
+}
 
 const LABELS = {
   MARKETPLACE: 'Marketplace Fees',
@@ -31,30 +54,39 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   // listings bought (ItemSold) and offers accepted (BidAccepted)
-  const sold = await options.getLogs({ target: KALOS_MARKET, eventAbi: ItemSoldEvent });
-  const accepted = await options.getLogs({ target: KALOS_MARKET, eventAbi: BidAcceptedEvent });
+  const sold = await getPositionedLogArgs(options, { target: KALOS_MARKET, eventAbi: ItemSoldEvent });
+  const accepted = await getPositionedLogArgs(options, { target: KALOS_MARKET, eventAbi: BidAcceptedEvent });
   const sales = [...sold, ...accepted];
   if (!sales.length) return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 
-  // fee rates read at the window's end (both 50 bps = 0.5%)
-  const [fee, feeWithCollectionOwner] = (await options.toApi.batchCall([
+  // the fee settings in effect at each sale: their values at the end of the block before the window (both market fees
+  // 50 bps = 0.5% since launch), then every change in the window applied in (block, log index) order
+  const openingApi = new ChainApi({ chain: options.chain, block: (await options.getFromBlock()) - 1 });
+  const [openingFee, openingFeeWithCollectionOwner] = (await openingApi.batchCall([
     { target: KALOS_MARKET, abi: 'uint256:fee' },
     { target: KALOS_MARKET, abi: 'uint256:feeWithCollectionOwner' },
   ])).map((value: any) => BigInt(value));
   const collections = [...new Set(sales.map((sale: any) => String(sale.nftAddress).toLowerCase()))];
-  const ownerFees = await options.toApi.multiCall({
-    target: KALOS_MARKET,
-    abi: 'function collectionToCollectionOwnerFee(address) view returns (uint32 fee, address recipient)',
-    calls: collections,
+  const openingOwnerFees = await openingApi.multiCall({ target: KALOS_MARKET, abi: CollectionOwnerFeeAbi, calls: collections });
+  const openingOwnerFeeOf: Record<string, OwnerFee> = {};
+  collections.forEach((collection, i) => openingOwnerFeeOf[collection] = { fee: BigInt(openingOwnerFees[i].fee), recipient: String(openingOwnerFees[i].recipient).toLowerCase() });
+
+  const feeChanges: Change<bigint>[] = (await getPositionedLogArgs(options, { target: KALOS_MARKET, eventAbi: UpdateFeeEvent }))
+    .sort(byPosition).map((log) => ({ at: log, value: BigInt(log.fee) }));
+  const feeWithCollectionOwnerChanges: Change<bigint>[] = (await getPositionedLogArgs(options, { target: KALOS_MARKET, eventAbi: UpdateFeeWithCollectionOwnerEvent }))
+    .sort(byPosition).map((log) => ({ at: log, value: BigInt(log.fee) }));
+  const ownerFeeChanges: Record<string, Change<OwnerFee>[]> = {};
+  (await getPositionedLogArgs(options, { target: KALOS_MARKET, eventAbi: UpdateCollectionOwnerFeeEvent })).sort(byPosition).forEach((log) => {
+    const collection = String(log._collection).toLowerCase();
+    (ownerFeeChanges[collection] ??= []).push({ at: log, value: { fee: BigInt(log._fee), recipient: String(log._recipient).toLowerCase() } });
   });
-  const ownerFeeOf: Record<string, { fee: bigint, recipient: string }> = {};
-  collections.forEach((collection, i) => ownerFeeOf[collection] = { fee: BigInt(ownerFees[i].fee), recipient: String(ownerFees[i].recipient).toLowerCase() });
 
   for (const sale of sales) {
     const total = BigInt(sale.quantity) * BigInt(sale.pricePerItem);
-    const owner = ownerFeeOf[String(sale.nftAddress).toLowerCase()];
+    const collection = String(sale.nftAddress).toLowerCase();
+    const owner = valueAt(openingOwnerFeeOf[collection], ownerFeeChanges[collection] ?? [], sale);
     const hasOwner = owner.recipient !== NULL_ADDRESS;
-    const marketplaceFee = total * (hasOwner ? feeWithCollectionOwner : fee) / BASIS_POINTS;
+    const marketplaceFee = total * (hasOwner ? valueAt(openingFeeWithCollectionOwner, feeWithCollectionOwnerChanges, sale) : valueAt(openingFee, feeChanges, sale)) / BASIS_POINTS;
     const creatorFee = hasOwner ? total * owner.fee / BASIS_POINTS : 0n;
     dailyVolume.add(sale.paymentToken, total);
     dailyFees.add(sale.paymentToken, marketplaceFee, LABELS.MARKETPLACE);
