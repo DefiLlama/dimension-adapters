@@ -55,7 +55,7 @@ const fetch = async (options: FetchOptions) => {
 				return from !== TAX_ACCUMULATOR.toLowerCase();
 			},
 		});
-		await safeGetETHReceived({ options, target: DEV_WALLET_1, balances: dailyFees });
+		await safeGetETHReceived({ options, target: DEV_WALLET_1, balances: dailyFees, notFromSenders: [TAX_ACCUMULATOR] });
 		const feeRate = options.startTimestamp < LEGACY_FEE_RATE_CHANGE_TIMESTAMP ? LEGACY_FEE_RATE : SWAP_FEE_RATE;
 		const dailyVolume = dailyFees.clone(1 / feeRate);
 
