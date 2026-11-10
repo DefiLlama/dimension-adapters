@@ -10,6 +10,9 @@
       - Tip Router Fees (MEV tips explicitly routed to the DAO).
       - JIP-24 the Block Engine and future fees from the newly launched BAM (Block Assembly Marketplace) are combined and routed to the DAO treasury.
       // https://forum.jito.network/t/jip-24-jito-dao-receives-all-jito-block-engine-fees-and-future-bam-fees/860
+      - JIP-38 80% of JTX platform fees, swapped into JTO and committed to buybacks and burns, so it is holders revenue.
+        The JTO bought so far still sits unburned in the DAO wallet.
+      // https://forum.jito.network/t/jip-38-confirm-jito-as-a-token-centric-network/973
     This is calculated via the SQL query which sums transfers to specific DAO fee accounts.
   Note: The staking rewards distributed to JitoSOL holders (the other 96%) are not included in these metrics.
 */
@@ -18,6 +21,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { getSqlFromFile, queryDuneSql } from "../../helpers/dune"
 import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex"
+import { METRIC } from "../../helpers/metrics"
 
 const fetch = async (options: FetchOptions) => {
   assertDuneSolanaIndexed(options);
@@ -35,12 +39,31 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.addCGToken('usd-coin', fees[0].tip_router_fees, 'TIP_ROUTER')
   dailyFees.addCGToken('usd-coin', fees[0].bam_mev_tips, 'MEV_TIPS')
 
+  // everything so far stays with the DAO; the JTX share below is committed to JTO buybacks and burns
+  const dailyProtocolRevenue = dailyFees.clone()
+
+  dailyFees.addCGToken('jito-governance-token', fees[0].jtx_fees, 'JTX_FEES')
+  const dailyHoldersRevenue = options.createBalances();
+  dailyHoldersRevenue.addCGToken('jito-governance-token', fees[0].jtx_fees, METRIC.TOKEN_BUY_BACK)
+
   return {
     dailyFees,
     dailyRevenue: dailyFees,
-    dailyProtocolRevenue: dailyFees,
-    dailyHoldersRevenue: "0",
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
   }
+}
+
+const PROTOCOL_REVENUE_LABELS = {
+  'JITOSOL_FEES': 'JitoSOL stake pool fees: rewards fee (4% of staking rewards), withdrawal fees (0.1% on unstake) and orphaned account fees',
+  'INTERCEPTOR_FEES': 'Fees generated from early unstake claims',
+  'TIP_ROUTER': 'Fees generated from the TipRouter Node Consensus Network',
+  'MEV_TIPS': 'Block engine fees routed directly to the DAO',
+}
+
+const FEE_LABELS = {
+  ...PROTOCOL_REVENUE_LABELS,
+  'JTX_FEES': "The DAO's 80% share of JTX platform fees (JIP-38), swept to the DAO wallet as JTO",
 }
 
 const adapter: SimpleAdapter = {
@@ -50,18 +73,18 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   dependencies: [Dependencies.DUNE],
   breakdownMethodology: {
-    Fees: {
-      'JITOSOL_FEES': 'JitoSOL stake pool fees: rewards fee (4% of staking rewards), withdrawal fees (0.1% on unstake) and orphaned account fees',
-      'INTERCEPTOR_FEES': 'Fees generated from early unstake claims',
-      'TIP_ROUTER': 'Fees generated from the TipRouter Node Consensus Network',
-      'MEV_TIPS': 'Block engine fees routed directly to the DAO',
-    }
+    Fees: FEE_LABELS,
+    Revenue: FEE_LABELS,
+    ProtocolRevenue: PROTOCOL_REVENUE_LABELS,
+    HoldersRevenue: {
+      [METRIC.TOKEN_BUY_BACK]: "The DAO's 80% share of JTX platform fees, swapped into JTO at each sweep and committed to buybacks and burns by JIP-38; held unburned in the DAO wallet so far",
+    },
   },
   methodology: {
-    Fees: 'Fee accrued to the Jito DAO (JitoSOL Stake Pool Fees including 4% of staking rewards, Interceptor Fees, Tip Router Fees, BAM Fees)',
-    Revenue: 'Fee accrued to the Jito DAO (JitoSOL Stake Pool Fees including 4% of staking rewards, Interceptor Fees, Tip Router Fees, BAM Fees)',
+    Fees: 'Fee accrued to the Jito DAO (JitoSOL Stake Pool Fees including 4% of staking rewards, Interceptor Fees, Tip Router Fees, BAM Fees, 80% of JTX platform fees)',
+    Revenue: 'Fee accrued to the Jito DAO (JitoSOL Stake Pool Fees including 4% of staking rewards, Interceptor Fees, Tip Router Fees, BAM Fees, 80% of JTX platform fees)',
     ProtocolRevenue: 'Fee accrued to the Jito DAO (JitoSOL Stake Pool Fees including 4% of staking rewards, Interceptor Fees, Tip Router Fees, BAM Fees)',
-    HoldersRevenue: 'Fee paid to token holders',
+    HoldersRevenue: "The DAO's 80% share of JTX platform fees, swapped into JTO at each sweep and committed to buybacks and burns by JIP-38; held unburned in the DAO wallet so far",
   }
 }
 

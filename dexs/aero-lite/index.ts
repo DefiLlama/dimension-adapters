@@ -33,6 +33,7 @@ const chainConfig: Record<string, { factory: string; fromBlock: number; start: s
   [CHAIN.INK]: { factory: '0x7660BF2aDefC687C22906112ca323d60A00358cF', fromBlock: 58869589, start: '2026-10-21' },
   [CHAIN.ROBINHOOD]: { factory: '0xc63d7338c178e805c544B8f897066bD3BBcBE136', fromBlock: 92177714, start: '2026-10-21' },
   [CHAIN.ARC]: { factory: '0x7F83235643181E440433400a027618Cd50879751', fromBlock: 26684462, start: '2026-09-16' }, // start is Aero Lite's
+  [CHAIN.ELYSIUM]: { factory: '0xEfd7A089D3057F05189B05f74Ffcf30610c42891', fromBlock: 1947859, start: '2026-11-08' },
 }
 
 const POOL_CREATED = 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)'

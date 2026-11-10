@@ -34,6 +34,7 @@ const CHAINS: Record<string, number | string> = {
   [CHAIN.INK]: 57073,
   [CHAIN.LINEA]: 59144,
   [CHAIN.BERACHAIN]: 80094,
+  [CHAIN.ELYSIUM]: 99901,
   [CHAIN.SCROLL]: 534352,
   [CHAIN.SOLANA]: "solana",
   // trades originating on Tron are not collected yet, enable once they are

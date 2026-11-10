@@ -93,6 +93,21 @@ const configs: Record<string, ArbitrumBridgeConfig> = {
     parent: { chain: CHAIN.ARBITRUM, name: "Arbitrum" },
     start: "2024-04-12",
   },
+  // Kinetiq's Orbit chain settling to HyperEVM, HYPE as gas token (native HYPE escrowed in the Bridge, no nativeToken)
+  // inbox is Bridge.allowedDelayedInboxList(0) and the gateways' inbox(); WHYPE gateway from router.getGateway(WHYPE)
+  "elysium-bridge": {
+    name: "Elysium",
+    inbox: "0xce59f8B65ad41C9DAE4c07A0571a39824bD92cff",
+    bridge: "0x503D572157113fAaaD4DbeD2647Bb10b949216B6",
+    escrows: [
+      "0xd97B30dE0bA0C2eAeE942afce77530e06c5F122c", // ERC20 gateway (router default)
+      "0xF735A40938BEfC34CDE27049f7F70780bD460748", // custom gateway
+      "0x4ADeEcE99eDfa453e40E79FfD2F179008F5a91EB", // WHYPE gateway
+    ],
+    wethGatewayAlias: "0x5befece99edfa453e40e79ffd2f179008f5aa2fc", // alias of 0x4ADeEcE99eDfa453e40E79FfD2F179008F5a91EB
+    parent: { chain: CHAIN.HYPERLIQUID, name: "HyperEVM" },
+    start: "2026-10-19",
+  },
 };
 
 const protocols: Record<string, any> = {};

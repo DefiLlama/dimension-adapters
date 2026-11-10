@@ -19,6 +19,20 @@ WITH
             AND r.block_time>=from_unixtime({{start}})
             AND r.block_time<=from_unixtime({{end}})
     ),
+    -- Jito MEV tips claimed by the pool's stake accounts. Like inflation rewards they raise SOL per LST, and the stake
+    -- pool's epoch fee is charged on them. A separate row, so an adapter can leave it out (jito-staked-sol does).
+    -- Dune's decoded Solana tables (this one and stake_call_delegatestake) hold instructions of successful transactions
+    -- only and have no tx_success column, so failed claims and delegations never reach these sums.
+    mev_rewards AS (
+        SELECT
+            'dailyMevRewards' as metric_type,
+            sum(c.amount/1e9) as amount
+        FROM
+            stake_accounts sa
+            JOIN jito_tip_distribution_solana.jito_tip_distribution_call_claim c on c.account_claimant=sa.stake_account_raw
+            AND c.call_block_time>=from_unixtime({{start}})
+            AND c.call_block_time<from_unixtime({{end}})
+    ),
     revenue_fees AS (
         SELECT
             'dailyRevenue' as metric_type,
@@ -52,6 +66,12 @@ SELECT
     COALESCE(amount, 0) as amount
 FROM
     staking_fees
+UNION ALL
+SELECT
+    metric_type,
+    COALESCE(amount, 0) as amount
+FROM
+    mev_rewards
 UNION ALL
 SELECT
     metric_type,

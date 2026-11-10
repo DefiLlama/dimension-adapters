@@ -71,6 +71,7 @@ const BlacklistVaults = [
 
 const ContractAbis = {
   token: 'address:token',
+  asset: 'address:asset',
   totalSupply: 'uint256:totalSupply',
   totalAssets: 'uint256:totalAssets',
   getPricePerFullShare: 'uint256:getPricePerFullShare',
@@ -167,6 +168,18 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
   // get v2, v3 vaults data
   const configs = await getConfig(`yearn/vaults-${options.chain}`, vaultListApi(chainConfig[options.chain].chainId))
+  // underlying token is read on-chain: since 2026-11-09 yDaemon returns token.address = 0x0 for every Ethereum, Optimism and Arbitrum vault, which priced all yield as ETH
+  // v2 vaults (0.x) expose token(), v3 vaults (3.x) expose asset()
+  const vaultTokens = await options.api.multiCall({
+    abi: ContractAbis.token,
+    calls: configs.map((config: any) => config.address),
+    permitFailure: true,
+  })
+  const vaultAssets = await options.api.multiCall({
+    abi: ContractAbis.asset,
+    calls: configs.map((config: any) => config.address),
+    permitFailure: true,
+  })
   const vaultTotalSupply = await options.api.multiCall({
     abi: ContractAbis.totalSupply,
     calls: configs.map((config: any) => config.address),
@@ -199,7 +212,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   })
   if (vaultTotalSupply) {
     for (let idx = 0; idx < configs.length; idx++) {
-      const token = configs[idx].token.address
+      const token = vaultAssets[idx] || vaultTokens[idx]
+      // neither call answers when the vault is not deployed yet at the window end block (refills), it has no yield then
+      if (!token) continue
       const totalSupply = vaultTotalSupply[idx]
       const priceShareBefore = vaultPriceShareBefore[idx]
       const priceShareAfter = vaultPriceShareAfter[idx]

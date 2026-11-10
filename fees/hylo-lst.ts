@@ -31,6 +31,8 @@ const fetch = async (options: FetchOptions) => {
     const amount = (metricType: string) =>
       Number(rows.find((row: any) => row.metric_type === metricType)?.amount) || 0;
     const stakingRewards = amount('dailyFees');
+    // Jito MEV tips claimed by the pool's stake accounts; the minted epoch fee below is charged on them too
+    const mevRewards = amount('dailyMevRewards');
     const feeAccountInflows = amount('dailyRevenue');
     const userFees = amount('dailyUserFees');
 
@@ -38,9 +40,10 @@ const fetch = async (options: FetchOptions) => {
     const mintedFee = feeAccountInflows - userFees;
 
     dailyFees.addCGToken("solana", stakingRewards, METRIC.STAKING_REWARDS);
+    dailyFees.addCGToken("solana", mevRewards, METRIC.MEV_REWARDS);
     dailyFees.add(lstMint, userFees * 1e9, METRIC.DEPOSIT_WITHDRAW_FEES);
     dailyRevenue.add(lstMint, feeAccountInflows * 1e9, METRIC.MANAGEMENT_FEES);
-    dailySupplySideRevenue.addCGToken("solana", stakingRewards, STAKING_REWARDS_TO_STAKERS);
+    dailySupplySideRevenue.addCGToken("solana", stakingRewards + mevRewards, STAKING_REWARDS_TO_STAKERS);
     dailySupplySideRevenue.add(lstMint, -mintedFee * 1e9, STAKING_REWARDS_TO_STAKERS);
   };
 
@@ -74,7 +77,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: 'Staking rewards from staked SOL on Hylo and Hylo+ staked solana, plus deposit/withdrawal fees paid by users',
+  Fees: 'Staking rewards (inflation and Jito MEV tips) from staked SOL on Hylo and Hylo+ staked solana, plus deposit/withdrawal fees paid by users',
   Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
   ProtocolRevenue: 'Revenue going to treasury/team',
   SupplySideRevenue: 'Staking rewards distributed to LST stakers, net of the epoch fee',
@@ -83,6 +86,7 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.STAKING_REWARDS]: 'Staking rewards earned on SOL staked through hyloSOL and hyloSOL+',
+    [METRIC.MEV_REWARDS]: "Jito MEV tips claimed by the hyloSOL and hyloSOL+ stake accounts",
     [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Deposit/withdrawal fees paid by users on their principal',
   },
   Revenue: {
@@ -92,7 +96,7 @@ const breakdownMethodology = {
     [METRIC.MANAGEMENT_FEES]: 'Withdrawal and management fees going to the treasury/team',
   },
   SupplySideRevenue: {
-    [STAKING_REWARDS_TO_STAKERS]: 'Staking rewards accruing to the LST stakers, less the epoch fee minted to the fee collector',
+    [STAKING_REWARDS_TO_STAKERS]: 'Staking rewards and MEV tips accruing to the LST stakers, less the epoch fee minted to the fee collector',
   },
 }
 

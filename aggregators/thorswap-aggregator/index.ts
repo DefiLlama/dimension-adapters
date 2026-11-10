@@ -1,5 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { addVolume, getChainStats, adapterChains } from "../../helpers/aggregators/thorchain";
+import { addVolume, getChainStats, adapterChains } from "../../helpers/aggregators/thorswap";
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
