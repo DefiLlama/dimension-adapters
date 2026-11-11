@@ -28,6 +28,12 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "gullnetwork-amm": {
+    // Verified factory and pair: https://pacific-explorer.manta.network/address/0x31a78894a2b5de2c4244cd41595cd0050a906db3?tab=contract
+    // Deployment: https://pacific-explorer.manta.network/tx/0x78f6bd26a4f27c03f89d3f0701e3df24eaf2c845f740940f5445121ff3b31fed
+    // Volume only: fees and protocol split are mutable, so historical attribution is not established.
+    [CHAIN.MANTA]: { factory: '0x31a78894a2b5de2c4244cd41595cd0050a906db3', start: '2024-05-21', customLogic: volumeOnly },
+  },
   "spartadex": {
     // V2 pair creation and 0.3% swap invariant: https://sourcify.dev/server/v2/contract/42161/0xFe8EC10Fe07A6a6f4A2584f8cD9FE232930eAF55?fields=all
     // Linea factory uses the same pair code: https://sourcify.dev/server/v2/contract/59144/0x9E4Fc4a5A0769ba74088856C229c4a1Db2Ea5A9e?fields=all
