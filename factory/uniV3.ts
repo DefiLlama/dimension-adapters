@@ -74,6 +74,12 @@ const kellerClCustomLogic = async ({ pairObject, dailyFees, fetchOptions, filter
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "9inch-io-v3": {
+    // Factory and pool event interface: https://scan.pulsechain.com/address/0xCfd33C867C9F031AadfF7939Cb8086Ee5ae88c41#code
+    // Deployed 2024-05-13: https://scan.pulsechain.com/tx/0x2fa3349924d34fe12e182c0220f4fc8321fc994d245c1fbed397381290663d76
+    // volume only: fee split not documented
+    [CHAIN.PULSECHAIN]: { factory: '0xCfd33C867C9F031AadfF7939Cb8086Ee5ae88c41', start: '2024-05-13', swapEvent: protocolFeesSwapEvent, customLogic: volumeOnly },
+  },
   "liberty-swap": {
     // Verified factory, PoolCreated and pool Swap ABI: https://sourcify.dev/server/v2/contract/369/0x796fcbdc956b85797efe21145aa97599b7fb36a6?fields=all
     // Deployed at Pulse block 26620000 (2026-05-25); volume only: fee split not documented.
