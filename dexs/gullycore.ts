@@ -1,4 +1,4 @@
-import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import ADDRESSES from "../helpers/coreAssets.json";
 // BEGIN GENERATED IMPORTS (tools/sync-records.mjs)
 import { CHAIN } from "../helpers/chains";
@@ -502,34 +502,30 @@ const fetch = async (options: FetchOptions) => {
 
   // ---- 3. launch pools: the guard's own fee and tax, and the kit's launch fee ----
   const guards = config.launchGuards ?? [];
-  for (const guard of guards) {
-    const taken = {
-      fee: await getLogs({ target: guard, eventAbi: FEE_TAKEN_EVENT }),
-      tax: await getLogs({ target: guard, eventAbi: TAX_TAKEN_EVENT }),
-    };
-    // Group by pool, so each split is read once per pool and kind.
+  if (guards.length) {
     const kinds = [
-      { logs: taken.fee, abi: GET_FEE_SPLIT, labels: FEE_LABELS },
-      { logs: taken.tax, abi: GET_TAX, labels: TAX_LABELS },
+      { logs: await getLogs({ targets: guards, eventAbi: FEE_TAKEN_EVENT, flatten: false }), abi: GET_FEE_SPLIT, labels: FEE_LABELS },
+      { logs: await getLogs({ targets: guards, eventAbi: TAX_TAKEN_EVENT, flatten: false }), abi: GET_TAX, labels: TAX_LABELS },
     ];
+    const splitKey = (guard: string, poolId: string) => `${guard.toLowerCase()}:${poolId}`;
     for (const kind of kinds) {
-      const events = kind.logs.filter((l) => {
-        const pool = allPools[String(l.poolId).toLowerCase()];
-        return pool && !blacklist.has(String(l.currency).toLowerCase());
-      });
+      const events = (kind.logs as any[][])
+        .flatMap((logs, i) => logs.map((log) => ({ guard: guards[i], poolId: String(log.poolId).toLowerCase(), log })))
+        .filter(({ poolId, log }) => allPools[poolId] && !blacklist.has(String(log.currency).toLowerCase()));
       if (!events.length) continue;
-      const ids = [...new Set(events.map((l) => String(l.poolId).toLowerCase()))];
+      const calls = new Map<string, { target: string; params: [string] }>();
+      for (const { guard, poolId } of events) calls.set(splitKey(guard, poolId), { target: guard, params: [poolId] });
       const splits: any[] = await options.api.multiCall({
         abi: kind.abi,
-        calls: ids.map((id) => ({ target: guard, params: [id] })),
+        calls: [...calls.values()],
         permitFailure: true,
       });
-      const splitOf = new Map<string, any>(ids.map((id, i) => [id, splits[i]]));
-      for (const log of events) {
+      const splitOf = new Map<string, any>([...calls.keys()].map((k, i) => [k, splits[i]]));
+      for (const { guard, poolId, log } of events) {
         const amount = BigInt(log.amount);
         if (amount <= 0n) continue;
         const currency = priced(String(log.currency));
-        const split = splitOf.get(String(log.poolId).toLowerCase());
+        const split = splitOf.get(splitKey(guard, poolId));
         for (const b of fees) b.add(currency, amount, kind.labels.total);
         if (!split) {
           // Never guess a split: not revenue, and not attributed to anyone.
@@ -544,8 +540,9 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  for (const kit of config.launchKits ?? []) {
-    const launches = await getLogs({ target: kit, eventAbi: LAUNCH_CREATED_EVENT });
+  const kits = config.launchKits ?? [];
+  if (kits.length) {
+    const launches = await getLogs({ targets: kits, eventAbi: LAUNCH_CREATED_EVENT });
     for (const log of launches) {
       const protocolFee = BigInt(log.protocolFeeWei);
       const launchpadFee = BigInt(log.integratorFeeWei);
@@ -575,66 +572,57 @@ const fetch = async (options: FetchOptions) => {
   };
 };
 
+const feesBreakdown = {
+  [METRIC.SWAP_FEES]: "Fees traders pay on every swap in Gully Core pools, at the rate recorded with each swap.",
+  [METRIC.ROUTING_FEES]: "Fee Gully Core's router charges on trades it fills on other DEXs; the routed trade itself is not counted as volume.",
+  [METRIC.LAUNCH_TRADE_FEES]: "Trade fee charged on buys and sells of tokens launched through Gully Core's launchpad, paid in the pool's quote token.",
+  [METRIC.CREATOR_TAX]: "Buy and sell tax set by a token's creator at launch, charged on trades of that token and paid in the pool's quote token.",
+  [METRIC.LAUNCH_FEES]: "Fee paid in the chain's native coin to launch a token through Gully Core's launchpad.",
+};
+
+const revenueBreakdown = {
+  [METRIC.PROTOCOL_REVENUE]: "Gully Core's share of swap fees, at the protocol fee rate recorded with each swap.",
+  [METRIC.ROUTING_FEES_TO_PROTOCOL]: "The full fee Gully Core's router charges on trades it fills on other DEXs, all kept by Gully Core.",
+  [METRIC.LAUNCH_TRADE_FEES_TO_PROTOCOL]: "Gully Core's share of launch trade fees, as set by each pool's on-chain fee split.",
+  [METRIC.CREATOR_TAX_TO_PROTOCOL]: "Gully Core's share of creator taxes, as set by each pool's on-chain tax terms.",
+  [METRIC.LAUNCH_FEES_TO_PROTOCOL]: "Gully Core's part of the fee paid to launch a token.",
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   // Swap and Filled logs are window-scoped, so an hourly pull is exact and cheap.
   pullHourly: true,
   fetch,
-  adapter: {},
+  adapter: chainConfig,
   methodology: {
     Volume:
-      "Gross input of every swap on Gully Core's CLPoolManager and BinPoolManager, one leg per swap, read from Swap events. Trades the Gully Core router fills on other venues are not counted as volume.",
-    Fees: "Swap fees charged by Gully Core pools, read from each Swap event (protocol fee included), plus the fee Gully Core's router charges on fills it routes to other venues, read from its Filled events, plus the trade fee and creator tax that launch guards take on launch pools (FeeTaken, TaxTaken) and the launch fee the launchpad kit charges (LaunchCreated).",
-    UserFees: "Same as Fees - traders pay all of it.",
+      "Value of tokens swapped in Gully Core's concentrated-liquidity and liquidity-book pools, counting one side of each trade; trades Gully Core's router sends to other DEXs are not counted.",
+    Fees:
+      "Swap fees paid by traders in Gully Core pools, the fee Gully Core's router charges on trades it sends to other DEXs, and the trade fees, creator taxes and launch fees paid on tokens launched through Gully Core's launchpad.",
+    UserFees:
+      "All swap fees, routing fees, launch trade fees, creator taxes and launch fees, paid directly by traders and by the users who launch tokens.",
     Revenue:
-      "The protocol fee slice each Swap event carried, plus the router fee on routed fills, plus the protocol's share of each launch-guard amount and launch fee. A launch pool's split is read from its guard and applied as the guard applies it; a pool whose split names no protocol share adds none.",
-    ProtocolRevenue: "All of Revenue goes to the protocol.",
-    SupplySideRevenue: "The rest of each swap fee, earned by liquidity providers, and the shares of launch-guard amounts and launch fees that go to creators and launchpads.",
+      "Gully Core's share of swap fees, all routing fees, and Gully Core's share of launch trade fees, creator taxes and launch fees, as set on-chain for each pool and launch.",
+    ProtocolRevenue:
+      "Gully Core's share of swap fees, all routing fees, and Gully Core's share of launch trade fees, creator taxes and launch fees, all kept by the protocol.",
+    SupplySideRevenue:
+      "The part of swap fees earned by liquidity providers, plus the shares of launch trade fees, creator taxes and launch fees paid to token creators and to the launchpads that host launches.",
   },
   breakdownMethodology: {
-    Fees: {
-      [METRIC.SWAP_FEES]: "Swap fee charged by the pool, read from each Swap event.",
-      [METRIC.ROUTING_FEES]: "Fee charged by Gully Core's router on a fill routed to another venue (Filled.feeAmount).",
-      [METRIC.LAUNCH_TRADE_FEES]: "Trade fee a launch guard takes on a launch pool, in its quote currency (FeeTaken).",
-      [METRIC.CREATOR_TAX]: "Creator tax a launch guard takes on a launch pool, in its quote currency (TaxTaken).",
-      [METRIC.LAUNCH_FEES]: "Launch fee charged by the launchpad kit, in the native coin (LaunchCreated).",
-    },
-    UserFees: {
-      [METRIC.SWAP_FEES]: "Swap fee charged by the pool, read from each Swap event.",
-      [METRIC.ROUTING_FEES]: "Fee charged by Gully Core's router on a fill routed to another venue (Filled.feeAmount).",
-      [METRIC.LAUNCH_TRADE_FEES]: "Trade fee a launch guard takes on a launch pool, in its quote currency (FeeTaken).",
-      [METRIC.CREATOR_TAX]: "Creator tax a launch guard takes on a launch pool, in its quote currency (TaxTaken).",
-      [METRIC.LAUNCH_FEES]: "Launch fee charged by the launchpad kit, in the native coin (LaunchCreated).",
-    },
-    Revenue: {
-      [METRIC.PROTOCOL_REVENUE]: "Protocol fee slice of the swap fee, at the rate each Swap event carried on chain.",
-      [METRIC.ROUTING_FEES_TO_PROTOCOL]: "Router fee on routed fills, paid to the protocol.",
-      [METRIC.LAUNCH_TRADE_FEES_TO_PROTOCOL]: "Protocol share of the launch-guard trade fee, as the pool's split sets it.",
-      [METRIC.CREATOR_TAX_TO_PROTOCOL]: "Protocol share of the creator tax, as the pool's split sets it.",
-      [METRIC.LAUNCH_FEES_TO_PROTOCOL]: "Protocol part of the launch fee.",
-    },
-    ProtocolRevenue: {
-      [METRIC.PROTOCOL_REVENUE]: "Protocol fee slice of the swap fee, at the rate each Swap event carried on chain.",
-      [METRIC.ROUTING_FEES_TO_PROTOCOL]: "Router fee on routed fills, paid to the protocol.",
-      [METRIC.LAUNCH_TRADE_FEES_TO_PROTOCOL]: "Protocol share of the launch-guard trade fee, as the pool's split sets it.",
-      [METRIC.CREATOR_TAX_TO_PROTOCOL]: "Protocol share of the creator tax, as the pool's split sets it.",
-      [METRIC.LAUNCH_FEES_TO_PROTOCOL]: "Protocol part of the launch fee.",
-    },
+    Fees: feesBreakdown,
+    UserFees: feesBreakdown,
+    Revenue: revenueBreakdown,
+    ProtocolRevenue: revenueBreakdown,
     SupplySideRevenue: {
-      [METRIC.LP_REVENUE]: "Swap fee remaining after the protocol slice, earned by liquidity providers.",
-      [METRIC.LAUNCH_TRADE_FEES_TO_CREATORS]: "Creators' share of the launch-guard trade fee.",
-      [METRIC.LAUNCH_TRADE_FEES_TO_LAUNCHPADS]: "Launchpad's share of the launch-guard trade fee.",
-      [METRIC.CREATOR_TAX_TO_CREATORS]: "Creators' share of the creator tax.",
-      [METRIC.CREATOR_TAX_TO_LAUNCHPADS]: "Launchpad's share of the creator tax.",
-      [METRIC.LAUNCH_FEES_TO_LAUNCHPADS]: "Launchpad's part of the launch fee.",
-      [METRIC.LAUNCH_UNREAD]: "Guard amounts on a pool whose split could not be read: kept out of Revenue, never guessed.",
+      [METRIC.LP_REVENUE]: "Part of swap fees left after Gully Core's share, earned by liquidity providers.",
+      [METRIC.LAUNCH_TRADE_FEES_TO_CREATORS]: "Token creators' share of launch trade fees.",
+      [METRIC.LAUNCH_TRADE_FEES_TO_LAUNCHPADS]: "Share of launch trade fees paid to the launchpad that hosted the launch.",
+      [METRIC.CREATOR_TAX_TO_CREATORS]: "Token creators' share of creator taxes.",
+      [METRIC.CREATOR_TAX_TO_LAUNCHPADS]: "Share of creator taxes paid to the launchpad that hosted the launch.",
+      [METRIC.LAUNCH_FEES_TO_LAUNCHPADS]: "Part of the launch fee paid to the launchpad that hosted the launch.",
+      [METRIC.LAUNCH_UNREAD]: "Launch trade fees and creator taxes on pools whose fee split could not be read on-chain, kept out of revenue rather than guessed.",
     },
   },
 };
-
-// Only chains with a real deployment are exported.
-for (const [chain, config] of Object.entries(chainConfig)) {
-  if (isConfigured(config)) (adapter.adapter as BaseAdapter)[chain] = { start: config.start };
-}
 
 export default adapter;
