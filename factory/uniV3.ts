@@ -74,6 +74,11 @@ const kellerClCustomLogic = async ({ pairObject, dailyFees, fetchOptions, filter
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "laminar": {
+    // Verified factory and standard V3 pool events: https://sourcify.dev/server/v2/contract/999/0x40059a6f242c3de0e639693973004921b04d96ad?fields=all
+    // Factory deployed at block 592235 on 2025-03-03; volume only: fee split varies by token and pool.
+    [CHAIN.HYPERLIQUID]: { factory: '0x40059A6F242C3de0E639693973004921B04D96AD', start: '2025-03-03', customLogic: volumeOnly },
+  },
   "liberty-swap": {
     // Verified factory, PoolCreated and pool Swap ABI: https://sourcify.dev/server/v2/contract/369/0x796fcbdc956b85797efe21145aa97599b7fb36a6?fields=all
     // Deployed at Pulse block 26620000 (2026-05-25); volume only: fee split not documented.
