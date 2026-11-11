@@ -74,6 +74,10 @@ const kellerClCustomLogic = async ({ pairObject, dailyFees, fetchOptions, filter
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "hydrex": {
+    // Algebra Integral 1.2 factory, fees are tracked from Hydrex voter bribes in fees/hydrex
+    [CHAIN.BASE]: { factory: '0x36077D39cdC65E1e3FB65810430E5b2c4D5fA29E', start: '2025-06-16', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV3SwapEvent, customLogic: volumeOnly },
+  },
   "krown-dex": {
     // Verified V3 factory and pool source: https://explorer-api.krown.network/api/v2/smart-contracts/0x10ba7a9b45267caf016028cd398e68a19632bed2
     // Deployed 2026-01-07: https://explorer-api.krown.network/api/v2/transactions/0x7182a58c522cac953b3987ce9cca35915dafc5477296817c04dd113dddba9d9c
@@ -414,9 +418,6 @@ const configs: Record<string, Record<string, any>> = {
   "capybara-v3": {
     [CHAIN.KLAYTN]: { factory: '0xC4C8310080F209629EC4c349cb2A3c6720e1176D', start: '2025-01-01', userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.4, },
   },
-  "wasabee": {
-    [CHAIN.BERACHAIN]: { factory: '0x7d53327D78EFD0b463bd8d7dc938C52402323b95', start: '2024-10-29', isAlgebraV3: true, },
-  },
   "reservoir-tools-clmm": {
     [CHAIN.ABSTRACT]: { factory: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     // Ink is Uniswap's own v3 deployment (Uniswap/contracts deployments/json/57073.json; factory
@@ -657,6 +658,9 @@ const configs: Record<string, Record<string, any>> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "hydrex": {
+    Volume: "Value swapped across the Hydrex Integral (Algebra Integral) pools created by the Hydrex factory on Base, counting one side of each trade. Pools launched through custom deployers are not included.",
+  },
   "rocketswap-anubis-v3": {
     Volume: "Trading volume from RocketSwap V3 pools on Anubis, counting one token side of each pool swap and applying the shared Uniswap V3 pool filters. Excludes RocketSwap V2 pools.",
   },
