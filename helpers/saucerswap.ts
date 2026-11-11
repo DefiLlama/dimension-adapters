@@ -1,4 +1,48 @@
+import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../adapters/types";
+import { httpGet } from "../utils/fetchURL";
+import { CHAIN } from "./chains";
+import { isCoreAsset } from "./prices";
+
+export const MIRROR_NODE = 'https://mainnet-public.mirrornode.hedera.com'
+
+// SaucerSwap's wrapped HBAR, 8 decimals and 1:1 with HBAR: WHBAR [old] 0.0.1062664 (pools from 2022-23) and WHBAR [new] 0.0.1456986.
+// DefiLlama has no price for the old one, and none for the new one before mid-2023, so both legs are valued as HBAR.
+const WHBAR = new Set(['0.0.1062664', '0.0.1456986'])
+
+// An HTS entity 0.0.N has the long-zero EVM address hex(N), the form DefiLlama prices Hedera tokens by
+const toEvmAddress = (id: string) => '0x' + BigInt(id.split('.')[2]).toString(16).padStart(40, '0')
+
+// Every log with this topic0 on Hedera in [fromTimestamp, toTimestamp), from the mirror node, oldest first.
+// The mirror node only filters by topic within a timestamp range of at most 7 days.
+export async function getMirrorNodeLogs(topic0: string, fromTimestamp: number, toTimestamp: number): Promise<Array<any>> {
+  const logs: Array<any> = []
+  let path = `/api/v1/contracts/results/logs?topic0=${topic0}&timestamp=gte:${fromTimestamp}&timestamp=lt:${toTimestamp}&limit=100&order=asc`
+  while (path) {
+    const res = await httpGet(MIRROR_NODE + path)
+    logs.push(...res.logs)
+    path = res.links?.next
+  }
+  return logs
+}
+
+/**
+ * Add the HBAR or core-asset side of one swap to `balances`, so long-tail tokens are never priced.
+ *
+ * @param token0 HTS id (0.0.N) of the pool's token0, the token with the lower entity number
+ * @param token1 HTS id of the pool's token1
+ * @param amount0 token0 amount of the swap in raw units, unsigned
+ * @param amount1 token1 amount of the swap in raw units, unsigned
+ * @returns false when neither side is HBAR or a core asset and nothing was added
+ */
+export function addKnownLeg(balances: Balances, token0: string, token1: string, amount0: bigint, amount1: bigint): boolean {
+  if (WHBAR.has(token0)) balances.addCGToken('hedera-hashgraph', Number(amount0) / 1e8)
+  else if (WHBAR.has(token1)) balances.addCGToken('hedera-hashgraph', Number(amount1) / 1e8)
+  else if (isCoreAsset(CHAIN.HEDERA, toEvmAddress(token0))) balances.add(toEvmAddress(token0), amount0.toString())
+  else if (isCoreAsset(CHAIN.HEDERA, toEvmAddress(token1))) balances.add(toEvmAddress(token1), amount1.toString())
+  else return false
+  return true
+}
 
 // Protocol revenue (the fee-switch share of swap fees) buys SAUCE through BrewsaucerV2 (0.0.9575119), which splits what it
 // bought between xSAUCE stakers (Mothership 0.0.1460199), the Development Fund (0.0.9453414), the POL and Incentive Reserve
