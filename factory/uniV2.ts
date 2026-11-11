@@ -28,6 +28,12 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "arthswap": {
+    // V2 factory and 3/1000 pair invariant: https://astar.blockscout.com/address/0xA9473608514457b4bF083f9045fA63ae5810A03E?tab=contract
+    // Deployed 2022-01-18: https://astar.blockscout.com/tx/0xaa7e78a7219f60d2333eab03c8869dfd8eb460996264405949d1682ab80d1983
+    // volume only: historical fee split not documented; feeTo is mutable.
+    [CHAIN.ASTAR]: { factory: '0xA9473608514457b4bF083f9045fA63ae5810A03E', start: '2022-01-18', fees: 0.003, customLogic: volumeOnly },
+  },
   "spartadex": {
     // V2 pair creation and 0.3% swap invariant: https://sourcify.dev/server/v2/contract/42161/0xFe8EC10Fe07A6a6f4A2584f8cD9FE232930eAF55?fields=all
     // Linea factory uses the same pair code: https://sourcify.dev/server/v2/contract/59144/0x9E4Fc4a5A0769ba74088856C229c4a1Db2Ea5A9e?fields=all
