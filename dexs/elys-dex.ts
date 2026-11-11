@@ -17,6 +17,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ELYS],
   start: "2024-12-22",
+  deadFrom: "2026-06-22", // chain sunset by gov prop 103, api 504s, elys-1 halted 2026-07-07
 };
 
 export default adapter;
