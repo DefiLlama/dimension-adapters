@@ -28,6 +28,11 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "pantherswap": {
+    // Factory creates PantherPair; its invariant charges 2/1000: https://sourcify.dev/server/v2/contract/56/0x670f55c6284c629c23bae99f585e3f17e8b9fc31?fields=all
+    // Deployment block 7119352 (2021-05-04 UTC); volume only: historical fee split not documented.
+    [CHAIN.BSC]: { factory: '0x670f55c6284c629c23bae99f585e3f17e8b9fc31', start: '2021-05-04', fees: 0.002, customLogic: volumeOnly },
+  },
   "spartadex": {
     // V2 pair creation and 0.3% swap invariant: https://sourcify.dev/server/v2/contract/42161/0xFe8EC10Fe07A6a6f4A2584f8cD9FE232930eAF55?fields=all
     // Linea factory uses the same pair code: https://sourcify.dev/server/v2/contract/59144/0x9E4Fc4a5A0769ba74088856C229c4a1Db2Ea5A9e?fields=all
