@@ -47,7 +47,7 @@ const STAKING = "0x4f08ca6FEe7b5121Abaeb1006647F8df98cD7DBE";
 // MetaAggregationRouterV2 (sample buyback: tx 0xe94b666a4a81d4c7759da3ae5302b55359d68b580f94b773e49b47fb17f7c83a).
 const BUYBACK_WALLET = "0x8176632892683e306dbc25636985cac75540d374";
 const KYBER_ROUTER = "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5";
-const KYBER_NATIVE = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"; // how the router names the native token
+const KYBER_NATIVE = ADDRESSES.GAS_TOKEN_2; // how the router names the native token
 // Boxa's fee hook and the $HELIOS pool on it (currency0 native HYPE, currency1 HELIOS; Initialize log in
 // the token's launch transaction, block 3402772). The pool's fee is taken in native HYPE.
 const BOXA_HOOK = "0x10f11002b148be522005f9b5d666bef339392aec";
@@ -57,14 +57,12 @@ const HELIOS_BOXA_POOL = "0x401353099cac6802708b83a50d7980bda7d5f585d5cfdef1deb4
 const CREATOR_FEE_TREASURY_PERCENT = 45n;
 
 // Priced majors on Elysium: a swap is valued on this leg, so a thin token can't set its value.
-// Addresses as in the `elysium` entry of DefiLlama-Adapters' projects/helper/coreAssets.json
-// (https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/helper/coreAssets.json).
 const MAJORS = new Set(
   [
     ADDRESSES.null, // native HYPE
-    "0xbA876237B0F021A6c6D852d6c26E107997cC5E81", // WHYPE
-    "0xb47c4C8F73F009CC0C0d3f92B388d13E293F0B65", // USDC
-    "0x3BdE42a1dA8F1D95564f2c4a51a0cF73a725674C", // USDT0
+    ADDRESSES.elysium.WHYPE,
+    ADDRESSES.elysium.USDC,
+    ADDRESSES.elysium.USDT0,
   ].map((a) => a.toLowerCase()),
 );
 
