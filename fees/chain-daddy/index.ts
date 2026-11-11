@@ -1,8 +1,11 @@
-import { PromisePool } from "@supercharge/promise-pool";
 import { AbiCoder, keccak256, solidityPackedKeccak256 } from "ethers";
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { base58Decode, base58Encode, getProgramAccounts, getSignaturesForAddress, getTransaction } from "../../helpers/solana";
+import { queryAllium } from "../../helpers/allium";
+import { timeFilter, u64 } from "../../helpers/alliumSolanaEvents";
+import { getCache, setCache } from "../../helpers/cache";
+import { toPositionedLogArgs } from "../../helpers/logs";
+import { base58Decode, base58Encode, getProgramAccounts } from "../../helpers/solana";
 
 // Chain Daddy (https://chaindaddy.io) is a launchpad and token-page registry. Its launchpad creates every coin's pool
 // through Doppler on EVM chains and through Meteora's Dynamic Bonding Curve (DBC) on Solana, and Chain Daddy is
@@ -50,6 +53,8 @@ type EvmConfig = {
   start: string;
   // block of the first Lock event that names Chain Daddy on this chain
   fromBlock: number;
+  // blocks of Lock events read per request while the pool cache catches up (see getChainDaddyPools)
+  lockScanBlocks: number;
   poolManager: string;
   multicurveInitializers: string[];
   // LockableUniswapV3Initializer: static launches, a permanently locked Uniswap v3 pool
@@ -63,6 +68,8 @@ const chainConfig: Record<string, EvmConfig | { start: string }> = {
     // first pool: tx 0x2e757d1c6fe72006ed80c95bd81f3d4862b1738b46fffd15f10be99c42f3bc66 (2026-09-24)
     start: "2026-09-24",
     fromBlock: 51711224,
+    // ~432k blocks and ~25k Lock events a day (2026-11-10)
+    lockScanBlocks: 500_000,
     poolManager: "0x498581fF718922c3f8e6A244956aF099B2652b2b",
     multicurveInitializers: ["0xBDF938149ac6a781F94FAa0ed45E6A0e984c6544"],
     v3Initializers: ["0xD09dEd1867d885fcDB41ADC957165D04aE917683"],
@@ -71,6 +78,8 @@ const chainConfig: Record<string, EvmConfig | { start: string }> = {
     // first pool: token 0x4fd711D257DF22e8114b46fA37248399Ff07619a, Lock in block 14962411 (2026-07-20)
     start: "2026-07-20",
     fromBlock: 14962411,
+    // ~822k blocks and ~630 Lock events a day (2026-11-10)
+    lockScanBlocks: 10_000_000,
     poolManager: "0x8366a39CC670B4001A1121B8F6A443A643e40951",
     multicurveInitializers: ["0x4e3468951D49f2EEa976eD0D6e75fFCb44a9a544"],
     v3Initializers: ["0xD09dEd1867d885fcDB41ADC957165D04aE917683"],
@@ -116,23 +125,71 @@ const addLpFee = (balances: any, token: string, lpFee: bigint, shares: Shares) =
   dailySupplySideRevenue.add(token, lpFee - toChainDaddy - toDoppler, "Launch Pool LP Fees To Creators");
 };
 
+type Pool = { pool: string; initializer: string; shares: Shares };
+// a pool as kept in the cache: shares as decimal strings, and the block of its Lock event
+type CachedPool = { pool: string; initializer: string; block: number; chainDaddy: string; doppler: string; creators: string };
+type PoolCache = { lastBlock?: number; pools?: CachedPool[] };
+
+const POOL_CACHE = "chain-daddy-pools";
+const poolCaches: Record<string, Promise<PoolCache>> = {};
+const poolSyncs: Record<string, Promise<unknown>> = {};
+
+// Every pool Chain Daddy is a beneficiary of, from the Lock events up to toBlock. Doppler's initializers are shared by
+// every launchpad built on Doppler (379,535 Lock events on Base's multicurve initializer by 2026-11-11, 2 of them
+// Chain Daddy's), and the beneficiaries are not indexed, so the query cannot be narrowed to Chain Daddy and a full scan
+// on each run is too slow. Chain Daddy's pools are kept in the adapter cache with the last block scanned: a run reads
+// only the blocks after it, lockScanBlocks at a time, saving after each, so an interrupted catch-up resumes.
+const getChainDaddyPools = (options: FetchOptions, config: EvmConfig, toBlock: number): Promise<Pool[]> => {
+  // syncs of one chain run one after another, so concurrent windows never read the same blocks twice
+  const run = (poolSyncs[options.chain] ?? Promise.resolve()).then(() => syncPools(options, config, toBlock));
+  poolSyncs[options.chain] = run.catch(() => undefined);
+  return run;
+};
+
+const syncPools = async (options: FetchOptions, config: EvmConfig, toBlock: number): Promise<Pool[]> => {
+  if (!poolCaches[options.chain]) poolCaches[options.chain] = getCache(POOL_CACHE, options.chain);
+  const cache = await poolCaches[options.chain];
+  if (!cache.pools || cache.lastBlock === undefined) {
+    cache.pools = [];
+    cache.lastBlock = config.fromBlock - 1;
+  }
+  const pools = cache.pools;
+  const initializers = [...config.multicurveInitializers, ...config.v3Initializers].map((a) => a.toLowerCase());
+  while (cache.lastBlock < toBlock) {
+    const fromBlock = cache.lastBlock + 1;
+    const scanTo = Math.min(cache.lastBlock + config.lockScanBlocks, toBlock);
+    // flatten: false keeps the logs per initializer, so each pool's state is read from the initializer that holds it
+    const locksByInitializer = await options.getLogs({ targets: initializers, eventAbi: LOCK_EVENT, fromBlock, toBlock: scanTo, flatten: false, onlyArgs: false });
+    locksByInitializer.forEach((locks: any[], i: number) => locks.forEach((log: any) => {
+      const lock = toPositionedLogArgs(log);
+      const shares = splitShares(lock.beneficiaries);
+      if (!shares) return;
+      pools.push({
+        pool: lock.pool.toLowerCase(),
+        initializer: initializers[i],
+        block: lock.blockNumber,
+        chainDaddy: shares.chainDaddy.toString(),
+        doppler: shares.doppler.toString(),
+        creators: shares.creators.toString(),
+      });
+    }));
+    cache.lastBlock = scanTo;
+    await setCache(POOL_CACHE, options.chain, cache);
+  }
+  // a refill of an earlier window skips pools created after it
+  return pools
+    .filter((p) => p.block <= toBlock)
+    .map((p) => ({ pool: p.pool, initializer: p.initializer, shares: { chainDaddy: BigInt(p.chainDaddy), doppler: BigInt(p.doppler), creators: BigInt(p.creators) } }));
+};
+
 const fetchEvm = async (options: FetchOptions, balances: any) => {
   const config = chainConfig[options.chain] as EvmConfig;
   const toBlock = await options.getToBlock();
 
-  // Every pool these initializers created up to the end of the window, kept when Chain Daddy is a beneficiary.
-  // flatten: false keeps the logs per initializer, so each pool's state is read from the initializer that holds it.
-  const findPools = async (initializers: string[]) => {
-    const locksByInitializer = await options.getLogs({ targets: initializers, eventAbi: LOCK_EVENT, fromBlock: config.fromBlock, toBlock, cacheInCloud: true, flatten: false });
-    const pools: { pool: string; initializer: string; shares: Shares }[] = [];
-    locksByInitializer.forEach((locks: any[], i: number) => locks.forEach((log: any) => {
-      const shares = splitShares(log.beneficiaries);
-      if (shares) pools.push({ pool: log.pool, initializer: initializers[i], shares });
-    }));
-    return pools;
-  };
-  const v4Pools = await findPools(config.multicurveInitializers);
-  const v3Pools = await findPools(config.v3Initializers);
+  const pools = await getChainDaddyPools(options, config, toBlock);
+  const isIn = (initializers: string[]) => (p: Pool) => initializers.some((a) => a.toLowerCase() === p.initializer);
+  const v4Pools = pools.filter(isIn(config.multicurveInitializers));
+  const v3Pools = pools.filter(isIn(config.v3Initializers));
 
   // ---- multicurve pools (Uniswap v4): the LP fee is in every Swap event. Only the initializer has ever added liquidity
   // to these pools (PoolManager ModifyLiquidity, checked 2026-11-09), so the whole LP fee goes to the beneficiaries.
@@ -149,39 +206,45 @@ const fetchEvm = async (options: FetchOptions, balances: any) => {
     });
     const poolIds = Object.keys(pools);
 
-    // Uniswap's own protocol fee per pool, at the start of the window (0 on every pool so far)
-    const slot0s = await options.fromApi.multiCall({
+    // Uniswap's own protocol fee per pool, at the end of the window, where every pool counted exists (0 on every pool so far)
+    const slot0s = await options.api.multiCall({
       abi: EXTSLOAD_ABI,
       calls: poolIds.map((id) => ({ target: config.poolManager, params: [solidityPackedKeccak256(["bytes32", "uint256"], [id, V4_POOLS_SLOT])] })),
     });
     const protocolFees: Record<string, bigint> = {};
     poolIds.forEach((id, i) => { protocolFees[id] = (BigInt(slot0s[i]) >> 184n) & 0xffffffn; });
 
-    // one query per pool, filtered on the indexed poolId: the PoolManager carries every v4 swap on the chain
-    for (const id of poolIds) {
+    // One query for every pool, filtered on the indexed poolId (OR'd in topic1): the PoolManager carries every v4 swap
+    // on the chain.
+    const swaps = await options.getLogs({ target: config.poolManager, eventAbi: V4_SWAP_EVENT, topics: [V4_SWAP_TOPIC, poolIds] as any });
+    for (const swap of swaps) {
+      const id = swap.id.toLowerCase();
       const pool = pools[id];
-      const swaps = await options.getLogs({ target: config.poolManager, eventAbi: V4_SWAP_EVENT, topics: [V4_SWAP_TOPIC, id] });
-      for (const swap of swaps) {
-        const amount0 = BigInt(swap.amount0);
-        // the fee is measured on the numeraire side of each swap, as the uniswap-v4 adapter does
-        const volume = abs(pool.numeraireIs0 ? amount0 : BigInt(swap.amount1));
-        const swapFee = (volume * BigInt(swap.fee)) / PIPS;
-        // a negative amount0 is token0 paid in: zeroForOne. The low 12 bits are that direction's protocol fee.
-        const protocolFeeRate = amount0 < 0n ? protocolFees[id] & 0xfffn : protocolFees[id] >> 12n;
-        const lpFee = swapFee - (volume * protocolFeeRate) / PIPS;
-        addLpFee(balances, pool.numeraire, lpFee, pool.shares);
-      }
+      if (!pool) throw new Error(`chain-daddy: Swap of unrequested v4 pool ${id}`);
+      const amount0 = BigInt(swap.amount0);
+      // the fee is measured on the numeraire side of each swap, as the uniswap-v4 adapter does
+      const volume = abs(pool.numeraireIs0 ? amount0 : BigInt(swap.amount1));
+      const swapFee = (volume * BigInt(swap.fee)) / PIPS;
+      // a negative amount0 is token0 paid in: zeroForOne. The low 12 bits are that direction's protocol fee.
+      const protocolFeeRate = amount0 < 0n ? protocolFees[id] & 0xfffn : protocolFees[id] >> 12n;
+      const lpFee = swapFee - (volume * protocolFeeRate) / PIPS;
+      addLpFee(balances, pool.numeraire, lpFee, pool.shares);
     }
   }
 
   // ---- static pools (Uniswap v3), Chain Daddy's default launch mode: the initializer keys the pool by the v3 pool
-  // itself, whose liquidity it adds and locks. None names Chain Daddy yet (Lock events checked 2026-11-11).
+  // itself, whose liquidity it adds and locks. The first one naming Chain Daddy is 0x307a19f8… on Base (block 55751452,
+  // 2026-11-10).
   if (v3Pools.length) {
-    const [states, token0s, feeTiers, slot0s] = await Promise.all([
+    const v3PoolAddresses = v3Pools.map((p) => p.pool);
+    const [states, token0s, feeTiers, slot0s, swapsByPool] = await Promise.all([
       options.api.multiCall({ abi: LOCKABLE_V3_STATE_ABI, calls: v3Pools.map((p) => ({ target: p.initializer, params: [p.pool] })) }),
-      options.api.multiCall({ abi: "address:token0", calls: v3Pools.map((p) => p.pool) }),
-      options.api.multiCall({ abi: "uint24:fee", calls: v3Pools.map((p) => p.pool) }),
-      options.fromApi.multiCall({ abi: V3_SLOT0_ABI, calls: v3Pools.map((p) => p.pool) }),
+      options.api.multiCall({ abi: "address:token0", calls: v3PoolAddresses }),
+      options.api.multiCall({ abi: "uint24:fee", calls: v3PoolAddresses }),
+      // read at the end of the window: a pool created inside it has no code at the window's first block
+      options.api.multiCall({ abi: V3_SLOT0_ABI, calls: v3PoolAddresses }),
+      // flatten: false keeps the swaps per pool, in the order of v3Pools
+      options.getLogs({ targets: v3PoolAddresses, eventAbi: V3_SWAP_EVENT, flatten: false }),
     ]);
     for (let i = 0; i < v3Pools.length; i++) {
       const numeraire = states[i].numeraire;
@@ -189,8 +252,7 @@ const fetchEvm = async (options: FetchOptions, balances: any) => {
       const feeTier = BigInt(feeTiers[i]);
       // v3's protocol fee is 1/n of the swap fee on the token paid in: n in the low 4 bits for token0, the high 4 for token1
       const feeProtocol = Number(slot0s[i].feeProtocol);
-      const swaps = await options.getLogs({ target: v3Pools[i].pool, eventAbi: V3_SWAP_EVENT });
-      for (const swap of swaps) {
+      for (const swap of swapsByPool[i]) {
         const amount0 = BigInt(swap.amount0);
         // measured on the numeraire side of each swap, as for the v4 pools above
         const volume = abs(numeraireIs0 ? amount0 : BigInt(swap.amount1));
@@ -236,60 +298,63 @@ const fetchSolana = async (options: FetchOptions, balances: any) => {
   })))).flat();
   if (!configs.length) throw new Error("chain-daddy: no DBC configs found for Chain Daddy's fee claimers");
 
-  // Configs are independent: a few at a time; within one, its signature pages are read in order.
-  const { errors: configErrors } = await PromisePool.withConcurrency(2).for(configs).process(async ({ pubkey, account }: any) => {
+  // keyed by the config's hex pubkey, which is how EvtSwap2 carries it
+  const configsByHex: Record<string, { pubkey: string; quoteMint: string; creatorPercentage: bigint }> = {};
+  for (const { pubkey, account } of configs) {
     const data = Buffer.from(account.data[0], "base64");
     // collect_fee_mode 0: the fee is always taken in the quote token
     if (data.readUInt8(232) !== 0) throw new Error(`chain-daddy: DBC config ${pubkey} does not collect fees in the quote token`);
-    const quoteMint = base58Encode(data.subarray(8, 40));
-    const creatorPercentage = BigInt(data.readUInt8(245));
-    const configHex = Buffer.from(base58Decode(pubkey)).toString("hex");
+    configsByHex[Buffer.from(base58Decode(pubkey)).toString("hex")] = {
+      pubkey,
+      quoteMint: base58Encode(data.subarray(8, 40)),
+      creatorPercentage: BigInt(data.readUInt8(245)),
+    };
+  }
+  const configHexes = Object.keys(configsByHex).map((hex) => `'${hex}'`).join(", ");
 
-    // every swap on a pool of this config lists the config account, so its signatures cover the config's swaps
-    const signatures: string[] = [];
-    let before: string | undefined;
-    for (;;) {
-      const page = await getSignaturesForAddress({ address: pubkey, limit: 1000, before, commitment: "finalized" });
-      for (const sig of page) {
-        if (sig.err || sig.blockTime == null) continue;
-        if (sig.blockTime >= options.startTimestamp && sig.blockTime < options.endTimestamp) signatures.push(sig.signature);
-      }
-      const last = page[page.length - 1];
-      if (page.length < 1000 || (last.blockTime != null && last.blockTime < options.startTimestamp)) break;
-      before = last.signature;
-    }
+  // Every DBC EvtSwap2 in the window, read from the program's event self-CPIs. The layout check runs on all of them,
+  // before the config filter: an upgraded layout could move the config field and silently drop every match.
+  // The sum is returned as text so it reaches BigInt exactly.
+  const rows = await queryAllium(`
+    WITH events AS (
+      SELECT SUBSTR(data_hex, 97, 64) AS config, LENGTH(data_hex) / 2 AS len, data_hex
+      FROM solana.raw.inner_instructions
+      WHERE program_id = '${DBC_PROGRAM}'
+        AND parent_tx_success
+        AND ${timeFilter(options)}
+        AND LEFT(data_hex, 32) = '${EVENT_CPI_TAG}${EVT_SWAP2}'
+    ),
+    checks AS (
+      SELECT
+        (SELECT COUNT_IF(len <> ${EVT_SWAP2_LENGTH}) FROM events) AS unknown_layout,
+        -- the transfers table is built from the raw ones, so rows past the window mean the window is complete
+        EXISTS (SELECT 1 FROM solana.assets.transfers
+          WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.endTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp + 900})) AS indexed
+    )
+    SELECT 'check' AS kind, unknown_layout, indexed, NULL AS config, NULL AS fee
+    FROM checks
+    UNION ALL
+    SELECT 'fee', NULL, NULL, config, TO_VARCHAR(SUM(${u64("data_hex", 147)}))
+    FROM events
+    WHERE config IN (${configHexes}) AND len = ${EVT_SWAP2_LENGTH}
+    GROUP BY config
+  `);
 
-    // Transactions are independent, so they are read a few at a time; any failed read fails the window.
-    const { results, errors } = await PromisePool.withConcurrency(3).for(signatures).process(async (signature) => {
-      let fee = 0n;
-      const tx = await getTransaction({ signature, maxSupportedTransactionVersion: 1, commitment: "finalized" });
-      if (!tx) throw new Error(`chain-daddy: Solana transaction ${signature} not found`);
-      const keys = [
-        ...tx.transaction.message.accountKeys,
-        ...(tx.meta.loadedAddresses?.writable ?? []),
-        ...(tx.meta.loadedAddresses?.readonly ?? []),
-      ].map((k: any) => (typeof k === "string" ? k : k.pubkey));
-      for (const group of tx.meta.innerInstructions ?? []) {
-        for (const ix of group.instructions) {
-          if (keys[ix.programIdIndex] !== DBC_PROGRAM) continue;
-          const event = Buffer.from(base58Decode(ix.data));
-          if (event.subarray(0, 8).toString("hex") !== EVENT_CPI_TAG || event.subarray(8, 16).toString("hex") !== EVT_SWAP2) continue;
-          if (event.length !== EVT_SWAP2_LENGTH) throw new Error(`chain-daddy: EvtSwap2 of ${event.length} bytes in ${signature}, the DBC program was likely upgraded`);
-          if (event.subarray(48, 80).toString("hex") !== configHex) continue;
-          fee += event.readBigUInt64LE(147);
-        }
-      }
-      return fee;
-    });
-    if (errors.length) throw errors[0];
-    const tradingFees = results.reduce((sum, fee) => sum + fee, 0n);
+  const check = rows.find((row: any) => String(row.kind).toLowerCase() === "check");
+  if (!check) throw new Error("chain-daddy: empty Allium response");
+  if (!check.indexed) throw new Error(`chain-daddy: Allium has not indexed Solana past ${new Date(options.endTimestamp * 1e3).toISOString()} yet`);
+  if (Number(check.unknown_layout) > 0) throw new Error(`chain-daddy: ${check.unknown_layout} DBC EvtSwap2 events with an unknown layout, the DBC program was likely upgraded`);
 
-    const toCreators = (tradingFees * creatorPercentage) / 100n;
-    dailyFees.add(quoteMint, tradingFees, "Bonding Curve Trading Fees");
-    dailyRevenue.add(quoteMint, tradingFees - toCreators, "Bonding Curve Trading Fees To Chain Daddy");
-    dailySupplySideRevenue.add(quoteMint, toCreators, "Bonding Curve Trading Fees To Creators");
-  });
-  if (configErrors.length) throw configErrors[0];
+  for (const row of rows) {
+    if (String(row.kind).toLowerCase() !== "fee") continue;
+    const config = configsByHex[String(row.config).toLowerCase()];
+    if (!config) throw new Error(`chain-daddy: Allium returned fees for unknown DBC config ${row.config}`);
+    const tradingFees = BigInt(row.fee);
+    const toCreators = (tradingFees * config.creatorPercentage) / 100n;
+    dailyFees.add(config.quoteMint, tradingFees, "Bonding Curve Trading Fees");
+    dailyRevenue.add(config.quoteMint, tradingFees - toCreators, "Bonding Curve Trading Fees To Chain Daddy");
+    dailySupplySideRevenue.add(config.quoteMint, toCreators, "Bonding Curve Trading Fees To Creators");
+  }
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -339,6 +404,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   adapter: chainConfig,
+  dependencies: [Dependencies.ALLIUM],
   methodology,
   breakdownMethodology,
   // every fee here is a swap fee on a Uniswap or Meteora pool, which those listings already count
