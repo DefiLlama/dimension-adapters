@@ -69,7 +69,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 export default {
-  version: 2,
+  version: 1, // API returns whole days
   fetch,
   start: "2026-01-06",
   allowNegativeValue: true,

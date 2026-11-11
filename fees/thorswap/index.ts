@@ -1,5 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { addFees, getChainStats, adapterChains } from "../../helpers/aggregators/thorchain";
+import { addFees, getChainStats, adapterChains } from "../../helpers/aggregators/thorswap";
 
 const fetch = async (options: FetchOptions) => {
   const chain = await getChainStats(options);

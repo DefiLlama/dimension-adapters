@@ -29,6 +29,7 @@ const chainConfig: Record<string, { id: number, start: string, deadFrom?: string
   [CHAIN.MEGAETH]: { id: 4326, start: '2026-02-09' },
   [CHAIN.ROBINHOOD]: { id: 4663, start: '2026-07-09' },
   [CHAIN.ARC]: { id: 5042, start: '2026-09-14' },
+  [CHAIN.ELYSIUM]: { id: 99901, start: '2026-11-04' },
 };
 
 const fetch = async (options: FetchOptions) => {

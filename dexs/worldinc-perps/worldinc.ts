@@ -390,6 +390,7 @@ export const perpsAdapter: SimpleAdapter = {
 
 export const spotAdapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch: getFetch('SPOT'),
   chains: [CHAIN.MEGAETH],
   start: "2026-02-09",

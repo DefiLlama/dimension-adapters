@@ -72,6 +72,10 @@ const DEFAULTS: any = {
   ARC_RPC: 'https://rpc.drpc.mainnet.arc.io,https://rpc.mainnet.arc.io,https://rpc.blockdaemon.mainnet.arc.io',
   ARC_RPC_CHAIN_ID: '5042',
   ARC_ARCHIVAL_RPC: 'https://rpc.arc-scan.org,https://rpc.blockdaemon.mainnet.arc.io,https://rpc.nodeflare.app/arc/public', // public archive fallbacks; use <=100k-block log ranges
+  ELYSIUM_RPC: 'https://rpc.elysium.kinetiq.xyz',
+  ELYSIUM_RPC_CHAIN_ID: '99901',
+  ELYSIUM_RPC_MAX_PARALLEL: '5',
+  ELYSIUM_RPC_GET_LOGS_CONCURRENCY_LIMIT: '1',
   RISE_ARCHIVAL_RPC: 'https://explorer.risechain.com/api/eth-rpc', // public rpc.risechain.com caps eth_getLogs at 5000 blocks
   STY_RPC: 'https://rpc.ankr.com/story_mainnet,https://1514.rpc.thirdweb.com', // storyrpc.io / datarpc.io prune state after ~5000 blocks; these two answer historical eth_call
   STRATO_RPC: 'https://app.strato.nexus/rpc', // noderpc.strato.nexus/rpc (SDK default) stalls hours behind head
@@ -83,7 +87,7 @@ const DEFAULTS: any = {
   SAGA_RPC: "https://sagaevm.jsonrpc.sagarpc.io",
   SAGA_WHITELISTED_RPC: 'https://sagaevm-archive.jsonrpc.sagarpc.io',
   CANTO_RPC: 'https://canto.gravitychain.io', // tuber.build/api/eth-rpc now 403s; chain halted 2026-08-10 (no blocks since)
-  APTOS_RPC: 'https://aptos-mainnet.pontem.network',
+  APTOS_RPC: 'https://fullnode.mainnet.aptoslabs.com', // aptos-mainnet.pontem.network no longer resolves (2026-11)
   SOLANA_RPC: "https://api.mainnet-beta.solana.com",
   NEAR_RPC: "https://free.rpc.fastnear.com,https://rpc.mainnet.near.org", // near.lava.build answers 410 (discontinued)
   STARKNET_RPC: "https://api.zan.top/public/starknet-mainnet",

@@ -62,6 +62,13 @@ const chainConfig: Record<string, { chainCode: string; start: string }> = {
   [CHAIN.NEAR]: { chainCode: "near", start: "2025-05-17" },
   [CHAIN.STARKNET]: { chainCode: "starknet", start: "2025-05-17" },
   [CHAIN.ROBINHOOD]: { chainCode: "robinhood", start: "2026-05-17" },
+  [CHAIN.PLASMA]: { chainCode: "plasma", start: "2026-01-01" },
+  [CHAIN.PLUME]: { chainCode: "plume", start: "2026-01-01" },
+  [CHAIN.INJECTIVE]: { chainCode: "injective", start: "2026-02-20" },
+  [CHAIN.TAC]: { chainCode: "tac", start: "2026-01-01" },
+  [CHAIN.ONTOLOGY_EVM]: { chainCode: "ont", start: "2026-01-01" },
+  [CHAIN.ARC]: { chainCode: "arc", start: "2026-09-17" },
+  [CHAIN.ELYSIUM]: { chainCode: "elysium", start: "2026-11-01" },
 };
 
 const fetch = async (options: FetchOptions) => {

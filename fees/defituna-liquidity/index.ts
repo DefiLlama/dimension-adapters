@@ -7,7 +7,11 @@ const BASE_TUNA_URL = "https://api.defituna.com/api/v1/integration/defillama/tun
 const LABEL = 'Liquidity Services Fees';
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
-  const url = `${BASE_TUNA_URL}?from_timestamp=${options.startTimestamp}&to_timestamp=${options.endTimestamp}`;
+  // API floors both bounds to the hour and includes both buckets. Server hourly slices start at (HH-1):59:59,
+  // which floors into the previous hour, so snap both bounds up to the hour, then step the end into the window's last bucket
+  const from = Math.ceil(options.startTimestamp / 3600) * 3600;
+  const to = Math.ceil(options.endTimestamp / 3600) * 3600 - 1;
+  const url = `${BASE_TUNA_URL}?from_timestamp=${from}&to_timestamp=${to}`;
   const response = await fetchURL(url);
 
   const dailyFees = options.createBalances();
@@ -47,6 +51,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2024-11-29",

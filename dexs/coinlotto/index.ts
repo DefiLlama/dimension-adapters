@@ -50,7 +50,6 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue,
     dailyRevenue,
     dailyProtocolRevenue: dailyRevenue.clone(),
-    dailyHoldersRevenue: 0,
   });
 
   // contracts were deployed mid-day on the start date: skip state reads when the window has no activity
@@ -115,7 +114,6 @@ const methodology = {
   Revenue: "Protocol fees on ticket purchases kept by CoinLotto after the referrer share, including the Super Lottery fee taken on feeder allocations, excluding CLT-denominated fees.",
   ProtocolRevenue: "Protocol fees on ticket purchases sent to the CoinLotto treasury after the referrer share, including the Super Lottery fee taken on feeder allocations, excluding CLT-denominated fees.",
   SupplySideRevenue: "Share of the protocol fee paid to referrers plus creator fees paid to creators of user lotteries, excluding CLT-denominated rewards.",
-  HoldersRevenue: "No fees are distributed to CLT token holders.",
 };
 
 const breakdownMethodology = {

@@ -78,6 +78,34 @@ const configs: Record<string, Record<string, any>> = {
     // Algebra Integral 1.2 factory, fees are tracked from Hydrex voter bribes in fees/hydrex
     [CHAIN.BASE]: { factory: '0x36077D39cdC65E1e3FB65810430E5b2c4D5fA29E', start: '2025-06-16', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV3SwapEvent, customLogic: volumeOnly },
   },
+  "krown-dex": {
+    // Verified V3 factory and pool source: https://explorer-api.krown.network/api/v2/smart-contracts/0x10ba7a9b45267caf016028cd398e68a19632bed2
+    // Deployed 2026-01-07: https://explorer-api.krown.network/api/v2/transactions/0x7182a58c522cac953b3987ce9cca35915dafc5477296817c04dd113dddba9d9c
+    // volume only: fee split not documented
+    [CHAIN.KROWN]: { factory: '0x10ba7a9b45267caf016028cd398e68a19632bed2', start: '2026-01-07', customLogic: volumeOnly },
+  },
+  "9inch-io-v3": {
+    // Factory and pool event interface: https://scan.pulsechain.com/address/0xCfd33C867C9F031AadfF7939Cb8086Ee5ae88c41#code
+    // Deployed 2024-05-13: https://scan.pulsechain.com/tx/0x2fa3349924d34fe12e182c0220f4fc8321fc994d245c1fbed397381290663d76
+    // volume only: fee split not documented
+    [CHAIN.PULSECHAIN]: { factory: '0xCfd33C867C9F031AadfF7939Cb8086Ee5ae88c41', start: '2024-05-13', swapEvent: protocolFeesSwapEvent, customLogic: volumeOnly },
+  },
+  "laminar": {
+    // Verified factory and standard V3 pool events: https://sourcify.dev/server/v2/contract/999/0x40059a6f242c3de0e639693973004921b04d96ad?fields=all
+    // Factory deployed at block 592235 on 2025-03-03; volume only: fee split varies by token and pool.
+    [CHAIN.HYPERLIQUID]: { factory: '0x40059A6F242C3de0E639693973004921B04D96AD', start: '2025-03-03', customLogic: volumeOnly },
+  },
+  "mimoswap-v3": {
+    // IoTeX V3 factory: https://docs.mimo.finance/mimo-v3/smart-contracts
+    // Earliest cached PoolCreated: IoTeX block 27792282, 2024-01-08.
+    // volume only: fee split not documented
+    [CHAIN.IOTEX]: { factory: '0xF36788bF206f75F29f99Aa9d418fD8164b3B8198', start: '2024-01-08', customLogic: volumeOnly },
+  },
+  "liberty-swap": {
+    // Verified factory, PoolCreated and pool Swap ABI: https://sourcify.dev/server/v2/contract/369/0x796fcbdc956b85797efe21145aa97599b7fb36a6?fields=all
+    // Deployed at Pulse block 26620000 (2026-05-25); volume only: fee split not documented.
+    [CHAIN.PULSECHAIN]: { factory: '0x796fcbDC956b85797EFe21145Aa97599B7FB36a6', start: '2026-05-25', swapEvent: protocolFeesSwapEvent, customLogic: volumeOnly },
+  },
   "rocketswap-anubis-v3": {
     // V3 factory on Anubis: https://v3.rocketswap.org/contracts
     // Revenue allocation is unconfirmed, so only swap volume is exported.

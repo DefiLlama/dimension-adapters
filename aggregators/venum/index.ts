@@ -28,6 +28,7 @@ const methodology = {
 
 const adapter: Adapter = {
     version: 2,
+    pullHourly: true,
     fetch,
     chains: [CHAIN.SOLANA],
     start: '2026-04-01',

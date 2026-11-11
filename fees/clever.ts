@@ -51,7 +51,7 @@ const breakdownMethodology = {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1, // subgraph returns whole days
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2023-04-19',

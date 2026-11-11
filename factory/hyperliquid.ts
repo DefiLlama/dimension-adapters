@@ -32,6 +32,43 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "bitso-onchain-perps": {
+    // onchain.cc (https://onchain.cc, https://x.com/Onchaincc; formerly Bitso Onchain, onchain.bitso.com redirects to it),
+    // Bitso's self-custodial trading terminal. Its Hyperliquid perps (HIP-3 stock, index and commodity markets included)
+    // and spot orders carry this builder code. Fees per https://onchain-cc.gitbook.io/onchain-docs: perps pay a 0.05%
+    // service fee on top of Hyperliquid's (fills show 0.01% on crypto perps and 0.04% on HIP-3 before the September
+    // 2026 restructure); spot sells pay 0.25% maker / 0.35% taker, buys none (listed separately as bitso-onchain-spot).
+    // 25-50% of the fee goes back to traders as Colosseum cashback.
+    // Verifiable: the address's Hyperliquid `referral` state (referrer code ONCHAINCC, builderRewards).
+    addresses: ["0x64c06812904d342367ad155d7a8f3b7c7fb27f5f"],
+    // first day with fills carrying the code
+    start: "2026-03-16",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through onchain.cc with its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through onchain.cc; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
+      Revenue: "Builder code fees received by onchain.cc's builder account, before the Colosseum cashback it pays back to traders.",
+      ProtocolRevenue: "Builder code fees received by onchain.cc's builder account, before the Colosseum cashback it pays back to traders.",
+    },
+    breakdownFees: true,
+  },
+  "eyed": {
+    // EYED (https://eyed.cc, https://x.com/EyedTrade), a trading app for Hyperliquid perps (HIP-3 included) with copy
+    // trading and public trader records; sign-in is a Solana wallet. Its Hyperliquid orders carry this builder code on
+    // top of Hyperliquid's own fees: 0.015% from 2026-08-27, 0.03% from 2026-09-04, and since 2026-10-07 holders of the
+    // $EYED token pay 20-60% less of it (0.024% down to 0.012%). No spot or outcome fills carry the code so far.
+    // Verifiable: the builder field (b, f) of EYED orders on the Hyperliquid explorer; the address's Hyperliquid
+    // `referral` state (referrer code GHOZ, EYED's former name; builderRewards).
+    addresses: ["0x9f069bc939babb43cbe389f88a0c3f5199030faf"],
+    // first day with fills carrying the code
+    start: "2026-08-27",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through EYED with its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through EYED; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
+      Revenue: "Builder code fees received by EYED's builder account, before the referral commissions it pays out of them.",
+      ProtocolRevenue: "Builder code fees received by EYED's builder account, before the referral commissions it pays out of them.",
+    },
+    breakdownFees: true,
+  },
   "afterbell": {
     // Afterbell (https://afterbell.pro, https://x.com/Afterbell_pro), a Hyperliquid trading front-end for stock, index
     // and commodity perps (HIP-3) and crypto perps, each stock perp read against its home exchange's session. Its orders
@@ -1619,6 +1656,8 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "aura-money-spot": { builder: "aura-money-perps", market: "spot", start: "2026-03-24" },
   "based-app-spot": { builder: "based-app", market: "spot", start: "2025-07-08" },
   "based-app-outcome": { builder: "based-app", market: "outcome", start: "2026-05-02", deadFrom: "2026-11-04" }, // deprecated by the team, no longer maintained
+  // first day with spot fills carrying the code
+  "bitso-onchain-spot": { builder: "bitso-onchain-perps", market: "spot", start: "2026-07-28" },
   "blockchain-wallet-spot": { builder: "blockchain-wallet-perps", market: "spot", start: "2026-05-02" },
   "bloxwap-outcome": { builder: "bloxwap-perps", market: "outcome", start: "2026-05-02" },
   "borsa-outcome": { builder: "borsa-perps", market: "outcome", start: "2026-05-02" },

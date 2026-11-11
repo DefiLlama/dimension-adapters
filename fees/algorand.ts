@@ -66,6 +66,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ALGORAND],
   start: '2019-06-11', // Algorand mainnet launch date

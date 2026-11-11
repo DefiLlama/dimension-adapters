@@ -66,6 +66,7 @@ async function getMarkets(api: ChainApi) {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: false, // fixed /365 daily amount, hourly would 24x
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch: fetchFees,

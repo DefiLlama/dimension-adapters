@@ -22,6 +22,7 @@ const fetch: FetchV2 = async ({startTimestamp, endTimestamp}) => {
 
 const adapter: Adapter = {
     version: 2,
+    pullHourly: true,
     adapter: {
         [CHAIN.TON]: {
             fetch,

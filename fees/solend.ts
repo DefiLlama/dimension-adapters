@@ -94,7 +94,7 @@ const breakdownMethodology = {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1, // API returns whole days
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2023-01-31',

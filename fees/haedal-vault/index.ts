@@ -39,6 +39,7 @@ const fetch = async ({ startTimestamp, endTimestamp, dateString }: FetchOptions)
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     fetch,
     chains: [CHAIN.SUI],
     start: '2025-03-20',

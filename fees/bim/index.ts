@@ -4,6 +4,7 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { addTokensReceived } from "../../helpers/token";
 import fetchURL from "../../utils/fetchURL";
+import { getConfig } from "../../helpers/cache";
 import { BIM_CHAIN_START, BRIDGE_SELECTOR, isRpcChain, PERFORM_ACTIONS_SELECTOR, SWAP_AND_BRIDGE_SELECTOR, SWAP_SELECTOR } from "../../aggregators/bim/config";
 import { fetchBimFromRpc } from "../../aggregators/bim/rpc";
 
@@ -62,16 +63,18 @@ const fetchBridgeAndSwapTokens = (): Promise<Record<string, string[]>> => {
         }
       };
 
-      const firstPage = await fetchURL(`${tokenChainsEndpoint}?page=0&size=${size}`);
-      processPage(firstPage);
-
-      if (!firstPage.last) {
-        const remaining = Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>
-          fetchURL(`${tokenChainsEndpoint}?page=${i + 1}&size=${size}`)
-        );
-        const pages = await Promise.all(remaining);
-        pages.forEach(processPage);
-      }
+      // all pages cached together through getConfig so a bim.finance outage falls back to the last good token list
+      const pages: any[] = await getConfig('bim/token-chains', undefined, {
+        fetcher: async () => {
+          const firstPage = await fetchURL(`${tokenChainsEndpoint}?page=0&size=${size}`);
+          if (firstPage.last) return [firstPage];
+          const remaining = await Promise.all(Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>
+            fetchURL(`${tokenChainsEndpoint}?page=${i + 1}&size=${size}`)
+          ));
+          return [firstPage, ...remaining];
+        },
+      });
+      pages.forEach(processPage);
 
       return tokens;
     })().catch((e) => {
@@ -184,7 +187,8 @@ const baseAdapter: BaseAdapter = {
 const fetchVaults = (): Promise<any[]> => {
   if (!cachedVaultsPromise) {
     cachedVaultsPromise = (async () => {
-      const data = await fetchURL(vaultsEndpoint);
+      // cached through getConfig so a bim.finance outage falls back to the last good vault list
+      const data = await getConfig('bim/vaults', vaultsEndpoint);
       if (!data || !data.length) {
         throw new Error("No vault data found");
       }
