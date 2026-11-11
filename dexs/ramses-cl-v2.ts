@@ -103,9 +103,9 @@ async function assertIndexedThrough(chain: ChainConfig, endTimestamp: number) {
  * token decimals, and each bribe is valued at the subgraph TokenDayData price of its own UTC day. A positive bribe
  * without a valid positive price for that day throws, so an unpriced bribe is never stored as $0.
  */
-async function fetchBribesUSD(chain: ChainConfig, product: RamsesProduct, options: FetchOptions) {
+async function fetchBribesUSD(chain: ChainConfig, product: RamsesProduct, startTimestamp: number, endTimestamp: number) {
   const bribes = await fetchAll(chain, "VoteBribe",
-    `${productConfig[product].bribePool}: { _is_null: false }, timestamp: { _gte: "${options.startTimestamp}", _lt: "${options.endTimestamp}" }`,
+    `${productConfig[product].bribePool}: { _is_null: false }, timestamp: { _gte: "${startTimestamp}", _lt: "${endTimestamp}" }`,
     "amount token timestamp");
   if (!bribes.length) return 0;
 
@@ -126,10 +126,10 @@ async function fetchBribesUSD(chain: ChainConfig, product: RamsesProduct, option
 }
 
 async function fetchProduct(options: FetchOptions, product: RamsesProduct, chain: ChainConfig) {
-  const { startTimestamp, endTimestamp } = options;
-  // The source is hourly pool buckets; a partial hour cannot be read exactly.
-  if (startTimestamp % HOUR || endTimestamp % HOUR)
-    throw new Error(`Ramses needs whole-hour windows, got [${startTimestamp}, ${endTimestamp})`);
+  const startTimestamp = Math.ceil(options.startTimestamp / HOUR) * HOUR;
+  const endTimestamp = Math.ceil(options.endTimestamp / HOUR) * HOUR;
+  if (endTimestamp <= startTimestamp)
+    throw new Error(`Ramses window [${options.startTimestamp}, ${options.endTimestamp}) contains no whole hour`);
   await assertIndexedThrough(chain, endTimestamp);
 
   const { hourData, tokenVolumes } = productConfig[product];
@@ -164,7 +164,7 @@ async function fetchProduct(options: FetchOptions, product: RamsesProduct, chain
   // is priced, a 0 would hide real activity, as with the first Elysium Legacy swaps (amountUSD 0).
   if (hasTokenVolume && volume === 0)
     throw new Error(`Ramses ${product} on ${chain.path} has swaps in [${startTimestamp}, ${endTimestamp}) but the subgraph priced none of them`);
-  const bribesUSD = await fetchBribesUSD(chain, product, options);
+  const bribesUSD = await fetchBribesUSD(chain, product, startTimestamp, endTimestamp);
 
   const dailyFees = options.createBalances();
   const dailyUserFees = options.createBalances();
