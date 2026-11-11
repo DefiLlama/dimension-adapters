@@ -7,8 +7,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   adapter: {
     [CHAIN.ARBITRUM]: {
-      // factory feeTo is set on-chain => stock uniV2 protocol share of 1/6 of swap fees
-      fetch: getUniV2LogAdapter({ factory: '0x1C6E968f2E6c9DEC61DB874E28589fd5CE3E1f2c', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 }),
+      fetch: getUniV2LogAdapter({ factory: '0x1C6E968f2E6c9DEC61DB874E28589fd5CE3E1f2c', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0.8, protocolRevenueRatio: 0.8 }),
     },
   },
 }
