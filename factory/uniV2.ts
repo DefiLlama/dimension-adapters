@@ -28,6 +28,13 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "ponder": {
+    // Factory address: https://github.com/ponderfinance/protocol/blob/46382ce6604763e24b82caa514caf76efae6df09/addresses/96.json
+    // V2 events: https://github.com/ponderfinance/protocol/blob/46382ce6604763e24b82caa514caf76efae6df09/src/core/pair/PonderPair.sol
+    // Swap invariant and variable creator share: https://github.com/ponderfinance/protocol/blob/46382ce6604763e24b82caa514caf76efae6df09/src/core/pair/libraries/PonderFeesLib.sol
+    // volume only: fee split varies by pair and input token; use Sync logs because historical pool balance calls failed.
+    [CHAIN.BITKUB]: { factory: '0x20b17e92dd1866ec647acaa38fe1f7075e4b359e', fees: 0.003, customLogic: volumeOnly, useSyncReserves: true },
+  },
   "spartadex": {
     // V2 pair creation and 0.3% swap invariant: https://sourcify.dev/server/v2/contract/42161/0xFe8EC10Fe07A6a6f4A2584f8cD9FE232930eAF55?fields=all
     // Linea factory uses the same pair code: https://sourcify.dev/server/v2/contract/59144/0x9E4Fc4a5A0769ba74088856C229c4a1Db2Ea5A9e?fields=all
