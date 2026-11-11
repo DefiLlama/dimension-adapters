@@ -14,11 +14,6 @@ export const PARCHMENT_EXCHANGE = "0xbe3c5d2d066c8ec04b4f280fab7c560f78deff91c7a
 export const PARCHMENT_USDC = ADDRESSES.sui.USDC_CIRCLE;
 export const PARCHMENT_START = "2026-11-03";
 
-// Close fee in parts per million of position notional, stamped on every position at open from the market's
-// `impact.close_fee_ppm` (0.4 bp on every market so far; `OpenPositionEventV1.close_fee_ppm`). Used to recover a closed
-// position's notional from `CloseFeesEventV2.close_charge` (= floor(notional * ppm / 1e6)).
-export const CLOSE_FEE_PPM = 40n;
-
 const eventType = (name: string) => `${PARCHMENT_CORE}::events::Event<${PARCHMENT_CORE}::events::${name}>`;
 
 // Events of one type in the half-open window [start, end), unwrapped from the `Event<T>` envelope (`pos0`).
@@ -55,18 +50,86 @@ export async function getParchmentMarketFilter(endTimestamp: number): Promise<(e
   return parchmentMarketFilter(await getParchmentMarkets(endTimestamp));
 }
 
-// Throws if a market's current close fee rate (`impact.close_fee_ppm`, admin-settable through `market::set_depth`
-// and stamped on each position at open) is not the CLOSE_FEE_PPM that `closedNotional` assumes.
-export function assertParchmentCloseFeePpm(markets: { marketId: string; state: any }[]): void {
-  for (const { marketId, state } of markets)
-    if (String(state?.impact?.close_fee_ppm) !== CLOSE_FEE_PPM.toString())
-      throw new Error(`Parchment: unexpected close_fee_ppm ${state?.impact?.close_fee_ppm} on market ${marketId}`);
+// Closes (user, keeper-filled and session force closes; one `CloseFeesEventV2` per settled close) of the Parchment
+// Exchange in [start, end), each with the closed position's notional in USDC base units. A close always settles the
+// whole position, and the close event carries no size, so the size is read from the position as it was just before
+// the close: the close transaction deletes the position's `Field<u64, account::Position>` (the Account's positions
+// table entry), and the transaction effects keep the deleted object's input state, with the `notional` and the
+// `close_fee_ppm` stamped at open. Each size is checked against the event: the close charge is exactly
+// floor(notional * close_fee_ppm / 1e6). Any close without its position in its transaction's effects, or failing
+// that check, fails the run rather than being dropped. (A position opened and closed in one transaction would have
+// no input state, but opens are keeper fills of an earlier request and a close needs an existing position.)
+export async function getParchmentCloses(startTimestamp: number, endTimestamp: number): Promise<{ close: any; notional: bigint }[]> {
+  const closes = (await getEventsWithDigest(eventType("CloseFeesEventV2"), startTimestamp, endTimestamp))
+    .filter(({ event }) => isParchmentExchange(event));
+  const positions = await getDeletedPositions([...new Set(closes.map(({ digest }) => digest))]);
+  return closes.map(({ event: close, digest }) => {
+    const position = positions.get(`${digest}:${close.position_id}`);
+    if (!position) throw new Error(`Parchment: position ${close.position_id} not found in the effects of close ${digest}`);
+    const notional = BigInt(position.notional);
+    if ((notional * BigInt(position.close_fee_ppm)) / 1_000_000n !== BigInt(close.close_charge))
+      throw new Error(`Parchment: close charge ${close.close_charge} of position ${close.position_id} (${digest}) does not match notional ${position.notional} at ${position.close_fee_ppm} ppm`);
+    return { close, notional };
+  });
 }
 
-// Closed notional of a voluntary close, keeper close or session force close, in USDC base units, from its
-// close charge. Rounding is at most 1e6 / 40 - 1 base units (< $0.025) per close.
-export function closedNotional(closeCharge: string | number): bigint {
-  return (BigInt(closeCharge) * 1_000_000n) / CLOSE_FEE_PPM;
+// Events of one type in [start, end) with their transaction digests. Same backwards walk from the newest event as
+// `queryEvents`, which does not return digests.
+async function getEventsWithDigest(type: string, startTimestamp: number, endTimestamp: number): Promise<{ event: any; digest: string }[]> {
+  const items: { event: any; digest: string }[] = [];
+  let before: string | null = null;
+  do {
+    const data = await graphqlCall(`query ($type: String!, $before: String) {
+      events(last: 50, before: $before, filter: { type: $type }) {
+        pageInfo { hasPreviousPage startCursor } nodes { timestamp transaction { digest } contents { json } }
+      }
+    }`, { type, before });
+    const { pageInfo, nodes } = data.events; // oldest first
+    before = pageInfo.hasPreviousPage && nodes.length ? pageInfo.startCursor : null;
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const ts = Date.parse(nodes[i].timestamp) / 1e3;
+      if (ts >= endTimestamp) continue;
+      if (ts < startTimestamp) { before = null; break; }
+      const digest = nodes[i].transaction?.digest;
+      if (!digest) throw new Error(`Parchment: ${type} event without a transaction digest`);
+      items.push({ event: nodes[i].contents.json.pos0, digest });
+    }
+  } while (before);
+  return items.reverse();
+}
+
+// Input state of every `Field<u64, account::Position>` deleted by the given transactions, keyed `digest:position_id`.
+// 50 transactions per `multiGetTransactionEffects` call (limit 200); a close transaction changes ~25 objects, far
+// below the 1024 object changes read per transaction, and a transaction with more fails the run.
+const POSITION_FIELD = `0x0000000000000000000000000000000000000000000000000000000000000002::dynamic_field::Field<u64,${PARCHMENT_CORE}::account::Position>`;
+async function getDeletedPositions(digests: string[]): Promise<Map<string, any>> {
+  const chunks: string[][] = [];
+  for (let i = 0; i < digests.length; i += 50) chunks.push(digests.slice(i, i + 50));
+  const positions = new Map<string, any>();
+  await PromisePool.withConcurrency(3)
+    .for(chunks)
+    .handleError((error) => { throw error; })
+    .process(async (keys) => {
+      const data = await graphqlCall(`query ($keys: [String!]!) {
+        multiGetTransactionEffects(keys: $keys) { digest objectChanges(first: 1024) {
+          pageInfo { hasNextPage } nodes { idDeleted inputState { asMoveObject { contents { type { repr } json } } } }
+        } }
+      }`, { keys });
+      const effects = data?.multiGetTransactionEffects ?? [];
+      keys.forEach((digest, i) => {
+        const tx = effects[i];
+        if (tx?.digest !== digest) throw new Error(`Parchment: effects of transaction ${digest} not found`);
+        if (tx.objectChanges.pageInfo.hasNextPage) throw new Error(`Parchment: more than 1024 object changes in transaction ${digest}`);
+        for (const { idDeleted, inputState } of tx.objectChanges.nodes) {
+          const contents = inputState?.asMoveObject?.contents;
+          if (!idDeleted || contents?.type?.repr !== POSITION_FIELD) continue;
+          const key = `${digest}:${contents.json.name}`;
+          if (positions.has(key)) throw new Error(`Parchment: position ${contents.json.name} deleted twice in transaction ${digest}`);
+          positions.set(key, contents.json.value);
+        }
+      });
+    });
+  return positions;
 }
 
 // Each Exchange / Market keeps its state in a dynamic object field keyed by `extended_field::VersionKey(version)`.
