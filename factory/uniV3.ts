@@ -78,7 +78,7 @@ const configs: Record<string, Record<string, any>> = {
     // Verified V3 factory and pool source: https://explorer-api.krown.network/api/v2/smart-contracts/0x10ba7a9b45267caf016028cd398e68a19632bed2
     // Deployed 2026-01-07: https://explorer-api.krown.network/api/v2/transactions/0x7182a58c522cac953b3987ce9cca35915dafc5477296817c04dd113dddba9d9c
     // volume only: fee split not documented
-    krown: { factory: '0x10ba7a9b45267caf016028cd398e68a19632bed2', start: '2026-01-07', customLogic: volumeOnly },
+    [CHAIN.KROWN]: { factory: '0x10ba7a9b45267caf016028cd398e68a19632bed2', start: '2026-01-07', customLogic: volumeOnly },
   },
   "9inch-io-v3": {
     // Factory and pool event interface: https://scan.pulsechain.com/address/0xCfd33C867C9F031AadfF7939Cb8086Ee5ae88c41#code
