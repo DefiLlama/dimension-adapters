@@ -74,6 +74,12 @@ const kellerClCustomLogic = async ({ pairObject, dailyFees, fetchOptions, filter
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "krown-dex": {
+    // Verified V3 factory and pool source: https://explorer-api.krown.network/api/v2/smart-contracts/0x10ba7a9b45267caf016028cd398e68a19632bed2
+    // Deployed 2026-01-07: https://explorer-api.krown.network/api/v2/transactions/0x7182a58c522cac953b3987ce9cca35915dafc5477296817c04dd113dddba9d9c
+    // volume only: fee split not documented
+    krown: { factory: '0x10ba7a9b45267caf016028cd398e68a19632bed2', start: '2026-01-07', customLogic: volumeOnly },
+  },
   "liberty-swap": {
     // Verified factory, PoolCreated and pool Swap ABI: https://sourcify.dev/server/v2/contract/369/0x796fcbdc956b85797efe21145aa97599b7fb36a6?fields=all
     // Deployed at Pulse block 26620000 (2026-05-25); volume only: fee split not documented.
