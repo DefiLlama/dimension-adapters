@@ -74,6 +74,12 @@ const kellerClCustomLogic = async ({ pairObject, dailyFees, fetchOptions, filter
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "mimoswap-v3": {
+    // IoTeX V3 factory: https://docs.mimo.finance/mimo-v3/smart-contracts
+    // Earliest cached PoolCreated: IoTeX block 27792282, 2024-01-08.
+    // volume only: fee split not documented
+    [CHAIN.IOTEX]: { factory: '0xF36788bF206f75F29f99Aa9d418fD8164b3B8198', start: '2024-01-08', customLogic: volumeOnly },
+  },
   "liberty-swap": {
     // Verified factory, PoolCreated and pool Swap ABI: https://sourcify.dev/server/v2/contract/369/0x796fcbdc956b85797efe21145aa97599b7fb36a6?fields=all
     // Deployed at Pulse block 26620000 (2026-05-25); volume only: fee split not documented.
