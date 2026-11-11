@@ -118,39 +118,40 @@ const fetch = async (options: FetchOptions) => {
   const { deployments } = chainConfig[options.chain];
   const { addFee, dailyHoldersRevenue, result } = createFeeBalances(options);
 
-  for (const { factory, block, hook, splitter } of deployments) {
-    const launches = await options.getLogs({ target: factory, eventAbi: LAUNCHED, fromBlock: block, cacheInCloud: true });
-    const presetLogs = await options.getLogs({ target: factory, eventAbi: FEE_PRESET_SELECTED, fromBlock: block, cacheInCloud: true });
-    const presets: Record<string, number> = {};
-    for (const log of presetLogs) presets[log.market.toLowerCase()] = Number(log.preset);
+  const factories = deployments.map((d) => d.factory);
+  const fromBlock = Math.min(...deployments.map((d) => d.block));
+  const launches = await options.getLogs({ targets: factories, eventAbi: LAUNCHED, fromBlock, cacheInCloud: true });
+  const presetLogs = await options.getLogs({ targets: factories, eventAbi: FEE_PRESET_SELECTED, fromBlock, cacheInCloud: true });
+  const poolFeeLogs = await options.getLogs({ targets: deployments.map((d) => d.hook), eventAbi: SWAP_FEE_COLLECTED });
+  const buybackLogs = await options.getLogs({ targets: deployments.map((d) => d.splitter), eventAbi: BUYBACK_RELEASED });
 
-    if (launches.length) {
-      const markets = launches.map((launch: any) => launch.market);
-      const tradeLogs = await options.getLogs({ targets: markets, eventAbi: TRADE, flatten: false });
+  const presets: Record<string, number> = {};
+  for (const log of presetLogs) presets[log.market.toLowerCase()] = Number(log.preset);
 
-      tradeLogs.forEach((trades: any[], i: number) => {
-        const market = markets[i].toLowerCase();
-        const creatorBps = CREATOR_FEE_BPS[presets[market]];
-        if (creatorBps === undefined) throw new Error(`alpha-launchpad: unknown fee preset ${presets[market]} for market ${market} on ${options.chain}`);
-        for (const trade of trades) {
-          // Trade.fee is the total fee in the market's quote asset.
-          const fee = BigInt(trade.fee);
-          const protocolFee = (fee * PROTOCOL_FEE_BPS) / (PROTOCOL_FEE_BPS + creatorBps);
-          addFee(launches[i].quote, protocolFee, fee - protocolFee, [CURVE_FEES, CURVE_FEES_TO_PROTOCOL, CURVE_FEES_TO_CREATORS]);
-        }
-      });
-    }
+  if (launches.length) {
+    const markets = launches.map((launch: any) => launch.market);
+    const tradeLogs = await options.getLogs({ targets: markets, eventAbi: TRADE, flatten: false });
 
-    const poolFeeLogs = await options.getLogs({ target: hook, eventAbi: SWAP_FEE_COLLECTED });
-    for (const log of poolFeeLogs) {
-      addFee(log.quote, BigInt(log.protocolFee), BigInt(log.creatorFee), [POOL_FEES, POOL_FEES_TO_PROTOCOL, POOL_FEES_TO_CREATORS]);
-    }
+    tradeLogs.forEach((trades: any[], i: number) => {
+      const market = markets[i].toLowerCase();
+      const creatorBps = CREATOR_FEE_BPS[presets[market]];
+      if (creatorBps === undefined) throw new Error(`alpha-launchpad: unknown fee preset ${presets[market]} for market ${market} on ${options.chain}`);
+      for (const trade of trades) {
+        // Trade.fee is the total fee in the market's quote asset.
+        const fee = BigInt(trade.fee);
+        const protocolFee = (fee * PROTOCOL_FEE_BPS) / (PROTOCOL_FEE_BPS + creatorBps);
+        addFee(launches[i].quote, protocolFee, fee - protocolFee, [CURVE_FEES, CURVE_FEES_TO_PROTOCOL, CURVE_FEES_TO_CREATORS]);
+      }
+    });
+  }
 
-    // The buyback half counts when the chain shows it leaving the splitter for the burn executor, not when it accrues.
-    const buybackLogs = await options.getLogs({ target: splitter, eventAbi: BUYBACK_RELEASED });
-    for (const log of buybackLogs) {
-      dailyHoldersRevenue.add(log.asset, log.amount, FEES_TO_BUYBACK);
-    }
+  for (const log of poolFeeLogs) {
+    addFee(log.quote, BigInt(log.protocolFee), BigInt(log.creatorFee), [POOL_FEES, POOL_FEES_TO_PROTOCOL, POOL_FEES_TO_CREATORS]);
+  }
+
+  // The buyback half counts when the chain shows it leaving the splitter for the burn executor, not when it accrues.
+  for (const log of buybackLogs) {
+    dailyHoldersRevenue.add(log.asset, log.amount, FEES_TO_BUYBACK);
   }
 
   return result();
