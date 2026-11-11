@@ -1,3 +1,4 @@
+import { PromisePool } from "@supercharge/promise-pool";
 import { AbiCoder, keccak256, solidityPackedKeccak256 } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -50,8 +51,9 @@ type EvmConfig = {
   v3Initializers: string[];
 };
 
-// Doppler deployments from the Doppler SDK address book (@whetstone-research/doppler-sdk getAddresses).
-const evmConfig: Record<string, EvmConfig> = {
+// One entry per chain: its start, and on EVM chains the Doppler deployments, from the Doppler SDK address book
+// (@whetstone-research/doppler-sdk getAddresses).
+const chainConfig: Record<string, EvmConfig | { start: string }> = {
   [CHAIN.BASE]: {
     // first pool: tx 0x2e757d1c6fe72006ed80c95bd81f3d4862b1738b46fffd15f10be99c42f3bc66 (2026-09-24)
     start: "2026-09-24",
@@ -72,6 +74,8 @@ const evmConfig: Record<string, EvmConfig> = {
   // (Lock events scanned on all three on 2026-11-09). They are added once one does.
   // Not counted: Doppler dynamic-auction pools before they graduate. Chain Daddy holds no share in them and no event
   // names it until the migrator locks the graduated pool (two exist on Base, neither has graduated).
+  // first swap on a Chain Daddy DBC pool: 2026-08-18 (pool ARMJAyTVDi9zZwvBPvi11ycciR49n9HvfyUsXtThZxN9)
+  [CHAIN.SOLANA]: { start: "2026-08-18" },
 };
 
 type Shares = { chainDaddy: bigint; doppler: bigint; creators: bigint };
@@ -108,7 +112,7 @@ const addLpFee = (balances: any, token: string, lpFee: bigint, shares: Shares) =
 };
 
 const fetchEvm = async (options: FetchOptions, balances: any) => {
-  const config = evmConfig[options.chain];
+  const config = chainConfig[options.chain] as EvmConfig;
   const toBlock = await options.getToBlock();
 
   // Every pool these initializers created up to the end of the window, kept when Chain Daddy is a beneficiary.
@@ -195,14 +199,11 @@ const EVT_SWAP2_LENGTH = 195;
 
 const fetchSolana = async (options: FetchOptions, balances: any) => {
   const { dailyFees, dailyRevenue, dailySupplySideRevenue } = balances;
-  const configs: any[] = [];
-  for (const claimer of DBC_FEE_CLAIMERS) {
-    configs.push(...await getProgramAccounts({
-      programId: DBC_PROGRAM,
-      encoding: "base64",
-      filters: [{ dataSize: DBC_CONFIG_SIZE }, { memcmp: { offset: 40, bytes: claimer } }],
-    }));
-  }
+  const configs: any[] = (await Promise.all(DBC_FEE_CLAIMERS.map((claimer) => getProgramAccounts({
+    programId: DBC_PROGRAM,
+    encoding: "base64",
+    filters: [{ dataSize: DBC_CONFIG_SIZE }, { memcmp: { offset: 40, bytes: claimer } }],
+  })))).flat();
   if (!configs.length) throw new Error("chain-daddy: no DBC configs found for Chain Daddy's fee claimers");
 
   for (const { pubkey, account } of configs) {
@@ -227,9 +228,10 @@ const fetchSolana = async (options: FetchOptions, balances: any) => {
       before = last.signature;
     }
 
-    let tradingFees = 0n;
-    for (const signature of signatures) {
-      const tx = await getTransaction({ signature, maxSupportedTransactionVersion: 0, commitment: "finalized" });
+    // Transactions are independent, so they are read a few at a time; any failed read fails the window.
+    const { results, errors } = await PromisePool.withConcurrency(5).for(signatures).process(async (signature) => {
+      let fee = 0n;
+      const tx = await getTransaction({ signature, maxSupportedTransactionVersion: 1, commitment: "finalized" });
       if (!tx) throw new Error(`chain-daddy: Solana transaction ${signature} not found`);
       const keys = [
         ...tx.transaction.message.accountKeys,
@@ -243,10 +245,13 @@ const fetchSolana = async (options: FetchOptions, balances: any) => {
           if (event.subarray(0, 8).toString("hex") !== EVENT_CPI_TAG || event.subarray(8, 16).toString("hex") !== EVT_SWAP2) continue;
           if (event.length !== EVT_SWAP2_LENGTH) throw new Error(`chain-daddy: EvtSwap2 of ${event.length} bytes in ${signature}, the DBC program was likely upgraded`);
           if (event.subarray(48, 80).toString("hex") !== configHex) continue;
-          tradingFees += event.readBigUInt64LE(147);
+          fee += event.readBigUInt64LE(147);
         }
       }
-    }
+      return fee;
+    });
+    if (errors.length) throw errors[0];
+    const tradingFees = results.reduce((sum, fee) => sum + fee, 0n);
 
     const toCreators = (tradingFees * creatorPercentage) / 100n;
     dailyFees.add(quoteMint, tradingFees, "Bonding Curve Trading Fees");
@@ -301,12 +306,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.BASE]: { start: evmConfig[CHAIN.BASE].start },
-    [CHAIN.ROBINHOOD]: { start: evmConfig[CHAIN.ROBINHOOD].start },
-    // first swap on a Chain Daddy DBC pool: 2026-08-18 (pool ARMJAyTVDi9zZwvBPvi11ycciR49n9HvfyUsXtThZxN9)
-    [CHAIN.SOLANA]: { start: "2026-08-18" },
-  },
+  adapter: chainConfig,
   methodology,
   breakdownMethodology,
   // every fee here is a swap fee on a Uniswap or Meteora pool, which those listings already count
