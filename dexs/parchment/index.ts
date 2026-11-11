@@ -15,9 +15,9 @@ const fetch = async (options: FetchOptions) => {
   const [isParchmentMarket, opens, closes] = await Promise.all([
     getParchmentMarketFilter(endTimestamp),
     getParchmentEvents("OpenPositionEventV1", startTimestamp, endTimestamp),
-    // Closes (user, keeper-filled and session force closes) with the closed position's notional, read from the
-    // position's state before the close and checked against the close charge (see `getParchmentCloses`); no close
-    // fee rate is assumed. Liquidations emit no close event and are not counted as volume.
+    // Closes (user, keeper-filled and session force closes, full or partial) with their closed notional, read from the
+    // position's on-chain state before and after the close transaction and checked against the close charge (see
+    // `getParchmentCloses`); no close fee rate is assumed. Liquidations emit no close event and are not counted.
     getParchmentCloses(startTimestamp, endTimestamp),
   ]);
   for (const open of opens.filter(isParchmentMarket)) dailyVolume.add(PARCHMENT_USDC, open.notional);
@@ -33,7 +33,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.SUI],
   start: PARCHMENT_START,
   methodology: {
-    Volume: "USD notional of every perpetual position opened and closed on Parchment (each fill is the trader against the house pool, counted once). Open size is read from the open event; a close always closes the whole position and its size is read from the position's on-chain state just before the close. Liquidations are excluded.",
+    Volume: "USD notional of every perpetual position opened and closed on Parchment (each fill is the trader against the house pool, counted once). Open size is read from the open event; close size is the drop in the position's on-chain notional across the close transaction (the whole position for a full close, the slice for a partial close). Liquidations are excluded.",
   },
 };
 
