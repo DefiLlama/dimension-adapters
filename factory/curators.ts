@@ -213,6 +213,15 @@ const configs: Record<string, CuratorConfig> = {
       },
     },
   },
+  "hedgehood-share-lending": {
+    breakdownFees: true,
+    vaults: {
+      [CHAIN.ROBINHOOD]: {
+        morphoV2: ['0x54Bc097643BB9fd4ab004f11859893655529E954'], // hhUSDG
+        start: '2026-10-27', // vault deployment, block 98846901
+      },
+    },
+  },
   "hyperithm": {
     vaults: {
       [CHAIN.ETHEREUM]: {
