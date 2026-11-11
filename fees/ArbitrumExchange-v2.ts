@@ -3,20 +3,26 @@ import { CHAIN } from "../helpers/chains";
 import { getUniV2LogAdapter } from "../helpers/uniswap";
 import { METRIC } from "../helpers/metrics";
 
-// ArbDexPair (Sourcify exact match, e.g. 0x101009f8a54f52d7210bcb755aba44984ffa2fb7) charges a fixed `swapFee = 25` (0.25%, no setter).
-// `_mintFee` mints 20/(5,20) of the sqrt(k) growth to factory feeTo => 80% of swap fees to the protocol, 20% stay with LPs.
-// feeTo is a 2-of-5 Safe (0xe8ffe751dea181025a9acf3d6bde8cda5380f53f), set 2023-03-07 and never changed. Docs say this share funds
-// ARX staking, but the Safe has moved none of these LP tokens since 2024-03-06, so it is counted as protocol revenue, not holders revenue.
-const SWAP_FEE = 0.0025
-const PROTOCOL_SHARE = 0.8
+const SWAP_FEE = 0.0025 // ArbDexPair swapFee = 25 bps
+const PROTOCOL_SHARE = 0.8 // ArbDexPair _mintFee share minted to the factory feeTo Safe
+const STAKER_PAYOUTS_END = 1695081600 // 2023-09-19, the feeTo Safe last funded ARX staking pools on 2023-09-18
 
 const customLogic = ({ dailyVolume, dailyFees, fetchOptions }: any) => {
   const dailyUserFees = fetchOptions.createBalances();
   const dailyRevenue = fetchOptions.createBalances();
+  const dailyProtocolRevenue = fetchOptions.createBalances();
+  const dailyHoldersRevenue = fetchOptions.createBalances();
   const dailySupplySideRevenue = fetchOptions.createBalances();
 
+  const revenue = dailyFees.clone(PROTOCOL_SHARE);
+  if (fetchOptions.toTimestamp > STAKER_PAYOUTS_END) {
+    dailyRevenue.addBalances(revenue, 'Swap Fees To Protocol');
+    dailyProtocolRevenue.addBalances(revenue, 'Swap Fees To Protocol');
+  } else {
+    dailyRevenue.addBalances(revenue, 'Swap Fees To ARX Stakers');
+    dailyHoldersRevenue.addBalances(revenue, 'Swap Fees To ARX Stakers');
+  }
   dailyUserFees.addBalances(dailyFees, METRIC.SWAP_FEES);
-  dailyRevenue.addBalances(dailyFees.clone(PROTOCOL_SHARE), 'Swap Fees To Protocol');
   dailySupplySideRevenue.addBalances(dailyFees.clone(1 - PROTOCOL_SHARE), 'Swap Fees To LPs');
 
   return {
@@ -24,7 +30,8 @@ const customLogic = ({ dailyVolume, dailyFees, fetchOptions }: any) => {
     dailyFees: dailyUserFees,
     dailyUserFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
 };
@@ -39,7 +46,8 @@ const methodology = {
   Fees: "0.25% swap fee paid by traders on every trade.",
   UserFees: "Traders pay a 0.25% swap fee on every trade.",
   Revenue: "80% of swap fees (0.20% of volume), minted as LP tokens to the protocol's fee multisig.",
-  ProtocolRevenue: "80% of swap fees (0.20% of volume), minted as LP tokens to the protocol's fee multisig.",
+  ProtocolRevenue: "80% of swap fees, kept in the protocol's fee multisig since September 19, 2023 (0% before).",
+  HoldersRevenue: "80% of swap fees, paid out as staking rewards to ARX stakers until September 18, 2023 (0% since).",
   SupplySideRevenue: "20% of swap fees (0.05% of volume), kept in the pools for liquidity providers.",
 };
 
@@ -51,10 +59,14 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: "0.25% swap fee paid by traders on every trade."
   },
   Revenue: {
-    'Swap Fees To Protocol': "80% of swap fees, minted as LP tokens to the protocol's fee multisig."
+    'Swap Fees To ARX Stakers': "80% of swap fees, paid out as staking rewards to ARX stakers until September 18, 2023.",
+    'Swap Fees To Protocol': "80% of swap fees, kept in the protocol's fee multisig since September 19, 2023."
+  },
+  HoldersRevenue: {
+    'Swap Fees To ARX Stakers': "80% of swap fees, paid out as staking rewards to ARX stakers until September 18, 2023."
   },
   ProtocolRevenue: {
-    'Swap Fees To Protocol': "80% of swap fees, minted as LP tokens to the protocol's fee multisig."
+    'Swap Fees To Protocol': "80% of swap fees, kept in the protocol's fee multisig since September 19, 2023."
   },
   SupplySideRevenue: {
     'Swap Fees To LPs': "20% of swap fees, kept in the pools for liquidity providers."
