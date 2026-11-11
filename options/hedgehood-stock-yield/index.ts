@@ -1,8 +1,7 @@
-import * as sdk from '@defillama/sdk';
 import ADDRESSES from '../../helpers/coreAssets.json';
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
-import { V2_REGISTRIES } from '../../helpers/hedgehood-stock-yield';
+import { getV2Funds } from '../../helpers/hedgehood-stock-yield';
 
 // Stock Yield by HedgeHood: option-selling vaults on tokenized stocks.
 // v1 (BrokerEpochVault, Robinhood Chain): each vault sells one call a week through its quoted desk, created by the
@@ -28,10 +27,8 @@ const ABI = {
 };
 
 const V2_ABI = {
-  vaults: 'address[]:vaults',
   engines: 'address[]:engines',
   stock: 'address:stock',
-  usdg: 'address:usdg',
   // emitted by a fund's option book for every position it sells: size in stock units, premium in the fund's stablecoin
   positionOpened: 'event PositionOpened(uint256 indexed epoch, uint8 indexed legId, address indexed buyer, uint8 slot, uint256 size, uint256 strike, uint256 premium, uint256 fee, bytes32 quoteDigest)',
 };
@@ -55,23 +52,15 @@ async function fetchV1(options: FetchOptions, dailyNotionalVolume: any, dailyPre
 }
 
 async function fetchV2(options: FetchOptions, dailyNotionalVolume: any, dailyPremiumVolume: any, firstBlock: number, toBlock: number) {
-  const registries = (V2_REGISTRIES[options.chain] ?? []).filter(({ block }) => block <= toBlock);
-  if (!registries.length) return;
-  const fromBlock = Math.max(firstBlock, Math.min(...registries.map(({ block }) => block)));
-  if (fromBlock > toBlock) return;
-  // The registry only adds funds and a fund only adds books, and logs are filtered by block, so these are read at the
-  // latest block: the
-  // chain's public RPCs do not serve historical state for a backfill.
-  const latest = new sdk.ChainApi({ chain: options.chain });
-  const funds: string[] = (await latest.multiCall({ abi: V2_ABI.vaults, calls: registries.map(({ registry }) => registry) })).flat();
-  if (!funds.length) return;
-  const [books, stocks, cash] = await Promise.all([
-    latest.multiCall({ abi: V2_ABI.engines, calls: funds }),
-    latest.multiCall({ abi: V2_ABI.stock, calls: funds }),
-    latest.multiCall({ abi: V2_ABI.usdg, calls: funds }),
+  const v2 = await getV2Funds(options, firstBlock, toBlock);
+  if (!v2) return;
+  const { funds, stablecoins, fromBlock } = v2;
+  const [books, stocks] = await Promise.all([
+    options.api.multiCall({ abi: V2_ABI.engines, calls: funds }),
+    options.api.multiCall({ abi: V2_ABI.stock, calls: funds }),
   ]);
   // one entry per option book, carrying its fund's stock and stablecoin
-  const targets = books.flatMap((list: string[], i: number) => list.map((book) => ({ book, stock: stocks[i], cash: cash[i] })));
+  const targets = books.flatMap((list: string[], i: number) => list.map((book) => ({ book, stock: stocks[i], cash: stablecoins[i] })));
   if (!targets.length) return;
   const sales = await options.getLogs({ targets: targets.map(({ book }) => book), eventAbi: V2_ABI.positionOpened, fromBlock, toBlock, flatten: false });
   sales.forEach((bookSales: any[], i: number) => {

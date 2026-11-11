@@ -1,14 +1,13 @@
-import * as sdk from '@defillama/sdk';
 import ADDRESSES from '../../helpers/coreAssets.json';
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
-import { V2_REGISTRIES } from '../../helpers/hedgehood-stock-yield';
+import { getV2Funds } from '../../helpers/hedgehood-stock-yield';
 
 // Stock Yield by HedgeHood: option-selling vaults on tokenized stocks.
 // v1 (BrokerEpochVault, Robinhood Chain): depositors' stock backs one call a week, sold through the vault's quoted
 // desk; the premium is paid in USDG.
 // v2 / v2.1 (EpochFund, Robinhood Chain and BNB Chain): strategy funds (covered call, wheel) listed in a VaultRegistry;
-// see V2_REGISTRIES below.
+// see helpers/hedgehood-stock-yield.ts.
 // Creation/runtime verified on Sourcify:
 // https://sourcify.dev/server/v2/contract/4663/0xe35B7D7bf1212b89478ddAba2946ADEd59BEC0a9
 // https://sourcify.dev/server/v2/contract/4663/0x6d17d089663e50823e29ad34D6e4EB2448BE8B0b (its quoted desk)
@@ -32,8 +31,6 @@ const ABI = {
 };
 
 const V2_ABI = {
-  vaults: 'address[]:vaults',
-  usdg: 'address:usdg',
   // one per epoch, once its last option book has settled; an epoch that sold nothing reports zeros
   epochSettled: 'event EpochSettled(uint256 indexed epoch, uint256 price, uint256 paidStock, uint256 paidUsdg, uint256 fee, uint256 income)',
 };
@@ -44,23 +41,13 @@ const LABEL = 'Desk fee on option premiums';
 // escrowed in the fund until the epoch settles; settlement books the fee to the treasury Safe's claim and the rest to
 // depositors, and a voided position or an unpriced force-settlement charges none. So the fee is counted at
 // settlement, from the fund's own EpochSettled, in the fund's stablecoin.
-async function addV2Fees(options: FetchOptions, dailyFees: any, fromBlock: number, toBlock: number) {
-  const registries = (V2_REGISTRIES[options.chain] ?? []).filter(({ block }) => block <= toBlock);
-  if (!registries.length) return;
-  // The registry only adds funds and a fund only adds books, and logs are filtered by block, so these are read at the
-  // latest block: the
-  // chain's public RPCs do not serve historical state for a backfill.
-  const latest = new sdk.ChainApi({ chain: options.chain });
-  const funds: string[] = (await latest.multiCall({ abi: V2_ABI.vaults, calls: registries.map(({ registry }) => registry) })).flat();
-  if (!funds.length) return;
-  const from = Math.max(fromBlock, Math.min(...registries.map(({ block }) => block)));
-  if (from > toBlock) return;
-  const [cash, settled] = await Promise.all([
-    latest.multiCall({ abi: V2_ABI.usdg, calls: funds }),
-    options.getLogs({ targets: funds, eventAbi: V2_ABI.epochSettled, fromBlock: from, toBlock, flatten: false }),
-  ]);
+async function addV2Fees(options: FetchOptions, dailyFees: any, firstBlock: number, toBlock: number) {
+  const v2 = await getV2Funds(options, firstBlock, toBlock);
+  if (!v2) return;
+  const { funds, stablecoins, fromBlock } = v2;
+  const settled = await options.getLogs({ targets: funds, eventAbi: V2_ABI.epochSettled, fromBlock, toBlock, flatten: false });
   settled.forEach((logs: any[], i: number) => {
-    for (const log of logs) dailyFees.add(cash[i], BigInt(log.fee), LABEL);
+    for (const log of logs) dailyFees.add(stablecoins[i], BigInt(log.fee), LABEL);
   });
 }
 
