@@ -108,6 +108,33 @@ const chainConfig: Record<string, { chainId: number; start: string; routes?: [st
   // Privacy / Standard source chains only, no RWA Native route.
   [CHAIN.OPTIMISM]: { chainId: 10, start: START },
   [CHAIN.AVAX]: { chainId: 43114, start: START },
+  // The other EVM source chains SilentSwap supports (Privacy / Standard only).
+  [CHAIN.LINEA]: { chainId: 59144, start: START },
+  [CHAIN.SCROLL]: { chainId: 534352, start: START },
+  [CHAIN.ERA]: { chainId: 324, start: START },
+  [CHAIN.BLAST]: { chainId: 81457, start: START },
+  [CHAIN.UNICHAIN]: { chainId: 130, start: START },
+  [CHAIN.WC]: { chainId: 480, start: START },
+  [CHAIN.SONIC]: { chainId: 146, start: START },
+  [CHAIN.BERACHAIN]: { chainId: 80094, start: START },
+  [CHAIN.HYPERLIQUID]: { chainId: 999, start: START },
+  [CHAIN.MONAD]: { chainId: 143, start: START },
+  [CHAIN.XDAI]: { chainId: 100, start: START },
+  [CHAIN.CELO]: { chainId: 42220, start: START },
+  [CHAIN.RONIN]: { chainId: 2020, start: START },
+  [CHAIN.MANTLE]: { chainId: 5000, start: START },
+  [CHAIN.APECHAIN]: { chainId: 33139, start: START },
+  [CHAIN.ABSTRACT]: { chainId: 2741, start: START },
+  [CHAIN.INK]: { chainId: 57073, start: START },
+  [CHAIN.ZORA]: { chainId: 7777777, start: START },
+  [CHAIN.ROBINHOOD]: { chainId: 4663, start: START },
+  [CHAIN.CRONOS]: { chainId: 25, start: START },
+  [CHAIN.KATANA]: { chainId: 747474, start: START },
+  [CHAIN.MODE]: { chainId: 34443, start: START },
+  [CHAIN.MANTA]: { chainId: 169, start: START },
+  [CHAIN.MEGAETH]: { chainId: 4326, start: START },
+  [CHAIN.BOBA]: { chainId: 288, start: START },
+  [CHAIN.PLASMA]: { chainId: 9745, start: START },
 };
 
 const pad = (a: string) => "0x" + a.toLowerCase().replace(/^0x/, "").padStart(64, "0");
