@@ -28,6 +28,11 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "julswap": {
+    // V2 factory, 3/1000 swap invariant and deployment block 784352 (2020-09-25): https://sourcify.dev/server/v2/contract/56/0x553990f2cba90272390f62c5bdb1681ffc899675?fields=all
+    // volume only: fee split not documented; feeTo is mutable.
+    [CHAIN.BSC]: { factory: '0x553990f2cba90272390f62c5bdb1681ffc899675', start: '2020-09-25', fees: 0.003, customLogic: volumeOnly },
+  },
   "spartadex": {
     // V2 pair creation and 0.3% swap invariant: https://sourcify.dev/server/v2/contract/42161/0xFe8EC10Fe07A6a6f4A2584f8cD9FE232930eAF55?fields=all
     // Linea factory uses the same pair code: https://sourcify.dev/server/v2/contract/59144/0x9E4Fc4a5A0769ba74088856C229c4a1Db2Ea5A9e?fields=all
