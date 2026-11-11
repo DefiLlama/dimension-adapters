@@ -39,6 +39,11 @@ const MULTICURVE_STATE_ABI = "function getState(address asset) view returns (add
 // Uniswap v4 PoolManager: a pool's slot0 is the first word of _pools[poolId], and _pools sits in storage slot 6
 // (StateLibrary.POOLS_SLOT). Bits 184-207 of that word are the pool's Uniswap protocol fee.
 const EXTSLOAD_ABI = "function extsload(bytes32 slot) view returns (bytes32)";
+// LockableUniswapV3Initializer (static launches, Chain Daddy's default launch mode): the pool's launched asset and
+// numeraire, and the Uniswap v3 pool's own swap event, fee tier and protocol fee.
+const LOCKABLE_V3_STATE_ABI = "function getState(address pool) view returns (address asset, address numeraire, int24 tickLower, int24 tickUpper, uint256 maxShareToBeSold, uint256 totalTokensOnBondingCurve, uint8 status)";
+const V3_SWAP_EVENT = "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)";
+const V3_SLOT0_ABI = "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)";
 const V4_POOLS_SLOT = 6;
 
 type EvmConfig = {
@@ -47,7 +52,7 @@ type EvmConfig = {
   fromBlock: number;
   poolManager: string;
   multicurveInitializers: string[];
-  // watched only so that a first static pool fails loudly (see below)
+  // LockableUniswapV3Initializer: static launches, a permanently locked Uniswap v3 pool
   v3Initializers: string[];
 };
 
@@ -169,9 +174,34 @@ const fetchEvm = async (options: FetchOptions, balances: any) => {
     }
   }
 
-  // ---- static pools (Uniswap v3): no Chain Daddy launch has created one yet, so there is no v3 leg to count them.
-  // Fail rather than drop one silently once it exists.
-  if (v3Pools.length) throw new Error(`chain-daddy: static Uniswap v3 launch pool ${v3Pools[0].pool} on ${options.chain} needs a v3 fee leg`);
+  // ---- static pools (Uniswap v3), Chain Daddy's default launch mode: the initializer keys the pool by the v3 pool
+  // itself, whose liquidity it adds and locks. None names Chain Daddy yet (Lock events checked 2026-11-11).
+  if (v3Pools.length) {
+    const [states, token0s, feeTiers, slot0s] = await Promise.all([
+      options.api.multiCall({ abi: LOCKABLE_V3_STATE_ABI, calls: v3Pools.map((p) => ({ target: p.initializer, params: [p.pool] })) }),
+      options.api.multiCall({ abi: "address:token0", calls: v3Pools.map((p) => p.pool) }),
+      options.api.multiCall({ abi: "uint24:fee", calls: v3Pools.map((p) => p.pool) }),
+      options.fromApi.multiCall({ abi: V3_SLOT0_ABI, calls: v3Pools.map((p) => p.pool) }),
+    ]);
+    for (let i = 0; i < v3Pools.length; i++) {
+      const numeraire = states[i].numeraire;
+      const numeraireIs0 = numeraire.toLowerCase() === token0s[i].toLowerCase();
+      const feeTier = BigInt(feeTiers[i]);
+      // v3's protocol fee is 1/n of the swap fee on the token paid in: n in the low 4 bits for token0, the high 4 for token1
+      const feeProtocol = Number(slot0s[i].feeProtocol);
+      const swaps = await options.getLogs({ target: v3Pools[i].pool, eventAbi: V3_SWAP_EVENT });
+      for (const swap of swaps) {
+        const amount0 = BigInt(swap.amount0);
+        // measured on the numeraire side of each swap, as for the v4 pools above
+        const volume = abs(numeraireIs0 ? amount0 : BigInt(swap.amount1));
+        const swapFee = (volume * feeTier) / PIPS;
+        // a positive amount0 is token0 paid in
+        const denominator = BigInt(amount0 > 0n ? feeProtocol & 0xf : feeProtocol >> 4);
+        const lpFee = denominator > 0n ? swapFee - swapFee / denominator : swapFee;
+        addLpFee(balances, numeraire, lpFee, v3Pools[i].shares);
+      }
+    }
+  }
 };
 
 // ---------------------------------------------------------------- Solana (Meteora DBC)
@@ -206,7 +236,8 @@ const fetchSolana = async (options: FetchOptions, balances: any) => {
   })))).flat();
   if (!configs.length) throw new Error("chain-daddy: no DBC configs found for Chain Daddy's fee claimers");
 
-  for (const { pubkey, account } of configs) {
+  // Configs are independent: a few at a time; within one, its signature pages are read in order.
+  const { errors: configErrors } = await PromisePool.withConcurrency(2).for(configs).process(async ({ pubkey, account }: any) => {
     const data = Buffer.from(account.data[0], "base64");
     // collect_fee_mode 0: the fee is always taken in the quote token
     if (data.readUInt8(232) !== 0) throw new Error(`chain-daddy: DBC config ${pubkey} does not collect fees in the quote token`);
@@ -229,7 +260,7 @@ const fetchSolana = async (options: FetchOptions, balances: any) => {
     }
 
     // Transactions are independent, so they are read a few at a time; any failed read fails the window.
-    const { results, errors } = await PromisePool.withConcurrency(5).for(signatures).process(async (signature) => {
+    const { results, errors } = await PromisePool.withConcurrency(3).for(signatures).process(async (signature) => {
       let fee = 0n;
       const tx = await getTransaction({ signature, maxSupportedTransactionVersion: 1, commitment: "finalized" });
       if (!tx) throw new Error(`chain-daddy: Solana transaction ${signature} not found`);
@@ -257,7 +288,8 @@ const fetchSolana = async (options: FetchOptions, balances: any) => {
     dailyFees.add(quoteMint, tradingFees, "Bonding Curve Trading Fees");
     dailyRevenue.add(quoteMint, tradingFees - toCreators, "Bonding Curve Trading Fees To Chain Daddy");
     dailySupplySideRevenue.add(quoteMint, toCreators, "Bonding Curve Trading Fees To Creators");
-  }
+  });
+  if (configErrors.length) throw configErrors[0];
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -276,7 +308,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Trading fees paid by traders in pools created by Chain Daddy's launchpad: the LP fee of its Uniswap v4 pools created through Doppler on Base and Robinhood Chain, and the trading fee of its Meteora Dynamic Bonding Curve pools on Solana after Meteora's protocol and referral fees. Excludes the separate hook fee of Doppler Rehype pools, which goes wholly to each coin's own fee address, a burn or its holders, Uniswap's protocol fee where it is switched on, and Chain Daddy's token page and token creation fees, which are paid by card or as plain transfers.",
+  Fees: "Trading fees paid by traders in pools created by Chain Daddy's launchpad: the LP fee of the Uniswap pools it creates through Doppler on EVM chains (a locked Uniswap v3 pool for a default launch, a Uniswap v4 pool for its other launch modes), and the trading fee of its Meteora Dynamic Bonding Curve pools on Solana after Meteora's protocol and referral fees. Excludes the separate hook fee of Doppler Rehype pools, which goes wholly to each coin's own fee address, a burn or its holders, Uniswap's protocol fee where it is switched on, and Chain Daddy's token page and token creation fees, which are paid by card or as plain transfers.",
   Revenue: "Chain Daddy's share of the trading fees in its launchpad pools, fixed in each pool when it launches: 20% of the LP fee for EVM pools launched since 2026-10-10 (earlier pools carry 5%, 15% or 20%), and 20% of the Solana bonding curve trading fee for pools launched since 2026-10-10 (earlier configs 5% or 15%).",
   ProtocolRevenue: "Chain Daddy's share of the trading fees in its launchpad pools, accrued to Chain Daddy's treasury.",
   SupplySideRevenue: "Trading fees in Chain Daddy's launchpad pools that go to each coin's creator (75% of the LP fee for EVM pools launched since 2026-10-10, 80% of the Solana trading fee) and to Doppler (5% of the LP fee on EVM pools).",
