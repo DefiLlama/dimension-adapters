@@ -935,25 +935,13 @@ function isSelfFilledDarkpoolOrder(order: { isDarkpool: boolean; sender: string;
   return order.isDarkpool && !!order.sender && order.sender === order.filler;
 }
 
-// Tristero confirmed this Base activity as test/common-control trading on 2026-11-09.
-// Limit the exclusion to the reviewed UTC day, directed pair and internal TAKER fills.
-// Do not suppress unrelated trades or gas-abstraction fees paid to real parties.
-function isConfirmedTestOrder(options: FetchOptions, order: DecodedV3SendOrder): boolean {
-  return options.chain === CHAIN.BASE
-    && options.dateString === '2026-08-28'
-    && order.orderType.toUpperCase() === 'TAKER'
-    && order.isDarkpool
-    && order.sender === '0xa02fb9638c16723310b6b57fed85cb2c03b86c19'
-    && order.filler === '0xe3d2b0c14ab8ebf5d9cd0130a0bc1188f737412f';
-}
-
 function addDecodedV3SendOrderVolume(
   options: FetchOptions,
   buckets: TristeroVolumeBuckets,
   decodedOrder: DecodedV3SendOrder,
   txHash: string,
 ) {
-  if (isSelfFilledDarkpoolOrder(decodedOrder) || isConfirmedTestOrder(options, decodedOrder)) return;
+  if (isSelfFilledDarkpoolOrder(decodedOrder)) return;
 
   const dailyVolume = decodedOrder.isDarkpool ? buckets.darkpool : buckets.aggregation;
 
@@ -1280,30 +1268,3 @@ export async function fetchTristeroGasAbstractionFees(options: FetchOptions) {
   return { fees, revenue, hasUnattributedFees };
 }
 
-// Total capital sitting in the Tristero vault on this chain - idle plus lent out. getTVOL is
-// the vault's own accounting of both.
-export const TRISTERO_VAULT_ASSETS: Record<string, string> = {
-  [CHAIN.ETHEREUM]: ADDRESSES.mantle.AUSD,
-  [CHAIN.ARBITRUM]: ADDRESSES.arbitrum.USDC_CIRCLE,
-  [CHAIN.BASE]: ADDRESSES.base.USDC,
-};
-
-export function getTristeroVaultAddress(): string {
-  return TRISTERO_VAULT;
-}
-
-export async function getTristeroVaultTotal(options: FetchOptions): Promise<{ token: string; amount: bigint } | null> {
-  const token = TRISTERO_VAULT_ASSETS[options.chain];
-  if (!token) return null;
-
-  // No permitFailure: a reverted or unreachable vault call is missing input, not a zero
-  // balance, and swallowing it would publish a complete-looking day with the entire protocol
-  // revenue component missing.
-  const total = await options.api.call({
-    target: TRISTERO_VAULT,
-    abi: 'function getTVOL(address _token) view returns (uint256)',
-    params: [token],
-  });
-
-  return { token, amount: toBigIntSafe(total) };
-}
