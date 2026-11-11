@@ -1,3 +1,4 @@
+import ADDRESSES from "../helpers/coreAssets.json";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -6,16 +7,18 @@ import { METRIC } from "../helpers/metrics";
 // Binance USDⓈ-M index. There is no open, close or funding fee. The only fee is the 2% fee emitted in PositionClosed:
 // on the gain of a winning close, or LP-side on a losing close / cash-funded liquidation while the payout queue is empty.
 // When accrued it is split staker = floor(fee / 2), dev = fee - staker. A winning fee that cannot accrue stays in the LP.
-// Event amounts are 18-decimal ledger units on both chains; Arc settles in 6-decimal USDC (ledger = raw * 1e12).
-const config: Record<string, { exchange: string; token: string; scale: bigint }> = {
-  [CHAIN.BSC]: { exchange: "0x1C6Ca75b7A9E9F9Bdd25f602292E6cf2658A638c", token: "0x55d398326f99059fF775485246999027B3197955", scale: 1n },
-  [CHAIN.ARC]: { exchange: "0x298f17dfeA7cD582637f3ce3C6Fad075e01Bc1a0", token: "0x3600000000000000000000000000000000000000", scale: 10n ** 12n },
+// Event amounts are 18-decimal ledger units on both chains, so they are booked without rescaling:
+// BSC settles in USDT (18 decimals); Arc settles in the 6-decimal USDC facade (ledger = raw * 1e12), so Arc fees are
+// booked as native USDC (zero address, 18 decimals), which prices the same.
+const config: Record<string, { exchange: string; token: string }> = {
+  [CHAIN.BSC]: { exchange: "0x1C6Ca75b7A9E9F9Bdd25f602292E6cf2658A638c", token: ADDRESSES.bsc.USDT },
+  [CHAIN.ARC]: { exchange: "0x298f17dfeA7cD582637f3ce3C6Fad075e01Bc1a0", token: ADDRESSES.null },
 };
 
 const POSITION_CLOSED = "event PositionClosed(uint256 indexed posId, address indexed user, uint64 closePx, int256 pnl, int256 adjPnl, bool isLiquidation, uint256 fee, uint256 devFeeAccrued)";
 
 const fetch = async (options: FetchOptions) => {
-  const { exchange, token, scale } = config[options.chain];
+  const { exchange, token } = config[options.chain];
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
@@ -32,10 +35,10 @@ const fetch = async (options: FetchOptions) => {
     const staker = dev === 0n ? 0n : fee - dev;
     const retained = fee - dev - staker;
     const label = log.isLiquidation ? METRIC.LIQUIDATION_FEES : METRIC.TRADING_FEES;
-    dailyFees.add(token, (fee / scale).toString(), label);
-    dailyProtocolRevenue.add(token, (dev / scale).toString(), "Fees To Dev");
-    dailyHoldersRevenue.add(token, (staker / scale).toString(), "Fees To SPAPER Stakers");
-    dailySupplySideRevenue.add(token, (retained / scale).toString(), "Fees Retained In LP");
+    dailyFees.add(token, fee.toString(), label);
+    dailyProtocolRevenue.add(token, dev.toString(), "Fees To Dev");
+    dailyHoldersRevenue.add(token, staker.toString(), "Fees To SPAPER Stakers");
+    dailySupplySideRevenue.add(token, retained.toString(), "Fees Retained In LP");
   }
   dailyRevenue.addBalances(dailyProtocolRevenue);
   dailyRevenue.addBalances(dailyHoldersRevenue);
@@ -50,24 +53,24 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.BSC, CHAIN.ARC],
   start: "2026-11-11",
   methodology: {
-    Fees: "2% fee on the gain of winning closes, plus a 2% LP-side fee on losing closes and on margin forfeited in cash-funded liquidations, taken only while the payout queue is empty. No open, close or funding fees. Trader losses kept by the LP are not counted.",
-    Revenue: "Fees accrued to the dev share and to SPAPER stakers.",
-    ProtocolRevenue: "Dev share: half of each accrued fee (the odd wei goes to dev). 20% of the dev share is used to buy back and burn SOLON; this is done off-chain later and is not counted separately here.",
-    HoldersRevenue: "Half of each accrued fee, credited to SPAPER stakers.",
-    SupplySideRevenue: "Winning-close fees that cannot accrue to dev and stakers and stay in the protocol-owned LP.",
+    Fees: "A 2% fee on trader profit when a winning BTC or ETH position closes, plus a 2% fee on the trader's loss or forfeited margin that the protocol-owned pool wins on losing closes and liquidations (charged only while the payout queue is empty). There are no opening, closing or funding fees, and trader losses kept by the pool are not counted as fees.",
+    Revenue: "The part of trading and liquidation fees paid out to the developer and to SPAPER stakers.",
+    ProtocolRevenue: "Half of each paid-out trading and liquidation fee, sent to the developer. 20% of this share is later used off-chain to buy back and burn SOLON, which is not tracked separately.",
+    HoldersRevenue: "Half of each paid-out trading and liquidation fee, distributed to SPAPER stakers.",
+    SupplySideRevenue: "Fees on winning trades that are not paid out to the developer or stakers and stay in the protocol-owned pool that takes the other side of every trade.",
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.TRADING_FEES]: "2% fee emitted on winning and losing closes.",
-      [METRIC.LIQUIDATION_FEES]: "2% LP-side fee on margin forfeited in cash-funded liquidations.",
+      [METRIC.TRADING_FEES]: "2% of the profit on winning closes, and 2% of the trader's loss on losing closes collected by the pool.",
+      [METRIC.LIQUIDATION_FEES]: "2% of the margin forfeited to the pool in cash-funded liquidations.",
     },
     Revenue: {
-      "Fees To Dev": "Dev share of accrued fees.",
-      "Fees To SPAPER Stakers": "Staker share of accrued fees.",
+      "Fees To Dev": "Half of each paid-out fee, sent to the developer.",
+      "Fees To SPAPER Stakers": "Half of each paid-out fee, distributed to SPAPER stakers.",
     },
-    ProtocolRevenue: { "Fees To Dev": "Dev share of accrued fees." },
-    HoldersRevenue: { "Fees To SPAPER Stakers": "Staker share of accrued fees." },
-    SupplySideRevenue: { "Fees Retained In LP": "Winning-close fees retained by the protocol-owned LP." },
+    ProtocolRevenue: { "Fees To Dev": "Half of each paid-out fee, sent to the developer." },
+    HoldersRevenue: { "Fees To SPAPER Stakers": "Half of each paid-out fee, distributed to SPAPER stakers." },
+    SupplySideRevenue: { "Fees Retained In LP": "Winning-close fees that are not paid out and stay in the protocol-owned pool." },
   },
 };
 
