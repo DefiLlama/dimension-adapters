@@ -19,30 +19,11 @@ const LEGACY_FEE_RATE_CHANGE_TIMESTAMP = 1780876800; // 2026-06-08 00:00:00 UTC
 
 const SWAP_FEE_RATE = 0.005; // 0.5%
 const LIMIT_ORDER_FEE_RATE = 0.001; // 0.1%
+// Historical protocol fee rate before June 8, 2026 (0.1%), matching initial protocol launch and v1 adapter parameters
 const LEGACY_FEE_RATE = 0.001; // 0.1%
 
 const safeAddTokensReceived = async (params: any) => {
-	try {
-		return await addTokensReceived(params);
-	} catch (e: any) {
-		const msg = String(e?.message ?? e ?? "");
-		if (
-			e?.llamaRPCError ||
-			msg.includes("limit exceeded") ||
-			msg.includes("timed out") ||
-			msg.includes("timeout") ||
-			msg.includes("429") ||
-			msg.includes("llamaRPCError") ||
-			msg.includes("Request failed") ||
-			msg.includes("log query range") ||
-			msg.includes("ECONNRESET") ||
-			msg.includes("ETIMEDOUT") ||
-			msg.includes("rate limit")
-		) {
-			return params.balances ?? params.options.createBalances();
-		}
-		throw e;
-	}
+	return await addTokensReceived(params);
 };
 
 const safeGetETHReceived = async (params: {
@@ -52,14 +33,7 @@ const safeGetETHReceived = async (params: {
 	balances?: any;
 	notFromSenders?: string[];
 }) => {
-	try {
-		return await getETHReceived(params);
-	} catch (e: any) {
-		if (e.message?.includes("Allium API Key") || !process.env.ALLIUM_API_KEY) {
-			return params.balances ?? params.options.createBalances();
-		}
-		throw e;
-	}
+	return await getETHReceived(params);
 };
 
 const fetch = async (options: FetchOptions) => {
