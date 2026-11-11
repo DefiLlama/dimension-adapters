@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { PARCHMENT_START, PARCHMENT_USDC, getParchmentEvents, getParchmentMarketFilter, isParchmentExchange } from "../../helpers/parchment";
+import { PARCHMENT_START, PARCHMENT_USDC, closeFeesCollected, getParchmentEvents, getParchmentMarketFilter, getParchmentTxEvents, isParchmentExchange, matchQueuedFees } from "../../helpers/parchment";
 
 // Fee schedule (https://docs.parchment.trade/trading/fees and /house-pool), all read from
 // events rather than assumed:
@@ -28,7 +28,6 @@ const LABELS = {
   TO_STAKERS: "Trading Fees To Stakers",
   TO_TREASURY: "Trading Fees To Treasury",
   EXEC_TO_KEEPER: "Execution Fees To Keeper",
-  REFERRAL_DISCOUNT: "Referral Discounts To Traders",
   REFERRAL: "Referral Fees To Referrers",
   BUILDER_TO_BUILDERS: "Builder Fees To Builders",
   LIQ_TO_LIQUIDATORS: "Liquidation Bounties To Liquidators",
@@ -54,8 +53,9 @@ const fetch = async (options: FetchOptions) => {
 
   const [isParchmentMarket, closeFees, enqueued, builderPaid, liquidations, harvestFees, opens, finalized, requests, routed, referralPayouts] = await Promise.all([
     getParchmentMarketFilter(end),
-    getParchmentEvents("CloseFeesEventV2", start, end),
-    getParchmentEvents("EnqueuePayoutEventV2", start, end),
+    // With transaction digests and event indexes, to match each queued payout to its own close.
+    getParchmentTxEvents("CloseFeesEventV2", start, end),
+    getParchmentTxEvents("EnqueuePayoutEventV2", start, end),
     getParchmentEvents("BuilderOnTopAccruedEventV1", start, end),
     getParchmentEvents("LiquidationDetailEventV1", start, end),
     getParchmentEvents("HarvestFeesEventV2", start, end),
@@ -75,23 +75,17 @@ const fetch = async (options: FetchOptions) => {
   // non-empty or pool cash short) collects at the close only the part of the close fee its margin covers; the win
   // fee and the part of the close fee taken out of profit (`EnqueuePayoutEventV2.fee`) are collected, split and
   // routed when the claim is harvested (`HarvestFeesEventV2.fee`), possibly in parts and in later periods.
-  const queuedFee = new Map<string, bigint>();
-  for (const e of byExchange(enqueued)) queuedFee.set(String(e.position_id), BigInt(e.fee));
-  for (const e of byExchange(closeFees)) {
-    const queued = queuedFee.get(String(e.position_id)) ?? 0n;
-    const win = BigInt(e.win_fee);
-    const queuedWin = queued < win ? queued : win;
-    const closeNow = BigInt(e.close_charge) - (queued - queuedWin);
-    if (closeNow < 0n) throw new Error(`Parchment: queued fee ${queued} above the fees of close ${e.position_id}`);
-    add(dailyFees, closeNow, LABELS.CLOSE);
-    add(dailyFees, win - queuedWin, LABELS.WIN);
-    add(dailyFees, e.loss_fee, LABELS.LOSS);
-    add(dailySupplySideRevenue, e.referral_discount, LABELS.REFERRAL_DISCOUNT);
-  }
-  for (const e of byExchange(harvestFees)) {
-    add(dailyFees, e.fee, LABELS.QUEUED);
-    add(dailySupplySideRevenue, e.referral_discount, LABELS.REFERRAL_DISCOUNT);
-  }
+  // Referee discounts are credited straight back to the trader, so fees are counted net of them (see
+  // `closeFeesCollected`; `HarvestFeesEventV2.fee` includes the discount on a queued fee).
+  const closes = closeFees.filter(({ event }) => isParchmentExchange(event));
+  const queuedFees = matchQueuedFees(closes, enqueued.filter(({ event }) => isParchmentExchange(event)));
+  closes.forEach(({ event }, i) => {
+    const collected = closeFeesCollected(event, queuedFees[i]);
+    add(dailyFees, collected.close, LABELS.CLOSE);
+    add(dailyFees, collected.win, LABELS.WIN);
+    add(dailyFees, collected.loss, LABELS.LOSS);
+  });
+  for (const e of byExchange(harvestFees)) add(dailyFees, BigInt(e.fee) - BigInt(e.referral_discount), LABELS.QUEUED);
 
   // Liquidations: loss fee on the forfeited margin, and the liquidator's bounty.
   for (const e of byMarket(liquidations)) {
@@ -134,23 +128,22 @@ const fetch = async (options: FetchOptions) => {
     add(dailyRevenue, e.to_treasury, LABELS.TO_TREASURY);
   }
 
-  return { dailyFees, dailyUserFees: dailyFees.clone(), dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 
 const methodology = {
-  Fees: "Fees paid by Parchment traders: open fees (0 since launch), 0.4 bp close fees, 2% win fees on profit, 2% loss fees on margin lost, liquidation bounties, the 0.02 USDC execution fee per filled order and optional builder fees. The loss fee is a separate protocol cut routed to stakers and the treasury, not house pool profit; the house pool's own trading profit is not counted.",
-  UserFees: "Fees paid by Parchment traders: open, close, win, loss and execution fees, liquidation bounties and builder fees.",
+  Fees: "Fees paid by Parchment traders: open fees (0 since launch), 0.4 bp close fees, 2% win fees on profit, 2% loss fees on margin lost, liquidation bounties, the 0.02 USDC execution fee per filled order and optional builder fees, net of the discount referred traders get back on close and win fees. The loss fee is a separate protocol cut routed to stakers and the treasury, not house pool profit; the house pool's own trading profit is not counted.",
   Revenue: "Open, close, win and loss fees kept by Parchment after referral shares, split between stakers and the treasury.",
   ProtocolRevenue: "Treasury share of the open, close, win and loss fees Parchment keeps (30% to 70% depending on house pool coverage).",
   HoldersRevenue: "Share of the open, close, win and loss fees Parchment keeps that is paid in USDC to stakers (30% to 70% depending on house pool coverage).",
-  SupplySideRevenue: "Execution fees reimbursing the order keeper's gas, referral discounts returned to traders, referral fees paid to referrers, builder fees paid to builders and liquidation bounties paid to liquidators.",
+  SupplySideRevenue: "Execution fees reimbursing the order keeper's gas, referral fees paid to referrers, builder fees paid to builders and liquidation bounties paid to liquidators.",
 };
 
 const FEE_SOURCES = {
   [LABELS.OPEN]: "Open fee charged on position notional at open (market taker fee, 0 bp since launch).",
-  [LABELS.CLOSE]: "Close fee of 0.4 bp of position notional, charged on every close.",
-  [LABELS.WIN]: "Win fee of 2% of adjusted profit on winning closes paid out at once.",
-  [LABELS.QUEUED]: "Win fee, and the part of the close fee taken out of profit, on winning closes whose profit was queued; counted when the queued claim is paid out.",
+  [LABELS.CLOSE]: "Close fee of 0.4 bp of position notional, charged on every close, net of any referee discount.",
+  [LABELS.WIN]: "Win fee of 2% of adjusted profit on winning closes paid out at once, net of any referee discount.",
+  [LABELS.QUEUED]: "Win fee, and the part of the close fee taken out of profit, on winning closes whose profit was queued; counted when the queued claim is paid out, net of any referee discount.",
   [LABELS.LOSS]: "Loss fee of 2% of the margin a trader loses on a losing close or a liquidation, a protocol cut taken before the rest goes to the house pool.",
   [LABELS.EXEC]: "Flat execution fee (0.02 USDC) per filled two-step order, refunded when the order is not filled.",
   [LABELS.BUILDER]: "On-top fee on profit for orders placed through a builder code.",
@@ -159,7 +152,6 @@ const FEE_SOURCES = {
 
 const breakdownMethodology = {
   Fees: FEE_SOURCES,
-  UserFees: FEE_SOURCES,
   Revenue: {
     [LABELS.TO_STAKERS]: "Share of retained open, close, win and loss fees paid in USDC to stakers.",
     [LABELS.TO_TREASURY]: "Share of retained open, close, win and loss fees kept by the Parchment treasury.",
@@ -172,7 +164,6 @@ const breakdownMethodology = {
   },
   SupplySideRevenue: {
     [LABELS.EXEC_TO_KEEPER]: "Execution fees paid to the order keeper, which pays the gas of order fills.",
-    [LABELS.REFERRAL_DISCOUNT]: "Part of the fee returned to traders who were referred.",
     [LABELS.REFERRAL]: "Part of the fee paid to the trader's referrer and second-level referrer.",
     [LABELS.BUILDER_TO_BUILDERS]: "Builder on-top fees paid to the builder.",
     [LABELS.LIQ_TO_LIQUIDATORS]: "Liquidation bounties paid to the liquidator.",

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { POSITION_FIELD, closedNotionals } from './parchment'
+import { POSITION_FIELD, closeFeesCollected, closedNotionals, matchQueuedFees } from './parchment'
 
 // Offline: synthetic `objectChanges.nodes` shaped like Sui GraphQL `multiGetTransactionEffects`.
 // Run with: node --test -r ts-node/register/transpile-only helpers/parchment.test.ts
@@ -55,4 +55,47 @@ test('fails loudly: missing position, created field, charge mismatch', () => {
   assert.throws(() => closedNotionals([{ event: close('1', 28_186), digest: 'tx1' }], deleted), /does not match/)
   const unchanged = new Map([['tx1', [{ idDeleted: false, inputState: state('1', 100_000_000), outputState: state('1', 100_000_000) }]]])
   assert.throws(() => closedNotionals([{ event: close('1', 0), digest: 'tx1' }], unchanged), /does not match/)
+})
+
+// Queued payouts and close fees, as emitted in one transaction: each queued close's enqueue comes right before its
+// close fees event.
+const tx = (digest: string, seq: number, event: any) => ({ event, digest, seq })
+const fees = (positionId: string, closeCharge: number, winFee: number, discount = 0, lossFee = 0) =>
+  ({ position_id: positionId, close_charge: String(closeCharge), win_fee: String(winFee), loss_fee: String(lossFee), referral_discount: String(discount) })
+const enqueue = (positionId: string, fee: number) => ({ position_id: positionId, fee: String(fee) })
+
+test('queued fees: matched to their own close, several closes of one position in one transaction', () => {
+  const closes = [
+    tx('txA', 1, fees('9', 12_000, 50_000)), // slice 1, queued (fee 50_000 + 12_000 from profit)
+    tx('txA', 3, fees('9', 8_000, 30_000)), // slice 2, queued (fee 30_000 + 5_000 from profit)
+    tx('txA', 4, fees('9', 20_000, 0, 0, 40_000)), // rest, losing close, not queued
+    tx('txB', 1, fees('9', 4_000, 10_000)), // a later transaction: queued
+    tx('txC', 0, fees('10', 4_000, 0)), // not queued
+  ]
+  const enqueues = [tx('txA', 0, enqueue('9', 62_000)), tx('txA', 2, enqueue('9', 35_000)), tx('txB', 0, enqueue('9', 14_000))]
+  // Pass them out of order: matching uses the digest and the event index, not input order.
+  assert.deepEqual(matchQueuedFees(closes, [...enqueues].reverse()), [62_000n, 35_000n, 0n, 14_000n, 0n])
+})
+
+test('queued fees: an enqueue without its close fails', () => {
+  assert.throws(() => matchQueuedFees([tx('txA', 3, fees('9', 1, 0))], [tx('txA', 4, enqueue('9', 1))]), /without its close/)
+  assert.throws(() => matchQueuedFees([], [tx('txA', 0, enqueue('9', 1))]), /without its close/)
+})
+
+test('close fees balance: collected now + queued + discount = everything charged', () => {
+  const closes = [
+    { close: fees('1', 40_000, 200_000, 2_400), queued: 0n }, // paid at once, discounted
+    { close: fees('2', 40_000, 200_000, 0), queued: 230_000n }, // queued: win fee + 30_000 of the close charge
+    { close: fees('3', 40_000, 200_000, 100), queued: 230_000n }, // queued, discount on the 10_000 collected now
+    { close: fees('4', 40_000, 0, 7, 9_000), queued: 0n }, // losing close
+  ]
+  for (const { close, queued } of closes) {
+    const c = closeFeesCollected(close, queued)
+    for (const v of Object.values(c)) assert.ok(v >= 0n)
+    const charged = BigInt(close.close_charge) + BigInt(close.win_fee) + BigInt(close.loss_fee)
+    assert.equal(c.close + c.win + c.loss + queued + BigInt(close.referral_discount), charged, `position ${close.position_id}`)
+  }
+  assert.deepEqual(closeFeesCollected(closes[0].close, 0n), { close: 39_600n, win: 198_000n, loss: 0n })
+  assert.deepEqual(closeFeesCollected(closes[2].close, 230_000n), { close: 9_900n, win: 0n, loss: 0n })
+  assert.throws(() => closeFeesCollected(fees('5', 40_000, 0), 50_000n), /above the fees/)
 })

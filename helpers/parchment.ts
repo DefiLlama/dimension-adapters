@@ -13,6 +13,8 @@ export const PARCHMENT_EXCHANGE = "0xbe3c5d2d066c8ec04b4f280fab7c560f78deff91c7a
 // Collateral of every market and the vault: native Circle USDC (6 decimals).
 export const PARCHMENT_USDC = ADDRESSES.sui.USDC_CIRCLE;
 export const PARCHMENT_START = "2026-11-03";
+// Sui framework package (`0x2`, which defines `dynamic_field::Field`), in the full-length form GraphQL type reprs use.
+const SUI_FRAMEWORK = "0x0000000000000000000000000000000000000000000000000000000000000002";
 
 const eventType = (name: string) => `${PARCHMENT_CORE}::events::Event<${PARCHMENT_CORE}::events::${name}>`;
 
@@ -56,7 +58,7 @@ export async function getParchmentMarketFilter(endTimestamp: number): Promise<(e
 // `Field<u64, account::Position>` in its Account's positions table, and the transaction effects keep that object's
 // input state (before the transaction) and output state (after it). See `closedNotionals`.
 export async function getParchmentCloses(startTimestamp: number, endTimestamp: number): Promise<{ closes: any[]; notional: bigint }[]> {
-  const closes = (await getEventsWithDigest(eventType("CloseFeesEventV2"), startTimestamp, endTimestamp))
+  const closes = (await getParchmentTxEvents("CloseFeesEventV2", startTimestamp, endTimestamp))
     .filter(({ event }) => isParchmentExchange(event));
   return closedNotionals(closes, await getObjectChanges([...new Set(closes.map(({ digest }) => digest))]));
 }
@@ -74,7 +76,7 @@ export async function getParchmentCloses(startTimestamp: number, endTimestamp: n
 // its transaction's effects, or that fails the charge check, fails the run rather than being dropped. (A position
 // opened and closed in one transaction would have no input state, but opens are keeper fills of an earlier request
 // and a close needs an existing position.)
-export const POSITION_FIELD = `0x0000000000000000000000000000000000000000000000000000000000000002::dynamic_field::Field<u64,${PARCHMENT_CORE}::account::Position>`;
+export const POSITION_FIELD = `${SUI_FRAMEWORK}::dynamic_field::Field<u64,${PARCHMENT_CORE}::account::Position>`;
 export function closedNotionals(
   closes: { event: any; digest: string }[],
   changes: Map<string, any[]>, // digest => `objectChanges.nodes`
@@ -104,15 +106,18 @@ export function closedNotionals(
   });
 }
 
-// Events of one type in [start, end) with their transaction digests. Same backwards walk from the newest event as
-// `queryEvents`, which does not return digests.
-async function getEventsWithDigest(type: string, startTimestamp: number, endTimestamp: number): Promise<{ event: any; digest: string }[]> {
-  const items: { event: any; digest: string }[] = [];
+// Events of one type in [start, end) with their transaction digest and their index in that transaction
+// (`sequenceNumber`), unwrapped like `getParchmentEvents`. Same backwards walk from the newest event as `queryEvents`,
+// which returns neither.
+export type ParchmentTxEvent = { event: any; digest: string; seq: number };
+export async function getParchmentTxEvents(name: string, startTimestamp: number, endTimestamp: number): Promise<ParchmentTxEvent[]> {
+  const type = eventType(name);
+  const items: ParchmentTxEvent[] = [];
   let before: string | null = null;
   do {
     const data = await graphqlCall(`query ($type: String!, $before: String) {
       events(last: 50, before: $before, filter: { type: $type }) {
-        pageInfo { hasPreviousPage startCursor } nodes { timestamp transaction { digest } contents { json } }
+        pageInfo { hasPreviousPage startCursor } nodes { timestamp sequenceNumber transaction { digest } contents { json } }
       }
     }`, { type, before });
     const { pageInfo, nodes } = data.events; // oldest first
@@ -122,11 +127,55 @@ async function getEventsWithDigest(type: string, startTimestamp: number, endTime
       if (ts >= endTimestamp) continue;
       if (ts < startTimestamp) { before = null; break; }
       const digest = nodes[i].transaction?.digest;
-      if (!digest) throw new Error(`Parchment: ${type} event without a transaction digest`);
-      items.push({ event: nodes[i].contents.json.pos0, digest });
+      if (!digest || nodes[i].sequenceNumber == null) throw new Error(`Parchment: ${name} event without a transaction digest or index`);
+      items.push({ event: nodes[i].contents.json.pos0, digest, seq: Number(nodes[i].sequenceNumber) });
     }
   } while (before);
   return items.reverse();
+}
+
+// Matches each queued payout (`EnqueuePayoutEventV2`) to its close (`CloseFeesEventV2`) and returns, per close, the fee
+// queued with its claim (0n when the close was not queued). A queued close emits its enqueue event before its close
+// fees event in the same transaction, so each close takes the enqueue of the same position emitted after the
+// previous close of that position in that transaction; this keeps several closes of one position in one transaction
+// (partial closes) apart. An enqueue left without its close fails the run.
+export function matchQueuedFees(closes: ParchmentTxEvent[], enqueues: ParchmentTxEvent[]): bigint[] {
+  const tagged = [
+    ...enqueues.map((e) => ({ ...e, close: -1 })),
+    ...closes.map((e, i) => ({ ...e, close: i })),
+  ].sort((a, b) => (a.digest === b.digest ? a.seq - b.seq : a.digest < b.digest ? -1 : 1));
+  const pending = new Map<string, any>();
+  const queued = closes.map(() => 0n);
+  for (const { event, digest, close } of tagged) {
+    const key = `${digest}:${event.position_id}`;
+    if (close < 0) {
+      if (pending.has(key)) throw new Error(`Parchment: two queued payouts of position ${event.position_id} before its close in ${digest}`);
+      pending.set(key, event);
+    } else if (pending.has(key)) {
+      queued[close] = BigInt(pending.get(key).fee);
+      pending.delete(key);
+    }
+  }
+  for (const [key] of pending) throw new Error(`Parchment: queued payout ${key} without its close`);
+  return queued;
+}
+
+// Fees a close collects at the close, net of the referee discount, by kind. `queuedFee` is the fee queued with the
+// close's claim (`matchQueuedFees`). A close collects its close charge and win fee (`collected`), except the part
+// queued with a winning claim (`EnqueuePayoutEventV2.fee` = win fee + the part of the close charge taken from
+// profit), which is collected at harvest. The referee discount is a share of `collected` credited back to the trader
+// at once, so it is a fee the trader does not pay: it is netted from the close and win fees in proportion (rounding
+// to the close fee). The loss fee carries no discount.
+export function closeFeesCollected(close: any, queuedFee: bigint): { close: bigint; win: bigint; loss: bigint } {
+  const win = BigInt(close.win_fee);
+  const queuedWin = queuedFee < win ? queuedFee : win;
+  const closeNow = BigInt(close.close_charge) - (queuedFee - queuedWin);
+  const winNow = win - queuedWin;
+  const discount = BigInt(close.referral_discount);
+  if (closeNow < 0n || discount > closeNow + winNow)
+    throw new Error(`Parchment: queued fee ${queuedFee} / discount ${discount} above the fees of close ${close.position_id}`);
+  const winDiscount = closeNow + winNow > 0n ? (discount * winNow) / (closeNow + winNow) : 0n;
+  return { close: closeNow - (discount - winDiscount), win: winNow - winDiscount, loss: BigInt(close.loss_fee) };
 }
 
 // `objectChanges.nodes` (with input and output states) of the given transactions, by digest. 50 transactions per
