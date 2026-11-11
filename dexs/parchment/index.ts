@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { PARCHMENT_START, PARCHMENT_USDC, closedNotional, getParchmentEvents, getParchmentMarketFilter, isParchmentExchange } from "../../helpers/parchment";
+import { PARCHMENT_START, PARCHMENT_USDC, assertParchmentCloseFeePpm, closedNotional, getParchmentEvents, getParchmentMarkets, isParchmentExchange, parchmentMarketFilter } from "../../helpers/parchment";
 
 // Parchment is an oracle-priced perp DEX: every fill is the trader against the house pool, so each open
 // and each close is one taker trade (no maker leg to drop).
@@ -12,12 +12,12 @@ const fetch = async (options: FetchOptions) => {
 
   // Opens: `notional` is the filled position size in USDC base units (locked margin x leverage). The open event
   // carries `market_id` only, so it is attributed to the Exchange through its market.
-  const [isParchmentMarket, allOpens, allCloses] = await Promise.all([
-    getParchmentMarketFilter(endTimestamp),
+  const [markets, allOpens, allCloses] = await Promise.all([
+    getParchmentMarkets(endTimestamp),
     getParchmentEvents("OpenPositionEventV1", startTimestamp, endTimestamp),
     getParchmentEvents("CloseFeesEventV2", startTimestamp, endTimestamp),
   ]);
-  const opens = allOpens.filter(isParchmentMarket);
+  const opens = allOpens.filter(parchmentMarketFilter(markets));
   for (const open of opens) dailyVolume.add(PARCHMENT_USDC, open.notional);
 
   // Closes (user, keeper-filled and session force closes; one `CloseFeesEventV2` per settled close). The close
@@ -26,10 +26,16 @@ const fetch = async (options: FetchOptions) => {
   const closes = allCloses.filter(isParchmentExchange);
   for (const close of closes) dailyVolume.add(PARCHMENT_USDC, closedNotional(close.close_charge).toString());
 
-  // Every position opened so far was stamped with the 40 ppm close fee the recovery above assumes. Fail loudly
-  // if a different rate shows up instead of silently mis-sizing closes. Checking opens is enough: the rate is
-  // stamped on the position at open, a position closes after it opens, and every hourly window runs this check,
-  // so a new rate fails the window of its first open before any close at that rate can be counted.
+  // The close notional recovery assumes every closed position was stamped with the 40 ppm close fee. The rate is
+  // per market and admin-settable (`market::set_depth`), and the close event carries neither size nor rate, so two
+  // guards fail the run instead of mis-sizing closes:
+  // - every market's current `impact.close_fee_ppm` (read at run time) is 40, so every run fails while any market
+  //   has another rate, whether or not a position has opened at it yet;
+  // - every open in this window was stamped with 40, so the window of an open at another rate fails.
+  // Not covered: a rate set to another value and back to 40 while positions opened at it stay open. Their open
+  // windows fail, but later windows pass both guards and mis-size those positions' closes. Catching that would
+  // mean scanning every open since launch on each run.
+  assertParchmentCloseFeePpm(markets);
   for (const open of opens)
     if (String(open.close_fee_ppm) !== "40") throw new Error(`Parchment: unexpected close_fee_ppm ${open.close_fee_ppm} on position ${open.position_id}`);
 

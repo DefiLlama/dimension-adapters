@@ -1,3 +1,4 @@
+import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { graphqlCall } from "../helpers/sui";
@@ -28,10 +29,16 @@ const fetch = async (options: FetchOptions) => {
   const longOpenInterestAtEnd = options.createBalances();
   const shortOpenInterestAtEnd = options.createBalances();
 
-  // Markets of the Parchment Exchange (see `getParchmentMarkets`).
-  for (const { marketId: market_id, state: market } of await getParchmentMarkets(options.endTimestamp)) {
+  // Markets of the Parchment Exchange (see `getParchmentMarkets`), read with bounded concurrency; any failure is fatal.
+  const markets = await getParchmentMarkets(options.endTimestamp);
+  const { results } = await PromisePool.withConcurrency(5)
+    .for(markets)
+    .handleError((error) => { throw error; })
+    .process(async ({ marketId, state }) => ({ marketId, state, records: await getPositionRecords(state.liq.records.id) }));
+
+  for (const { marketId: market_id, state: market, records } of results) {
     const mark = BigInt(market.track.last_mark_wad);
-    for (const record of await getPositionRecords(market.liq.records.id)) {
+    for (const record of records) {
       if (mark === 0n) throw new Error(`Parchment: open position on market ${market_id} without a mark price`);
       // Position size in base asset = notional / entry price; valued at the mark.
       const value = ((BigInt(record.notional) * mark) / BigInt(record.entry_wad)).toString();

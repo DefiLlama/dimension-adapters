@@ -14,8 +14,8 @@ export const PARCHMENT_EXCHANGE = "0xbe3c5d2d066c8ec04b4f280fab7c560f78deff91c7a
 export const PARCHMENT_USDC = ADDRESSES.sui.USDC_CIRCLE;
 export const PARCHMENT_START = "2026-11-03";
 
-// Close fee in parts per million of position notional, stamped on every position at open
-// (`constants::close_fee_ppm`, 0.4 bp; `OpenPositionEventV1.close_fee_ppm`). Used to recover a closed
+// Close fee in parts per million of position notional, stamped on every position at open from the market's
+// `impact.close_fee_ppm` (0.4 bp on every market so far; `OpenPositionEventV1.close_fee_ppm`). Used to recover a closed
 // position's notional from `CloseFeesEventV2.close_charge` (= floor(notional * ppm / 1e6)).
 export const CLOSE_FEE_PPM = 40n;
 
@@ -46,9 +46,21 @@ export async function getParchmentMarkets(endTimestamp: number): Promise<{ marke
 }
 
 // Events that carry only `market_id` (opens, liquidations, orders) are filtered to the markets of the Parchment Exchange.
-export async function getParchmentMarketFilter(endTimestamp: number): Promise<(e: any) => boolean> {
-  const ids = new Set((await getParchmentMarkets(endTimestamp)).map(({ marketId }) => marketId));
+export function parchmentMarketFilter(markets: { marketId: string }[]): (e: any) => boolean {
+  const ids = new Set(markets.map(({ marketId }) => marketId));
   return (e: any) => ids.has(e.market_id);
+}
+
+export async function getParchmentMarketFilter(endTimestamp: number): Promise<(e: any) => boolean> {
+  return parchmentMarketFilter(await getParchmentMarkets(endTimestamp));
+}
+
+// Throws if a market's current close fee rate (`impact.close_fee_ppm`, admin-settable through `market::set_depth`
+// and stamped on each position at open) is not the CLOSE_FEE_PPM that `closedNotional` assumes.
+export function assertParchmentCloseFeePpm(markets: { marketId: string; state: any }[]): void {
+  for (const { marketId, state } of markets)
+    if (String(state?.impact?.close_fee_ppm) !== CLOSE_FEE_PPM.toString())
+      throw new Error(`Parchment: unexpected close_fee_ppm ${state?.impact?.close_fee_ppm} on market ${marketId}`);
 }
 
 // Closed notional of a voluntary close, keeper close or session force close, in USDC base units, from its
