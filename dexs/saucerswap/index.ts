@@ -2,9 +2,8 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { getConfig } from "../../helpers/cache";
 import { CHAIN } from "../../helpers/chains";
 import { getEnv } from "../../helpers/env";
-import { isCoreAsset } from "../../helpers/prices";
 import { httpGet } from "../../utils/fetchURL";
-import { saucerswapBreakdownMethodology, splitRevenue } from "../../helpers/saucerswap";
+import { addKnownLeg, getMirrorNodeLogs, saucerswapBreakdownMethodology, splitRevenue } from "../../helpers/saucerswap";
 
 const methodology = {
   Volume: "Swap volume on SaucerSwap V1 pools, read from on-chain Swap events. Each swap is valued by its HBAR, USDC or other major-token side; swaps between two long-tail tokens are not counted.",
@@ -23,16 +22,8 @@ const breakdownMethodology = saucerswapBreakdownMethodology('A 0.3% fee charged 
 const SWAP_FEE = 0.003
 const PROTOCOL_SHARE = 1 / 6
 
-const MIRROR_NODE = 'https://mainnet-public.mirrornode.hedera.com'
 // Uniswap V2 Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to)
 const SWAP_TOPIC = '0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822'
-
-// SaucerSwap's wrapped HBAR, 8 decimals and 1:1 with HBAR: WHBAR [old] 0.0.1062664 (pools from 2022-23) and WHBAR [new] 0.0.1456986.
-// DefiLlama has no price for the old one, and none for the new one before mid-2023, so both legs are valued as HBAR.
-const WHBAR = new Set(['0.0.1062664', '0.0.1456986'])
-
-// An HTS entity 0.0.N has the long-zero EVM address hex(N), the form DefiLlama prices Hedera tokens by
-const toEvmAddress = (id: string) => '0x' + BigInt(id.split('.')[2]).toString(16).padStart(40, '0')
 
 // V1 pairs (factory 0.0.1062784) from SaucerSwap's pool list, keyed by pair contract id. A Uniswap V2 pair sorts its tokens by
 // address, which for long-zero HTS addresses is the entity number, so token0 is the token with the lower entity number.
@@ -55,20 +46,8 @@ async function getPairs(): Promise<Record<string, { token0: string, token1: stri
   })
 }
 
-// Every Uniswap V2 Swap log on Hedera in [fromTimestamp, toTimestamp), from the mirror node
-async function getSwapLogs(fromTimestamp: number, toTimestamp: number): Promise<Array<any>> {
-  const logs: Array<any> = []
-  let path = `/api/v1/contracts/results/logs?topic0=${SWAP_TOPIC}&timestamp=gte:${fromTimestamp}&timestamp=lt:${toTimestamp}&limit=100&order=asc`
-  while (path) {
-    const res = await httpGet(MIRROR_NODE + path)
-    logs.push(...res.logs)
-    path = res.links?.next
-  }
-  return logs
-}
-
 const fetch = async (options: FetchOptions) => {
-  const [pairs, logs] = await Promise.all([getPairs(), getSwapLogs(options.startTimestamp, options.endTimestamp)])
+  const [pairs, logs] = await Promise.all([getPairs(), getMirrorNodeLogs(SWAP_TOPIC, options.startTimestamp, options.endTimestamp)])
 
   // Count only the HBAR or core-asset side of each swap. SaucerSwap's own volume API prices long-tail tokens from thin pools
   // and has reported millions of dollars for pools holding a few HBAR (e.g. HBAR/CARAT on 2026-11-09).
@@ -80,14 +59,8 @@ const fetch = async (options: FetchOptions) => {
     const words = log.data.slice(2).match(/.{64}/g)
     if (!words || words.length !== 4) throw new Error(`Unexpected Swap data in ${log.transaction_hash}`)
     const [amount0In, amount1In, amount0Out, amount1Out] = words.map((word: string) => BigInt('0x' + word))
-    const amount0 = amount0In + amount0Out
-    const amount1 = amount1In + amount1Out
-
-    if (WHBAR.has(pair.token0)) dailyVolume.addCGToken('hedera-hashgraph', Number(amount0) / 1e8)
-    else if (WHBAR.has(pair.token1)) dailyVolume.addCGToken('hedera-hashgraph', Number(amount1) / 1e8)
-    else if (isCoreAsset(CHAIN.HEDERA, toEvmAddress(pair.token0))) dailyVolume.add(toEvmAddress(pair.token0), amount0.toString())
-    else if (isCoreAsset(CHAIN.HEDERA, toEvmAddress(pair.token1))) dailyVolume.add(toEvmAddress(pair.token1), amount1.toString())
-    // neither side is HBAR or a core asset: skipped
+    // neither side HBAR or a core asset: skipped
+    addKnownLeg(dailyVolume, pair.token0, pair.token1, amount0In + amount0Out, amount1In + amount1Out)
   }
 
   const dailyFees = dailyVolume.clone(SWAP_FEE, 'Token Swap Fees')
