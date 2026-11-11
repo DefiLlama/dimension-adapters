@@ -8,11 +8,8 @@ const SWAP_FEE_RECEIVER = "0x0F477f8c88b48E299AcE83B14303157d032382EC";
 // - LIMIT_ORDER_FEE_RECEIVER: Dedicated BSC limit-order fee receiver (0.1% fee rate)
 const LIMIT_ORDER_FEE_RECEIVER = "0x75F7F06a5C5c440c1aDbd586826CD26253EDE219";
 
-// Developer commission wallets (50% / 50% protocol developer allocation):
-// - Developer 1 (50%): 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7 (legacy fee receiver pre-Oct 1, 2026)
-const DEV_WALLET_1 = "0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7";
-// - Developer 2 (50%): 0x3B523ec5AC7f37A151142b756040301729061348
-const DEV_WALLET_2 = "0x3B523ec5AC7f37A151142b756040301729061348";
+// Legacy protocol fee receiver used before the October 1, 2026 migration
+const LEGACY_RECEIVER = "0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7";
 
 // Legacy tax accumulator address used strictly to exclude transfer tax forwards from legacy swap fees.
 const TAX_ACCUMULATOR = "0x4c1caA917FD012b285Ba35E93535675e5B59806C";
@@ -22,7 +19,6 @@ const LEGACY_FEE_RATE_CHANGE_TIMESTAMP = 1780876800; // 2026-06-08 00:00:00 UTC
 
 const SWAP_FEE_RATE = 0.005; // 0.5%
 const LIMIT_ORDER_FEE_RATE = 0.001; // 0.1%
-const DEV_COMMISSION_RATE = 0.04; // 4.0%
 const LEGACY_FEE_RATE = 0.001; // 0.1%
 
 const safeAddTokensReceived = async (params: any) => {
@@ -73,13 +69,13 @@ const fetch = async (options: FetchOptions) => {
 	if (timestamp <= RECEIVER_MIGRATION_TIMESTAMP) {
 		const dailyFees = await safeAddTokensReceived({
 			options,
-			targets: [DEV_WALLET_1],
+			targets: [LEGACY_RECEIVER],
 			logFilter: (log: any) => {
 				const from = String(log.from ?? log.fromAddress ?? log.from_address ?? "").toLowerCase();
 				return from !== TAX_ACCUMULATOR.toLowerCase();
 			},
 		});
-		await safeGetETHReceived({ options, target: DEV_WALLET_1, balances: dailyFees, notFromSenders: [TAX_ACCUMULATOR] });
+		await safeGetETHReceived({ options, target: LEGACY_RECEIVER, balances: dailyFees, notFromSenders: [TAX_ACCUMULATOR] });
 		const feeRate = options.startTimestamp < LEGACY_FEE_RATE_CHANGE_TIMESTAMP ? LEGACY_FEE_RATE : SWAP_FEE_RATE;
 		const dailyVolume = dailyFees.clone(1 / feeRate);
 
@@ -100,19 +96,13 @@ const fetch = async (options: FetchOptions) => {
 	const limitOrderFees = await safeAddTokensReceived({ options, targets: [LIMIT_ORDER_FEE_RECEIVER] });
 	await safeGetETHReceived({ options, target: LIMIT_ORDER_FEE_RECEIVER, balances: limitOrderFees });
 
-	// 3. Developer commission (4.0% on platform trades) received by developer wallets in native BNB & tokens
-	const devFees = await safeAddTokensReceived({ options, targets: [DEV_WALLET_1, DEV_WALLET_2] });
-	await safeGetETHReceived({ options, targets: [DEV_WALLET_1, DEV_WALLET_2], balances: devFees });
-
 	const dailyFees = options.createBalances();
 	dailyFees.add(swapFees, "Kyber Swap Fees");
 	dailyFees.add(limitOrderFees, "Kyber Limit Order Fees");
-	dailyFees.add(devFees, "Developer Commission");
 
 	const dailyVolume = options.createBalances();
 	dailyVolume.add(swapFees.clone(1 / SWAP_FEE_RATE), "Swap Volume");
 	dailyVolume.add(limitOrderFees.clone(1 / LIMIT_ORDER_FEE_RATE), "Limit Order Volume");
-	dailyVolume.add(devFees.clone(1 / DEV_COMMISSION_RATE), "Platform Volume");
 
 	return {
 		dailyFees,
@@ -124,35 +114,31 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
 	Volume:
-		"Trading volume inferred from collected protocol fees: DEX swap fees divided by 0.5% (200x), limit order fees divided by 0.1% (1000x), and developer commission divided by 4% (25x). Pre-October 1, 2026 volume is inferred from the legacy receiver at 0.1% before June 8, 2026 and 0.5% thereafter.",
+		"Trading volume inferred from collected protocol fees: DEX swap fees divided by 0.5% (200x) and limit order fees divided by 0.1% (1000x). Pre-October 1, 2026 volume is inferred from the legacy receiver at 0.1% before June 8, 2026 and 0.5% thereafter.",
 	Fees:
-		"Protocol routing and developer fees collected from trades executed via Arbitrage Inc on BSC: 0.5% on DEX swaps to 0x0F477f8c88b48E299AcE83B14303157d032382EC, 0.1% on limit orders to 0x75F7F06a5C5c440c1aDbd586826CD26253EDE219, and developer commission to developer wallets (50% Developer 1 0xafF5340ECFaf7ce049261cff193f5FED6BDF04E7, 50% Developer 2 0x3B523ec5AC7f37A151142b756040301729061348) across BEP-20 tokens and native BNB.",
+		"Protocol routing fees collected from trades executed via Arbitrage Inc on BSC: 0.5% on DEX swaps to 0x0F477f8c88b48E299AcE83B14303157d032382EC and 0.1% on limit orders to 0x75F7F06a5C5c440c1aDbd586826CD26253EDE219 across BEP-20 tokens and native BNB.",
 	Revenue:
-		"100% of collected trading fees and developer commission are retained by the protocol developer wallets.",
+		"100% of collected protocol fees are retained by the protocol.",
 	ProtocolRevenue:
-		"100% of collected platform fees and commissions are protocol revenue.",
+		"100% of collected platform fees are protocol revenue.",
 };
 
 const breakdownMethodology = {
 	Volume: {
 		"Swap Volume": "Volume routed through DEX swaps (fees / 0.005).",
 		"Limit Order Volume": "Volume routed through limit orders (fees / 0.001).",
-		"Platform Volume": "Volume generated by platform trades (developer commission / 0.04).",
 	},
 	Fees: {
 		"Kyber Swap Fees": "0.5% protocol routing fee collected on DEX swaps across tokens and native BNB.",
 		"Kyber Limit Order Fees": "0.1% protocol fee collected on executed limit orders across tokens and native BNB.",
-		"Developer Commission": "Developer commission fees (allocated 50% Developer 1 and 50% Developer 2) collected from platform trades across tokens and native BNB.",
 	},
 	Revenue: {
 		"Kyber Swap Fees": "0.5% protocol routing fee collected on DEX swaps.",
 		"Kyber Limit Order Fees": "0.1% protocol fee collected on executed limit orders.",
-		"Developer Commission": "Developer commission retained by the protocol developer wallets.",
 	},
 	ProtocolRevenue: {
 		"Kyber Swap Fees": "0.5% protocol routing fee collected on DEX swaps.",
 		"Kyber Limit Order Fees": "0.1% protocol fee collected on executed limit orders.",
-		"Developer Commission": "Developer commission retained by the protocol developer wallets.",
 	},
 };
 
