@@ -48,21 +48,27 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
+  // Keep completed UTC-day summaries: intraday summaries do not reconcile to the daily aggregation.
   version: 1,
   chains: [CHAIN.THORCHAIN],
   start: RUJIRA_START_DATE,
   fetch,
   methodology: {
     Fees: "Scoped Rujira adapter covering FIN app-layer fees, the 0.50% RUJI Swap affiliate fee, and gross THORChain bonding rewards earned by bRUNE. Ghost, money market, liquidation, and Index revenue are excluded until supported data sources are available.",
+    UserFees: "FIN app-layer fees and the 0.50% RUJI Swap affiliate fee, excluding bRUNE bonding rewards.",
     Revenue: "The Rujira share of FIN fees, the full RUJI Swap affiliate fee, and the 10% bRUNE protocol commission for the covered products.",
     ProtocolRevenue: "The Rujira share of FIN fees, the full RUJI Swap affiliate fee, and the 10% bRUNE protocol commission for the covered products.",
     SupplySideRevenue: "The FIN fee share paid to THORChain and the 90% of bRUNE bonding rewards distributed to bRUNE users.",
   },
   breakdownMethodology: {
     Fees: {
-      [FIN]: "All FIN app-layer fees, including the CCL maker-fee component.",
+      [FIN]: "FIN pair trading fees and arbitrage profits, including the CCL maker-fee component; excludes separate VS protocol fees.",
       [SWAP_AFFILIATE_FEES]: "The additional 0.50% RUJI affiliate fee, excluding gas and THORChain liquidity fees.",
       [BRUNE]: "Gross THORChain bonding rewards earned by RUNE bonded through bRUNE.",
+    },
+    UserFees: {
+      [FIN]: "FIN pair trading fees and arbitrage profits, including the CCL maker-fee component; excludes separate VS protocol fees.",
+      [SWAP_AFFILIATE_FEES]: "The additional 0.50% RUJI affiliate fee, excluding gas and THORChain liquidity fees.",
     },
     Revenue: {
       [FIN_TO_RUJIRA]: "The Rujira destination amount from FIN fees.",
