@@ -79,12 +79,14 @@ const subgraphEndpoints: any = {
 };
 
 const dlmmSubgraphEndpoints: any = {
+  [CHAIN.ELYSIUM]: "https://gateway.kingdom.dev/elysium/subgraph/v1/graphql",
   [CHAIN.ROBINHOOD]: "https://gateway.kingdom.dev/robinhood/subgraph/v1/graphql",
 };
 
 const chainIds: Record<string, number> = {
   // Robinhood Chain mainnet: https://docs.robinhood.com/chain/connecting/
   [CHAIN.ROBINHOOD]: 4663,
+  [CHAIN.ELYSIUM]: 99901,
 };
 
 const subgraphQueryLimit = 1000;
@@ -217,7 +219,7 @@ function shouldUseDayRollups(options: FetchOptions) {
   const isFullDayWindow = startsAtDayBoundary
     && options.endTimestamp === options.startOfDay + dayInSeconds;
 
-  return isFullDayWindow && Math.floor(Date.now() / 1000) - options.endTimestamp > historicalRollupAgeSeconds;
+  return !!subgraphEndpoints[options.chain] && isFullDayWindow && Math.floor(Date.now() / 1000) - options.endTimestamp > historicalRollupAgeSeconds;
 }
 
 function splitDlmmProtocolFees(protocolFeesUSD: number, feeTreasury: number, isAlive: boolean) {
@@ -381,11 +383,13 @@ async function fetchDlmmDayStatsForDay(options: FetchOptions, startOfDay: number
 }
 
 async function fetchDlmmStats(options: FetchOptions): Promise<IDlmmGraphRes> {
-  const voteBribes = await getDlmmBribes(options);
+  // Elysium has no converter endpoint, so bribes are skipped there.
+  const hasConverter = !!subgraphEndpoints[options.chain];
+  const voteBribes = hasConverter ? await getDlmmBribes(options) : [];
   const dlmmVoteBribes = voteBribes.filter((e) => e.dlmmPool);
   const tokenIds = new Set(dlmmVoteBribes.map((e) => e.token.id));
   tokenIds.add(RAM_TOKEN_CONTRACT.toLowerCase());
-  const tokens = await getTokens(options, Array.from(tokenIds));
+  const tokens = hasConverter ? await getTokens(options, Array.from(tokenIds)) : [];
   const tokenPriceById = new Map(tokens.map((token) => [token.id, Number(token.priceUSD)]));
   const dlmmUserBribeRevenueUSD = dlmmVoteBribes.reduce((total, bribe) => {
     const priceUSD = tokenPriceById.get(bribe.token.id);
@@ -500,7 +504,7 @@ const adapter: SimpleAdapter = {
   // daily protocol rollups remain the source for historical full-day queries.
   pullHourly: false,
   fetch,
-  chains: [CHAIN.ROBINHOOD],
+  chains: [CHAIN.ROBINHOOD, CHAIN.ELYSIUM],
   start: "2026-07-22",
   methodology,
   breakdownMethodology,

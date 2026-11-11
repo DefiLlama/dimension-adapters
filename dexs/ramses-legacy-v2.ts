@@ -17,6 +17,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: { start: '2026-01-28' },
     [CHAIN.POLYGON]: { start: '2026-01-28' },
     [CHAIN.ROBINHOOD]: { start: '2026-07-22' },
+    [CHAIN.ELYSIUM]: { start: '2026-11-09' },
   },
 };
 

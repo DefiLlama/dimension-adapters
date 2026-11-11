@@ -15,9 +15,11 @@ export const subgraphEndpoints: any = {
   [CHAIN.HYPERLIQUID]: "https://hyperevm.kingdomsubgraph.com/subgraphs/name/ramses-v3-pruned/",
   [CHAIN.POLYGON]: "https://polygon.kingdomsubgraph.com/subgraphs/name/ramses-pruned",
   [CHAIN.ROBINHOOD]: "https://gateway.kingdom.dev/robinhood/converter/graphql",
+  // Elysium has no converter endpoint (404): volume/fees come from the raw hourly data, bribes are skipped.
 };
 
 const rawSubgraphEndpoints: any = {
+  [CHAIN.ELYSIUM]: "https://gateway.kingdom.dev/elysium/subgraph/v1/graphql",
   [CHAIN.ARBITRUM]: "https://gateway.kingdom.dev/arbitrum/subgraph/v1/graphql",
   [CHAIN.HYPERLIQUID]: "https://gateway.kingdom.dev/hyperevm/subgraph/v1/graphql",
   [CHAIN.POLYGON]: "https://gateway.kingdom.dev/polygon/subgraph/v1/graphql",
@@ -30,6 +32,7 @@ const chainIds: Record<string, number> = {
   [CHAIN.POLYGON]: 137,
   // Robinhood Chain mainnet: https://docs.robinhood.com/chain/connecting/
   [CHAIN.ROBINHOOD]: 4663,
+  [CHAIN.ELYSIUM]: 99901,
 };
 
 const subgraphQueryLimit = 1000;
@@ -183,7 +186,7 @@ function shouldUseDayRollups(options: FetchOptions) {
   const isFullDayWindow = startsAtDayBoundary
     && options.endTimestamp === options.startOfDay + dayInSeconds;
 
-  return isFullDayWindow && Math.floor(Date.now() / 1000) - options.endTimestamp > historicalRollupAgeSeconds;
+  return !!subgraphEndpoints[options.chain] && isFullDayWindow && Math.floor(Date.now() / 1000) - options.endTimestamp > historicalRollupAgeSeconds;
 }
 
 function getStartOfDay(timestamp: number) {
@@ -299,18 +302,21 @@ export async function fetchStats(options: FetchOptions): Promise<IGraphRes> {
     }
   `;
 
+  const hasConverter = !!subgraphEndpoints[options.chain];
   const {
     ClProtocolDayData: clProtocolDayData,
     LegacyProtocolDayData: legacyProtocolDayData,
-  } = await request(subgraphEndpoints[options.chain], statsQuery, {
-    startOfDays: getWindowStartOfDays(options),
-  });
+  } = hasConverter
+    ? await request<any>(subgraphEndpoints[options.chain], statsQuery, {
+      startOfDays: getWindowStartOfDays(options),
+    })
+    : { ClProtocolDayData: [], LegacyProtocolDayData: [] };
   const clDayData = clProtocolDayData?.find((day: IProtocolDayData) => Number(day.startOfDay) === options.startOfDay);
   const legacyDayData = legacyProtocolDayData?.find((day: IProtocolDayData) => Number(day.startOfDay) === options.startOfDay);
-  const voteBribes = await getBribes(options);
+  const voteBribes = hasConverter ? await getBribes(options) : [];
   const tokenIds = new Set(voteBribes.map((e) => e.token.id));
   tokenIds.add(RAM_TOKEN_CONTRACT.toLowerCase());
-  const tokens = await getTokens(options, Array.from(tokenIds));
+  const tokens = hasConverter ? await getTokens(options, Array.from(tokenIds)) : [];
   const legacyVoteBribes = voteBribes.filter((e) => e.legacyPool);
   const clVoteBribes = voteBribes.filter((e) => e.clPool);
   const tokenPriceById = new Map(tokens.map((token) => [token.id, Number(token.priceUSD)]));
@@ -494,6 +500,7 @@ const adapter: SimpleAdapter = {
     [CHAIN.ARBITRUM]: { start: '2026-01-13' },
     [CHAIN.POLYGON]: { start: '2026-01-28' },
     [CHAIN.ROBINHOOD]: { start: '2026-07-22' },
+    [CHAIN.ELYSIUM]: { start: '2026-11-09' },
   },
 };
 
