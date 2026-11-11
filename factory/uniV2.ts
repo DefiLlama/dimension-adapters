@@ -28,6 +28,12 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "thetaswap": {
+    // V2 protocol: https://thetaswap.org/tos; 0.3% to LPs: https://thetaswap.org/
+    // Factory: https://github.com/DefiLlama/DefiLlama-Adapters/blob/6143db0bdca0485b8cc75a599cb051b573a32d9a/registries/uniswapV2.js#L2117
+    // feeTo was zero at Theta block 36645910.
+    theta: { factory: '0xe8b97478ae8ab1fcfd46cdb2f62869ec63bbf69f', fees: 0.003, userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+  },
   "spartadex": {
     // V2 pair creation and 0.3% swap invariant: https://sourcify.dev/server/v2/contract/42161/0xFe8EC10Fe07A6a6f4A2584f8cD9FE232930eAF55?fields=all
     // Linea factory uses the same pair code: https://sourcify.dev/server/v2/contract/59144/0x9E4Fc4a5A0769ba74088856C229c4a1Db2Ea5A9e?fields=all
