@@ -28,6 +28,12 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "cronaswap": {
+    // Factory: https://docs.cronaswap.org/contract-detail
+    // V2 Swap and 0.25% invariant: https://cronos.org/explorer/address/0xc9B718963aeF15D7558f6114e717058bB013204a/contracts
+    // volume only: historical fee split and feeTo status are not established.
+    [CHAIN.CRONOS]: { factory: '0x73A48f8f521EB31c55c0e1274dB0898dE599Cb11', fees: 0.0025, customLogic: volumeOnly },
+  },
   "spartadex": {
     // V2 pair creation and 0.3% swap invariant: https://sourcify.dev/server/v2/contract/42161/0xFe8EC10Fe07A6a6f4A2584f8cD9FE232930eAF55?fields=all
     // Linea factory uses the same pair code: https://sourcify.dev/server/v2/contract/59144/0x9E4Fc4a5A0769ba74088856C229c4a1Db2Ea5A9e?fields=all
