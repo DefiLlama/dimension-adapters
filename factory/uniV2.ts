@@ -28,6 +28,12 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "squidswap": {
+    // V2 factory and 3/1000 pair swap invariant: https://explorer.inkonchain.com/address/0x63b54dBBD2DAbf89D5c536746e534711f6094199?tab=contract
+    // Deployed 2024-12-18: https://explorer.inkonchain.com/tx/0xb6f24032d7f8b428e3eb4114f19af175944d049639f0dea2dda8b3798db89f2b
+    // volume only: fee split not documented; feeTo can change.
+    [CHAIN.INK]: { factory: '0x63b54dBBD2DAbf89D5c536746e534711f6094199', start: '2024-12-18', fees: 0.003, customLogic: volumeOnly },
+  },
   "spartadex": {
     // V2 pair creation and 0.3% swap invariant: https://sourcify.dev/server/v2/contract/42161/0xFe8EC10Fe07A6a6f4A2584f8cD9FE232930eAF55?fields=all
     // Linea factory uses the same pair code: https://sourcify.dev/server/v2/contract/59144/0x9E4Fc4a5A0769ba74088856C229c4a1Db2Ea5A9e?fields=all
