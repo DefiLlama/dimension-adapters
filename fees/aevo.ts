@@ -21,7 +21,7 @@ const TREASURY_BUYBACK_TXS = new Set([
   "0x2bb983ae631ca28f80cb1dc5b569acbc5edfeaa8569e37cd5d2c0dbcf2d5f4c0",
 ]);
 
-// AGP-3 buy-and-burn wallets (first burns 0x622efa3a… and 0x1c34b12f…), the first also bought July 2025, so its treasury delivery is left out above
+// AGP-3 buy-and-burn wallets (first burns 0x622efa3ad4dd7708c0866cb19632b45b5a14e5de1c4a7a296a235f4d784c580a and 0x1c34b12f590d45a68f76ef5ae8e7ed05a5744cde5533ccbdde1a456515aeb877), the first also bought July 2025, so its treasury delivery is left out above
 const BUYBACK_WALLETS = ["0xf067b1741c8a81cf96214d3cde8d3f2b79a77ea0", "0x436de3bf8e6d9ee0cdc5159b5728e9870e73ef79"];
 
 const AEVO_INTERNAL = new Set([DAO_TREASURY, DAO_TREASURY_2, ...BUYBACK_WALLETS]);
@@ -40,7 +40,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ETHEREUM],
   start: "2024-08-01",
   methodology: {
-    HoldersRevenue: "AEVO bought back on the open market by the Aevo DAO: the 2024 buyback program and the AGP-2 buybacks kept in the DAO treasury, and the AGP-3 monthly buyback and burn since February 2026. Excludes the one-off 69M AEVO burn of tokens the treasury already held.",
+    HoldersRevenue: "AEVO bought back on the open market by the Aevo DAO with USDC from Aevo's exchange balances, which AGP-2 funds from surplus protocol revenue (revenue left after the insurance fund and operating costs): the 2024 buyback program and the AGP-2 buybacks kept in the DAO treasury, and the AGP-3 monthly buyback and burn since February 2026. Excludes the one-off 69M AEVO burn of tokens the treasury already held, and the yearly share of liquidity-pool fees AGP-3 pays to AEVO stakers, which is not visible on Ethereum.",
   },
   breakdownMethodology: {
     HoldersRevenue: {
