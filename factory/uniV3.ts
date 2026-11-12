@@ -74,6 +74,12 @@ const kellerClCustomLogic = async ({ pairObject, dailyFees, fetchOptions, filter
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "goldstation-dex-v3": {
+    // Factory and pool event interfaces: https://snowtrace.io/address/0xF72f4652785a5186EDF7b93a9cfd246FeFc0ef5c#code
+    // Deployed 2024-11-07: https://snowtrace.io/tx/0xcf087063687e100f3250fe6e200cc7d6aaa5f8257ef1641be6ed76bd4af452bf
+    // volume only: fee split not documented
+    [CHAIN.AVAX]: { factory: '0xF72f4652785a5186EDF7b93a9cfd246FeFc0ef5c', start: '2024-11-07', swapEvent: protocolFeesSwapEvent, customLogic: volumeOnly },
+  },
   "hydrex": {
     // Algebra Integral 1.2 factory, fees are tracked from Hydrex voter bribes in fees/hydrex
     [CHAIN.BASE]: { factory: '0x36077D39cdC65E1e3FB65810430E5b2c4D5fA29E', start: '2025-06-16', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV3SwapEvent, customLogic: volumeOnly },
