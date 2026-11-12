@@ -24,6 +24,7 @@ export enum CHAIN {
   BOBA = "boba",
   BOBA_BNB = "boba_bnb",
   BSC = "bsc",
+  BESC = "besc",
   BIFROST = "bifrost",
   BOTANIX = "btnx",
   BEAM = "beam",

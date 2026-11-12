@@ -28,6 +28,12 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "bescswap": {
+    // Factory and 3/1000 pair invariant: https://explorer.beschyperchain.com/api?module=contract&action=getsourcecode&address=0x20EE72D1B7E36e97566f31761dfF14eDc35Fbf22
+    // Deployment 2025-08-25: https://explorer.beschyperchain.com/api/v2/addresses/0x20EE72D1B7E36e97566f31761dfF14eDc35Fbf22
+    // volume only: historical fee split not documented.
+    [CHAIN.BESC]: { factory: '0x20EE72D1B7E36e97566f31761dfF14eDc35Fbf22', start: '2025-08-25', fees: 0.003, customLogic: volumeOnly },
+  },
   "narwhalswap": {
     // V2 pair creation and 3/1000 swap invariant: https://sourcify.dev/server/v2/contract/56/0xb9fa84912ff2383a617d8b433e926adf0dd3fea1?fields=all
     // volume only: fee split not documented; feeTo can be changed.
