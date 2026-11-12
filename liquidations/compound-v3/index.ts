@@ -36,32 +36,36 @@ const fetch = async (options: FetchOptions) => {
   const comets = CometAddresses[options.chain]
   if (!comets) return { dailyCollateralLiquidated }
 
-  for (let i = 0; i < comets.length; i++) {
-    const comet = comets[i]
+  const logsByComet: any[][] = await options.getLogs({ targets: comets, eventAbi: AbsorbCollateralEvent, flatten: false })
 
-    const absorbCollateralEvents: any[] = await options.getLogs({
-      target: comet,
-      eventAbi: AbsorbCollateralEvent,
-    })
-    if (!absorbCollateralEvents.length) continue
-
+  const baseComets: string[] = []
+  const baseCometLogs: any[][] = []
+  comets.forEach((comet, i) => {
+    const logs = logsByComet[i]
+    if (!logs.length) return
     if (baseDenominatedComets.has(comet.toLowerCase())) {
-      // usdValue is in the Comet's price unit: base amount = usdValue * baseScale / getPrice(baseTokenPriceFeed)
-      const [baseToken, baseScale, basePriceFeed] = await Promise.all([
-        options.api.call({ target: comet, abi: 'address:baseToken' }),
-        options.api.call({ target: comet, abi: 'uint64:baseScale' }),
-        options.api.call({ target: comet, abi: 'address:baseTokenPriceFeed' }),
-      ])
-      const basePrice = await options.api.call({ target: comet, abi: 'function getPrice(address) view returns (uint256)', params: [basePriceFeed] })
-      for (const e of absorbCollateralEvents) {
-        dailyCollateralLiquidated.add(baseToken, BigInt(e.usdValue) * BigInt(baseScale) / BigInt(basePrice))
-      }
-      continue
+      baseComets.push(comet)
+      baseCometLogs.push(logs)
+      return
     }
+    for (const e of logs) dailyCollateralLiquidated.addUSDValue(Number(e.usdValue) / 1e8)
+  })
 
-    for (const e of absorbCollateralEvents) {
-      dailyCollateralLiquidated.addUSDValue(Number(e.usdValue) / 1e8)
-    }
+  if (baseComets.length) {
+    // usdValue is in the Comet's price unit: base amount = usdValue * baseScale / getPrice(baseTokenPriceFeed)
+    const [baseTokens, baseScales, basePriceFeeds] = await Promise.all([
+      options.api.multiCall({ calls: baseComets, abi: 'address:baseToken' }),
+      options.api.multiCall({ calls: baseComets, abi: 'uint64:baseScale' }),
+      options.api.multiCall({ calls: baseComets, abi: 'address:baseTokenPriceFeed' }),
+    ])
+    const basePrices = await options.api.multiCall({
+      abi: 'function getPrice(address) view returns (uint256)',
+      calls: baseComets.map((target, i) => ({ target, params: [basePriceFeeds[i]] })),
+    })
+    baseComets.forEach((_, i) => {
+      for (const e of baseCometLogs[i])
+        dailyCollateralLiquidated.add(baseTokens[i], BigInt(e.usdValue) * BigInt(baseScales[i]) / BigInt(basePrices[i]))
+    })
   }
 
   return { dailyCollateralLiquidated }
