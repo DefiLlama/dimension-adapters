@@ -28,6 +28,11 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "cobraswap": {
+    // V2 pair creation and 3/1000 swap invariant; deployment block 9503477 (2021-07-26): https://sourcify.dev/server/v2/contract/56/0x3165d94dd2f71381495cb897832de02710a0dce5?fields=all
+    // volume only: historical fee split not documented; feeTo is mutable.
+    [CHAIN.BSC]: { factory: '0x3165d94dd2f71381495cb897832de02710a0dce5', start: '2021-07-26', fees: 0.003, customLogic: volumeOnly },
+  },
   "narwhalswap": {
     // V2 pair creation and 3/1000 swap invariant: https://sourcify.dev/server/v2/contract/56/0xb9fa84912ff2383a617d8b433e926adf0dd3fea1?fields=all
     // volume only: fee split not documented; feeTo can be changed.
