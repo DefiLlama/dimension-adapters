@@ -9,7 +9,8 @@ const SWAP_FEES = 'Vault Liquidity Fees';
 const OPERATIONS = 'Vault Fees To Operations';
 const BUYBACK_RESERVE = 'Vault Fees To Buyback Reserve';
 const DEPOSITORS = 'Vault Fees To Depositors';
-// Gauge rewards (UP on Up, RAM on Ramses) earned by the vaults that replaced V7, which charge the same fee shares on them
+// Gauge rewards (UP on Up, RAM on Ramses, FABLES on Fables) earned by the vaults that replaced V7, which charge the same
+// fee shares on them
 const REWARDS = 'Vault Gauge Rewards';
 const REWARDS_OPERATIONS = 'Vault Gauge Rewards To Operations';
 const REWARDS_BUYBACK_RESERVE = 'Vault Gauge Rewards To Buyback Reserve';
@@ -80,7 +81,7 @@ const adapter: SimpleAdapter = {
   // Cumulative allocation floors may also produce raw-unit revenue/supplier negatives.
   allowNegativeValue: true,
   methodology: {
-    Fees: 'LP fees and gauge rewards earned by the TickerSpring vaults during the UTC day, including amounts not yet collected. V7 vaults: the change in cumulative harvested plus pending native-token fees from saved on-chain observations. Vaults that replaced V7 (listed by https://api.tickerspring.com/v1/merged/vaults): the trading fees and gauge rewards (UP on Up, RAM on Ramses) their Harvest events collected plus the change in uncollected position fees and unclaimed rewards, read on-chain at the day\'s first and last blocks. Excludes principal, stock-price returns, retired vaults and lending.',
+    Fees: 'LP fees and gauge rewards earned by the TickerSpring vaults during the UTC day, including amounts not yet collected. V7 vaults: the change in cumulative harvested plus pending native-token fees from saved on-chain observations. Vaults that replaced V7 (listed by https://api.tickerspring.com/v1/merged/vaults): the trading fees and gauge rewards (UP on Up, RAM on Ramses, FABLES on Fables) their Harvest events collected plus the change in uncollected position fees and unclaimed rewards, read on-chain at the day\'s first and last blocks. Excludes principal, stock-price returns, retired vaults and lending.',
     Revenue: 'Earned vault LP fees and gauge rewards allocated to operations (10%) and the SPRING buyback reserve (20%), subject to raw-token rounding.',
     ProtocolRevenue: 'The operations allocation (10%) of earned vault LP fees and gauge rewards.',
     HoldersRevenue: 'The allocation of earned vault LP fees and gauge rewards reserved to buy and permanently burn SPRING (20%), measured when they accrue rather than when the buyback executes.',
@@ -88,8 +89,8 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [SWAP_FEES]: 'V7 vaults: daily change in grossFees plus position.pendingFees, in each underlying token, from the public daily history API; missing observations fail instead of returning zero. Vaults that replaced V7: USDG and pool-token fees from Harvest events plus the change in the venue position\'s uncollected fees (fee growth inside its range on Uniswap V3, Up and Ramses; the PoolManager position on Uniswap V4). Harvesting moves fees between these counters without counting them twice.',
-      [REWARDS]: 'Gauge rewards earned by the positions of the vaults that replaced V7: UP on Up (a staked position earns UP instead of trading fees) and RAM on Ramses. The rewards their Harvest events claimed plus the change in rewards not yet claimed (the Up gauge\'s earned() for the staked position; the Ramses venue\'s pendingRewards()). The vaults charge the same fee shares on rewards as on trading fees; V7 and Uniswap vaults earn none.',
+      [SWAP_FEES]: 'V7 vaults: daily change in grossFees plus position.pendingFees, in each underlying token, from the public daily history API; missing observations fail instead of returning zero. Vaults that replaced V7: USDG and pool-token fees from Harvest events plus the change in the venue position\'s uncollected fees (fee growth inside its range on Uniswap V3, Up and Ramses; the PoolManager position on Uniswap V4). Fables venues stake all their liquidity, so they earn FABLES instead of trading fees. Harvesting moves fees between these counters without counting them twice.',
+      [REWARDS]: 'Gauge rewards earned by the positions of the vaults that replaced V7: UP on Up (a staked position earns UP instead of trading fees), RAM on Ramses and FABLES on Fables (the venue stakes all its liquidity in the Fables hook, whose staked shares give their trading fees to Fables voters and earn FABLES). The rewards their Harvest events claimed plus the change in rewards not yet claimed (the Up gauge\'s earned() for the staked position; the Ramses venue\'s pendingRewards(); the FABLES the Fables venue holds, counted once claimed to it from the Fables emission stream). The vaults charge the same fee shares on rewards as on trading fees; V7 and Uniswap vaults earn none.',
     },
     Revenue: revenueBreakdown, ProtocolRevenue: protocolBreakdown, HoldersRevenue: holdersBreakdown,
     SupplySideRevenue: {
