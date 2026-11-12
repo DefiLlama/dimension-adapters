@@ -1,8 +1,9 @@
 import { OpStackBridgeConfig, opStackBridgeExport } from "../helpers/opStackBridge";
+import { CHAIN } from "../helpers/chains";
 import { createFactoryExports } from "./registry";
 
 /**
- * Canonical bridges of OP-stack chains, Ethereum side. One-sided: each listing's destination chain is attributed server-side.
+ * Canonical bridges of OP-stack chains, settlement-chain side (Ethereum unless `settlementChain` is set). One-sided: each listing's destination chain is attributed server-side.
  * Portals are read from the bridge's messenger (L1StandardBridge.messenger().portal()). See helpers/opStackBridge.ts.
  */
 const configs: Record<string, OpStackBridgeConfig> = {
@@ -127,6 +128,15 @@ const configs: Record<string, OpStackBridgeConfig> = {
     bridge: "0xdc1664458d2f0B6090bEa60A8793A4E66c2F1c00",
     start: "2021-08-13", // first ETHDepositInitiated on the legacy bridge
     portalFrom: "2024-04-16", // first TransactionDeposited, after Boba's move to Bedrock
+  },
+  // OP Stack L3 (Caldera) settling to Base. https://docs.horizen.io/horizen-chain/bridging/how-bridging-works
+  // ZEN/USDC/cbBTC move over Stargate, not this bridge; only ETH has gone through it so far
+  "horizen-bridge": {
+    name: "Horizen",
+    settlementChain: CHAIN.BASE,
+    portal: "0x78e794d10a355468A0e7A14AA1a9F9A253D78784", // L1StandardBridge.messenger().portal() on Base
+    bridge: "0xf4a6cc4171fda694439f856d912777aa6ab05369",
+    start: "2025-11-17", // first TransactionDeposited on the portal
   },
 };
 

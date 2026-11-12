@@ -87,6 +87,7 @@ function fetchNormalizedVolume(slug: string, version: 1 | 2) {
 function normalizedVolumeAdapter(slug: string, chain: string, start: string, version: 1 | 2 = 1): SimpleAdapter {
   return {
     version,
+    pullHourly: false, // daily history keyed by day
     adapter: { [chain]: { fetch: fetchNormalizedVolume(slug, version), start } },
   };
 }

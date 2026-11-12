@@ -82,6 +82,7 @@ const breakdownMethodology = {
 //pullHourly not needed as the share prices only update once a day excluding weekends.
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: false, // share prices update once a day
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: "2026-03-12",

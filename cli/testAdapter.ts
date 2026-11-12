@@ -3,7 +3,7 @@ import { execSync } from 'child_process';
 import * as path from 'path';
 import * as sdk from '@defillama/sdk';
 import { AdapterType, SimpleAdapter, } from '../adapters/types';
-import runAdapter, { isHourlyAdapter, isPlainDateArg } from '../adapters/utils/runAdapter';
+import runAdapter, { isHourlyAdapter, isPlainDateArg, setModuleDefaults } from '../adapters/utils/runAdapter';
 import { getUniqStartOfTodayTimestamp } from '../helpers/getUniSubgraphVolume';
 import { deadChainsSet } from '../helpers/deadChains';
 import { camelCaseToSpaces, checkArguments, ERROR_STRING, printBreakdownFeesByLabel, printVolumes2, timestampLast } from './utils';
@@ -109,6 +109,7 @@ let usedHelper: string | null | undefined = null;
   // console.info(`---------------------------------------------------`)
   // Import module to test
   let module: SimpleAdapter = adapterModule
+  await setModuleDefaults(module)
   const adapterVersion = module.version
   const isHourly = isHourlyAdapter(module)
   const isPlainDate = isPlainDateArg(rawTimeArg)

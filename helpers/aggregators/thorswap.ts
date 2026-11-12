@@ -67,9 +67,10 @@ export type ChainStats = {
 // every chain of an adapter run shares one request per window
 const windows: Record<string, Promise<Record<string, ChainStats>>> = {};
 
-export async function getChainStats({ startTimestamp: from, endTimestamp, chain }: FetchOptions): Promise<ChainStats | undefined> {
-  // the runner starts windows a second before the hour, the API takes whole hours
+export async function getChainStats({ startTimestamp: from, endTimestamp: to, chain }: FetchOptions): Promise<ChainStats | undefined> {
+  // prod slices start and end a second before the hour, the API takes whole hours
   const startTimestamp = Math.ceil(from / 3600) * 3600;
+  const endTimestamp = Math.ceil(to / 3600) * 3600;
   const key = `${startTimestamp}-${endTimestamp}`;
   windows[key] ??= httpGet(`${API}?startTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}`)
     .then((res) => {

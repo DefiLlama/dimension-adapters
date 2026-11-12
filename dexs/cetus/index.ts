@@ -7,7 +7,8 @@ async function fetch({ startTimestamp, endTimestamp, chain }: FetchOptions) {
     return { dailyVolume: 0 }
   }
 
-  let list  = (await fetchURL(`https://api-sui.cetus.zone/v3/sui/clmm/histogram?beginTimestamp=${startTimestamp}&endTimestamp=${endTimestamp}&dateType=hour`)).data.list;
+  // API buckets by hour with both bounds inclusive; endTimestamp - 1 keeps the next window's first bucket out
+  let list  = (await fetchURL(`https://api-sui.cetus.zone/v3/sui/clmm/histogram?beginTimestamp=${startTimestamp}&endTimestamp=${endTimestamp - 1}&dateType=hour`)).data.list;
 
   let dailyVolume = 0;
   for (const item of list) {
@@ -22,6 +23,7 @@ async function fetch({ startTimestamp, endTimestamp, chain }: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SUI, CHAIN.APTOS],
   start: '2023-05-02',

@@ -54,15 +54,28 @@ const chainConfig: Record<string, ChainConfig> = {
     start: "2026-07-07",
     fetch,
   },
+  // AKKA Router on Elysium (Kinetiq); source: https://elysium.kinetiq.xyz/address/0x0B00004Ccc39408Fa289e9F6853BFE4eac3E52c8
+  [CHAIN.ELYSIUM]: {
+    routers: ["0x0B00004Ccc39408Fa289e9F6853BFE4eac3E52c8"],
+    // Deployment: https://elysium.kinetiq.xyz/tx/0x307ca55b530986098020ad5a88a60e1d1a63553d445e467962d9f993d4e13264
+    start: "2026-11-10",
+    fetch,
+  },
   // AKKA Router on HyperEVM; source: https://docs.akka.finance/smart-contracts
   [CHAIN.HYPERLIQUID]: {
     routers: ["0xcce7452db4392b40aa0e1592a7c486e13bf69654"],
     start: "2026-01-20",
     fetch,
   },
-  // AKKA Router on XDC Network; source: https://docs.akka.finance/smart-contracts
+  // AKKA Routers on XDC Network
   [CHAIN.XDC]: {
-    routers: ["0x9afd9c2c9cbe15ac03eb2f42555e0c6f484ec3f3"],
+    routers: [
+      // Historical AKKA XDC router; source: https://github.com/DefiLlama/dimension-adapters/blob/master/aggregators/akka/index.ts
+      "0x9afd9c2c9cbe15ac03eb2f42555e0c6f484ec3f3",
+      // Current AKKA XDC router; source: https://docs.akka.finance/smart-contracts
+      // Deployment: https://xdcscan.com/tx/0x04714d83e7ac3def908deb63560a4bb7ad0f72f8098a9722f4fe3fed199cefdc
+      "0x0B00004Ccc39408Fa289e9F6853BFE4eac3E52c8",
+    ],
     start: "2024-10-29",
     fetch,
   },

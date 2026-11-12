@@ -24,37 +24,51 @@ const POOL_FEES_TO_CREATORS = "Graduated Pool Trading Fees To Creators";
 const FEES_TO_OPERATIONS = "Protocol Fees To Operations";
 const FEES_TO_BUYBACK = "Protocol Fees Released To ALPHA Buyback And Burn";
 
-// factory: LaunchFactory (block = its deployment block), hook: LaunchTradingHookV1, splitter: ProtocolRevenueSplitter
-const chainConfig: Record<string, { factory: string; block: number; hook: string; splitter: string; start: string }> = {
+// Each chain has two ALPHA deployments: the first one (retired between 2026-10-28 and 2026-11-01, its markets still trade) and the current one.
+// factory: LaunchFactory, block: a block at or before the factory's first launch, hook: LaunchTradingHookV1,
+// splitter: ProtocolRevenueSplitter. Addresses: ALPHA mainnet release records (indexer manifests).
+type Deployment = { factory: string; block: number; hook: string; splitter: string };
+const chainConfig: Record<string, { deployments: Deployment[]; start: string }> = {
   [CHAIN.ROBINHOOD]: {
-    factory: "0xD45D538AA6Ab9261A638b9Df83312f823BB368fC",
-    block: 103445727,
-    hook: "0x869642f4237fC027D141055eC683F37bacA0A0cC",
-    splitter: "0x99BEC52EEbeB864E02E5BFc886423d041b820B87",
-    start: "2026-11-02",
+    deployments: [
+      // retired: first launch (SEEN, 0x4879a202A95D7b61ab661f5c319A4E1765F33C45) at block 100409410
+      { factory: "0xDD09b37A5293E8cc3e90F40aF694209DEFC188B1", block: 100409410, hook: "0x5A171D4b748b75172fbC562C547Ee2201eF220Cc", splitter: "0xC09aD9537c0bd0E0A9831659332a3dA59Cce8055" },
+      { factory: "0xD45D538AA6Ab9261A638b9Df83312f823BB368fC", block: 103445727, hook: "0x869642f4237fC027D141055eC683F37bacA0A0cC", splitter: "0x99BEC52EEbeB864E02E5BFc886423d041b820B87" },
+    ],
+    start: "2026-10-28",
   },
   [CHAIN.BASE]: {
-    factory: "0x7cdd6aCD10144C89B630Bce8b2031d80df57628c",
-    block: 53375932,
-    hook: "0x5a4D4781266439D20425c668fcadd8EECF3620cc",
-    splitter: "0xde8eb4358d2b560608928DaDa47ca10faAf87850",
-    start: "2026-11-02",
+    deployments: [
+      // retired: factory deployed at block 53231785 (2026-10-29)
+      { factory: "0x6Debac403C59b8b148677d971abE97815c5cB92b", block: 53231785, hook: "0x2340222345A0bb172BED0836Dd60C725Cf6FA0cc", splitter: "0x8F3d11EF646B4eBDD42fBFE7289ab9a78844aF09" },
+      { factory: "0x7cdd6aCD10144C89B630Bce8b2031d80df57628c", block: 53375932, hook: "0x5a4D4781266439D20425c668fcadd8EECF3620cc", splitter: "0xde8eb4358d2b560608928DaDa47ca10faAf87850" },
+    ],
+    start: "2026-10-29",
   },
   [CHAIN.BSC]: {
-    factory: "0x71abe80C8f08ebE5dac018601170e687ED737AC3",
-    block: 131062839,
-    hook: "0x90736d933c9EACD863fE557C2B8AFB769263A0CC",
-    splitter: "0xCbCD64e5bc8c796A4778631cB9a81375A6754B38",
-    start: "2026-11-02",
+    deployments: [
+      // retired: factory deployed at block 128055780 (2026-10-16)
+      { factory: "0x48E9f6E30E83037643Ff0614D2b5d79b1FFbcE45", block: 128055780, hook: "0xA4e65d9Dd587aBB129CCac7b2208cbeC340920cC", splitter: "0x1c05b7462EAa013b498935e245EBB1ab4FD015e7" },
+      { factory: "0x71abe80C8f08ebE5dac018601170e687ED737AC3", block: 131062839, hook: "0x90736d933c9EACD863fE557C2B8AFB769263A0CC", splitter: "0xCbCD64e5bc8c796A4778631cB9a81375A6754B38" },
+    ],
+    start: "2026-10-28",
   },
   [CHAIN.ARC]: {
-    factory: "0x11A5ac5fC2A1e7D4bF61B781b0b784462C2BD9e7",
-    block: 28998006,
-    hook: "0x05456d08625f554332769699ff0608f1E59A60cC",
-    splitter: "0x1b304c1Ce20eE9531172342416538027BFd636b8",
-    start: "2026-11-02",
+    deployments: [
+      // retired: factory deployed at block 28430511 (2026-10-29)
+      { factory: "0x52755b8ffc29D3d002fb63b76B851839bA04D6C9", block: 28430511, hook: "0x0e1bB1fB2bA05065E8a18cB58bB3a767804260CC", splitter: "0x4E292C3fcD918BB49fFEA0998725d224A74C68c7" },
+      { factory: "0x11A5ac5fC2A1e7D4bF61B781b0b784462C2BD9e7", block: 28998006, hook: "0x05456d08625f554332769699ff0608f1E59A60cC", splitter: "0x1b304c1Ce20eE9531172342416538027BFd636b8" },
+    ],
+    start: "2026-10-29",
   },
-  // Ethereum (factory 0x2DC4f507BD30c6b5df90B288FaeCDeCE627386Ec) has no market yet, add it once it has trades.
+  [CHAIN.ETHEREUM]: {
+    deployments: [
+      // retired: factory deployed at block 26293059, first launch (HOARD, 0xE390f4A1303d538262A682E02A0caccB325656a4) at block 26294198
+      { factory: "0x789e4DE6b582695eC71f4Ba9377d6920Af50A031", block: 26293059, hook: "0x494cbCc04706a8669B96c8E1aD83b39dF8aCA0CC", splitter: "0xe820EE4ae5b14A27CF225dA78cb2D70c7995F951" },
+      { factory: "0x2DC4f507BD30c6b5df90B288FaeCDeCE627386Ec", block: 26320476, hook: "0xD93a6B850748645DDB89A8dfd34c20057881e0cc", splitter: "0xBDF4D8b944eB42e6BBebc4de6b8C533506d79bB7" },
+    ],
+    start: "2026-10-28",
+  },
 };
 
 // ALPHA launch program on Solana: https://solscan.io/account/r4yX8Q9Z5zSLY2fjoq1DgijfoHLru49zfikq79pa1fa
@@ -101,11 +115,16 @@ const createFeeBalances = (options: FetchOptions) => {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const { factory, block, hook, splitter } = chainConfig[options.chain];
+  const { deployments } = chainConfig[options.chain];
   const { addFee, dailyHoldersRevenue, result } = createFeeBalances(options);
 
-  const launches = await options.getLogs({ target: factory, eventAbi: LAUNCHED, fromBlock: block, cacheInCloud: true });
-  const presetLogs = await options.getLogs({ target: factory, eventAbi: FEE_PRESET_SELECTED, fromBlock: block, cacheInCloud: true });
+  const factories = deployments.map((d) => d.factory);
+  const fromBlock = Math.min(...deployments.map((d) => d.block));
+  const launches = await options.getLogs({ targets: factories, eventAbi: LAUNCHED, fromBlock, cacheInCloud: true });
+  const presetLogs = await options.getLogs({ targets: factories, eventAbi: FEE_PRESET_SELECTED, fromBlock, cacheInCloud: true });
+  const poolFeeLogs = await options.getLogs({ targets: deployments.map((d) => d.hook), eventAbi: SWAP_FEE_COLLECTED });
+  const buybackLogs = await options.getLogs({ targets: deployments.map((d) => d.splitter), eventAbi: BUYBACK_RELEASED });
+
   const presets: Record<string, number> = {};
   for (const log of presetLogs) presets[log.market.toLowerCase()] = Number(log.preset);
 
@@ -126,13 +145,11 @@ const fetch = async (options: FetchOptions) => {
     });
   }
 
-  const poolFeeLogs = await options.getLogs({ target: hook, eventAbi: SWAP_FEE_COLLECTED });
   for (const log of poolFeeLogs) {
     addFee(log.quote, BigInt(log.protocolFee), BigInt(log.creatorFee), [POOL_FEES, POOL_FEES_TO_PROTOCOL, POOL_FEES_TO_CREATORS]);
   }
 
   // The buyback half counts when the chain shows it leaving the splitter for the burn executor, not when it accrues.
-  const buybackLogs = await options.getLogs({ target: splitter, eventAbi: BUYBACK_RELEASED });
   for (const log of buybackLogs) {
     dailyHoldersRevenue.add(log.asset, log.amount, FEES_TO_BUYBACK);
   }

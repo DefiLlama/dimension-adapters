@@ -214,6 +214,12 @@ const Configs: Record<string, IUniswapConfig> = {
     source: 'LOGS',
     start: '2026-05-28',
   },
+  [CHAIN.ELYSIUM]: {
+    poolManager: '0xE2e105d3F7209A9DA11f83cCf3E7398a753823F1',
+    positionManager: '0x1d1C51b9d07fD27d36412A2b66CC23D19Eb3E518',
+    source: 'LOGS',
+    start: '2026-11-03',
+  },
 }
 
 // export const UNISWAP_V4_DUNE_QUERY = (fromTime: number, toTime: number) => {

@@ -117,7 +117,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: { start: '2025-08-10', },
     [CHAIN.HYPERLIQUID]: { start: '2026-04-20', },
   },
-  version: 2
+  version: 2,
+  pullHourly: true,
 }
 
 export default adapter;

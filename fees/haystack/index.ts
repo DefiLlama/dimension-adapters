@@ -131,6 +131,7 @@ function getAmountsForReceiver(transactions: any[], sender: string, receiver: st
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ALGORAND],
   start: '2025-09-01',

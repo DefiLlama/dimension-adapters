@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpPost } from "../../utils/fetchURL";
 import { METRIC } from "../../helpers/metrics";
+import { getConfig } from "../../helpers/cache";
 
 const LIST_URL = "https://api.enzyme.finance/enzyme.enzyme.v1.EnzymeService/GetVaultList";
 const ENZYME_FEE_TRACKER = "0xe97980f1D43C4CD4F1EeF0277a2DeA7ddBc2Cd13";
@@ -9,10 +10,13 @@ const feePaidEventAbi = "event FeePaidForVault (address indexed vaultProxy, uint
 
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
-    const { vaults } = await httpPost(LIST_URL, {}, {
-        headers: {
-            Authorization: `Bearer 9b9b20f6-4108-444f-b69b-b5183e435ad5`
-        }
+    // vault list cached through getConfig so an Enzyme API outage falls back to the last good list
+    const { vaults } = await getConfig('enzyme/vaults', undefined, {
+        fetcher: () => httpPost(LIST_URL, {}, {
+            headers: {
+                Authorization: `Bearer 9b9b20f6-4108-444f-b69b-b5183e435ad5`
+            }
+        }),
     });
 
     const feePaidLogs = await options.getLogs({

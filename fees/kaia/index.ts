@@ -14,10 +14,13 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
                 from raw_tx group by 1),
         burn_data as(
             select block_number,
+                -- kore burns F/2 + min(F/2, 0.5*0.2*minting): minting 6.4 -> 9.6 at 162691200, kip82 proposer share 0 from 222566400
                 case
                     when block_number < 99841497 then 0
                     when (block_number >= 99841497 and block_number < 119750400) then 0.5
-                    when block_number >= 119750400 and block_fee > 1.28 then (block_fee*0.5 + 0.64)/block_fee
+                    when block_number >= 119750400 and block_number < 162691200 and block_fee > 1.28 then (block_fee*0.5 + 0.64)/block_fee
+                    when block_number >= 162691200 and block_number < 222566400 and block_fee > 1.92 then (block_fee*0.5 + 0.96)/block_fee
+                    when block_number >= 222566400 then 0.5
                     else 1
                 end as burn_rate
             from block_data)

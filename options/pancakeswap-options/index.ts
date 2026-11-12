@@ -37,7 +37,7 @@ const fetchOptions = async (fetchOptions: FetchOptions): Promise<any> => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1, // daily stats keyed by day
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchOptions,

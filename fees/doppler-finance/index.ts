@@ -52,7 +52,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1, // API returns whole days
   fetch,
   adapter: chainConfig,
   methodology: {

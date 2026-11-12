@@ -52,6 +52,7 @@ const fetchScallopStats: FetchV2 = async ({ startTimestamp, endTimestamp }): Pro
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchScallopStats,

@@ -107,6 +107,11 @@ const chainConfig: Record<string, {
     source: 'LOGS',
     start: '2026-05-28',
   },
+  [CHAIN.ELYSIUM]: {
+    factory: '0xBbBcC62853a5fA27b93d6Bab3E6F7ce841E25Df2',
+    source: 'LOGS',
+    start: '2026-11-03',
+  },
 }
 
 function getLogAdapterConfig(options: FetchOptions) {

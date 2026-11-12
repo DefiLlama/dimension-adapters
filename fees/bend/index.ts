@@ -2,6 +2,7 @@ import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { httpGet } from "../../utils/fetchURL";
+import { getConfig } from "../../helpers/cache";
 
 const CONFIG = {
   blue: "0x24147243f9c08d835C218Cda1e135f8dFD0517D0",
@@ -88,23 +89,26 @@ function _getLIFFromLLTV(lltv: bigint): bigint {
   return LIF > M ? M : LIF
 }
 
-const _getWhitelistedVaults = async () => {
-  const vaults: string[] = [];
-  for (let page = 1; page <= 20; page++) {
-    const params = new URLSearchParams({
-      page: String(page),
-      perPage: String(VAULT_PAGE_SIZE),
-      status: "whitelisted",
-    });
-    const data = await httpGet(`${BEEP_BEND_VAULTS}?${params}`, {
-      headers: { "X-Client-Id": BEEP_CLIENT_ID },
-    });
-    const items: BendVault[] = data.items || [];
-    vaults.push(...items.map((v) => v.address));
-    if (items.length === 0 || vaults.length >= data.total) break;
-  }
-  return vaults;
-}
+// vault list cached through getConfig so a Beep API outage falls back to the last good list
+const _getWhitelistedVaults = async (): Promise<string[]> => getConfig('bend/whitelisted-vaults', undefined, {
+  fetcher: async () => {
+    const vaults: string[] = [];
+    for (let page = 1; page <= 20; page++) {
+      const params = new URLSearchParams({
+        page: String(page),
+        perPage: String(VAULT_PAGE_SIZE),
+        status: "whitelisted",
+      });
+      const data = await httpGet(`${BEEP_BEND_VAULTS}?${params}`, {
+        headers: { "X-Client-Id": BEEP_CLIENT_ID },
+      });
+      const items: BendVault[] = data.items || [];
+      vaults.push(...items.map((v) => v.address));
+      if (items.length === 0 || vaults.length >= data.total) break;
+    }
+    return vaults;
+  },
+})
 
 const fetchMarketsFromLogs = async (options: FetchOptions): Promise<Array<MorphoMarket>> => {
   const markets: Array<MorphoMarket> = [];

@@ -73,7 +73,7 @@ const breakdownMethodology = {
   },
 }
 
-const fetchSuilendStats = async ({ endTimestamp, startTimestamp, createBalances, startOfDay }: FetchOptions) => {
+const fetchSuilendStats = async ({ endTimestamp, startTimestamp, createBalances }: FetchOptions) => {
   const url = `${suilendFeesURL}?endTimestamp=${endTimestamp}&startTimestamp=${startTimestamp}`
   const stats: DailyStats = (await fetchURL(url));
 
@@ -94,9 +94,11 @@ const fetchSuilendStats = async ({ endTimestamp, startTimestamp, createBalances,
   dailySupplySideRevenue.addUSDValue(stats.liquidatorBonuses, SuiLendMetrics.LiquidationFeesToLiquidators)
 
   const buyBackData = await fetchURL(`${SUILEND_API_ENDPOINT}/send/charts/send?period=all`);
-  const buyBackDataItem = buyBackData.find((d: any) => d.timestamp === startOfDay);
-  if (buyBackDataItem) {
-    dailyHoldersRevenue.addUSDValue(Number(buyBackDataItem.usdValue), SuiLendMetrics.TokenBuyBack);
+  // one row per day stamped 00:00 UTC; count it only in the window that contains that timestamp,
+  // otherwise every hourly slice of the day adds the whole day's buyback (24x)
+  for (const item of buyBackData) {
+    if (item.timestamp >= startTimestamp && item.timestamp < endTimestamp)
+      dailyHoldersRevenue.addUSDValue(Number(item.usdValue), SuiLendMetrics.TokenBuyBack);
   }
   
   return {
@@ -110,6 +112,7 @@ const fetchSuilendStats = async ({ endTimestamp, startTimestamp, createBalances,
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchSuilendStats,

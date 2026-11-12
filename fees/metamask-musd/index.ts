@@ -1,3 +1,4 @@
+import { ChainApi } from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 
@@ -17,23 +18,25 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const dailyFees = options.createBalances();
     const fromBlock = await options.getFromBlock();
     const toBlock = await options.getToBlock();
-    if (!Number.isInteger(fromBlock) || !Number.isInteger(toBlock) || fromBlock < 0 || fromBlock > toBlock)
+    if (!Number.isInteger(fromBlock) || !Number.isInteger(toBlock) || fromBlock < 1 || fromBlock > toBlock)
         throw new Error('Invalid historical M balance window');
     const balanceCall = { abi: 'erc20:balanceOf', target: M_TOKEN, params: MUSD_TOKEN };
+    // Each window starts one block after the previous one ends, so the opening balance is read at the block
+    // before fromBlock and logs cover fromBlock..toBlock; otherwise yield in fromBlock falls between windows.
+    const openingApi = new ChainApi({ chain: options.chain, block: fromBlock - 1 });
     const [openingBalance, closingBalance, transfers] = await Promise.all([
-        options.fromApi.call(balanceCall),
+        openingApi.call(balanceCall),
         options.toApi.call(balanceCall),
-        // The opening balance already includes transfers in fromBlock.
-        fromBlock < toBlock ? options.getLogs({
+        options.getLogs({
             target: M_TOKEN,
             eventAbi: TRANSFER_EVENT,
-            fromBlock: fromBlock + 1,
+            fromBlock,
             toBlock,
-        }) : [],
+        }),
     ]);
 
     // Count index-driven growth, excluding deposits, withdrawals and donations.
-    // On Linea, yield is recognized when a new M index reaches the chain.
+    // On Linea and Monad, yield is recognized when a new M index reaches the chain.
     let dailyYield = BigInt(closingBalance) - BigInt(openingBalance);
     const account = MUSD_TOKEN.toLowerCase();
     let transferCount = 0n;
@@ -47,12 +50,12 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     if (dailyYield < 0n) {
         // startEarning rounds principal down without a Transfer; stopEarning preserves balanceOf.
         // https://github.com/m0-platform/protocol/blob/spoke-upgradeable/src/MToken.sol
-        const starts = fromBlock < toBlock ? await options.getLogs({
+        const starts = await options.getLogs({
             target: M_TOKEN,
             eventAbi: STARTED_EARNING_EVENT,
-            fromBlock: fromBlock + 1,
+            fromBlock,
             toBlock,
-        }) : [];
+        });
         const conversionCount = transferCount + BigInt(starts.filter(log => log.account.toLowerCase() === account).length);
         // Each transfer/start conversion can lose up to ceil(index / 1e12) units.
         const index = BigInt(await options.toApi.call({ target: M_TOKEN, abi: 'uint128:currentIndex' }));
@@ -72,7 +75,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 const methodology = {
-    Fees: "Yield accrued by M backing MetaMask USD (mUSD), recognized on Linea when its M index updates.",
+    Fees: "Yield accrued by M backing MetaMask USD (mUSD), recognized on Linea and Monad when their M index updates.",
     Revenue: "All accrued M yield is allocated to the mUSD yield recipient.",
     ProtocolRevenue: "Yield allocated to the mUSD yield recipient.",
 };
@@ -93,8 +96,11 @@ const adapter: SimpleAdapter = {
     version: 2,
     pullHourly: true,
     fetch,
-    chains: [CHAIN.ETHEREUM, CHAIN.LINEA],
-    start: '2025-08-12',
+    adapter: {
+        [CHAIN.ETHEREUM]: { start: '2025-08-12' },
+        [CHAIN.LINEA]: { start: '2025-08-12' },
+        [CHAIN.MONAD]: { start: '2026-04-16' },
+    },
     methodology,
     breakdownMethodology,
 };

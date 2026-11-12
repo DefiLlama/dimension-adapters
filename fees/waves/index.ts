@@ -34,6 +34,7 @@ const fetch = async ({ createBalances, getFromBlock, getToBlock }: FetchOptions)
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.WAVES]: {
       fetch,

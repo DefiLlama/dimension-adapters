@@ -4,9 +4,12 @@ import { filterPools } from "./uniswap";
 import { addOneToken } from "./prices";
 import { METRIC } from "./metrics";
 
-// Algebra Integral <1.2: a swap pays globalState().fee, changed only by Fee events logged before it
+// Algebra Integral: a swap pays its overrideFee when set (1.2+), else globalState().fee, changed only by Fee events logged before it
 const poolEvent = "event Pool(address indexed token0, address indexed token1, address pool)";
 const swapEvent = "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)";
+// 1.2 and 1.2.1 carry the swap's fees in Swap, 1.2.2+ log them in a SwapFee event right before each Swap
+const swapWithFeesEvent = "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)";
+const swapFeeEvent = "event SwapFee(address indexed sender, uint24 overrideFee, uint24 pluginFee)";
 const feeEvent = "event Fee(uint16 fee)";
 const communityFeeEvent = "event CommunityFee(uint16 communityFeeNew)";
 
@@ -34,6 +37,10 @@ type AlgebraIntegralConfig = {
   fromBlock: number;
   // community vaults that are the receiver itself (no Algebra cut)
   directVaults?: string[];
+  // where 1.2+ pools log overrideFee and pluginFee: in Swap (1.2, 1.2.1) or in SwapFee (1.2.2+)
+  swapFees?: "inSwap" | "swapFeeEvent";
+  // leave holders revenue out when where the community fee ends up is not documented
+  omitHoldersRevenue?: boolean;
 };
 
 type Point = { block: number; index: number; value: number };
@@ -46,7 +53,7 @@ const toPoint = (log: any, value: any): Point => ({
 
 const byPosition = (a: Point, b: Point) => a.block - b.block || a.index - b.index;
 
-export function getAlgebraIntegralFetch({ factory, fromBlock, directVaults = [] }: AlgebraIntegralConfig): FetchV2 {
+export function getAlgebraIntegralFetch({ factory, fromBlock, directVaults = [], swapFees, omitHoldersRevenue = false }: AlgebraIntegralConfig): FetchV2 {
   const direct = new Set(directVaults.map((v) => v.toLowerCase()));
 
   return async (options: FetchOptions) => {
@@ -55,7 +62,7 @@ export function getAlgebraIntegralFetch({ factory, fromBlock, directVaults = [] 
     const dailyFees = createBalances();
     const dailySupplySideRevenue = createBalances();
     const dailyRevenue = createBalances();
-    const response = {
+    const response: any = {
       dailyVolume,
       dailyFees,
       dailyUserFees: dailyFees,
@@ -64,6 +71,7 @@ export function getAlgebraIntegralFetch({ factory, fromBlock, directVaults = [] 
       dailySupplySideRevenue,
       dailyHoldersRevenue: 0,
     };
+    if (omitHoldersRevenue) delete response.dailyHoldersRevenue;
 
     const poolLogs = await getLogs({ target: factory, eventAbi: poolEvent, fromBlock, cacheInCloud: true });
     const pairObject: IJSON<string[]> = {};
@@ -87,10 +95,11 @@ export function getAlgebraIntegralFetch({ factory, fromBlock, directVaults = [] 
     direct.forEach((vault) => { algebraShare[vault] = 0; });
 
     const logOptions = { targets: pools, flatten: false, entireLog: true } as const;
-    const [swapLogs, feeLogs, communityFeeLogs] = await Promise.all([
-      getLogs({ ...logOptions, eventAbi: swapEvent }),
+    const [swapLogs, feeLogs, communityFeeLogs, swapFeeLogs] = await Promise.all([
+      getLogs({ ...logOptions, eventAbi: swapFees === "inSwap" ? swapWithFeesEvent : swapEvent }),
       getLogs({ ...logOptions, eventAbi: feeEvent }),
       getLogs({ ...logOptions, eventAbi: communityFeeEvent }),
+      swapFees === "swapFeeEvent" ? getLogs({ ...logOptions, eventAbi: swapFeeEvent }) : [],
     ]);
 
     pools.forEach((pool, i) => {
@@ -101,6 +110,12 @@ export function getAlgebraIntegralFetch({ factory, fromBlock, directVaults = [] 
       const toAlgebra = algebraShare[vaults[i].toLowerCase()];
       const feeChanges = (feeLogs[i] ?? []).map((log: any) => toPoint(log, log.args.fee)).sort(byPosition);
       const communityFeeChanges = (communityFeeLogs[i] ?? []).map((log: any) => toPoint(log, log.args.communityFeeNew)).sort(byPosition);
+      // SwapFee is logged right before its Swap, so it sits one log index below it
+      const swapFeeAt: IJSON<any> = {};
+      (swapFeeLogs[i] ?? []).forEach((log: any) => {
+        const { block, index } = toPoint(log, 0);
+        swapFeeAt[`${block}:${index + 1}`] = log.args;
+      });
 
       let fee: number | undefined = states[i] ? Number(states[i].fee) : undefined;
       let communityFee: number | undefined = states[i] ? Number(states[i].communityFee) : undefined;
@@ -110,11 +125,19 @@ export function getAlgebraIntegralFetch({ factory, fromBlock, directVaults = [] 
       swaps.forEach((swap: any) => {
         while (nextFee < feeChanges.length && byPosition(feeChanges[nextFee], swap) < 0) fee = feeChanges[nextFee++].value;
         while (nextCommunityFee < communityFeeChanges.length && byPosition(communityFeeChanges[nextCommunityFee], swap) < 0) communityFee = communityFeeChanges[nextCommunityFee++].value;
-        if (fee === undefined || communityFee === undefined)
+
+        let overrideFee = 0;
+        if (swapFees) {
+          const charged = swapFees === "inSwap" ? swap.args : swapFeeAt[`${swap.block}:${swap.index}`];
+          if (!charged) throw new Error(`algebraIntegral: no SwapFee event before swap on pool ${pool} on ${chain} at block ${swap.block}`);
+          if (Number(charged.pluginFee) !== 0) throw new Error(`algebraIntegral: non-zero pluginFee on pool ${pool} on ${chain} at block ${swap.block}, its split is not modelled`);
+          overrideFee = Number(charged.overrideFee);
+        }
+        if ((!overrideFee && fee === undefined) || communityFee === undefined)
           throw new Error(`algebraIntegral: no fee state for pool ${pool} on ${chain} at block ${swap.block}`);
 
         const { token, amount } = addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: swap.args.amount0, amount1: swap.args.amount1 });
-        const swapFee = amount * fee / FEE_DENOMINATOR;
+        const swapFee = amount * (overrideFee || fee!) / FEE_DENOMINATOR;
         const toCommunity = swapFee * communityFee / COMMUNITY_FEE_DENOMINATOR;
         const algebraCut = toCommunity * toAlgebra;
 

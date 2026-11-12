@@ -83,7 +83,8 @@ async function fetch(options: FetchOptions) {
   const url = endpoint(options.chain)
   const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()])
   const [startTokens, endTokens] = await Promise.all([
-    getPoolTokens(url, fromBlock),
+    // Cumulative counters must start before the first block in the window.
+    getPoolTokens(url, fromBlock - 1),
     getPoolTokens(url, toBlock),
   ])
 
@@ -158,6 +159,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: Object.keys(v3ChainConfig).map((chain: string) => [chain, { start: v3ChainConfig[chain].start }]),
   methodology: {

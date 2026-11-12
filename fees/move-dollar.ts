@@ -68,6 +68,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.APTOS],
   start: "2023-04-05",

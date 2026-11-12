@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL";
+import { getConfig } from "../helpers/cache";
 
 const ONE_USD = 100_000_000n;
 
@@ -46,7 +46,8 @@ const chainConfig: Record<string, { perpTradeReader: string; endpoint: string; s
 };
 
 const getProductIds = async (options: FetchOptions) => {
-  const products = await fetchURL(chainConfig[options.chain].endpoint).then((res) => res?.productList).catch(() => null);
+  // getConfig caches the product list, so a KiloEx API outage falls back to the last good list before FALLBACK_PRODUCT_IDS
+  const products = await getConfig(`kiloex/products-${options.chain}`, chainConfig[options.chain].endpoint).then((res: any) => res?.productList).catch(() => null);
   const ids = products?.map((product: any) => Number(product.productId)).filter((id: number) => Number.isFinite(id));
   return ids?.length ? [...new Set(ids)] : FALLBACK_PRODUCT_IDS;
 };

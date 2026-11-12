@@ -76,7 +76,7 @@ const adapter: Adapter = {
       fetch,
     },
   },
-  version: 2,
+  version: 1, // API returns whole days
   methodology: {
     Volume:
       "All deposits and withdrawals into currently ongoing auctions",

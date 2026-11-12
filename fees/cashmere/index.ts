@@ -35,6 +35,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM], // Aggregate data across all chains, represented under Ethereum
   start: "2025-09-08",

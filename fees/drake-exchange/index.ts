@@ -169,7 +169,7 @@ const breakdownMethodology = {
 
 export default {
     version: 2,
-   // pullHourly: true,
+    pullHourly: true,
     chains: [CHAIN.MONAD],
     start: "2026-07-07",
     fetch,

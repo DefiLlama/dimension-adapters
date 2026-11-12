@@ -159,6 +159,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: false, // negative yield is floored per window, hourly sums would overcount
   prefetch,
   fetch,
   adapter: {

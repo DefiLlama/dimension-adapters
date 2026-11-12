@@ -7,8 +7,19 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 const endpoint = "https://api.ston.fi/v1/stats/operations?";
 const swapExitCodes = new Set(["swap_ok", "swap_ok_ref"]);
 
+// the pool list (~25MB) only feeds current prices; fetch it once per process so the hourly slices run in one
+// process don't download it 24 times. A failed fetch is not cached.
+let poolListPromise: Promise<any[]> | undefined;
+const getPoolList = (): Promise<any[]> => {
+  if (!poolListPromise)
+    poolListPromise = fetchURL("https://api.ston.fi/v1/pools")
+      .then((res: any) => res.pool_list)
+      .catch((e: any) => { poolListPromise = undefined; throw e; });
+  return poolListPromise;
+};
+
 const fetchFees = async (options: FetchOptions) => {
-  const pool_list = (await fetchURL("https://api.ston.fi/v1/pools")).pool_list;
+  const pool_list = await getPoolList();
   // store pools info for each asset to calculate weigthed price later
   const asset2pools = {};
   const add_pool = (address: string, tvl: number, reserve: number) => {
@@ -77,6 +88,7 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: "2/3 of user fees are distributed among LPs and referral fees.",
   },
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.TON]: {
       start: '2023-11-14',

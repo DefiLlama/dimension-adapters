@@ -26,6 +26,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: false, // all metrics are hard-coded 0
   adapter: {
     [CHAIN.SKALE]: {
       fetch,

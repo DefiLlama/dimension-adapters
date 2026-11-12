@@ -84,6 +84,7 @@ const LABELS = {
 const RH_ROUTERS = [
   '0x91e2e94bfc604836e208fe8ded09bd863d8a15e4', // CroTradeRouterRH, 2026-11-01
   '0x67703604015fecced592788923877f50e8f675d4', // CroTradeRouterRH2, 2026-11-04
+  '0xbc6a1cc638da0273199f5fe5852845364ddb9373', // CroTradeRouterRH3, 2026-11-10 (sales paid out in ETH)
 ]
 const RH_NATIVE = ADDRESSES.null
 const RH_BASES = new Set([
@@ -225,9 +226,9 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Volume: 'Total USD value of the spot trades people make through cro.trade on Cronos (DEX swaps and launchpad trades), counting each trade once even when it is routed through several pools. A trade counts when it pays a fee to cro.trade.',
-  Fees: "Every trading fee cro.trade users pay on spot trades routed through cro.trade's contracts on Cronos, measured from the fee each trade pays on-chain. Trades whose fee leaves no on-chain event are not included, so the figure is a floor.",
-  UserFees: "Every trading fee cro.trade users pay on spot trades routed through cro.trade's contracts on Cronos.",
+  Volume: 'Total USD value of the spot trades people make through cro.trade on Cronos and Robinhood Chain (DEX swaps and launchpad trades), counting each trade once even when it is routed through several pools. A trade counts when it pays a fee to cro.trade.',
+  Fees: "Every trading fee cro.trade users pay on spot trades routed through cro.trade's contracts on Cronos and Robinhood Chain, measured from the fee each trade pays on-chain. Trades whose fee leaves no on-chain event are not included, so the figure is a floor.",
+  UserFees: "Every trading fee cro.trade users pay on spot trades routed through cro.trade's contracts on Cronos and Robinhood Chain.",
   Revenue: 'All trading fees; no share goes to liquidity providers.',
   ProtocolRevenue: 'None, all trading fees go to CRONUS holders.',
   HoldersRevenue: 'All trading fees go to CRONUS holders through buybacks: distributed to holders before 2026-09-22, burned since.',

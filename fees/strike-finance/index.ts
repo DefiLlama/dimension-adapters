@@ -20,6 +20,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     // V1 was an on-chain pool on Cardano. V2 (from 2026-03-20) runs matching, positions and
     // liquidations in the Strike node and Cardano only holds the deposit lockers (docs:

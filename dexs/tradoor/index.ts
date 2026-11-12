@@ -20,6 +20,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: any = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.TON]: {
       fetch,

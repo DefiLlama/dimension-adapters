@@ -99,6 +99,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: false, // NEAR RPC view calls, not window-scoped
   start: "2025-08-11",
   chains: [CHAIN.NEAR],
   fetch,

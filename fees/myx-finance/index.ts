@@ -13,6 +13,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   methodology,
   version: 2,
+  pullHourly: true,
   fetch: getFetch('fees'),
   adapter: {
     [CHAIN.ARBITRUM]: { start: '2024-01-31', },

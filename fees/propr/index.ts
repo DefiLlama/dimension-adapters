@@ -51,7 +51,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1, // API returns whole days
   allowNegativeValue: true,
   adapter: {
     [CHAIN.ETHEREUM]: {

@@ -42,6 +42,7 @@ const fetch: FetchV2 = async ({startTimestamp, endTimestamp, createBalances}) =>
 
 const adapter: Adapter = {
     version: 2,
+    pullHourly: true,
     methodology: {
         Fees: 'Swap fees paid by users',
         UserFees: 'Swap fees paid by users',

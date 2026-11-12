@@ -62,5 +62,6 @@ export default {
   fetch,
   adapter,
   version: 2,
+  pullHourly: false, // passes the window, source unreachable 2026-11, unverified
   methodology
 };

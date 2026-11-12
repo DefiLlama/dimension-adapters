@@ -47,6 +47,7 @@ const CONCURRENCY = 3;
 const POLICY_FEES = "Router Policy Fees";
 const POLICY_FEES_TO_PROTOCOL = "Router Policy Fees To Protocol";
 
+// key: token program name as field, decimals: the program's decimals view
 const TOKENS: Record<string, { symbol: string; decimals: number; coingeckoId: string }> = {
   "724721105858008932013114020280511843613117371369744086165619field": { symbol: "ALEO", decimals: 6, coingeckoId: "aleo" },
   "1926848598207449231969field": { symbol: "ETH", decimals: 18, coingeckoId: "ethereum" },
@@ -54,6 +55,7 @@ const TOKENS: Record<string, { symbol: string; decimals: number; coingeckoId: st
   "469661199361043738096225field": { symbol: "wBTC", decimals: 8, coingeckoId: "bitcoin" },
   "212707628815602939926313406778312270053663804591730917421274098438979020915field": { symbol: "USDCx", decimals: 6, coingeckoId: "usd-coin" },
   "2679721602684747572764973622859521753039207964435861502200550930344051field": { symbol: "ZEC", decimals: 8, coingeckoId: "zcash" },
+  "713588027583982631467445712611156256175541402545323992902004380759844979field": { symbol: "USDG", decimals: 6, coingeckoId: "global-dollar" },
 };
 
 type Struct = { [key: string]: AleoValue };

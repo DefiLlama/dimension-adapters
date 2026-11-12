@@ -25,6 +25,7 @@ const chainConfig: Record<string, { fromBlock: number; start: string }> = {
   [CHAIN.INK]: { fromBlock: 58869589, start: '2026-10-21' },
   [CHAIN.ROBINHOOD]: { fromBlock: 92177714, start: '2026-10-21' },
   [CHAIN.ARC]: { fromBlock: 26684462, start: '2026-10-21' },
+  [CHAIN.ELYSIUM]: { fromBlock: 1945557, start: '2026-11-08' },
 }
 
 const SWAP_FEES_TO_HOLDERS = 'Swap Fees To sAERO Holders'

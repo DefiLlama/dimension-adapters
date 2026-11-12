@@ -33,6 +33,7 @@ const fetchEchoStrategyStats: FetchV2 = async ({
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.APTOS]: {
       fetch: fetchEchoStrategyStats,

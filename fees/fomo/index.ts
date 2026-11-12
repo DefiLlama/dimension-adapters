@@ -23,6 +23,7 @@ const chainConfig: Record<string, { networkId: number | null; start: string }> =
   [CHAIN.ETHEREUM]: { networkId: 1, start: '2026-05-15' },
   [CHAIN.ROBINHOOD]: { networkId: 4663, start: '2026-07-09' },
   [CHAIN.ARC]: { networkId: 5042, start: '2026-09-15' },
+  [CHAIN.ELYSIUM]: { networkId: 99901, start: '2026-11-09' },
 }
 
 const prefetch = async (options: FetchOptions) => {
@@ -114,7 +115,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Fees:
-      "Trading fees paid by FOMO users on native Solana swaps and on cross-chain trades via Relay, attributed to the chain the trade settled on (Robinhood Chain, Base, BNB Chain, Ethereum, Arc, Monad). Relay fees FOMO cannot attribute to a chain are counted on Solana.",
+      "Trading fees paid by FOMO users on native Solana swaps and on cross-chain trades via Relay, attributed to the chain the trade settled on (Robinhood Chain, Base, BNB Chain, Ethereum, Arc, Monad, Elysium). Relay fees FOMO cannot attribute to a chain are counted on Solana.",
     Revenue:
       "FOMO's share of trading fees: USDC collected on native Solana swaps plus Relay platform fees. Referral fees are excluded.",
     ProtocolRevenue:

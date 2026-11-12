@@ -95,7 +95,7 @@ const fetch = async (options: FetchOptions) => {
 // https://resources.curve.finance/pools/overview/#pool-fees
 const adapter: SimpleAdapter = {
   version: 2,
-  // pullHourly: true, // curve api doesn't support hourly pull
+  pullHourly: false, // bribes come from a once-a-day cumulative stats JSON
   adapter: Object.keys(baseDexAdapter).reduce((all, chain) => {
     all[chain] = {
       fetch,

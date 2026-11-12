@@ -83,6 +83,50 @@ const kellerClCustomLogic = async ({ pairObject, dailyFees, fetchOptions, filter
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "pepu-v3": {
+    // Verified Uniswap V3 factory and pool source: https://pepuscan.com/api/v2/smart-contracts/0x5984B8BF2d4dB9C0aCB1d7924762e4474D80C807
+    // Deployed 2025-06-05: https://pepuscan.com/tx/0xf703800d13f6989b1abd1dbcd6dab89e4e5d4e573d9093ef6e6cb169f1bfd6a6
+    // volume only: fee split not documented
+    [CHAIN.PEPU]: { factory: "0x5984B8BF2d4dB9C0aCB1d7924762e4474D80C807", start: "2025-06-05", customLogic: volumeOnly },
+  },
+  "goldstation-dex-v3": {
+    // Factory and pool event interfaces: https://snowtrace.io/address/0xF72f4652785a5186EDF7b93a9cfd246FeFc0ef5c#code
+    // Deployed 2024-11-07: https://snowtrace.io/tx/0xcf087063687e100f3250fe6e200cc7d6aaa5f8257ef1641be6ed76bd4af452bf
+    // volume only: fee split not documented
+    [CHAIN.AVAX]: { factory: '0xF72f4652785a5186EDF7b93a9cfd246FeFc0ef5c', start: '2024-11-07', swapEvent: protocolFeesSwapEvent, customLogic: volumeOnly },
+  },
+  "hydrex": {
+    // Algebra Integral 1.2 factory, fees are tracked from Hydrex voter bribes in fees/hydrex
+    [CHAIN.BASE]: { factory: '0x36077D39cdC65E1e3FB65810430E5b2c4D5fA29E', start: '2025-06-16', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV3SwapEvent, customLogic: volumeOnly },
+  },
+  "krown-dex": {
+    // Verified V3 factory and pool source: https://explorer-api.krown.network/api/v2/smart-contracts/0x10ba7a9b45267caf016028cd398e68a19632bed2
+    // Deployed 2026-01-07: https://explorer-api.krown.network/api/v2/transactions/0x7182a58c522cac953b3987ce9cca35915dafc5477296817c04dd113dddba9d9c
+    // volume only: fee split not documented
+    [CHAIN.KROWN]: { factory: '0x10ba7a9b45267caf016028cd398e68a19632bed2', start: '2026-01-07', customLogic: volumeOnly },
+  },
+  "9inch-io-v3": {
+    // Factory and pool event interface: https://scan.pulsechain.com/address/0xCfd33C867C9F031AadfF7939Cb8086Ee5ae88c41#code
+    // Deployed 2024-05-13: https://scan.pulsechain.com/tx/0x2fa3349924d34fe12e182c0220f4fc8321fc994d245c1fbed397381290663d76
+    // volume only: fee split not documented
+    [CHAIN.PULSECHAIN]: { factory: '0xCfd33C867C9F031AadfF7939Cb8086Ee5ae88c41', start: '2024-05-13', swapEvent: protocolFeesSwapEvent, customLogic: volumeOnly },
+  },
+  "laminar": {
+    // Verified factory and standard V3 pool events: https://sourcify.dev/server/v2/contract/999/0x40059a6f242c3de0e639693973004921b04d96ad?fields=all
+    // Factory deployed at block 592235 on 2025-03-03; volume only: fee split varies by token and pool.
+    [CHAIN.HYPERLIQUID]: { factory: '0x40059A6F242C3de0E639693973004921B04D96AD', start: '2025-03-03', customLogic: volumeOnly },
+  },
+  "mimoswap-v3": {
+    // IoTeX V3 factory: https://docs.mimo.finance/mimo-v3/smart-contracts
+    // Earliest cached PoolCreated: IoTeX block 27792282, 2024-01-08.
+    // volume only: fee split not documented
+    [CHAIN.IOTEX]: { factory: '0xF36788bF206f75F29f99Aa9d418fD8164b3B8198', start: '2024-01-08', customLogic: volumeOnly },
+  },
+  "liberty-swap": {
+    // Verified factory, PoolCreated and pool Swap ABI: https://sourcify.dev/server/v2/contract/369/0x796fcbdc956b85797efe21145aa97599b7fb36a6?fields=all
+    // Deployed at Pulse block 26620000 (2026-05-25); volume only: fee split not documented.
+    [CHAIN.PULSECHAIN]: { factory: '0x796fcbDC956b85797EFe21145Aa97599B7FB36a6', start: '2026-05-25', swapEvent: protocolFeesSwapEvent, customLogic: volumeOnly },
+  },
   "rocketswap-anubis-v3": {
     // V3 factory on Anubis: https://v3.rocketswap.org/contracts
     // Revenue allocation is unconfirmed, so only swap volume is exported.
@@ -402,9 +446,6 @@ const configs: Record<string, Record<string, any>> = {
   "capybara-v3": {
     [CHAIN.KLAYTN]: { factory: '0xC4C8310080F209629EC4c349cb2A3c6720e1176D', start: '2025-01-01', userFeesRatio: 1, revenueRatio: 0.4, protocolRevenueRatio: 0.4, },
   },
-  "wasabee": {
-    [CHAIN.BERACHAIN]: { factory: '0x7d53327D78EFD0b463bd8d7dc938C52402323b95', start: '2024-10-29', isAlgebraV3: true, },
-  },
   "reservoir-tools-clmm": {
     [CHAIN.ABSTRACT]: { factory: '0xA1160e73B63F322ae88cC2d8E700833e71D0b2a1', start: '2025-01-07', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
     // Ink is Uniswap's own v3 deployment (Uniswap/contracts deployments/json/57073.json; factory
@@ -652,6 +693,9 @@ const methodologyMap: Record<string, any> = {
     Revenue: "The protocol share of the swap fees, set per pool (slot0().feeProtocol, 20% where Kalos switched it on), collected to the Kalos revenue splitter.",
     ProtocolRevenue: "The protocol share of the swap fees, set per pool (slot0().feeProtocol, 20% where Kalos switched it on), collected to the Kalos revenue splitter. Referral rewards are not deducted: referral codes are kept off chain and one weekly payout covers every Kalos product, so they cannot be attributed to a product on chain.",
     SupplySideRevenue: "The rest of the swap fees, earned by liquidity providers.",
+  },
+  "hydrex": {
+    Volume: "Value swapped across the Hydrex Integral (Algebra Integral) pools created by the Hydrex factory on Base, counting one side of each trade. Pools launched through custom deployers are not included.",
   },
   "rocketswap-anubis-v3": {
     Volume: "Trading volume from RocketSwap V3 pools on Anubis, counting one token side of each pool swap and applying the shared Uniswap V3 pool filters. Excludes RocketSwap V2 pools.",
