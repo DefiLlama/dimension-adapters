@@ -19,7 +19,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
 
   const logs = await options.getLogs({ target: ROUTER, eventAbi: swappedEvent });
   for (const log of logs) {
@@ -32,26 +31,24 @@ const fetch = async (options: FetchOptions) => {
     const ref = BigInt(log.referrerFee);
     const add = (b: typeof dailyFees, amount: bigint, label: string) => (log.feeAsset === NATIVE ? b.addGasToken(amount, label) : b.add(log.feeAsset, amount, label));
     add(dailyFees, fee, METRIC.SWAP_FEES);
+    // The referrer's share is a distribution cost: in fees, not in Agora's revenue.
     add(dailyRevenue, fee - ref, "Swap fees to Agora");
-    if (ref > 0n) add(dailySupplySideRevenue, ref, "Referral payouts");
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
 const methodology = {
   Volume: "Volume of every trade routed through AgoraRouter (its Swapped events), counted on the HYPE side of the trade.",
   Fees: "Agora's fee on each trade, taken by AgoraRouter in HYPE or the traded token (the fee field of Swapped). Fees of the underlying pools are not included.",
-  Revenue: "Agora's fees less the share booked to referrers.",
-  ProtocolRevenue: "Agora's fees less the share booked to referrers.",
-  SupplySideRevenue: "The share of fees booked to the trader's referrer.",
+  Revenue: "Agora's fees less the share booked to referrers (a referral cost, claimable by referrers from AgoraRouter).",
+  ProtocolRevenue: "Agora's fees less the share booked to referrers (a referral cost, claimable by referrers from AgoraRouter).",
 };
 
 const breakdownMethodology = {
   Fees: { [METRIC.SWAP_FEES]: "Agora's fee on each trade routed through AgoraRouter." },
   Revenue: { "Swap fees to Agora": "Agora's fees less the referrer share." },
   ProtocolRevenue: { "Swap fees to Agora": "Agora's fees less the referrer share." },
-  SupplySideRevenue: { "Referral payouts": "The referrer's share of each fee, claimable from AgoraRouter." },
 };
 
 const adapter: SimpleAdapter = {
