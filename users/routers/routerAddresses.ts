@@ -2389,5 +2389,22 @@ export default (
         polygon: ["0x34E2F923bBa206358EcE221af73E8d121837F873"],
       },
     },
+    {
+      id: "7839",
+      name: "NARA Protocol",
+      addresses: {
+        base: [
+          "0x7F866a9fbe41D54F0d9C35b6892fcf27Ea766DB2", // NARAPrincipalLedgerV5
+          "0xC72671D9438388638547444524F6542b650C9264", // NARARewardLedgerV5
+          "0x04Ac83045d26259D46400Ce6beb9bBd0641df225", // NARAPositionSaleV5
+          "0xd93FbEbFb33FAc9288125074625D4750573B1a53", // NARAEpochEngineV5
+          "0x3f80aa68Fb4834d6E119EE1cf932C14419Cf63EB", // CryptoSlipVaultV32 (v33)
+          "0x2069CA17D45d3421D28f15F20262575333CECF51", // CryptoSlipTradeRouterV32 (v33)
+          "0x38BF0321FA7489576978353a6a8da4A3e85C2F18", // CryptoSlipVaultV32 (v32)
+          "0x295E72cB3dc09582F32e0fEB7e0e650752219a7f", // CryptoSlipTradeRouterV32 (v32)
+          "0x4Dc2b5A801A81b17b8d05C737c727FEd1f30699A", // CryptoSlipVaultV3
+        ],
+      },
+    },
   ] as ProtocolAddresses[]
 ).filter(isAddressesUsable);
