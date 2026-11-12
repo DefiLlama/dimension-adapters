@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { eventTopic, KALOS_REFERRAL_NOTE, KALOS_SPLITTER, padAddress } from "../../helpers/kalos";
+import { eventTopic, KALOS_SPLITTER, kalosReferralExclusion, padAddress } from "../../helpers/kalos";
 
 // Kalos Launchpad (https://www.kalos.fun) on Kinetiq Elysium: creator NFT drops on OpenSea's SeaDrop contracts.
 // Every drop launched on Kalos (collections deployed by the Kalos launcher 0xcA105642B3890B42927F50c1bEf3F6288448421c or
@@ -41,7 +41,7 @@ const fetch = async (options: FetchOptions) => {
   return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
-const description = 'The 10% Kalos fee on mints of drops launched on Kalos: quantity x mint price x feeBps / 10000 from SeaDropMint events of the Kalos SeaDrop hub whose fee recipient is the Kalos revenue splitter.';
+const REFERRAL_EXCLUSION = kalosReferralExclusion('the Kalos launchpad');
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -50,17 +50,17 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ELYSIUM],
   start: KALOS_LAUNCHPAD_START,
   methodology: {
-    Volume: 'Primary mint volume: native HYPE paid for mints of drops launched on Kalos (quantity x mint price).',
-    Fees: description,
-    UserFees: description,
-    Revenue: 'All mint fees are paid to the Kalos revenue splitter.',
-    ProtocolRevenue: 'All mint fees are paid to the Kalos revenue splitter, which pays them to the Kalos vaults and the KalosReferralPool. ' + KALOS_REFERRAL_NOTE,
+    Volume: 'Value of NFTs minted from creator drops launched on the Kalos launchpad, paid in HYPE.',
+    Fees: "Launchpad fees paid by minters: 10% of the mint price of every NFT minted from drops launched on Kalos. Excludes the rest of the mint price, which goes to the drop's creator.",
+    UserFees: "Launchpad fees paid by minters: 10% of the mint price of every NFT minted from drops launched on Kalos. Excludes the rest of the mint price, which goes to the drop's creator.",
+    Revenue: `All launchpad fees paid by minters, kept by Kalos. ${REFERRAL_EXCLUSION}`,
+    ProtocolRevenue: `All launchpad fees paid by minters, sent to Kalos's own vaults and referral pool. ${REFERRAL_EXCLUSION}`,
   },
   breakdownMethodology: {
-    Fees: { [LABELS.MINT]: description },
-    UserFees: { [LABELS.MINT]: description },
-    Revenue: { [LABELS.MINT_PROTOCOL]: 'Mint fees paid to the Kalos revenue splitter.' },
-    ProtocolRevenue: { [LABELS.MINT_PROTOCOL]: 'Mint fees paid to the Kalos revenue splitter.' },
+    Fees: { [LABELS.MINT]: 'Kalos fee of 10% of the mint price on NFTs minted from Kalos launchpad drops.' },
+    UserFees: { [LABELS.MINT]: 'Kalos fee of 10% of the mint price on NFTs minted from Kalos launchpad drops, paid by minters.' },
+    Revenue: { [LABELS.MINT_PROTOCOL]: 'All Kalos launchpad fees, kept by Kalos.' },
+    ProtocolRevenue: { [LABELS.MINT_PROTOCOL]: "All Kalos launchpad fees, sent to Kalos's own vaults and referral pool." },
   },
 };
 

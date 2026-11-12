@@ -1,16 +1,17 @@
 import { EventFragment } from "ethers";
 import { FetchOptions } from "../adapters/types";
 import { getTxReceiptsWithRetry } from "./getTxReceipts";
+import ADDRESSES from "./coreAssets.json";
 
 // Kalos (https://www.kalos.fun) on Kinetiq Elysium: values and logic shared by the Kalos adapters
-// (aggregators/kalos-trade, fees/kalos-trade, fees/kalos-launchpad and the kalos-dex entry in factory/uniV3.ts).
+// (aggregators/kalos-trade, dexs/kalos-launchpad and dexs/kalos-marketplace).
 // Contracts: https://www.kalos.fun/learn/contracts, fees: https://www.kalos.fun/learn/fees
 
 // KalosRevenueSplitterV2 (proxy): receives every Kalos fee (https://elysium.kinetiq.xyz/address/0xcA105395094Ceb27e6AfdA492c6379cBF468CDb8)
 export const KALOS_SPLITTER = '0xcA105395094Ceb27e6AfdA492c6379cBF468CDb8';
 // Kalos DEX: canonical Uniswap V3 factory deployed by Kalos, created in block 915221 on 2026-11-05 (its swaps are counted by
 // the kalos-dex entry in factory/uniV3.ts)
-export const KALOS_V3_FACTORY = '0x8C60243181370bDA9A7d1a45b1249A8263da0158';
+const KALOS_V3_FACTORY ='0x8C60243181370bDA9A7d1a45b1249A8263da0158';
 const KALOS_V3_FACTORY_BLOCK = 915221;
 export const KALOS_START = '2026-11-05';
 
@@ -18,10 +19,11 @@ const PoolCreatedEvent = 'event PoolCreated(address indexed token0, address inde
 
 /**
  * Every Kalos DEX pool created up to the window's end (lowercase), from the factory's own PoolCreated logs since its
- * creation block: a small config scan, cached. Shared by the kalos-dex entry in factory/uniV3.ts and the Kalos Trade
- * adapters, which use it to tell Kalos DEX-only trades from routed ones.
+ * creation block: a small config scan, cached. Used to tell Kalos DEX-only trades from routed ones. Read up to the
+ * window's end rather than from the TVL adapter's pool cache (which factory/uniV3.ts uses for kalos-dex): that cache lags
+ * by up to an hour, and a pool it misses would count a Kalos DEX-only trade as routed volume.
  */
-export async function getKalosPools(options: FetchOptions): Promise<string[]> {
+async function getKalosPools(options: FetchOptions): Promise<string[]> {
   const logs = await options.getLogs({
     target: KALOS_V3_FACTORY,
     eventAbi: PoolCreatedEvent,
@@ -44,7 +46,6 @@ const KALOS_UNIVERSAL_ROUTER = '0x6739E3cE3705719cFfCf76f6acdB06b4aceb8B5e'; // 
 const ZEROX_SETTLER_REGISTRY = '0x00000000000004533Fe15556B1E086BB1A72cEae';
 // Settlers that Kalos trades went through (registry ownerOf(2) since block 295,134 and since block 3,115,979)
 const KNOWN_SETTLERS = ['0xDe4537EcED4bf8AFBA09dd4f4eBEEf6De3B17714', '0xB2766443c2f92FBE579F057593802737BC88F591'];
-const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 const TransferEvent = 'event Transfer(address indexed from, address indexed to, uint256 value)';
 // Swap events of the venues a Kalos trade can go through, used to tell Kalos DEX-only trades from routed ones
@@ -75,29 +76,6 @@ export type KalosTradeFee = {
   kalosPoolsOnly: boolean; // every swap of the trade was on Kalos DEX pools
 };
 
-// receipts are fetched in small sequential batches, retried with back-off: a busy hour has a few hundred Kalos trades
-// and the public Elysium RPC rate-limits bursts of getTransactionReceipt
-const RECEIPT_BATCH = 3;
-const RECEIPT_ATTEMPTS = 6;
-
-/** Receipts of `hashes`, in order, fetched a few at a time with exponential back-off on RPC errors */
-async function getReceipts(chain: string, hashes: string[]): Promise<any[]> {
-  const receipts: any[] = [];
-  for (let i = 0; i < hashes.length; i += RECEIPT_BATCH) {
-    const batch = hashes.slice(i, i + RECEIPT_BATCH);
-    for (let attempt = 1; ; attempt++) {
-      try {
-        receipts.push(...await getTxReceiptsWithRetry(chain, batch));
-        break;
-      } catch (error) {
-        if (attempt >= RECEIPT_ATTEMPTS) throw error;
-        await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt));
-      }
-    }
-  }
-  return receipts;
-}
-
 /** The routers that pay the Kalos fee out of a trade, by lowercase address; asks 0x's registry only for an unknown sender */
 async function getRouters(options: FetchOptions, senders: string[]): Promise<Record<string, KalosRouter>> {
   const routers: Record<string, KalosRouter> = {
@@ -113,7 +91,7 @@ async function getRouters(options: FetchOptions, senders: string[]): Promise<Rec
     { target: ZEROX_SETTLER_REGISTRY, abi: 'function prev(uint128) view returns (address)', params: [2] },
   ]);
   settlers.forEach((settler: string) => {
-    if (settler && settler !== NULL_ADDRESS) routers[settler.toLowerCase()] = 'zerox';
+    if (settler && settler !== ADDRESSES.null) routers[settler.toLowerCase()] = 'zerox';
   });
   return routers;
 }
@@ -141,7 +119,7 @@ export async function getKalosTradeFees(options: FetchOptions): Promise<KalosTra
   const hashes = [...new Set(feeLogs.map((log: any) => String(log.transactionHash).toLowerCase()))];
   if (!hashes.length) return [];
 
-  const receipts = await getReceipts(options.chain, hashes);
+  const receipts = await getTxReceiptsWithRetry(options.chain, hashes);
   const receiptByHash: Record<string, any> = {};
   hashes.forEach((hash, i) => {
     if (!receipts[i]) throw new Error(`kalos: receipt ${hash} not found`);
@@ -177,4 +155,4 @@ export async function getKalosTradeFees(options: FetchOptions): Promise<KalosTra
 // which funds the weekly referral payouts (Settled events) and returns the rest to the four Kalos vaults. A referrer earns
 // 10-20% of the fees paid by the users they referred; referral codes are kept off chain and one payout batch per token
 // covers every Kalos product, so a payout cannot be attributed to a product on chain.
-export const KALOS_REFERRAL_NOTE = 'Referral rewards are not deducted: a referrer earns 10-20% of the fees paid by the users they referred, but referral codes are kept off chain and the KalosReferralPool pays all Kalos products together in one weekly batch per token, so the payouts cannot be attributed to a product on chain.';
+export const kalosReferralExclusion = (product: string) => `Referral rewards (10-20% of the fees paid by referred users) are not deducted, as they cannot be attributed to ${product} on chain.`;

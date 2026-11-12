@@ -1,7 +1,8 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { KALOS_REFERRAL_NOTE } from "../../helpers/kalos";
+import ADDRESSES from "../../helpers/coreAssets.json";
+import { kalosReferralExclusion } from "../../helpers/kalos";
 import { getPositionedLogArgs, PositionedLogArgs } from "../../helpers/logs";
 
 // Kalos Marketplace (https://www.kalos.fun) on Kinetiq Elysium. KalosMarket (proxy) is TreasureMarketplace b2cc323 with
@@ -14,7 +15,6 @@ const KALOS_MARKET_START = '2026-11-06';
 // KalosMarket proxy deployed and initialized in this block (initialize() calls setFee, which emits UpdateFee)
 const KALOS_MARKET_DEPLOY_BLOCK = 1_197_313;
 const BASIS_POINTS = 10_000n;
-const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 const ItemSoldEvent = 'event ItemSold(address seller, address buyer, address nftAddress, uint256 tokenId, uint64 quantity, uint128 pricePerItem, address paymentToken)';
 const BidAcceptedEvent = 'event BidAccepted(address seller, address bidder, address nftAddress, uint256 tokenId, uint64 quantity, uint128 pricePerItem, address paymentToken, uint8 bidType)';
@@ -23,7 +23,7 @@ const BidAcceptedEvent = 'event BidAccepted(address seller, address bidder, addr
 const UpdateFeeEvent = 'event UpdateFee(uint256 fee)';
 const UpdateFeeWithCollectionOwnerEvent = 'event UpdateFeeWithCollectionOwner(uint256 fee)';
 const UpdateCollectionOwnerFeeEvent = 'event UpdateCollectionOwnerFee(address _collection, address _recipient, uint256 _fee)';
-const NO_OWNER_FEE = { fee: 0n, recipient: NULL_ADDRESS };
+const NO_OWNER_FEE = { fee: 0n, recipient: ADDRESSES.null };
 
 type OwnerFee = { fee: bigint, recipient: string };
 type Change<T> = { at: PositionedLogArgs, value: T };
@@ -88,7 +88,7 @@ const fetch = async (options: FetchOptions) => {
     const total = BigInt(sale.quantity) * BigInt(sale.pricePerItem);
     const collection = String(sale.nftAddress).toLowerCase();
     const owner = valueAt<OwnerFee>(NO_OWNER_FEE, ownerFeeChanges[collection] ?? [], sale);
-    const hasOwner = owner.recipient !== NULL_ADDRESS;
+    const hasOwner = owner.recipient !== ADDRESSES.null;
     const marketplaceFee = total * valueAt(0n, hasOwner ? feeWithCollectionOwnerChanges : feeChanges, sale) / BASIS_POINTS;
     const creatorFee = hasOwner ? total * owner.fee / BASIS_POINTS : 0n;
     dailyVolume.add(sale.paymentToken, total);
@@ -101,6 +101,8 @@ const fetch = async (options: FetchOptions) => {
   return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
+const REFERRAL_EXCLUSION = kalosReferralExclusion('the Kalos marketplace');
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
@@ -108,25 +110,25 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.ELYSIUM],
   start: KALOS_MARKET_START,
   methodology: {
-    Volume: 'NFT sales on KalosMarket: listings bought and offers accepted (quantity x price per item).',
-    Fees: 'The 0.5% KalosMarket fee plus the collection creator fee on every sale.',
-    UserFees: 'The 0.5% KalosMarket fee plus the collection creator fee on every sale, taken out of the sale price.',
-    Revenue: 'The 0.5% KalosMarket fee, paid to the Kalos revenue splitter.',
-    ProtocolRevenue: 'The 0.5% KalosMarket fee, paid to the Kalos revenue splitter, which pays it to the Kalos vaults and the KalosReferralPool. ' + KALOS_REFERRAL_NOTE,
-    SupplySideRevenue: 'Creator fees paid to collection creators.',
+    Volume: 'Value of NFTs sold on the Kalos marketplace, from bought listings and accepted offers.',
+    Fees: "Fees charged on Kalos marketplace NFT sales: the 0.5% marketplace fee plus the collection creator's royalty, where the creator set one.",
+    UserFees: "Fees charged on Kalos marketplace NFT sales, taken out of the sale price: the 0.5% marketplace fee plus the collection creator's royalty, where the creator set one.",
+    Revenue: `The 0.5% marketplace fee on Kalos marketplace NFT sales, kept by Kalos. ${REFERRAL_EXCLUSION}`,
+    ProtocolRevenue: `The 0.5% marketplace fee on Kalos marketplace NFT sales, sent to Kalos's own vaults and referral pool. ${REFERRAL_EXCLUSION}`,
+    SupplySideRevenue: 'Creator royalties on Kalos marketplace NFT sales, paid to the collection creators.',
   },
   breakdownMethodology: {
     Fees: {
-      [LABELS.MARKETPLACE]: 'The 0.5% KalosMarket fee on NFT sales and accepted offers.',
-      [LABELS.CREATOR]: "The collection's creator fee on KalosMarket sales (collectionToCollectionOwnerFee).",
+      [LABELS.MARKETPLACE]: 'The 0.5% Kalos marketplace fee on NFT sales and accepted offers.',
+      [LABELS.CREATOR]: "The royalty set by a collection's creator, charged on Kalos marketplace sales of that collection.",
     },
     UserFees: {
-      [LABELS.MARKETPLACE]: 'The 0.5% KalosMarket fee on NFT sales and accepted offers.',
-      [LABELS.CREATOR]: "The collection's creator fee on KalosMarket sales.",
+      [LABELS.MARKETPLACE]: 'The 0.5% Kalos marketplace fee on NFT sales and accepted offers, taken out of the sale price.',
+      [LABELS.CREATOR]: "The royalty set by a collection's creator, taken out of the sale price on Kalos marketplace sales of that collection.",
     },
-    Revenue: { [LABELS.MARKETPLACE_PROTOCOL]: 'KalosMarket fees paid to the Kalos revenue splitter.' },
-    ProtocolRevenue: { [LABELS.MARKETPLACE_PROTOCOL]: 'KalosMarket fees paid to the Kalos revenue splitter.' },
-    SupplySideRevenue: { [LABELS.CREATOR_CREATORS]: 'Creator fees paid to collection creators on KalosMarket sales.' },
+    Revenue: { [LABELS.MARKETPLACE_PROTOCOL]: 'All Kalos marketplace fees, kept by Kalos.' },
+    ProtocolRevenue: { [LABELS.MARKETPLACE_PROTOCOL]: "All Kalos marketplace fees, sent to Kalos's own vaults and referral pool." },
+    SupplySideRevenue: { [LABELS.CREATOR_CREATORS]: 'Creator royalties on Kalos marketplace sales, paid to the collection creators.' },
   },
 };
 
