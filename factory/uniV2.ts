@@ -28,6 +28,11 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "candycity": {
+    // V2 factory and 15/10000 swap invariant: https://sourcify.dev/server/v2/contract/25/0x84343b84eed78228ccfb65eadee7659f246023bf?fields=all
+    // volume only: feeTo is mutable and the historical fee split is not established.
+    [CHAIN.CRONOS]: { factory: '0x84343b84EEd78228CCFB65EAdEe7659F246023bf', fees: 0.0015, customLogic: volumeOnly },
+  },
   "narwhalswap": {
     // V2 pair creation and 3/1000 swap invariant: https://sourcify.dev/server/v2/contract/56/0xb9fa84912ff2383a617d8b433e926adf0dd3fea1?fields=all
     // volume only: fee split not documented; feeTo can be changed.
