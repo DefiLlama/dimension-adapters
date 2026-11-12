@@ -21,6 +21,8 @@ const SINGLE_ASSET_STRATEGIES = new Set([
 
 const proxyCreatedAbi = "event ProxyCreated(string strategyName, address proxy)";
 const feeAccruedAbi = "event FeeAccrued(uint256 feeShares, uint256 totalAssets, uint256 totalSupply)";
+const pendingFeeSharesAbi = "uint256:pendingFeeShares";
+const convertToAssetsAbi = "function convertToAssets(uint256) view returns (uint256)";
 const chargedFeesAbi = "event ChargedFees(uint256 callFeeAmount, uint256 arrowFeeAmount, uint256 strategistFeeAmount)";
 const harvestAbi = "event Harvest(uint256 fee0, uint256 fee1)";
 const sentFeesToTreasuryAbi = "event SentFeesToTreasury(uint256 fee0, uint256 fee1)";
@@ -120,25 +122,38 @@ async function fetch(options: FetchOptions) {
   }
 
   if (singleAssetStrategies.length) {
+    const { fromApi } = options;
     const vaults = (await api.multiCall({ abi: vaultAbi, calls: singleAssetStrategies })).map((v: string) => v.toLowerCase());
     const assets = await api.multiCall({ abi: "address:asset", calls: vaults });
-    const feeBps = await api.multiCall({ abi: "uint256:appliedFeeBps", calls: vaults });
+    const targets = await api.multiCall({ abi: "address:target", calls: singleAssetStrategies });
+    // gross yield: growth of the underlying vault shares held at window start
+    const shares = await fromApi.multiCall({
+      abi: "function balanceOf(address) view returns (uint256)",
+      calls: singleAssetStrategies.map((s, i) => ({ target: targets[i], params: [s] })),
+    });
+    const convertCalls = shares.map((s: string, i: number) => ({ target: targets[i], params: [s] }));
+    const valueStart = await fromApi.multiCall({ abi: convertToAssetsAbi, calls: convertCalls });
+    const valueEnd = await api.multiCall({ abi: convertToAssetsAbi, calls: convertCalls });
+    // performance fee on accrual basis: pending fee shares growth plus fee shares minted in the window
+    const pendingStart = await fromApi.multiCall({ abi: pendingFeeSharesAbi, calls: vaults, permitFailure: true });
+    const pendingEnd = await api.multiCall({ abi: pendingFeeSharesAbi, calls: vaults });
+    const feeShares = vaults.map((_, i) => BigInt(pendingEnd[i]) - BigInt(pendingStart[i] ?? 0));
     const feeAccrued = await getLogs({ targets: vaults, eventAbi: feeAccruedAbi, ...logOpts });
-    for (const log of feeAccrued) {
-      const i = vaults.indexOf(log.address.toLowerCase());
-      const { feeShares, totalAssets, totalSupply } = log.args;
-      const fee = (BigInt(feeShares) * BigInt(totalAssets)) / BigInt(totalSupply);
-      if (fee === 0n) continue;
-      const bps = BigInt(feeBps[i]);
-      if (bps === 0n) throw new Error(`arrowfarm: fee accrued on ${log.address} with appliedFeeBps 0`);
-      // fee is bps of the profit, the rest stays with depositors
-      const depositorYield = (fee * (10000n - bps)) / bps;
+    for (const log of feeAccrued) feeShares[vaults.indexOf(log.address.toLowerCase())] += BigInt(log.args.feeShares);
+    const fees = await api.multiCall({
+      abi: convertToAssetsAbi,
+      calls: vaults.map((v, i) => ({ target: v, params: [feeShares[i] < 0n ? -feeShares[i] : feeShares[i]] })),
+    });
+
+    vaults.forEach((_, i) => {
+      const fee = feeShares[i] < 0n ? -BigInt(fees[i]) : BigInt(fees[i]);
+      const depositorYield = BigInt(valueEnd[i]) - BigInt(valueStart[i]) - fee;
       dailyFees.add(assets[i], depositorYield, LABELS.YIELD);
       dailySupplySideRevenue.add(assets[i], depositorYield, LABELS.YIELD);
       dailyFees.add(assets[i], fee, LABELS.PERFORMANCE_FEES);
       dailyRevenue.add(assets[i], fee, LABELS.PERFORMANCE_FEES);
       dailyHoldersRevenue.add(assets[i], fee, LABELS.BUYBACK);
-    }
+    });
   }
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
@@ -155,7 +170,7 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [LABELS.LP_FEES]: "LP trading fees harvested by Uniswap and Fables strategies, net of the performance fee, plus trading fees sent to the treasury.",
-    [LABELS.YIELD]: "Velodrome gauge rewards, and Ramses LP trading fees plus RAM gauge rewards, harvested and converted to the vault tokens, plus Morpho lending yield of single-asset vaults above their high-water mark, net of the performance fee.",
+    [LABELS.YIELD]: "Velodrome gauge rewards, and Ramses LP trading fees plus RAM gauge rewards, harvested and converted to the vault tokens, plus Morpho lending yield of single-asset vaults (share-price growth of the underlying vault shares held), net of the performance fee.",
     [LABELS.PERFORMANCE_FEES]: "Performance fee charged on harvests, paid in WETH: taken from trading fees on Uniswap, Fables and Ramses strategies and from gauge rewards on Velodrome strategies. Single-asset vaults charge it on yield above the share-price high-water mark, minted as vault shares.",
   },
   Revenue: {
@@ -186,6 +201,8 @@ const adapter: Adapter = {
   breakdownMethodology,
   // LP trading fees and Morpho interest are also counted by the underlying listings
   doublecounted: true,
+  // Morpho share-price losses are counted as negative yield
+  allowNegativeValue: true,
 };
 
 export default adapter;
