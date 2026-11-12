@@ -28,6 +28,11 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "lydia": {
+    // V2 factory, pair and 0.2% swap invariant; deployed at block 1160616 (2021-04-20 UTC): https://sourcify.dev/server/v2/contract/43114/0xe0c1bb6df4851feeedc3e14bd509feaf428f7655?fields=all
+    // volume only: fee split not documented; feeTo is mutable.
+    [CHAIN.AVAX]: { factory: '0xe0C1bb6DF4851feEEdc3E14Bd509FEAF428f7655', start: '2021-04-20', fees: 0.002, customLogic: volumeOnly },
+  },
   "narwhalswap": {
     // V2 pair creation and 3/1000 swap invariant: https://sourcify.dev/server/v2/contract/56/0xb9fa84912ff2383a617d8b433e926adf0dd3fea1?fields=all
     // volume only: fee split not documented; feeTo can be changed.
