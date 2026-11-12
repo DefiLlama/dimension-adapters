@@ -3,12 +3,13 @@ import ADDRESSES from '../../helpers/coreAssets.json';
 import { FetchOptions } from '../../adapters/types';
 import { getConfig } from '../../helpers/cache';
 
-// Vaults that replaced V7 (the audited release, live 2026-10-23), one per pool on Uniswap V3, Uniswap V4, Up or Ramses.
-// Each is deployed directly by the TickerSpring admin wallet (no factory), so the list comes from the TickerSpring API;
-// every amount is read on-chain. Same list as the TVL adapter (DefiLlama-Adapters projects/tickerspring-vaults).
+// Vaults that replaced V7 (the audited release, live 2026-10-23), one per pool on Uniswap V3, Uniswap V4, Up, Ramses or
+// Fables. Each is deployed directly by the TickerSpring admin wallet (no factory), so the list comes from the TickerSpring
+// API; every amount is read on-chain. Same list as the TVL adapter (DefiLlama-Adapters projects/tickerspring-vaults).
 const VAULTS_API = 'https://api.tickerspring.com/v1/merged/vaults';
 
-type Kind = 'v3' | 'v4' | 'up' | 'ramses';
+const KINDS = ['v3', 'v4', 'up', 'ramses', 'fables'] as const;
+type Kind = typeof KINDS[number];
 type Listed = { vault: string; kind: Kind };
 
 const V4_STATE_VIEW = '0xf3334192d15450cdd385c8b70e03f9a6bd9e673b';
@@ -59,9 +60,9 @@ const owedFees = (liquidity: bigint, inside: bigint, insideLast: bigint, tokensO
 
 type Uncollected = { fees: [bigint, bigint]; reward: bigint };
 
-/** Each vault's amounts not yet collected at the api's block: its trading fees in pool order (zero with no position or
- *  for a staked Up NFT) and its unclaimed gauge rewards (Up and Ramses only); all zero before the vault exists or in
- *  recovery. */
+/** Each vault's amounts not yet collected at the api's block: its trading fees in pool order (zero with no position, for
+ *  a staked Up NFT or on Fables) and its unclaimed gauge rewards (Up, Ramses and Fables only); all zero before the vault
+ *  exists or in recovery. */
 async function uncollected(api: ChainApi, vaults: Listed[]): Promise<Uncollected[]> {
   const result: Uncollected[] = vaults.map(() => ({ fees: [0n, 0n], reward: 0n }));
   const venues = await api.multiCall({ abi: abi.venue, calls: vaults.map(v => v.vault), permitFailure: true });
@@ -74,9 +75,10 @@ async function uncollected(api: ChainApi, vaults: Listed[]): Promise<Uncollected
   const open = live.map((v, j) => ({ ...v, position: positions[j] })).filter((_, j) => blocked[j] === ADDRESSES.null);
 
   // Ramses: RAM the venue is owed by the gauge or holds, which the next harvest claims (0 with gauge rewards off)
-  const ramses = open.filter(v => v.kind === 'ramses');
-  const ramsesPending = await api.multiCall({ abi: abi.pendingRewards, calls: ramses.map(v => v.venue) });
-  ramses.forEach((v, j) => { result[v.i].reward = BigInt(ramsesPending[j]); });
+  // Fables: FABLES claimed to the venue, which its staked hook shares earn instead of trading fees
+  const pending = open.filter(v => v.kind === 'ramses' || v.kind === 'fables');
+  const pendingRewards = await api.multiCall({ abi: abi.pendingRewards, calls: pending.map(v => v.venue) });
+  pending.forEach((v, j) => { result[v.i].reward = BigInt(pendingRewards[j]); });
 
   // Uniswap V4: the venue's PoolManager position (owner the venue, salt 0)
   const v4 = open.filter(v => v.kind === 'v4' && BigInt(v.position.liquidity) > 0n);
@@ -94,7 +96,7 @@ async function uncollected(api: ChainApi, vaults: Listed[]): Promise<Uncollected
   });
 
   // Uniswap V3, Up and Ramses: the venue's position NFT
-  const npm = open.filter(v => v.kind !== 'v4');
+  const npm = open.filter(v => v.kind in NPM_LAYOUT);
   const [tokenIds, pools, spots] = await Promise.all([
     api.multiCall({ abi: 'uint256:tokenId', calls: npm.map(v => v.venue) }),
     api.multiCall({ abi: 'address:pool', calls: npm.map(v => v.venue) }),
@@ -141,6 +143,8 @@ export type VaultFee = { source: 'fees' | 'rewards'; token: string; earned: bigi
 export async function vaultFees(options: FetchOptions): Promise<VaultFee[]> {
   const { data } = await getConfig('tickerspring-vaults', VAULTS_API);
   const listed: Listed[] = data.vaults.map((v: any) => ({ vault: v.vault, kind: v.kind }));
+  const unknown = listed.find(v => !KINDS.includes(v.kind));
+  if (unknown) throw new Error(`TickerSpring: unsupported vault kind ${unknown.kind} (${unknown.vault})`);
   // Only vaults that exist at the window's end
   const venues = await options.toApi.multiCall({ abi: abi.venue, calls: listed.map(v => v.vault), permitFailure: true });
   const vaults = listed.filter((_, i) => venues[i]);
@@ -151,7 +155,7 @@ export async function vaultFees(options: FetchOptions): Promise<VaultFee[]> {
     options.getLogs({ targets: vaults.map(v => v.vault), eventAbi: abi.harvest, flatten: false }),
     options.toApi.multiCall({ abi: 'address:usdg', calls: vaults.map(v => v.vault) }),
     options.toApi.multiCall({ abi: 'address:token', calls: vaults.map(v => v.vault) }),
-    // Immutable: UP on Up, RAM on Ramses, address(0) on Uniswap
+    // Immutable: UP on Up, RAM on Ramses, FABLES on Fables, address(0) on Uniswap
     options.toApi.multiCall({ abi: 'address:rewardToken', calls: vaults.map(v => v.vault) }),
     options.toApi.multiCall({ abi: 'address:token0', calls: venues.filter(Boolean) }),
     options.toApi.multiCall({ abi: abi.config, calls: vaults.map(v => v.vault) }),
