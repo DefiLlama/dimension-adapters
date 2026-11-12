@@ -110,7 +110,8 @@ const fetch = async (options: FetchOptions) => {
 
   // matchOrders emits one OrderFilled per maker order plus one for the taker order, whose `taker` is the exchange itself
   // (ctf-exchange Trading.sol, v1 and v2). Only that taker leg is counted: it is Polymarket's own definition ("Only taker
-  // volume is counted", https://data.polymarket.com) and matches its daily dollar and contract volume. Halving all legs
+  // volume is counted", https://data.polymarket.com); with dexs/polymarket-combos it reproduces Polymarket's daily dollar
+  // and contract volume (US Eastern days). v1 fillOrder fills have no taker leg and are not counted. Halving all legs
   // matches it only for buy-vs-sell matches: in a mint (two buys) or merge (two sells) the legs are the two complementary
   // prices, so the half is S/2 for S shares whatever the taker paid. Shares are unchanged: taker shares = all shares / 2.
 
