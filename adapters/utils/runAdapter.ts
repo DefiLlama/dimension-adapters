@@ -96,6 +96,7 @@ export function isPlainDateArg(rawTimeArg?: string) {
 type AdapterRunOptions = {
   deadChains?: Set<string>, // chains that are dead and should be skipped
   onlyChains?: Set<string>, // if set, run only these chains, used for chain level refills
+  allowChainFailures?: boolean, // if true (needs withMetadata), a failing chain does not fail the run: its data is left out and it is listed in failedChains
   module: SimpleAdapter,
   endTimestamp: number,
   name?: string,
@@ -147,9 +148,12 @@ async function _runAdapter({
   withMetadata = false,
   deadChains = new Set(),
   onlyChains,
+  allowChainFailures = false,
   runWindowInSeconds = ONE_DAY_IN_SECONDS,
   metadata = {},
 }: AdapterRunOptions) {
+  allowChainFailures = allowChainFailures && withMetadata
+  const failedChains: { chain: string, error: string }[] = []
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
   const moduleUID = module._randomUID
@@ -241,8 +245,36 @@ async function _runAdapter({
   }
 
 
-  if (withMetadata) return { response, adaptorRecordV2JSON, breakdownByToken }
+  if (withMetadata) return { response: response.filter(i => i), adaptorRecordV2JSON, breakdownByToken, failedChains }
   return response
+
+  // a chain can fail after part of its data was added, take all of it out again
+  function removeChainData(chain: string) {
+    Object.entries(aggregated).forEach(([recordType, metric]: any) => {
+      if (!(chain in metric.chains)) return
+      delete metric.chains[chain]
+      const values: number[] = Object.values(metric.chains)
+      if (!values.length) delete aggregated[recordType]
+      else metric.value = values.reduce((acc, value) => acc + value, 0)
+    })
+    delete breakdownByToken[chain]
+    Object.entries(breakdownByLabelByChain).forEach(([recordType, labels]: any) => {
+      Object.entries(labels).forEach(([label, chainValues]: any) => {
+        if (!(chain in chainValues)) return
+        delete chainValues[chain]
+        const values: number[] = Object.values(chainValues)
+        if (values.length) {
+          breakdownByLabel[recordType][label] = values.reduce((acc, value) => acc + value, 0)
+          return
+        }
+        delete labels[label]
+        delete breakdownByLabel[recordType][label]
+      })
+      if (Object.keys(labels).length) return
+      delete breakdownByLabelByChain[recordType]
+      delete breakdownByLabel[recordType]
+    })
+  }
 
   async function getChainResult(chain: string) {
     const startTime = getUnixTimeNow()
@@ -348,7 +380,11 @@ async function _runAdapter({
 
         (error as any).chain = chain
       } catch { }
-      throw error
+      if (!allowChainFailures) throw error
+
+      removeChainData(chain)
+      failedChains.push({ chain, error: String((error as any)?.message ?? error).slice(0, 2000) })
+      return undefined
     }
   }
 
