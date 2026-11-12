@@ -28,6 +28,11 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "latte": {
+    // Factory creates V2 pairs with a 25/10000 swap invariant: https://sourcify.dev/server/v2/contract/56/0x4dce5bdb81b8d5edb66ca1b8b2616a8e0dd5f807?fields=all
+    // volume only: historical fee split not documented; feeTo is mutable.
+    [CHAIN.BSC]: { factory: '0x4dce5bdb81b8d5edb66ca1b8b2616a8e0dd5f807', fees: 0.0025, customLogic: volumeOnly },
+  },
   "narwhalswap": {
     // V2 pair creation and 3/1000 swap invariant: https://sourcify.dev/server/v2/contract/56/0xb9fa84912ff2383a617d8b433e926adf0dd3fea1?fields=all
     // volume only: fee split not documented; feeTo can be changed.
