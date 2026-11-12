@@ -144,23 +144,25 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
   // 1 + PUMPER: 1% swap fee on every V3 pool, valued in the stablecoin.
   const v3Pools = [...new Set(v3Launches.map((log: any) => log.pool.toLowerCase()))];
   const swapPools = v3Pools.concat(PUMPER_POOLS.filter((p) => poolQuote[p]));
-  const swapLogs = await getLogs({ targets: swapPools, eventAbi: V3_SWAP_EVENT, flatten: false });
-  swapLogs.forEach((logs: any[], i: number) => {
-    const pool = swapPools[i];
+  // One topic-only query for the window, filtered to our pools here: a targets
+  // query costs one eth_getLogs per pool.
+  const swapPoolSet = new Set(swapPools);
+  const swapLogs = await getLogs({ noTarget: true, eventAbi: V3_SWAP_EVENT, onlyArgs: false, allowParseFailure: true });
+  for (const { address, args: log } of swapLogs) {
+    const pool = String(address).toLowerCase();
+    if (!swapPoolSet.has(pool)) continue;
     const { quote, isToken0 } = poolQuote[pool];
     const isPumper = PUMPER_POOLS.includes(pool);
-    for (const log of logs ?? []) {
-      const fee = quoteFeeOf(log, isToken0);
-      if (!Number.isFinite(fee) || fee <= 0) continue;
-      if (isPumper) {
-        const [usdt0, amount] = asUsdt0(quote, fee);
-        dailyFees.add(usdt0, amount, PUMPER_SWAP_FEES);
-        dailySupplySideRevenue.add(usdt0, amount, PUMPER_TO_LPS);
-      } else {
-        addLaunchpadRevenue(quote, fee, SWAP_FEES);
-      }
+    const fee = quoteFeeOf(log, isToken0);
+    if (!Number.isFinite(fee) || fee <= 0) continue;
+    if (isPumper) {
+      const [usdt0, amount] = asUsdt0(quote, fee);
+      dailyFees.add(usdt0, amount, PUMPER_SWAP_FEES);
+      dailySupplySideRevenue.add(usdt0, amount, PUMPER_TO_LPS);
+    } else {
+      addLaunchpadRevenue(quote, fee, SWAP_FEES);
     }
-  });
+  }
 
   // 2: buy/sell tax on V3 launchpads. Rates are fixed per token at launch;
   // launchpads older than v8 have no tax getter and fail the call.

@@ -1,7 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { METRIC } from "../../helpers/metrics";
-import { getObject, queryEvents } from "../../helpers/sui";
+import { getObject, queryEvents, queryEventsInWindow } from "../../helpers/sui";
 
 // https://volosui.gitbook.io/volo/liquid-staking/volo-liquid-staking-api-reference
 const PACKAGE =
@@ -9,6 +9,15 @@ const PACKAGE =
 const STAKE_POOL =
   "0x2d914e23d82fedef1b5f56a32d5c64bdcc3087ccfea2b4d6ea51a71f587840e5";
 const BPS = 10_000;
+const OLD_WINDOW_SECONDS = 10 * 24 * 60 * 60;
+
+// queryEvents pages back from the newest event to the window (~4 requests per day of age across the three types,
+// 394 for a window 100 days back), queryEventsInWindow starts at the window's checkpoint (~35 requests whatever the
+// age), so refills of old windows use the latter.
+const getEvents = (eventType: string, options: FetchOptions): Promise<any[]> =>
+  options.startTimestamp < Date.now() / 1e3 - OLD_WINDOW_SECONDS
+    ? queryEventsInWindow(eventType, options)
+    : queryEvents({ eventType, options });
 
 const fetchVoloLst = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -16,9 +25,9 @@ const fetchVoloLst = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
 
   const [epochEvents, stakeEvents, unstakeEvents, stakePool] = await Promise.all([
-    queryEvents({ eventType: `${PACKAGE}::stake_pool::EpochChangedEvent`, options }),
-    queryEvents({ eventType: `${PACKAGE}::stake_pool::StakeEventExt`, options }),
-    queryEvents({ eventType: `${PACKAGE}::stake_pool::UnstakeEventExt`, options }),
+    getEvents(`${PACKAGE}::stake_pool::EpochChangedEvent`, options),
+    getEvents(`${PACKAGE}::stake_pool::StakeEventExt`, options),
+    getEvents(`${PACKAGE}::stake_pool::UnstakeEventExt`, options),
     getObject(STAKE_POOL),
   ]);
 

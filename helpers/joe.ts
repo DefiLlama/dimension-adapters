@@ -79,14 +79,17 @@ function getFetch(exportConfig: ExportConfig, feesConfig?: ExportFeesConfig): Fe
       }
 
       if (Object.keys(pairs).length > 0) {
+        // one topic-only query filtered by pair below: `targets` costs one eth_getLogs per pair, and avax has 46k pairs
         const swapEvents = await options.getLogs({
-          targets: Object.keys(pairs),
+          noTarget: true,
           eventAbi: factory.version === 2 ? Abis.SwapEvent : Abis.SwapEventV21,
           flatten: true,
           onlyArgs: false,
+          allowParseFailure: true,
         })
         for (const swapEvent of swapEvents) {
           const pairAddress = formatAddress(swapEvent.address)
+          if (!pairs[pairAddress] || !swapEvent.args) continue
 
           if (factory.version === 2) {
             const tokenIn = swapEvent.args.swapForY ? pairs[pairAddress].tokenX : pairs[pairAddress].tokenY
