@@ -28,6 +28,11 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "gassss": {
+    // Factory deployment and V2 pair's 3/1000 swap invariant: https://github.com/GASSSS-XYZ/swap/tree/5259b2f863a3fc88b2a81d6be543c5247356f13f
+    // volume only: feeTo can change, so the historical fee split is not established.
+    [CHAIN.STABLE]: { factory: '0x603EfDF29606BfB90f8f1068828c79cB2d5eD056', fees: 0.003, customLogic: volumeOnly },
+  },
   "narwhalswap": {
     // V2 pair creation and 3/1000 swap invariant: https://sourcify.dev/server/v2/contract/56/0xb9fa84912ff2383a617d8b433e926adf0dd3fea1?fields=all
     // volume only: fee split not documented; feeTo can be changed.
