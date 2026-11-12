@@ -24,7 +24,8 @@ const POOL_FEES_TO_CREATORS = "Graduated Pool Trading Fees To Creators";
 const FEES_TO_OPERATIONS = "Protocol Fees To Operations";
 const FEES_TO_BUYBACK = "Protocol Fees Released To ALPHA Buyback And Burn";
 
-// Each chain has two ALPHA deployments: the first one (retired between 2026-10-28 and 2026-11-01, its markets still trade) and the current one.
+// Ethereum, Base, BSC, Robinhood and Arc have two ALPHA deployments: the first one (retired between 2026-10-28 and 2026-11-01,
+// its markets still trade) and the current one. Monad, Avalanche and Arbitrum have only the current one.
 // factory: LaunchFactory, block: a block at or before the factory's first launch, hook: LaunchTradingHookV1,
 // splitter: ProtocolRevenueSplitter. Addresses: ALPHA mainnet release records (indexer manifests).
 type Deployment = { factory: string; block: number; hook: string; splitter: string };
@@ -68,6 +69,25 @@ const chainConfig: Record<string, { deployments: Deployment[]; start: string }> 
       { factory: "0x2DC4f507BD30c6b5df90B288FaeCDeCE627386Ec", block: 26320476, hook: "0xD93a6B850748645DDB89A8dfd34c20057881e0cc", splitter: "0xBDF4D8b944eB42e6BBebc4de6b8C533506d79bB7" },
     ],
     start: "2026-10-28",
+  },
+  // Monad, Avalanche and Arbitrum One have one deployment each (2026-11-11), with the same factory and splitter address on all three.
+  [CHAIN.MONAD]: {
+    deployments: [
+      { factory: "0xB2Aa70bF167AEc63DBC49f14F12d4301E5a3c2A8", block: 121283239, hook: "0x41f8B93F7193D08F66a1c4CB2056c858F02860cc", splitter: "0x48E9f6E30E83037643Ff0614D2b5d79b1FFbcE45" },
+    ],
+    start: "2026-11-11",
+  },
+  [CHAIN.AVAX]: {
+    deployments: [
+      { factory: "0xB2Aa70bF167AEc63DBC49f14F12d4301E5a3c2A8", block: 100053182, hook: "0x550B2DA2872cAa1138024C7fd240F6A4Ec60e0cc", splitter: "0x48E9f6E30E83037643Ff0614D2b5d79b1FFbcE45" },
+    ],
+    start: "2026-11-11",
+  },
+  [CHAIN.ARBITRUM]: {
+    deployments: [
+      { factory: "0xB2Aa70bF167AEc63DBC49f14F12d4301E5a3c2A8", block: 523406566, hook: "0x07C5151D69806477A50D71F1cd81494A9e1D20CC", splitter: "0x48E9f6E30E83037643Ff0614D2b5d79b1FFbcE45" },
+    ],
+    start: "2026-11-11",
   },
 };
 
