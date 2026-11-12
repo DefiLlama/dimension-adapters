@@ -12,6 +12,29 @@ const ARCADE_START_TS = 1779667200; // 2026-05-25
 // Saved Dune query running helpers/queries/jupiter-prediction.sql: the same fills per day since 2025-10-21, so refills
 // skip the daily query below. Rerun it on Dune to extend the history; days not in its result use the daily query.
 const DUNE_HISTORY_QUERY_ID = '9088797';
+// Combos are funded on Solana and bought by Jupiter's Polymarket wallet on Polygon, with no Predict program call, so the
+// fills above miss them. Read from the fill events on the exchange where that wallet is the trader: data word 0 is the
+// side, word 2 the trade amount and word 4 the fee, in USDC with 6 decimals. First fills on 2026-10-20.
+const COMBOS_FEES = 'Jup Prediction Combos Fees';
+const COMBOS_EXCHANGE = '0xe3333700ca9d93003f00f0f71f8515005f6c00aa';
+const COMBOS_FILL_TOPIC = '0xd543adfd945773f1a62f74f0ee55a5e3b9b1a28262980ba90b1a89f2ea84d8ee';
+const COMBOS_WALLET_TOPIC = '0x0000000000000000000000005b6331e7ff0831a3fe2ed12004747db1a9c911a4';
+const COMBOS_START_TS = 1792454400; // 2026-10-20
+
+async function fetchCombos(options: FetchOptions): Promise<{ volume: number, fees: number }> {
+    if (options.startOfDay < COMBOS_START_TS) return { volume: 0, fees: 0 };
+    const [row] = await queryDuneSql(options, `
+        select
+            coalesce(sum(bytearray_to_uint256(bytearray_substring(data, 65, 32))), 0) / 1e6 as volume,
+            coalesce(sum(bytearray_to_uint256(bytearray_substring(data, 129, 32))), 0) / 1e6 as fees
+        from polygon.logs
+        where TIME_RANGE
+            and contract_address = ${COMBOS_EXCHANGE}
+            and topic0 = ${COMBOS_FILL_TOPIC}
+            and topic2 = ${COMBOS_WALLET_TOPIC}
+    `, { extraUIDKey: 'combos' });
+    return { volume: Number(row?.volume ?? 0), fees: Number(row?.fees ?? 0) };
+}
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
 
@@ -73,7 +96,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     if (!('arcade_fees' in queryResult[0])) throw new Error('Jupiter prediction: saved Dune result has no arcade_fees, rerun it');
     const arcadeFees = Number(queryResult[0].arcade_fees);
     const predictionFees = queryResult[0].total_fees;
-    const fees = predictionFees + arcadeFees;
+    const combos = await fetchCombos(options);
+    const fees = predictionFees + arcadeFees + combos.fees;
 
     // Jupiter's share of the fees is not visible onchain: from 2026-01-01 it comes from Jupiter's stats API, before that none is counted.
     // The API's prediction total includes Arcade, which is counted in fees above.
@@ -86,9 +110,10 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
-    dailyVolume.addUSDValue(volume);
+    dailyVolume.addUSDValue(volume + combos.volume);
     dailyFees.addUSDValue(predictionFees, JUPITER_METRICS.JupPredictionFees);
     dailyFees.addUSDValue(arcadeFees, ARCADE_FEES);
+    dailyFees.addUSDValue(combos.fees, COMBOS_FEES);
     dailyRevenue.addUSDValue(revenue, JUPITER_METRICS.JupPredictionFeesToJupiter);
     dailySupplySideRevenue.addUSDValue(fees - revenue, JUPITER_METRICS.JupPredictionFeesToVenues);
 
@@ -102,8 +127,8 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 }
 
 const methodology = {
-    Volume: 'USDC value of prediction market buys and sells through Jupiter.',
-    Fees: 'Trading fees paid by users on prediction market buys and sells through Jupiter, plus the 1% Arcade fee on winnings.',
+    Volume: 'USDC value of prediction market buys and sells through Jupiter, including Combos bought on Polygon from 2026-10-20.',
+    Fees: 'Trading fees paid by users on prediction market buys and sells through Jupiter, including Combos, plus the 1% Arcade fee on winnings.',
     Revenue: "Jupiter's share of prediction fees, counted from 2026-01-01.",
     ProtocolRevenue: "All of Jupiter's share, kept by Jupiter. Not used for JUP buybacks.",
     SupplySideRevenue: "Prediction fees paid to the market venues (Kalshi, Polymarket) after Jupiter's share.",
@@ -113,6 +138,7 @@ const breakdownMethodology = {
     Fees: {
       [JUPITER_METRICS.JupPredictionFees]: 'Trading fees paid by users on prediction market buys and sells.',
       [ARCADE_FEES]: 'The 1% Arcade fee on winnings, swept to the Arcade treasury.',
+      [COMBOS_FEES]: "Fees on Combos, bought by Jupiter's Polymarket wallet on Polygon, from 2026-10-20.",
     },
     Revenue: {
       [JUPITER_METRICS.JupPredictionFeesToJupiter]: "Jupiter's share of prediction fees, since 2026-01-01.",
