@@ -35,15 +35,15 @@ const MAX_BLOCK_RANGE = 5000;
 const TradeEvent = "event Trade(bytes32 indexed poolId, address indexed executor, bool isBuy, address indexed quoteToken, uint256 grossQuoteAmount, uint256 launchTokenAmount, uint256 burnAmount, bytes32 comment)";
 
 const LABEL_FEES = "wstO Swap Burn Fees";
-const LABEL_HOLDERS = "wstO Swap Burn Fees To wstO Holders";
+const LABEL_STAKERS = "wstO Swap Burn Fees To Stakers";
 
 const fetch = async (options: FetchOptions) => {
   const { wsto, hook } = chainConfig[options.chain];
   const dailyFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyHoldersRevenue = options.createBalances();
-  // wstO is the staked form of o1's own O token. Trader-funded share burns accrue to those
-  // protocol-token holders, not external LPs/lenders; voluntary burns and donations are excluded.
+  const dailySupplySideRevenue = options.createBalances();
+  // Burns benefit vault stakers through the redemption rate. Public documentation does not
+  // establish O-token voting rights, so classify this non-governance staking income as supply side.
+  // https://docs.o1.exchange/token/whitepaper
   // https://docs.o1.exchange/launchpad/wsto/overview
 
   const trades = await options.getLogs({ target: hook, eventAbi: TradeEvent, maxBlockRange: MAX_BLOCK_RANGE });
@@ -62,16 +62,15 @@ const fetch = async (options: FetchOptions) => {
     // SDK CoinGecko balances require a Number for fractional token units; scale before converting.
     const amount = new BigNumber(burnedO).shiftedBy(-O_DECIMALS).toNumber();
     dailyFees.addCGToken(O_COINGECKO_ID, amount, LABEL_FEES);
-    dailyRevenue.addCGToken(O_COINGECKO_ID, amount, LABEL_HOLDERS);
-    dailyHoldersRevenue.addCGToken(O_COINGECKO_ID, amount, LABEL_HOLDERS);
+    dailySupplySideRevenue.addCGToken(O_COINGECKO_ID, amount, LABEL_STAKERS);
   }
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyHoldersRevenue,
+    dailyRevenue: 0,
+    dailyHoldersRevenue: 0,
     dailyProtocolRevenue: 0,
-    dailySupplySideRevenue: 0,
+    dailySupplySideRevenue,
   };
 };
 
@@ -82,20 +81,17 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   methodology: {
     Fees: "wstO taken from every swap in wstO/launch-token pairs and burned, valued as the O it redeems for in that chain's vault.",
-    Revenue: "All wstO swap burn fees, burned so the O behind them stays in the vault for wstO holders.",
-    HoldersRevenue: "All wstO swap burn fees: burning wstO raises the O redeemable per remaining wstO for every O staker on that chain.",
+    Revenue: "No swap burn fees are retained as protocol revenue; all accrue to vault stakers.",
+    HoldersRevenue: "No swap burn fees are classified as governance-token holder revenue; vault staker income is supply-side revenue.",
     ProtocolRevenue: "No swap fees go to the o1.exchange treasury.",
-    SupplySideRevenue: "No burn fees go to LPs, creators or referrers; the full burn accrues to holders of staked protocol O tokens.",
+    SupplySideRevenue: "All wstO swap burn fees accrue to vault stakers through a higher O redemption value per remaining wstO share.",
   },
   breakdownMethodology: {
     Fees: {
       [LABEL_FEES]: "wstO burned by the wstO launch hook on buys and sells (1% buy/sell defaults, frozen per pool at creation from the factory defaults), valued in O at the period's closing share rate of that chain's vault.",
     },
-    Revenue: {
-      [LABEL_HOLDERS]: "All burned wstO; the O backing it stays in the vault and is shared by remaining wstO holders.",
-    },
-    HoldersRevenue: {
-      [LABEL_HOLDERS]: "All burned wstO; the O backing it stays in the vault and is shared by remaining wstO holders.",
+    SupplySideRevenue: {
+      [LABEL_STAKERS]: "The O backing burned wstO stays in the vault and benefits all remaining vault stakers through the share redemption rate.",
     },
   },
 };
