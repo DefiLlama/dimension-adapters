@@ -74,6 +74,12 @@ const kellerClCustomLogic = async ({ pairObject, dailyFees, fetchOptions, filter
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "pepu-v3": {
+    // Verified Uniswap V3 factory and pool source: https://pepuscan.com/api/v2/smart-contracts/0x5984B8BF2d4dB9C0aCB1d7924762e4474D80C807
+    // Deployed 2025-06-05: https://pepuscan.com/tx/0xf703800d13f6989b1abd1dbcd6dab89e4e5d4e573d9093ef6e6cb169f1bfd6a6
+    // volume only: fee split not documented
+    [CHAIN.PEPU]: { factory: "0x5984B8BF2d4dB9C0aCB1d7924762e4474D80C807", start: "2025-06-05", customLogic: volumeOnly },
+  },
   "hydrex": {
     // Algebra Integral 1.2 factory, fees are tracked from Hydrex voter bribes in fees/hydrex
     [CHAIN.BASE]: { factory: '0x36077D39cdC65E1e3FB65810430E5b2c4D5fA29E', start: '2025-06-16', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV3SwapEvent, customLogic: volumeOnly },

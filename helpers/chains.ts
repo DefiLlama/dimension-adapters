@@ -6,6 +6,7 @@ export enum CHAIN {
   BITCOIN_SV = "bsv",
   PACASWAP = "pacaswap",
   PEAQ = "peaq",
+  PEPU = "pepu",
   PEARL = "pearl",
   CHROMIA = "chromia",
   CITREA = "citrea",
