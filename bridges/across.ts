@@ -50,6 +50,12 @@ const chainIds: Record<string, number> = {
   [CHAIN.SOLANA]: 34268394551451,
 };
 
+// Origin chains Across no longer serves. The runner skips them from deadFrom on, and prefetch skips them too.
+const deadChains: Record<string, string> = {
+  [CHAIN.LISK]: "2026-08-18", // last Across deposit from or to Lisk was 2026-08-17
+  [CHAIN.BLAST]: "2026-08-01", // last Across deposit from or to Blast was 2026-07-31
+};
+
 type AcrossDeposit = {
   originChainId: number;
   destinationChainId: number | null;
@@ -144,8 +150,9 @@ async function fetchOriginDeposits(chain: string, options: FetchOptions): Promis
 
 // a few origins at a time; the block range splits within one origin stay sequential
 const prefetch = async (options: FetchOptions) => {
+  const activeChains = Object.keys(chainIds).filter((chain) => !deadChains[chain] || options.dateString < deadChains[chain]);
   const { results, errors } = await PromisePool.withConcurrency(3)
-    .for(Object.keys(chainIds))
+    .for(activeChains)
     .process((chain) => fetchOriginDeposits(chain, options));
   if (errors.length) throw errors[0];
   return results.flat();
@@ -180,7 +187,9 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   prefetch: prefetch as any,
-  chains: Object.keys(chainIds),
+  adapter: Object.fromEntries(
+    Object.keys(chainIds).map((chain) => [chain, deadChains[chain] ? { deadFrom: deadChains[chain] } : {}])
+  ),
   methodology: {
     OutgoingVolume: "USD value of deposits into the Across SpokePool on each chain, from the Across indexer API.",
     IncomingVolume: "USD value of filled relays delivered on each chain, attributed to the time of their deposit.",
