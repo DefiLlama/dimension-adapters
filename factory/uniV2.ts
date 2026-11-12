@@ -28,6 +28,12 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "sonefi-xyz": {
+    // V2 factory, pair swap event and 5/1000 invariant: https://soneium.blockscout.com/address/0x82d2d0aae77967d42acf4f30b53e2de0055338de?tab=contract
+    // Deployed 2025-01-07: https://soneium.blockscout.com/tx/0x0e9e0cced8e574ea223480991ca1e7d612927c49acad741a83aa5adbd4599296
+    // volume only: fee split not documented; feeTo is mutable.
+    [CHAIN.SONEIUM]: { factory: '0x82d2d0aAE77967d42ACf4F30B53e2de0055338De', start: '2025-01-07', fees: 0.005, customLogic: volumeOnly },
+  },
   "narwhalswap": {
     // V2 pair creation and 3/1000 swap invariant: https://sourcify.dev/server/v2/contract/56/0xb9fa84912ff2383a617d8b433e926adf0dd3fea1?fields=all
     // volume only: fee split not documented; feeTo can be changed.
