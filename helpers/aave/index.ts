@@ -415,6 +415,20 @@ function aaveAdapter(config: {[key: string]: AaveAdapterExportConfig}, global?: 
 }
 
 export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterExportConfig}, global?: Partial<SimpleAdapter> }> = {
+  // Aave V3 pool and data provider: https://kittypunch.gitbook.io/kittypunch-docs/protocols-and-products-abstract/kona-lend
+  // Pool creation: https://abscan.org/tx/0x0b4de9b171e88900a701de525520bf4fb1ed120417c5d3441cd104ee3a6aeed7
+  'kittypunch-kona-lend': {
+    config: {
+      [CHAIN.ABSTRACT]: {
+        start: '2025-12-10',
+        pools: [{
+          version: 3,
+          lendingPoolProxy: '0x8f16B5713F412C5dE4951Aaf678Eb8409101f819',
+          dataProvider: '0xDfc422c8793864ecD12Bc59F2024614034BcB078',
+        }],
+      },
+    },
+  },
   'aave-v1': {
     config: {
       [CHAIN.ETHEREUM]: {
