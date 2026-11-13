@@ -13,7 +13,9 @@ const chainConfig: Record<string, { routerV2: string; routerV21: string; whype: 
     start: '2025-06-08',
   },
   [CHAIN.ELYSIUM]: {
+    // HyperFlow aggregation router (v2) on Elysium, first swap in block 46494 (2026-10-29)
     routerV2: "0x980B9271A33c4B31214301fAE584B18dBB9731eC",
+    // HyperFlow partner router (v21) on Elysium, same owner as the v2 router, no swaps yet
     routerV21: "0x995E574059e1dD9528C22627773A397Bbb073A22",
     whype: ADDRESSES.elysium.WHYPE,
     start: '2026-10-29',
