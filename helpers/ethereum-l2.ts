@@ -159,6 +159,36 @@ const INDEXER_SUPPORTED_CHAINS = new Set<string>([
 	CHAIN.XLAYER, // 196
 ]);
 
+// ZKsync Era's validators approve every batch hash on its EraMultisigValidator since 2026-04-09, and Era
+// commits, proves and executes its batches through it since 2026-07-07 (through the ValidatorTimelock
+// 0x8c0Bfc04AdA21fd496c55B8C50331f904306F564 before). Dune's rollup_economics_zksync models only match the
+// older timelocks and selectors, so they see none of these transactions: the gas is read from Allium.
+// Every sender is funded by the same Safe 0x9e543149DdfEEE18e95A4655D07096398Dd2Bf52 that funds the operators.
+const ERA_MULTISIG_VALIDATOR = '0xdc26b08f0335b68721f64001c38b05d0bc9b539d';
+const ERA_MULTISIG_VALIDATOR_FROM = 1775606400; // 2026-04-08, the day it was deployed
+// 2026-07-08: the old timelock settled its last batch on 2026-07-07 17:16 UTC, from this day on Dune has no Era row
+// and is no longer read, so a later Spellbook fix cannot count the commits twice
+const ERA_DUNE_L1_COSTS_TO = 1783468800;
+
+// approveHash(bytes32), then commit/prove/executeBatchesSharedBridge(address,uint256,uint256,bytes)
+const ERA_SETTLEMENT_SELECTORS = ['0xd4d9bdcd', '0x0db9eb87', '0x9271e450', '0xa085344d'];
+
+const getEraValidatorCosts = (options: FetchOptions) => queryAllium(`
+	SELECT
+		${ERA_SETTLEMENT_SELECTORS.map((s, i) => `COUNT_IF(LEFT(input, 10) = '${s}') AS calls_${i}`).join(',\n\t\t')},
+		TO_VARCHAR(COALESCE(SUM(receipt_gas_used * receipt_effective_gas_price
+			+ COALESCE(receipt_blob_gas_used, 0) * COALESCE(receipt_blob_gas_price, 0)), 0)) AS cost_wei,
+		(SELECT COUNT(*) FROM ethereum.raw.transactions
+			WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.endTimestamp})
+				AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp + 60})) AS txs_after_window
+	FROM ethereum.raw.transactions
+	WHERE to_address = '${ERA_MULTISIG_VALIDATOR}'
+		AND LEFT(input, 10) IN (${ERA_SETTLEMENT_SELECTORS.map(s => `'${s}'`).join(', ')})
+		AND receipt_status = 1 -- approveHash reverts for non-members and the batch calls are role-gated
+		AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+		AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+`);
+
 // OP-stack rollups that dropped out of Dune's `gas.fees`: their L2 fees come from the fee vault counters
 // (getVaultCountersAccruedWei) on the chain's own archive RPC, and only the L1 cost stays on Dune.
 const FEE_VAULT_CHAINS = new Set<string>([
@@ -213,13 +243,20 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 			return { dailyFees, dailyRevenue };
 		}
 
-		const [l2FeesRows, l1FeesRows] = await Promise.all([
+		const readsEraValidator = options.chain === CHAIN.ERA && options.endTimestamp > ERA_MULTISIG_VALIDATOR_FROM;
+		const readsDuneL1Costs = !(options.chain === CHAIN.ERA && options.startTimestamp >= ERA_DUNE_L1_COSTS_TO);
+		const [l2FeesRows, l1FeesRows, eraValidatorRows] = await Promise.all([
 			queryClickhouse<L2FeesRow>(SQL_L2_FEES, {
 				chain: Number(options.api.chainId),
 				fromBlock,
 				toBlock: safeBlock,
 			}),
-			queryDuneSql(options, buildL1FeesDuneQuery(rollupName, options.startTimestamp, options.endTimestamp)) as Promise<any[]>,
+			readsDuneL1Costs ? queryDuneSql(options, buildL1FeesDuneQuery(rollupName, options.startTimestamp, options.endTimestamp)) as Promise<any[]> : [],
+			// the L1 cost only corrects revenue: when the lookup fails, publish the fees and leave revenue out
+			readsEraValidator ? getEraValidatorCosts(options).catch((e) => {
+				console.error(`${chainName}: EraMultisigValidator cost lookup failed, publishing fees without revenue`, e);
+				return null;
+			}) : [],
 		]);
 
 		// same distinction as the fallback below: no row back is a failed read, not a free chain
@@ -239,6 +276,18 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 		// terms that the rounding is invisible at human-readable scale).
 		if (l1TotalEth > 0) {
 			dailyRevenue.addGasToken(-l1TotalEth * 1e18);
+		}
+
+		if (readsEraValidator) {
+			if (!eraValidatorRows) return { dailyFees };
+			const costs = eraValidatorRows[0];
+			if (!costs || !(Number(costs.txs_after_window) > 0))
+				throw new Error(`Allium has not indexed Ethereum past ${new Date(options.endTimestamp * 1e3).toISOString()} yet`);
+			// Era settles a batch there every ~30 minutes, a step with no call means a moved validator or new selectors, not a free day
+			const missing = ERA_SETTLEMENT_SELECTORS.filter((_, i) => !(Number(costs[`calls_${i}`]) > 0));
+			if (!readsDuneL1Costs && missing.length)
+				throw new Error(`${chainName}: no successful ${missing.join(', ')} call to the EraMultisigValidator ${ERA_MULTISIG_VALIDATOR} in this window, refusing to report revenue without the L1 cost`);
+			dailyRevenue.addGasToken((-BigInt(costs.cost_wei)).toString(), METRIC.TRANSACTION_GAS_FEES);
 		}
 
 		return { dailyFees, dailyRevenue };
@@ -376,7 +425,13 @@ const l2FeesDuneProtocols: Record<string, Adapter> = {
 		Fees: 'Transaction fees paid by users',
 		Revenue: 'Total revenue on Scroll, calculated by subtracting the L1 Batch Costs from the total gas fees',
 	}),
-	'zksync-era': l2FeesDuneAdapter(CHAIN.ERA, '2023-02-14', 'zksync'),
+	'zksync-era': {
+		...l2FeesDuneAdapter(CHAIN.ERA, '2023-02-14', 'zksync', {
+			Fees: 'Transaction fees paid by users',
+			Revenue: 'Total revenue on ZKsync Era, calculated by subtracting the ETH spent on Ethereum to commit, prove, execute and approve its batches from the total gas fees',
+		}),
+		dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
+	},
 	'zora-chain': l2FeesDuneAdapter(CHAIN.ZORA, '2023-06-13', undefined, {
 		Fees: 'Transaction fees paid by users',
 		Revenue: 'Total revenue on Zora, calculated by subtracting the L1 Batch Costs from the total gas fees',
