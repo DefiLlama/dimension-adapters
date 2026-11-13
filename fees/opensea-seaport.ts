@@ -23,6 +23,7 @@ const config: any = {
   [CHAIN.ZORA]: {},
   [CHAIN.HYPERLIQUID]: {},
   [CHAIN.ROBINHOOD]: {},
+  [CHAIN.ELYSIUM]: { start: '2026-11-05' },
 }
 
 const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) => {
@@ -62,7 +63,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   adapter: Object.keys(config).reduce((acc: any, chain) => {
-    acc[chain] = seaportConfig
+    acc[chain] = { ...seaportConfig, start: config[chain].start ?? seaportConfig.start }
     return acc
   }, {}),
 };

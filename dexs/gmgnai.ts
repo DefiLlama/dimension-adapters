@@ -3,7 +3,8 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 
-const chainConfig: Record<string, { duneName: string, start: string }> = {
+// duneName is unset for chains Dune doesn't index; their volume comes from GMGN's router logs (see ELYSIUM_ROUTERS)
+const chainConfig: Record<string, { duneName?: string, start: string }> = {
   [CHAIN.ETHEREUM]: {
     duneName: 'ethereum',
     start: '2023-09-19'
@@ -47,7 +48,26 @@ const chainConfig: Record<string, { duneName: string, start: string }> = {
   [CHAIN.ARC]: {
     duneName: 'arc',
     start: '2026-09-16'
+  },
+  [CHAIN.ELYSIUM]: {
+    start: '2026-11-09'
   }
+}
+
+const ELYSIUM_ROUTERS = ['0x6c3c2efa01a8240c00a683e36502f656f0c15fd6'];
+const ElysiumSwapEvent = 'event Swap(address indexed sender, address indexed recipient, address indexed feeToken, uint256 amountIn, uint256 amountOut, (uint8 kind, address tokenIn, address tokenOut, address pool, uint24 fee, int24 tickSpacing, address hooks, bytes hookData, address poolManager, bytes32 poolId)[] route)';
+
+async function fetchElysiumVolume(options: FetchOptions) {
+  const dailyVolume = options.createBalances();
+  const logs = await options.getLogs({ targets: ELYSIUM_ROUTERS, eventAbi: ElysiumSwapEvent });
+  for (const log of logs) {
+    const feeToken = log.feeToken.toLowerCase();
+    const isFeeSide = (token: string) => token.toLowerCase() === feeToken
+      || (feeToken === ADDRESSES.null && token.toLowerCase() === ADDRESSES.elysium.WHYPE.toLowerCase());
+    if (isFeeSide(log.route[0].tokenIn)) dailyVolume.add(feeToken, log.amountIn);
+    else if (isFeeSide(log.route[log.route.length - 1].tokenOut)) dailyVolume.add(feeToken, log.amountOut);
+  }
+  return dailyVolume;
 }
 
 // GMGN takes its 1% fee inside the swap transaction, so its volume is the dex trades that
@@ -85,7 +105,7 @@ const FEE_STABLE_BY_CHAIN: Record<string, string> = {
 };
 
 const sqlList = (xs: string[]) => xs.map((x) => `'${x}'`).join(', ');
-const EVM_DUNE_CHAINS = Object.values(chainConfig).map((c) => c.duneName).filter((c) => c !== 'solana');
+const EVM_DUNE_CHAINS = Object.values(chainConfig).map((c) => c.duneName).filter((c): c is string => !!c && c !== 'solana');
 const evmFeeFilter = EVM_DUNE_CHAINS
   .map((chain) => `(blockchain = '${chain}' AND contract_address IN (${[NATIVE, FEE_STABLE_BY_CHAIN[chain]].filter(Boolean).join(', ')}))`)
   .join(' OR ');
@@ -158,6 +178,7 @@ async function prefetch(options: FetchOptions) {
 }
 
 async function fetch(options: FetchOptions) {
+  if (options.chain === CHAIN.ELYSIUM) return { dailyVolume: await fetchElysiumVolume(options) };
   const prefetchResults = options.preFetchedResults;
   const chainVolume = prefetchResults.find((result: any) => result.blockchain === chainConfig[options.chain].duneName);
 
@@ -175,7 +196,7 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   doublecounted: true,
   methodology: {
-    Volume: "US-dollar value of the token swaps people make through GMGN, taken from Dune's decoded dex trades and restricted to the transactions that pay a GMGN fee collector, counting each swap once even when it is routed through several pools. Swaps routed through venues Dune has not decoded are not included, so the figure is a floor.",
+    Volume: "US-dollar value of the token swaps people make through GMGN, taken from Dune's decoded dex trades and restricted to the transactions that pay a GMGN fee collector, counting each swap once even when it is routed through several pools. Swaps routed through venues Dune has not decoded are not included, so the figure is a floor. Elysium, which Dune does not index, counts the HYPE or USDC side of each swap logged by GMGN's router there.",
   },
 };
 
