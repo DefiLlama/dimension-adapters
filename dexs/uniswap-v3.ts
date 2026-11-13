@@ -261,6 +261,8 @@ const factoryConfig: Record<string, string> ={
   [CHAIN.SCROLL]: "0x70C62C8b8e801124A4Aa81ce07b637A3e83cb919",
   [CHAIN.BLAST]: "0x792edAdE80af5fC680d96a2eD80A44247D2Cf6Fd",
   [CHAIN.ARC]: "0xf0db7b58379503491d857db50ac9ece64c653918",
+  // https://gov.uniswap.org/t/official-uniswap-v3-deployments-list/24323/9
+  [CHAIN.ETHERLINK]: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D",
   [CHAIN.ELYSIUM]: "0x1707327F626496A7b5b3872e7E4d2879Df7d7a9f",
 }
 
@@ -293,6 +295,15 @@ async function fetchFromLogs(options: FetchOptions) {
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
+}
+
+// Oku has returned nothing for etherlink since 2026-09-23 while the pools kept trading, so from then
+// on the pools are read directly. Earlier days stay on Oku so a refill does not rewrite them.
+async function fetchEtherlink(options: FetchOptions) {
+  if (options.dateString >= '2026-09-23') return fetchFromLogs(options);
+  const res = await fetchFromOku(options);
+  if (!('dailyVolume' in res)) throw new Error('uniswap-v3: Oku returned nothing for etherlink, not storing 0');
+  return res;
 }
 
 // One entry per chain. blockchain = the source's own slug (Dune dex.trades name
@@ -337,7 +348,7 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
   [CHAIN.SAGA]: { blockchain: 'saga', start: '2025-02-11', fetch: fetchFromOku },
   [CHAIN.XDC]: { blockchain: 'xdc', start: '2025-04-12', fetch: fetchFromOku },
   [CHAIN.NIBIRU]: { blockchain: 'nibiru', start: '2025-05-12', fetch: fetchFromOku },
-  [CHAIN.ETHERLINK]: { blockchain: 'etherlink', start: '2025-05-12', fetch: fetchFromOku },
+  [CHAIN.ETHERLINK]: { blockchain: 'etherlink', start: '2025-05-12', fetch: fetchEtherlink },
   [CHAIN.REDBELLY]: { blockchain: 'redbelly', start: '2025-02-19', fetch: fetchFromOku },
 
   // On-chain logs (no Dune dex.trades or Oku API coverage)
