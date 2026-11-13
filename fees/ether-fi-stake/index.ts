@@ -120,8 +120,9 @@ const getMiscStakingRevenue = async (options: FetchOptions) => {
 }
 
 const getAdditionalRevenueStreams = async (options: FetchOptions) => {
-  // Only buys by the treasury Safe 0x2f5301a3 (the withdrawal-fee recipient above) count here. Its last ETHFI buy on CoW was
-  // 2026-04-01 (0xb236e4a5dd02755313e3bf02dcd1c2b30afe6954d203177648821902e46bbe19), so holders revenue is 0 after that.
+  // Counts ETHFI buys by the treasury Safe 0x2f5301a3 (the withdrawal-fee recipient above) plus the ten hardcoded monthly
+  // off-chain purchases below (2024-07 to 2025-04, no buyer address or tx hash in this file). The Safe's last ETHFI buy found
+  // on-chain is a CoW fill on 2026-04-01 (0xb236e4a5dd02755313e3bf02dcd1c2b30afe6954d203177648821902e46bbe19), so holders revenue is 0 after that.
   // Do not add the buyers of the Sep 2026 programmatic buyback (see the Snapshot proposal cited in fees/etherfi-cash-cards):
   // Safe 0x43F4ca92F7F378bCdcF1508b866b5B6c47D6408C and EthfiBuyback 0xa7b1d3a045fe9566513f3ecc858469640c88be29.
   // Their purchases are routed to the CashbackDistributor 0x38F2fBb259F042DE3A601E0f7135f768DE08F5A2 on Optimism (all but the
@@ -275,7 +276,7 @@ const adapter: Adapter = {
     Revenue: "Protocol's share of fees including management fees from staking/restaking and validator operations rewards",
     ProtocolRevenue: "Same as Revenue - all protocol earnings retained by ether.fi.",
     SupplySideRevenue: "Portion of fees distributed to stakers.",
-    HoldersRevenue: "ETHFI bought back on the open market by ether.fi's treasury for token holders (none since 1 April 2026); excludes the ETHFI bought since September 2026 to pay ether.fi Cash card cashback, which the ether.fi Cash listing counts as a cashback cost.",
+    HoldersRevenue: "ETHFI buybacks counted for token holders: buys by ether.fi's treasury Safe (none after 1 April 2026) and ten monthly off-chain purchases from July 2024 to April 2025 hardcoded in the adapter; excludes the ETHFI bought since September 2026 to pay ether.fi Cash card cashback, which the ether.fi Cash listing counts as a cashback cost.",
   },
   breakdownMethodology: {
     Fees: {
@@ -300,7 +301,7 @@ const adapter: Adapter = {
       [MetricLabels.stETH_STAKING_REWARDS]: 'stETH rebasing rewards passed on to stakers (everything above the 2.5% protocol share).',
     },
     HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: 'Open-market ETHFI buybacks by ether.fi\'s treasury funded from protocol revenue (none since 1 April 2026); excludes the ETHFI bought since September 2026 for ether.fi Cash card cashback.',
+      [METRIC.TOKEN_BUY_BACK]: 'ETHFI buybacks by ether.fi\'s treasury Safe (none after 1 April 2026), plus ten monthly off-chain purchases from July 2024 to April 2025 hardcoded in the adapter without a buyer address or transaction list; excludes the ETHFI bought since September 2026 for ether.fi Cash card cashback.',
     },
   }
 };
