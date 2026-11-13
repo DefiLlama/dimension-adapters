@@ -32,6 +32,9 @@ const fetch = async (options: FetchOptions) => {
 
     const response = await httpGet(url);
     const txns = response.transactions || [];
+    if (requestCount >= MAX_REQUESTS && txns.length) {
+      throw new Error(`algorand: more than ${MAX_REQUESTS} pages of transactions between ${startDate} and ${endDate}, refusing to publish a partial sum`);
+    }
 
     // Sum all transaction fees (fees are in microAlgos)
     for (const txn of txns) {
@@ -46,9 +49,6 @@ const fetch = async (options: FetchOptions) => {
 
     if (!nextToken || txns.length === 0) {
       break;
-    }
-    if (requestCount >= MAX_REQUESTS) {
-      throw new Error(`algorand: more than ${MAX_REQUESTS} pages of transactions between ${startDate} and ${endDate}, refusing to publish a partial sum`);
     }
   } while (nextToken);
 
