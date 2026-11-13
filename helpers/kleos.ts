@@ -243,7 +243,7 @@ export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg:
 
   const active = [...new Set(swaps.map((s: any) => lower(s.address)))];
   const coins = active.map((p) => pools[p].coin);
-  type Launch = { creatorShareBps: bigint; buybackBps: bigint; coreBps: bigint; positionId: string; tickLower: number; tickUpper: number; liquidity: bigint; createdAt: number };
+  type Launch = { creatorShareBps: bigint; buybackBps: bigint; coreBps: bigint; positionId: string; tickLower: number; tickUpper: number; liquidity: bigint; createdBlock: number };
   const launches: Record<string, Launch | null> = {};
   for (const lp of cfg.launchpads) {
     const [ls, cores] = await Promise.all([
@@ -261,7 +261,7 @@ export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg:
         tickLower: Number(l.tickLower),
         tickUpper: Number(l.tickUpper),
         liquidity: 0n,
-        createdAt: Number(l.createdAt),
+        createdBlock: Number(l.createdBlock),
       };
     });
   }
@@ -300,13 +300,16 @@ export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg:
       return [inside(BigInt(g0s[i]), BigInt(lo.feeGrowthOutside0X128), BigInt(hi.feeGrowthOutside0X128)), inside(BigInt(g1s[i]), BigInt(lo.feeGrowthOutside1X128), BigInt(hi.feeGrowthOutside1X128))] as const;
     });
   };
-  // A coin launched inside the window has no pool at the window's first block: its launch range's growth started at 0
-  // (the launch mints the pool's first position, so its edge ticks start with nothing inside them).
-  const older = launchPools.filter((p) => launches[pools[p].coin]!.createdAt < options.fromTimestamp);
   // The window's logs run from its first block to its last, both included, so the starting figure is the state before the
   // first block: the block before it, which is the previous window's last. (`options.fromApi` reads after the first block,
   // and would leave that block's fees out of every window.)
-  const before = new ChainApi({ chain: options.chain, block: (await options.getFromBlock()) - 1 });
+  const fromBlock = await options.getFromBlock();
+  const before = new ChainApi({ chain: options.chain, block: fromBlock - 1 });
+  // A coin launched in the window (at its first block or later) has no pool at that earlier block: its launch range's
+  // growth started at 0, since the launch mints the pool's first position and its edge ticks start with nothing inside.
+  // One launched in the block before the first, or earlier, is read there. `createdBlock` is the launch's Elysium block
+  // (the launchpad records ArbSys's), so the two are compared block to block, not by timestamp.
+  const older = launchPools.filter((p) => launches[pools[p].coin]!.createdBlock < fromBlock);
   const insideOlder = await insideAt(before, older);
   const insideTo = await insideAt(options.toApi, launchPools);
   const insideFrom: Record<string, readonly [bigint, bigint]> = {};
