@@ -51,6 +51,22 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
+  "mojo-perps": {
+    // MOJO (https://www.mojo.trade, https://x.com/MojoAI_HQ), an AI trading agent app (iOS and web): users set a plan,
+    // approve it, and the agent places the orders on Hyperliquid (crypto perps and HIP-3 stock perps), among other venues.
+    // Its Hyperliquid orders carry this builder code: 0.05% on perps (both sides) and 0.05% on spot sells only.
+    // Verifiable: the public config at https://api.mojo.trade/api/v1/trading/quote-config?environment=mainnet
+    // (hyperliquid.builderAddress, builderFeeTenthsBps); the builder field of MOJO orders; builderRewards of the address.
+    addresses: ["0x7e60c68538c967b76381db4f46010ef378977997"],
+    // first day with fills carrying the code
+    start: "2026-06-27",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through MOJO with its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through MOJO; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
+      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through MOJO, all kept by MOJO.",
+      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through MOJO, all kept by MOJO.",
+    },
+  },
   "eyed": {
     // EYED (https://eyed.cc, https://x.com/EyedTrade), a trading app for Hyperliquid perps (HIP-3 included) with copy
     // trading and public trader records; sign-in is a Solana wallet. Its Hyperliquid orders carry this builder code on
@@ -1712,6 +1728,8 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "metascalp-spot": { builder: "metascalp-perps", market: "spot", start: "2025-09-11" },
   "metascalp-outcome": { builder: "metascalp-perps", market: "outcome", start: "2026-05-02" },
   "midas-spot": { builder: "midas-perps", market: "spot", start: "2026-01-15" },
+  // first day with spot fills carrying the code (sells only pay the builder fee)
+  "mojo-spot": { builder: "mojo-perps", market: "spot", start: "2026-08-26" },
   "moonbot-spot": { builder: "moonbot", market: "spot", start: "2025-08-01" },
   "moonbot-outcome": { builder: "moonbot", market: "outcome", start: "2026-05-02" },
   "moontrader-spot": { builder: "moontrader-perps", market: "spot", start: "2025-09-01" },
