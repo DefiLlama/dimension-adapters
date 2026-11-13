@@ -6,7 +6,14 @@ import { addTokensReceived } from "../helpers/token";
 const BUY_BACK_WALLETS = ['0x8d4ab2a3e89eadfdc729204adf863a0bfc7746f6'];
 const BUY_BACK_TOKEN = '0x1bc0c42215582d5a085795f4badbac3ff36d1bcb';
 
-const CHAIN_CONFIG: Record<string, { feeWallets: string[]; weth: string; start: string }> = {
+
+const PROTOCOL_FEE_CREDITED = 'event ProtocolFeeCredited(bytes32 indexed poolId, address indexed recipient, address currency, uint256 amount)';
+const ANTI_SNIPE_FEE_CREDITED = 'event AntiSnipeFeeCredited(bytes32 indexed poolId, address indexed recipient, address currency, uint256 amount)';
+const DIVIDEND_TAX_REDIRECTED = 'event DividendTaxRedirected(bytes32 indexed poolId, address indexed recipient, address indexed currency, uint256 amount)';
+const CREATOR_TAX_CREDITED = 'event CreatorTaxCredited(bytes32 indexed poolId, address indexed recipient, address currency, uint256 amount)';
+const DIVIDEND_TAX_CREDITED = 'event DividendTaxCredited(bytes32 indexed poolId, address indexed dividend, address currency, uint256 amount)';
+
+const CHAIN_CONFIG: Record<string, { feeWallets?: string[]; weth?: string; taxHook?: string; start: string }> = {
   [CHAIN.BASE]: {
     feeWallets: [
       '0xE85A59c628F7d27878ACeB4bf3b35733630083a9', // clanker_factory
@@ -44,27 +51,57 @@ const CHAIN_CONFIG: Record<string, { feeWallets: string[]; weth: string; start: 
     weth: CoreAddresses.robinhood.WETH,
     start: "2026-07-08",
   },
+  [CHAIN.ELYSIUM]: {
+    taxHook: '0x3eA9581a32a396F69b177B65b91149Cf887BEACC',
+    start: "2026-11-06",
+  },
 };
 
 const fetch = async (options: FetchOptions) => {
-  const { feeWallets, weth } = CHAIN_CONFIG[options.chain];
-
-  const rawRevenue = await addTokensReceived({
-    options,
-    targets: feeWallets,
-    tokens: [weth],
-  });
+  const { feeWallets, weth, taxHook } = CHAIN_CONFIG[options.chain];
 
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
 
-  // Clanker adds 20% of the creator fee on top (e.g. 1% creator + 0.2% protocol = 1.2% total).
-  // https://clanker.world/docs/general/creator-rewards-and-fees
-  dailyFees.addBalances(rawRevenue.clone(6), "Swap Fees");
-  dailyRevenue.addBalances(rawRevenue, "Swap Fees To Protocol");
-  dailySupplySideRevenue.addBalances(rawRevenue.clone(5), "Swap Fees To Creators");
+  if (feeWallets && weth) {
+    const rawRevenue = await addTokensReceived({
+      options,
+      targets: feeWallets,
+      tokens: [weth],
+    });
+
+    // Clanker adds 20% of the creator fee on top (e.g. 1% creator + 0.2% protocol = 1.2% total).
+    // https://clanker.world/docs/general/creator-rewards-and-fees
+    dailyFees.addBalances(rawRevenue.clone(6), "Swap Fees");
+    dailyRevenue.addBalances(rawRevenue, "Swap Fees To Protocol");
+    dailySupplySideRevenue.addBalances(rawRevenue.clone(5), "Swap Fees To Creators");
+  }
+
+  if (taxHook) {
+    const credited = async (eventAbi: string) => options.getLogs({ target: taxHook, eventAbi });
+    for (const log of await credited(PROTOCOL_FEE_CREDITED)) {
+      dailyFees.add(log.currency, log.amount, "Swap Fees");
+      dailyRevenue.add(log.currency, log.amount, "Swap Fees To Protocol");
+    }
+    for (const log of await credited(DIVIDEND_TAX_REDIRECTED)) {
+      dailyFees.add(log.currency, log.amount, "Swap Fees");
+      dailyRevenue.add(log.currency, log.amount, "Swap Fees To Protocol");
+    }
+    for (const log of await credited(ANTI_SNIPE_FEE_CREDITED)) {
+      dailyFees.add(log.currency, log.amount, "Anti-Snipe Fees");
+      dailyRevenue.add(log.currency, log.amount, "Anti-Snipe Fees To Protocol");
+    }
+    for (const log of await credited(CREATOR_TAX_CREDITED)) {
+      dailyFees.add(log.currency, log.amount, "Swap Fees");
+      dailySupplySideRevenue.add(log.currency, log.amount, "Swap Fees To Creators");
+    }
+    for (const log of await credited(DIVIDEND_TAX_CREDITED)) {
+      dailyFees.add(log.currency, log.amount, "Swap Fees");
+      dailySupplySideRevenue.add(log.currency, log.amount, "Swap Fees To Holder Dividends");
+    }
+  }
 
   if (options.chain === CHAIN.BASE) {
     const rawBuybacks = await addTokensReceived({
@@ -83,28 +120,32 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Total swap fees paid by traders in Clanker-deployed Uniswap v4 pools (creator fee + Clanker's 20% of creator fee).",
-  Revenue: "Clanker protocol's cut: 20% of the creator LP fee charged on top of each swap.",
-  ProtocolRevenue: "Clanker protocol's cut of swap fees, minus the amount spent buying back CLANKER (negative when a buyback exceeds the period's revenue).",
+  Fees: "Total swap fees paid by traders in Clanker-deployed Uniswap v4 pools (creator fee + Clanker's 20% of creator fee). On Elysium (Clanker v5), the buy and sell tax paid on every swap in a launch's pool, including the anti-snipe surcharge of its first seconds of trading; the part of the tax that is burned in the launched token is excluded.",
+  Revenue: "Clanker protocol's cut: 20% of the creator LP fee charged on top of each swap. On Elysium (Clanker v5), the protocol's share of each swap's tax (10% of the tax, at least 0.5% and at most 1% of the trade), the anti-snipe surcharge, and dividend shares redirected to Clanker while no holder qualifies.",
+  ProtocolRevenue: "Clanker protocol's cut of swap fees (on Elysium also the anti-snipe surcharge and redirected dividend shares), minus the amount spent buying back CLANKER (negative when a buyback exceeds the period's revenue).",
   HoldersRevenue: "CLANKER tokens bought back and distributed to holders.",
-  SupplySideRevenue: "Token creator's LP rewards, claimable from the initial single-sided Uniswap v4 position.",
+  SupplySideRevenue: "Token creator's LP rewards, claimable from the initial single-sided Uniswap v4 position. On Elysium (Clanker v5), the creators' share of each swap's tax and the dividend share paid to holders of the launched token.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Swap Fees": "Total trading fees accrued in Clanker-deployed Uniswap v4 pools.",
+    "Swap Fees": "Total trading fees accrued in Clanker-deployed Uniswap v4 pools. On Elysium, the Clanker v5 tax on each swap in the pool's quote currency, from the hook's credit events.",
+    "Anti-Snipe Fees": "Surcharge on top of the normal Clanker v5 tax on swaps in the first 20 seconds of a launch's trading (Elysium).",
   },
   Revenue: {
-    "Swap Fees To Protocol": "Clanker protocol's 20% cut of LP fees, tracked via WETH received by Clanker fee wallets.",
+    "Swap Fees To Protocol": "Clanker protocol's 20% cut of LP fees, tracked via WETH received by Clanker fee wallets. On Elysium, the protocol's share of the Clanker v5 tax plus dividend shares redirected to the protocol (ProtocolFeeCredited and DividendTaxRedirected events).",
+    "Anti-Snipe Fees To Protocol": "All Clanker v5 anti-snipe surcharges, credited to Clanker's protocol fee recipient (Elysium).",
   },
   ProtocolRevenue: {
-    "Swap Fees To Protocol": "Clanker protocol's 20% cut of LP fees, tracked via WETH received by Clanker fee wallets.",
+    "Swap Fees To Protocol": "Clanker protocol's 20% cut of LP fees, tracked via WETH received by Clanker fee wallets. On Elysium, the protocol's share of the Clanker v5 tax plus dividend shares redirected to the protocol (ProtocolFeeCredited and DividendTaxRedirected events).",
+    "Anti-Snipe Fees To Protocol": "All Clanker v5 anti-snipe surcharges, credited to Clanker's protocol fee recipient (Elysium).",
   },
   HoldersRevenue: {
     "Token Buy Back": "CLANKER tokens bought back and sent to the buyback wallet.",
   },
   SupplySideRevenue: {
-    "Swap Fees To Creators": "Token creator's LP rewards, claimable from the initial single-sided Uniswap v4 position.",
+    "Swap Fees To Creators": "Token creator's LP rewards, claimable from the initial single-sided Uniswap v4 position. On Elysium, the creator reward slots' share of the Clanker v5 tax (CreatorTaxCredited events).",
+    "Swap Fees To Holder Dividends": "The dividend share of the Clanker v5 tax, paid through each launch's dividend contract to holders of that launched token, not CLANKER (Elysium).",
   },
 };
 
