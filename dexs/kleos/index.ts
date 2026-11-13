@@ -19,9 +19,13 @@ const V4_TAX_HOOK = "0x0c835e6A51717a514144d95c7F0a1C640179E0Cc";
 const PAIR_HOOK = "0x772AccB053609D361593345e361D2a6854Ede8cc"; // $KLEOS-paired launches
 const V5_FIRST_HOOK = "0xD5068e7f4e2D70d5eFbaC6fD28A8407252E1EAcC";
 
+// Where the scan for KleosSwap pools starts. The factory was deployed at block 4,173 and created its first pool at block
+// 8,075 (its PoolCreated logs on Elysium show none earlier), so 7,700 is before every pool.
+const KLEOSSWAP_FROM_BLOCK = 7700;
+
 async function fetch(options: FetchOptions) {
   const b = kleosBalances(options);
-  await addKleosSwap(options, b, { factory: KLEOSSWAP_FACTORY, fromBlock: 7700, whype: KLEOS_WHYPE, launchpads: LAUNCHPADS, positionManager: KLEOSSWAP_POSITION_MANAGER, treasury: KLEOS_TREASURY });
+  await addKleosSwap(options, b, { factory: KLEOSSWAP_FACTORY, fromBlock: KLEOSSWAP_FROM_BLOCK, whype: KLEOS_WHYPE, launchpads: LAUNCHPADS, positionManager: KLEOSSWAP_POSITION_MANAGER, treasury: KLEOS_TREASURY });
   await addTaxHook(options, b, V4_TAX_HOOK, KLEOS_POOL_MANAGER, "v4");
   await addTaxHook(options, b, PAIR_HOOK, KLEOS_POOL_MANAGER, "pair");
   await addTaxHook(options, b, V5_FIRST_HOOK, KLEOS_POOL_MANAGER, "v5");

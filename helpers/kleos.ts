@@ -1,5 +1,5 @@
 import { Balances } from "@defillama/sdk";
-import { AbiCoder, keccak256 } from "ethers";
+import { AbiCoder, id, keccak256 } from "ethers";
 import { FetchOptions } from "../adapters/types";
 
 // Kleos (https://thekleos.pro, https://x.com/TheKleos_) is a launchpad on Elysium. Every coin launches straight into a pool
@@ -35,8 +35,18 @@ export const KLEOS_LABEL = {
 const LABEL = KLEOS_LABEL;
 
 const NATIVE = "0x0000000000000000000000000000000000000000";
+// The $KLEOS token on Elysium: the `quote` of the $KLEOS-paired set in the app's deployment record
+// (https://github.com/aidaonsui-collab/flux, app/src/config/deployments/99901.json), and the coin on
+// https://thekleos.pro/token/0x51C343Ed5131F17895991849860B61C2cb0E7e7a.
 const KLEOS = "0x51c343ed5131f17895991849860b61c2cb0e7e7a";
 const BPS = 10_000n;
+/** A Uniswap pool's fee unit: hundredths of a basis point (pips), so 1,000,000 is the whole trade. Shares are in it too. */
+const PIPS = 1_000_000n;
+/**
+ * Pool ids asked for in one getLogs call. A PoolManager's Swap logs are filtered by pool id (topic 1); Elysium's nodes
+ * (Arbitrum Nitro) refuse a filter with more than 1,000 values in one topic, and 200 keeps each request small.
+ */
+const POOL_IDS_PER_CALL = 200;
 const lower = (a: string) => String(a).toLowerCase();
 const abs = (v: bigint) => (v < 0n ? -v : v);
 
@@ -46,7 +56,8 @@ const POOL_KEY_OF = "function poolKeyOf(address token) view returns ((address cu
 const PLAN_OF = "function planOf(address token) view returns ((address quote, bool burnsPlatformCut, uint256 buybackMin, (address token, uint16 bps, address pool, uint32 twapWindow, uint16 maxTickDeviation, uint256 minBatch)[2] rewards))";
 const BURNS_PLATFORM_CUT = "function burnsPlatformCut() view returns (bool)";
 const V4_SWAP = "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)";
-const V4_SWAP_TOPIC0 = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
+// The Swap event's topic 0, derived from V4_SWAP's signature (0x40e9cecb…7112f).
+const V4_SWAP_TOPIC0 = id("Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)");
 
 const V3_POOL_CREATED = "event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)";
 const V3_SWAP = "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)";
@@ -119,8 +130,10 @@ export async function addTaxHook(options: FetchOptions, b: KleosBalances, hook: 
   let burns: boolean[];
   if (kind === "v5") {
     // planOf stamps it per coin; an older hook whose Plan reads differently falls back to the one quote that burns it, $KLEOS.
+    // The quote is whichever currency of the pool isn't the coin (KleosV5Hook puts it first, but neither order is assumed).
     const plans = await options.api.multiCall({ target: hook, abi: PLAN_OF, calls: tokens, permitFailure: true });
-    burns = tokens.map((_t, i) => (plans[i] ? !!plans[i].burnsPlatformCut : lower(keys[i].currency0) === KLEOS));
+    const quoteOf = (i: number) => lower(lower(keys[i].currency1) === tokens[i] ? keys[i].currency0 : keys[i].currency1);
+    burns = tokens.map((_t, i) => (plans[i] ? !!plans[i].burnsPlatformCut : quoteOf(i) === KLEOS));
   } else if (kind === "pair") {
     const b0 = await options.api.call({ target: hook, abi: BURNS_PLATFORM_CUT });
     burns = tokens.map(() => !!b0);
@@ -172,8 +185,8 @@ export async function addTaxHook(options: FetchOptions, b: KleosBalances, hook: 
   // ---- volume: swaps in those coins' pools ----
   const ids = Object.keys(tokenOfPool);
   const swapLogs: any[] = [];
-  for (let i = 0; i < ids.length; i += 200) {
-    swapLogs.push(...await options.getLogs({ target: poolManager, eventAbi: V4_SWAP, topics: [V4_SWAP_TOPIC0, ids.slice(i, i + 200)] as any, onlyArgs: false }));
+  for (let i = 0; i < ids.length; i += POOL_IDS_PER_CALL) {
+    swapLogs.push(...await options.getLogs({ target: poolManager, eventAbi: V4_SWAP, topics: [V4_SWAP_TOPIC0, ids.slice(i, i + POOL_IDS_PER_CALL)] as any, onlyArgs: false }));
   }
   for (const swap of dedupeLogs(swapLogs)) {
     if (lower(swap.args.sender) === hook) continue; // the hook's own buyback & burn
@@ -249,8 +262,8 @@ export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg:
     const active = BigInt(s.args.liquidity);
     const tick = Number(s.args.tick);
     if (tick < launch.tickLower || tick >= launch.tickUpper || launch.liquidity === 0n) return 0n;
-    if (active <= launch.liquidity) return 1_000_000n;
-    return (launch.liquidity * 1_000_000n) / active;
+    if (active <= launch.liquidity) return PIPS;
+    return (launch.liquidity * PIPS) / active;
   };
 
   for (const s of swaps) {
@@ -259,14 +272,14 @@ export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg:
     const hype = BigInt(pool.whypeIs0 ? s.args.amount0 : s.args.amount1);
     // Volume before the fee, both ways: a buy's HYPE in already includes it; a sell's fee was taken in the coin, worth
     // fee / (1 - fee) of the HYPE it paid out, so it's added back.
-    const sellFee = hype < 0n ? (abs(hype) * pool.fee) / (1_000_000n - pool.fee) : 0n;
+    const sellFee = hype < 0n ? (abs(hype) * pool.fee) / (PIPS - pool.fee) : 0n;
     b.dailyVolume.addGasToken(abs(hype) + sellFee);
     const launch = launches[pool.coin];
     if (hype > 0n) {
-      const total = (hype * pool.fee) / 1_000_000n;
+      const total = (hype * pool.fee) / PIPS;
       b.dailyFees.addGasToken(total, LABEL.lpFees);
       // The launch position's part of the fee; the rest is other providers'.
-      const fee = launch ? (total * launchShare(launch, s)) / 1_000_000n : 0n;
+      const fee = launch ? (total * launchShare(launch, s)) / PIPS : 0n;
       b.dailySupplySideRevenue.addGasToken(total - fee, LABEL.toLps);
       if (!launch || fee === 0n) continue;
       const toCreatorSide = (fee * launch.creatorShareBps) / BPS;
@@ -282,7 +295,7 @@ export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg:
       // The fee was paid in the coin; it's worth fee / (1 - fee) of the HYPE the sell paid out.
       const total = sellFee;
       b.dailyFees.addGasToken(total, LABEL.lpFees);
-      const burned = launch ? (total * launchShare(launch, s)) / 1_000_000n : 0n;
+      const burned = launch ? (total * launchShare(launch, s)) / PIPS : 0n;
       b.dailySupplySideRevenue.addGasToken(burned, LABEL.coinSideBurned);
       b.dailySupplySideRevenue.addGasToken(total - burned, LABEL.toLps);
     }
