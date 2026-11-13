@@ -35,12 +35,11 @@ const adapter: Adapter = {
     [CHAIN.MANTA]: {
       fetch,
       start: '2023-12-31',
-      runAtCurrTime: true,
+      deadFrom: '2026-05-05',
     },
     [CHAIN.WEMIX]: {
       fetch,
       start: '2023-12-31',
-      runAtCurrTime: true,
     }
   },
 };
