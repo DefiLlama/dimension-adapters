@@ -3,6 +3,7 @@ import { CHAIN } from "../helpers/chains";
 import { fetchEvmChainMetricsFromOptions } from "../helpers/evmChainFees";
 import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { METRIC } from "../helpers/metrics";
+import { queryAllium } from "../helpers/allium";
 import { getTimestampAtStartOfDayUTC, getTimestampAtStartOfPreviousDayUTC } from "../utils/date";
 import { createFactoryExports } from "./registry";
 
@@ -91,29 +92,67 @@ function validatorFeesExport({ chain, start, rpcFrom, supplySideLabel, methodolo
 // back (0 until block 57,765,019 on 2025-12-12, 5% since) and pays the rest to validators. The FeeM treasury pays registered
 // apps their share and about once a day sends what is left to SFC.distributeExtraReward(epoch, true), which burns
 // extraRewardsBurnRatio (50%) of it and stashes the rest for validators (DistributedExtraRewards(epoch, received, distributed)).
-// The shares change rarely and are read at the window's opening block; the FeeM residual is counted when it is sent.
+// The shares are read at both ends of the window; the FeeM residual is counted when it is sent.
 // Daily, not hourly: the residual is a once-a-day batch, so an hourly window holding it would go deeply negative.
 const SONIC_SFC = '0xFC00FACE00000000000000000000000000000000';
 const SONIC_BURN_LABEL = 'Transaction Gas Fees Burned';
 const SONIC_FEEM_LABEL = 'Transaction Gas Fees To FeeM Apps';
 const SONIC_VALIDATORS_LABEL = 'Transaction Gas Fees To Validators';
+// the seal reads the shares when it runs, so the 5% burn applies from epoch 55544 (blocks after 57,764,774, from
+// 2025-12-12 12:25:55 UTC), the epoch open when burntFeeShare was set at block 57,765,019. The only share change so far
+const SONIC_BURN_FROM_BLOCK = 57_764_775;
 
-async function fetchSonicFees(options: FetchOptions) {
-  const dailyFees = await fetchTransactionFees(options);
+async function getSonicShares(api: FetchOptions['api']) {
   // full signatures, not 'address:...': the sdk caches 'address:' reads per contract across blocks, and both have changed
   // (ConstantsManager 0xe8D29F12... in 2025-12, 0xC7262D6C... now; FeeM treasury 0xB2B5879e... until 2025-04, 0x0B5f0731... now)
-  const [consts, feemTreasury] = await options.fromApi.batchCall([
+  const [consts, feemTreasury] = await api.batchCall([
     { target: SONIC_SFC, abi: 'function constsAddress() view returns (address)' },
     { target: SONIC_SFC, abi: 'function treasuryAddress() view returns (address)' },
   ]);
-  const [burnt, treasury] = await options.fromApi.batchCall([
+  const [burnt, treasury] = await api.batchCall([
     { target: consts, abi: 'uint256:burntFeeShare' },
     { target: consts, abi: 'uint256:treasuryFeeShare' },
   ]);
   const burntShare = Number(burnt) / 1e18;
   const treasuryShare = Number(treasury) / 1e18;
   if (!(burntShare >= 0 && treasuryShare >= 0 && burntShare + treasuryShare <= 1))
-    throw new Error(`sonic: invalid SFC fee shares at block ${options.fromApi.block}: burnt ${burnt}, treasury ${treasury}`);
+    throw new Error(`sonic: invalid SFC fee shares at block ${api.block}: burnt ${burnt}, treasury ${treasury}`);
+  return { feemTreasury, burntShare, treasuryShare };
+}
+
+async function fetchSonicFees(options: FetchOptions) {
+  const [open, close] = await Promise.all([getSonicShares(options.fromApi), getSonicShares(options.toApi)]);
+  const feemTreasury = open.feemTreasury;
+  // fees sealed at the opening shares, and at the closing shares when the window holds the burn start
+  let dailyFees, openFees;
+  const closeFees = options.createBalances();
+  const fromBlock = Number(options.fromApi.block), toBlock = Number(options.toApi.block);
+  if (fromBlock < SONIC_BURN_FROM_BLOCK && toBlock >= SONIC_BURN_FROM_BLOCK) {
+    const [res] = await queryAllium(`
+      SELECT
+        TO_VARCHAR(SUM(gas_price * receipt_gas_used)) AS tx_fees,
+        TO_VARCHAR(SUM(IFF(block_number >= ${SONIC_BURN_FROM_BLOCK}, gas_price * receipt_gas_used, 0))) AS close_fees
+      FROM sonic.raw.transactions
+      WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    `);
+    if (res?.tx_fees == null) throw new Error('[Pull fees transactions] Allium sonic.raw.transactions has no rows in the window');
+    dailyFees = options.createBalances();
+    dailyFees.addGasToken(res.tx_fees, METRIC.TRANSACTION_GAS_FEES);
+    openFees = options.createBalances();
+    openFees.addGasToken((BigInt(res.tx_fees) - BigInt(res.close_fees)).toString());
+    closeFees.addGasToken(res.close_fees);
+  } else {
+    if (open.burntShare !== close.burntShare || open.treasuryShare !== close.treasuryShare)
+      throw new Error(`sonic: SFC fee shares changed between blocks ${fromBlock} and ${toBlock}, find the epoch the new shares apply from`);
+    dailyFees = await fetchTransactionFees(options);
+    openFees = dailyFees;
+  }
+  const split = (share: (s: typeof open) => number, label: string) => {
+    const balances = openFees.clone(share(open), label);
+    balances.addBalances(closeFees.clone(share(close), label));
+    return balances;
+  };
 
   // every distributeExtraReward call on the SFC so far comes from the FeeM treasury (from 2025-12-16); keep only those
   const [feemTxs, extraRewards] = await Promise.all([
@@ -128,11 +167,11 @@ async function fetchSonicFees(options: FetchOptions) {
     residualBurned += BigInt(log.args.received) - BigInt(log.args.distributed);
   }
 
-  const dailyRevenue = dailyFees.clone(burntShare, SONIC_BURN_LABEL);
+  const dailyRevenue = split(s => s.burntShare, SONIC_BURN_LABEL);
   dailyRevenue.addGasToken(residualBurned, SONIC_BURN_LABEL);
-  const dailySupplySideRevenue = dailyFees.clone(treasuryShare, SONIC_FEEM_LABEL);
+  const dailySupplySideRevenue = split(s => s.treasuryShare, SONIC_FEEM_LABEL);
   dailySupplySideRevenue.addGasToken(-residual, SONIC_FEEM_LABEL);
-  dailySupplySideRevenue.addBalances(dailyFees.clone(1 - burntShare - treasuryShare, SONIC_VALIDATORS_LABEL));
+  dailySupplySideRevenue.addBalances(split(s => 1 - s.burntShare - s.treasuryShare, SONIC_VALIDATORS_LABEL));
   dailySupplySideRevenue.addGasToken(residual - residualBurned, SONIC_VALIDATORS_LABEL);
   return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue.clone(), dailyProtocolRevenue: 0, dailySupplySideRevenue };
 }
