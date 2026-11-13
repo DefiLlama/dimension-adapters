@@ -214,6 +214,7 @@ let usedHelper: string | null | undefined = null;
   const volumes: any = await runAdapter({
     module: adapterModule,
     endTimestamp,
+    runWindowInSeconds: windowSeconds,
     withMetadata: debugBreakdownFees,
     isTest: true,
     deadChains: deadChainsSet,
