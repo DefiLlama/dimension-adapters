@@ -57,6 +57,8 @@ dailyLiquidationVolume.addUSDValue(Number(log.size) / 1e30)
 
 If the protocol's event includes a USD value field (e.g. Compound V3 `AbsorbCollateral.usdValue`, GMX `LiquidatePosition.collateral` scaled by 1e30), use `balances.addUSDValue()` for accurate pricing during volatile periods. Otherwise use `balances.add(token, amount)` for token-denominated amounts.
 
+Check the field's unit first: it is in the protocol's oracle unit, which is not always USD. Compound V3 `usdValue` is in ETH, wstETH or BTC on the Comets whose base price feed is a constant 1 or WBTC / BTC (WETH, wstETH, WBTC markets); those values are added as base-token amounts.
+
 Liquidations often happen during price spikes/drops, so USD values from the event are preferred over token-denominated amounts when available.
 
 ## Shared Config

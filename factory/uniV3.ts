@@ -18,6 +18,14 @@ const slot0AverageRevenueRatio = ({ protocolFeeRatioToken0 = 0, protocolFeeRatio
   return { _revenueRatio: rate, _protocolRevenueRatio: rate }
 }
 
+// Kalos DEX: per-pool slot0().feeProtocol (1/N of the swap fee per token), switched to 5 (20% of the swap fee) on its
+// first pools on 2026-11-09 13:53 UTC (block 3,259,435); a pool whose feeProtocol cannot be read fails the run
+const kalosDexRevenueRatio = ({ protocolFeeRatioToken0, protocolFeeRatioToken1 }: UniGetRevenueRatioProps) => {
+  if (protocolFeeRatioToken0 === undefined || protocolFeeRatioToken1 === undefined) throw new Error('kalos-dex: slot0().feeProtocol unreadable')
+  const rate = (protocolFeeRatioToken0 + protocolFeeRatioToken1) / 2
+  return { _revenueRatio: rate, _protocolRevenueRatio: rate }
+}
+
 // https://docs.roninchain.com/apps/katana/swap-tokens
 const katanaV3RevenueRatio = ({ poolFeeTier }: UniGetRevenueRatioProps) => {
   if (poolFeeTier === 0.0001) return { _revenueRatio: 0.5, _protocolRevenueRatio: 0.5 } // 20% of fees
@@ -74,6 +82,18 @@ const kellerClCustomLogic = async ({ pairObject, dailyFees, fetchOptions, filter
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "pepu-v3": {
+    // Verified Uniswap V3 factory and pool source: https://pepuscan.com/api/v2/smart-contracts/0x5984B8BF2d4dB9C0aCB1d7924762e4474D80C807
+    // Deployed 2025-06-05: https://pepuscan.com/tx/0xf703800d13f6989b1abd1dbcd6dab89e4e5d4e573d9093ef6e6cb169f1bfd6a6
+    // volume only: fee split not documented
+    [CHAIN.PEPU]: { factory: "0x5984B8BF2d4dB9C0aCB1d7924762e4474D80C807", start: "2025-06-05", customLogic: volumeOnly },
+  },
+  "goldstation-dex-v3": {
+    // Factory and pool event interfaces: https://snowtrace.io/address/0xF72f4652785a5186EDF7b93a9cfd246FeFc0ef5c#code
+    // Deployed 2024-11-07: https://snowtrace.io/tx/0xcf087063687e100f3250fe6e200cc7d6aaa5f8257ef1641be6ed76bd4af452bf
+    // volume only: fee split not documented
+    [CHAIN.AVAX]: { factory: '0xF72f4652785a5186EDF7b93a9cfd246FeFc0ef5c', start: '2024-11-07', swapEvent: protocolFeesSwapEvent, customLogic: volumeOnly },
+  },
   "hydrex": {
     // Algebra Integral 1.2 factory, fees are tracked from Hydrex voter bribes in fees/hydrex
     [CHAIN.BASE]: { factory: '0x36077D39cdC65E1e3FB65810430E5b2c4D5fA29E', start: '2025-06-16', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV3SwapEvent, customLogic: volumeOnly },
@@ -394,6 +414,13 @@ const configs: Record<string, Record<string, any>> = {
       },
     },
   },
+  // Kalos DEX (https://www.kalos.fun): the canonical Uniswap V3 contracts, deployed unmodified by Kalos on Kinetiq Elysium.
+  // UniswapV3Factory created in block 915221 on 2026-11-05 (https://elysium.kinetiq.xyz/address/0x8C60243181370bDA9A7d1a45b1249A8263da0158),
+  // fee tiers 0.01%, 0.05%, 0.3% and 1%. The protocol share is collected to the Kalos revenue splitter
+  // 0xcA105395094Ceb27e6AfdA492c6379cBF468CDb8. Contracts: https://www.kalos.fun/learn/contracts
+  "kalos-dex": {
+    [CHAIN.ELYSIUM]: { factory: '0x8C60243181370bDA9A7d1a45b1249A8263da0158', start: '2026-11-05', userFeesRatio: 1, protocolRevenueRatio: 0, dynamicProtocolFees: true, getRevenueRatio: kalosDexRevenueRatio },
+  },
   "superswap-v3": {
     [CHAIN.OPTIMISM]: { factory: '0xe52a36Bb76e8f40e1117db5Ff14Bd1f7b058B720', userFeesRatio: 1, revenueRatio: 0.8, protocolRevenueRatio: 0.8 },
   },
@@ -658,6 +685,14 @@ const configs: Record<string, Record<string, any>> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "kalos-dex": {
+    Volume: "Swap volume of the Kalos DEX pools (Uniswap V3 pools created by the Kalos factory), from their Swap events, counted on one side of each swap.",
+    Fees: "Swap fees paid by traders in Kalos DEX pools, at the pool fee tier.",
+    UserFees: "Swap fees paid by traders in Kalos DEX pools, at the pool fee tier.",
+    Revenue: "The protocol share of the swap fees, set per pool (slot0().feeProtocol, 20% where Kalos switched it on), collected to the Kalos revenue splitter.",
+    ProtocolRevenue: "The protocol share of the swap fees, set per pool (slot0().feeProtocol, 20% where Kalos switched it on), collected to the Kalos revenue splitter. Referral rewards are not deducted: referral codes are kept off chain and one weekly payout covers every Kalos product, so they cannot be attributed to a product on chain.",
+    SupplySideRevenue: "The rest of the swap fees, earned by liquidity providers.",
+  },
   "hydrex": {
     Volume: "Value swapped across the Hydrex Integral (Algebra Integral) pools created by the Hydrex factory on Base, counting one side of each trade. Pools launched through custom deployers are not included.",
   },
@@ -1102,6 +1137,14 @@ protocols['somnex-v3'].adapter[CHAIN.SOMNIA].fetch = async (options: FetchOption
     cacheInCloud: true,
   })
   return getUniV3LogAdapter({ ...config, factory: undefined, pools: poolLogs.map(log => log.pool) })({ ...options, getLogs: getLogsSplitAtCap(options) })
+}
+
+protocols['kalos-dex'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': 'Swap fees paid by traders in Kalos DEX pools (fee tier 0.01%, 0.05%, 0.3% or 1%).' },
+  UserFees: { 'Trading fees': 'Swap fees paid by traders in Kalos DEX pools (fee tier 0.01%, 0.05%, 0.3% or 1%).' },
+  Revenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collected to the Kalos revenue splitter.' },
+  ProtocolRevenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collected to the Kalos revenue splitter.' },
+  SupplySideRevenue: { 'LP fees': 'The part of swap fees earned by liquidity providers.' },
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols)

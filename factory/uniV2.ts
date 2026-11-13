@@ -28,6 +28,73 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "bescswap": {
+    // Factory and 3/1000 pair invariant: https://explorer.beschyperchain.com/api?module=contract&action=getsourcecode&address=0x20EE72D1B7E36e97566f31761dfF14eDc35Fbf22
+    // Deployment 2025-08-25: https://explorer.beschyperchain.com/api/v2/addresses/0x20EE72D1B7E36e97566f31761dfF14eDc35Fbf22
+    // volume only: historical fee split not documented.
+    [CHAIN.BESC]: { factory: '0x20EE72D1B7E36e97566f31761dfF14eDc35Fbf22', start: '2025-08-25', fees: 0.003, customLogic: volumeOnly },
+  },
+  "sonefi-xyz": {
+    // V2 factory, pair swap event and 5/1000 invariant: https://soneium.blockscout.com/address/0x82d2d0aae77967d42acf4f30b53e2de0055338de?tab=contract
+    // Deployed 2025-01-07: https://soneium.blockscout.com/tx/0x0e9e0cced8e574ea223480991ca1e7d612927c49acad741a83aa5adbd4599296
+    // volume only: fee split not documented; feeTo is mutable.
+    [CHAIN.SONEIUM]: { factory: '0x82d2d0aAE77967d42ACf4F30B53e2de0055338De', start: '2025-01-07', fees: 0.005, customLogic: volumeOnly },
+  },
+  "latte": {
+    // Factory creates V2 pairs with a 25/10000 swap invariant: https://sourcify.dev/server/v2/contract/56/0x4dce5bdb81b8d5edb66ca1b8b2616a8e0dd5f807?fields=all
+    // volume only: historical fee split not documented; feeTo is mutable.
+    [CHAIN.BSC]: { factory: '0x4dce5bdb81b8d5edb66ca1b8b2616a8e0dd5f807', fees: 0.0025, customLogic: volumeOnly },
+  },
+  "pls2e": {
+    // V2 factory, pair swap invariant, and 3/1000 fee: https://sourcify.dev/server/v2/contract/56/0x0944ab692786d9104ae9a29778285c41c33c0415?fields=all
+    // volume only: historical fee split not documented; feeTo is mutable.
+    [CHAIN.BSC]: { factory: '0x0944ab692786d9104ae9a29778285c41c33c0415', fees: 0.003, customLogic: volumeOnly },
+  },
+  "lydia": {
+    // V2 factory, pair and 0.2% swap invariant; deployed at block 1160616 (2021-04-20 UTC): https://sourcify.dev/server/v2/contract/43114/0xe0c1bb6df4851feeedc3e14bd509feaf428f7655?fields=all
+    // volume only: fee split not documented; feeTo is mutable.
+    [CHAIN.AVAX]: { factory: '0xe0C1bb6DF4851feEEdc3E14Bd509FEAF428f7655', start: '2021-04-20', fees: 0.002, customLogic: volumeOnly },
+  },
+  "pacificswap": {
+    // Factory creates V2 pairs with a 2/1000 swap invariant: https://pacific-explorer.manta.network/address/0x19405689008954ccddbc8c7ef2b64dd88b4a674a?tab=contract
+    // Factory deployed 2023-10-07: https://pacific-explorer.manta.network/tx/0x387f58211555f7b6e35ff159c9148986c2834ffed8ede7a3ea02045281aced5c
+    // volume only: historical fee split not documented; feeTo can change.
+    [CHAIN.MANTA]: { factory: '0x19405689008954ccddbc8c7ef2b64dd88b4a674a', start: '2023-10-07', fees: 0.002, customLogic: volumeOnly },
+  },
+  "qomx": {
+    // V2 factory, 3/1000 pair invariant and deployment at block 110369670: https://sourcify.dev/server/v2/contract/56/0x356037CbC77B3A2B36E0484d96DF0De247e66785?fields=all
+    // volume only: fee split not documented; feeTo is mutable.
+    [CHAIN.BSC]: { factory: '0x356037CbC77B3A2B36E0484d96DF0De247e66785', start: '2026-07-16', fees: 0.003, customLogic: volumeOnly },
+  },
+  "cobraswap": {
+    // V2 pair creation and 3/1000 swap invariant; deployment block 9503477 (2021-07-26): https://sourcify.dev/server/v2/contract/56/0x3165d94dd2f71381495cb897832de02710a0dce5?fields=all
+    // volume only: historical fee split not documented; feeTo is mutable.
+    [CHAIN.BSC]: { factory: '0x3165d94dd2f71381495cb897832de02710a0dce5', start: '2021-07-26', fees: 0.003, customLogic: volumeOnly },
+  },
+  "shibanova": {
+    // V2 pair creation and 20/10000 swap invariant; factory deployed at block 9212526 on 2021-07-16:
+    // https://sourcify.dev/server/v2/contract/56/0x251912de998ec91dfdf67efbe032d6f4ab5ec485?fields=all
+    // volume only: historical fee split not documented; feeTo and feeAmount are mutable.
+    [CHAIN.BSC]: { factory: '0x251912de998ec91dfdf67efbe032d6f4ab5ec485', start: '2021-07-16', fees: 0.002, customLogic: volumeOnly },
+  },
+  "gassss": {
+    // Factory deployment and V2 pair's 3/1000 swap invariant: https://github.com/GASSSS-XYZ/swap/tree/5259b2f863a3fc88b2a81d6be543c5247356f13f
+    // volume only: feeTo can change, so the historical fee split is not established.
+    [CHAIN.STABLE]: { factory: '0x603EfDF29606BfB90f8f1068828c79cB2d5eD056', fees: 0.003, customLogic: volumeOnly },
+  },
+  "candycity": {
+    // V2 factory and 15/10000 swap invariant: https://sourcify.dev/server/v2/contract/25/0x84343b84eed78228ccfb65eadee7659f246023bf?fields=all
+    // volume only: feeTo is mutable and the historical fee split is not established.
+    [CHAIN.CRONOS]: { factory: '0x84343b84EEd78228CCFB65EAdEe7659F246023bf', fees: 0.0015, customLogic: volumeOnly },
+  },
+  "cafeswap": {
+    // Both factories create V2 pairs with a 2/1000 swap invariant:
+    // https://sourcify.dev/server/v2/contract/56/0x3e708fdbe3ada63fc94f8f61811196f1302137ad?fields=all
+    // https://sourcify.dev/server/v2/contract/137/0x5ede3f4e7203bf1f12d57af1810448e5db20f46c?fields=all
+    // volume only: historical fee split not documented; feeTo is mutable.
+    [CHAIN.BSC]: { factory: '0x3e708fdbe3ada63fc94f8f61811196f1302137ad', fees: 0.002, customLogic: volumeOnly },
+    [CHAIN.POLYGON]: { factory: '0x5ede3f4e7203bf1f12d57af1810448e5db20f46c', fees: 0.002, customLogic: volumeOnly },
+  },
   "narwhalswap": {
     // V2 pair creation and 3/1000 swap invariant: https://sourcify.dev/server/v2/contract/56/0xb9fa84912ff2383a617d8b433e926adf0dd3fea1?fields=all
     // volume only: fee split not documented; feeTo can be changed.
