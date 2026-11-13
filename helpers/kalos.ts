@@ -44,8 +44,36 @@ const KALOS_UNIVERSAL_ROUTER = '0x6739E3cE3705719cFfCf76f6acdB06b4aceb8B5e'; // 
 // 0x's Settler deployer/registry (same address on every chain): ownerOf(2) is the current taker-submitted Settler and
 // prev(2) the one it replaced. 0x replaces its Settler from time to time, so the Settlers are read at the window's end.
 const ZEROX_SETTLER_REGISTRY = '0x00000000000004533Fe15556B1E086BB1A72cEae';
-// Settlers that Kalos trades went through (registry ownerOf(2) since block 295,134 and since block 3,115,979)
-const KNOWN_SETTLERS = ['0xDe4537EcED4bf8AFBA09dd4f4eBEEf6De3B17714', '0xB2766443c2f92FBE579F057593802737BC88F591'];
+// Settlers that Kalos trades went through (registry ownerOf(2) since block 295,134, since block 3,115,979, and the
+// 0x-settler c3fb541 build that replaced it)
+const KNOWN_SETTLERS = [
+  '0xDe4537EcED4bf8AFBA09dd4f4eBEEf6De3B17714',
+  '0xB2766443c2f92FBE579F057593802737BC88F591',
+  '0x871751aA324B9a148961302a4C1316084862C0B7',
+];
+
+// Receipts are fetched a few at a time, retried with back-off: a busy hour has a few hundred Kalos trades and the public
+// Elysium RPC answers bursts of getTransactionReceipt with HTTP 429 (getTxReceipts alone asks 20 at once)
+const RECEIPT_BATCH = 3;
+const RECEIPT_ATTEMPTS = 6;
+
+/** Receipts of `hashes`, in order, fetched a few at a time with exponential back-off on RPC errors */
+async function getReceipts(chain: string, hashes: string[]): Promise<any[]> {
+  const receipts: any[] = [];
+  for (let i = 0; i < hashes.length; i += RECEIPT_BATCH) {
+    const batch = hashes.slice(i, i + RECEIPT_BATCH);
+    for (let attempt = 1; ; attempt++) {
+      try {
+        receipts.push(...await getTxReceiptsWithRetry(chain, batch));
+        break;
+      } catch (error) {
+        if (attempt >= RECEIPT_ATTEMPTS) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt));
+      }
+    }
+  }
+  return receipts;
+}
 
 const TransferEvent = 'event Transfer(address indexed from, address indexed to, uint256 value)';
 // Swap events of the venues a Kalos trade can go through, used to tell Kalos DEX-only trades from routed ones
@@ -86,10 +114,17 @@ async function getRouters(options: FetchOptions, senders: string[]): Promise<Rec
   // only ask 0x's registry when a transfer to the splitter came from a sender that is not a known router
   // (a Settler newer than KNOWN_SETTLERS, or a non-trade fee such as a KalosMarket offer fee)
   if (senders.every((sender) => routers[sender])) return routers;
-  const settlers = await options.toApi.batchCall([
-    { target: ZEROX_SETTLER_REGISTRY, abi: 'function ownerOf(uint256) view returns (address)', params: [2] },
-    { target: ZEROX_SETTLER_REGISTRY, abi: 'function prev(uint128) view returns (address)', params: [2] },
-  ]);
+  // KalosMarket fees paid in WHYPE come from the buyer, so most hours ask; a refused call (the public Elysium RPC answers
+  // bursts with HTTP 429) keeps KNOWN_SETTLERS rather than failing the whole hour
+  let settlers: string[] = [];
+  try {
+    settlers = await options.toApi.batchCall([
+      { target: ZEROX_SETTLER_REGISTRY, abi: 'function ownerOf(uint256) view returns (address)', params: [2] },
+      { target: ZEROX_SETTLER_REGISTRY, abi: 'function prev(uint128) view returns (address)', params: [2] },
+    ]);
+  } catch {
+    return routers;
+  }
   settlers.forEach((settler: string) => {
     if (settler && settler !== ADDRESSES.null) routers[settler.toLowerCase()] = 'zerox';
   });
@@ -119,7 +154,7 @@ export async function getKalosTradeFees(options: FetchOptions): Promise<KalosTra
   const hashes = [...new Set(feeLogs.map((log: any) => String(log.transactionHash).toLowerCase()))];
   if (!hashes.length) return [];
 
-  const receipts = await getTxReceiptsWithRetry(options.chain, hashes);
+  const receipts = await getReceipts(options.chain, hashes);
   const receiptByHash: Record<string, any> = {};
   hashes.forEach((hash, i) => {
     if (!receipts[i]) throw new Error(`kalos: receipt ${hash} not found`);
