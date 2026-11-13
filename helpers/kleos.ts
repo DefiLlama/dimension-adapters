@@ -1,4 +1,4 @@
-import { Balances } from "@defillama/sdk";
+import { Balances, ChainApi } from "@defillama/sdk";
 import { AbiCoder, id, keccak256 } from "ethers";
 import { FetchOptions } from "../adapters/types";
 
@@ -221,7 +221,7 @@ export async function addTaxHook(options: FetchOptions, b: KleosBalances, hook: 
  * window's first and last block (Uniswap v3's feeGrowthInside, from feeGrowthGlobal and the two edge ticks' feeGrowthOutside).
  * That is exact however many ticks a trade crosses, where a ratio taken from a Swap log's one `liquidity` figure is not. Its
  * HYPE side (buys' fees) is split as the launch says; its coin side (sells' fees) is burned when collected, valued here at
- * the HYPE those sells paid out. The rest, and every fee on a pool that isn't a launch, goes to the pool's other liquidity
+ * the window's sells' own prices (the coin has no price feed; see the note where it's computed). The rest, and every fee on a pool that isn't a launch, goes to the pool's other liquidity
  * providers.
  *
  * The platform's 10% of the LP fees outside providers collect through Kleos's page (`treasury` as a pool Collect's recipient)
@@ -277,7 +277,7 @@ export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg:
    * These pools' fee growth inside their launch ranges, per token, at `api`'s block. No read may fail quietly: a missing
    * figure would be scored as a whole history of fees, so a failed read fails the run and it is tried again.
    */
-  const insideAt = async (api: FetchOptions["api"], at: string[]) => {
+  const insideAt = async (api: ChainApi, at: string[]) => {
     if (!at.length) return [];
     const edges = at.flatMap((p) => {
       const l = launches[pools[p].coin]!;
@@ -303,7 +303,11 @@ export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg:
   // A coin launched inside the window has no pool at the window's first block: its launch range's growth started at 0
   // (the launch mints the pool's first position, so its edge ticks start with nothing inside them).
   const older = launchPools.filter((p) => launches[pools[p].coin]!.createdAt < options.fromTimestamp);
-  const insideOlder = await insideAt(options.fromApi, older);
+  // The window's logs run from its first block to its last, both included, so the starting figure is the state before the
+  // first block: the block before it, which is the previous window's last. (`options.fromApi` reads after the first block,
+  // and would leave that block's fees out of every window.)
+  const before = new ChainApi({ chain: options.chain, block: (await options.getFromBlock()) - 1 });
+  const insideOlder = await insideAt(before, older);
   const insideTo = await insideAt(options.toApi, launchPools);
   const insideFrom: Record<string, readonly [bigint, bigint]> = {};
   older.forEach((p, i) => (insideFrom[p] = insideOlder[i]));
@@ -343,6 +347,10 @@ export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg:
     const earned = launchEarned[address] ?? { hype: 0n, coin: 0n };
     // Never more than the pool took in: the swaps' fees are rounded a wei at a time, the position's are not.
     const fee = least(earned.hype, sum.hype);
+    // The coin side is an amount of the coin, which has no price here. It's valued at the window's own sells: the
+    // launch position's part of the coin fees, times the HYPE value of all of them (each sell's fee at that sell's
+    // price). An approximation when the position's share and the price both move between sells in one window (an
+    // hour): it shifts value between "burned" and other providers' fees only, never the totals or the revenue.
     const burned = sum.coin > 0n ? (sum.coinAsHype * least(earned.coin, sum.coin)) / sum.coin : 0n;
     b.dailyFees.addGasToken(sum.hype + sum.coinAsHype, LABEL.lpFees);
     b.dailySupplySideRevenue.addGasToken(sum.hype - fee + sum.coinAsHype - burned, LABEL.toLps);
