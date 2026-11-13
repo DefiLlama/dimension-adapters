@@ -1,6 +1,11 @@
 import { FetchOptions, SimpleAdapter, Dependencies, FetchV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql, getSqlFromFile } from "../helpers/dune";
+import ADDRESSES from "../helpers/coreAssets.json";
+
+// coingecko:matic-network has no price after 2025-10-17, and the POL keys only start 2023-10-25,
+// so MaticX rewards (MATIC, then POL 1:1) are priced via polygon WPOL, which covers the whole range
+const MATICX_PRICE_KEY = `${CHAIN.POLYGON}:${ADDRESSES.polygon.WMATIC_2}`;
 
 // https://staderlabs.notion.site/Introducing-SD-1160c9a4217d477eaafb963e21f90aba
 // stader do buy back using 20% of the revenue generated in the respective quarters
@@ -17,7 +22,7 @@ const fetchEthereum: FetchV2 = async (options: FetchOptions) => {
       "event DistributeFees(address indexed _treasury, uint256 _feeAmount)",
   });
   logsFees.map((e) => {
-    dailyMaticXRev.addCGToken("matic-network", Number(e._feeAmount) / 1e18);
+    dailyMaticXRev.addTokenVannila(MATICX_PRICE_KEY, e._feeAmount);
   });
 
   const logs = await options.getLogs({
@@ -26,7 +31,7 @@ const fetchEthereum: FetchV2 = async (options: FetchOptions) => {
       "event StakeRewards(uint256 indexed _validatorId, uint256 _stakedAmount)",
   });
   logs.map((e) => {
-    dailyMaticXFees.addCGToken("matic-network", Number(e._stakedAmount) / 1e18);
+    dailyMaticXFees.addTokenVannila(MATICX_PRICE_KEY, e._stakedAmount);
   });
   dailyMaticXFees.addBalances(dailyMaticXRev); // StakeRewards excludes stader revenue
 
