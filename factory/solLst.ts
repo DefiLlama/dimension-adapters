@@ -24,6 +24,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getSqlFromFile, queryDuneSql } from "../helpers/dune";
 import { METRIC } from "../helpers/metrics";
+import { decodeStakePool, getAccountBuffer } from "../helpers/solana";
 import ADDRESSES from "../helpers/coreAssets.json";
 import { createFactoryExports } from "./registry";
 
@@ -575,7 +576,7 @@ const configs: Record<string, SolLstConfig> = {
     returnDailyHoldersRevenue: 0,
     methodology: {
       Fees: "Staking rewards from staked SOL on doublezero staked solana, plus the withdrawal fees users pay on their principal",
-      Revenue: "Includes withdrawal fees and management fees collected by fee collector",
+      Revenue: "Includes withdrawal fees and management fees collected by fee collector, in dzSOL valued at the stake pool's SOL exchange rate from 2026-10-19",
       ProtocolRevenue: "Revenue going to treasury/team",
       HoldersRevenue: "No revenue share to 2Z token holders.",
     },
@@ -968,11 +969,27 @@ const configs: Record<string, SolLstConfig> = {
 // doublezero-staked-sol: has a conditional revenue cgId based on timestamp
 // We need to override the generated fetch to handle this
 const doublezeroOriginalConfig = configs["doublezero-staked-sol"];
+// SPL stake pool whose pool_mint is dzSOL and manager_fee_account is lstFeeTokenAccount above, verified on-chain 2026-11-13
+const DOUBLEZERO_STAKE_POOL = "3fV1sdGeXaNEZj6EPDTpub82pYxcRXwt2oie6jkSzeWi";
+// The coingecko dzSOL feed stopped updating on 2026-10-19 (last_updated 2026-10-19T09:00:52Z), which zeroed revenue.
+// From that day dzSOL is converted to SOL with the pool exchange rate total_lamports / pool_token_supply, like
+// save-staked-sol. The rate is the current one, so refills overstate old days slightly (it grows ~7% a year).
+const DZSOL_PRICE_DEAD_FROM = 1792368000; // 2026-10-19
+
+async function getDzSolExchangeRate(): Promise<number> {
+  const data = await getAccountBuffer({ account: DOUBLEZERO_STAKE_POOL });
+  if (!data) throw new Error(`doublezero-staked-sol: stake pool account ${DOUBLEZERO_STAKE_POOL} not found`);
+  const { totalLamports, poolTokenSupply } = decodeStakePool(data);
+  if (!Number(poolTokenSupply)) throw new Error("doublezero-staked-sol: stake pool has no supply");
+  return Number(totalLamports) / Number(poolTokenSupply);
+}
+
 const doublezeroAdapter = (() => {
   const baseCfg = { ...doublezeroOriginalConfig };
 
   const fetch = async (options: FetchOptions) => {
-    const revenueToken = options.startTimestamp > 1759735276 ? "doublezero-staked-sol" : "solana";
+    const usePoolRate = options.startTimestamp >= DZSOL_PRICE_DEAD_FROM;
+    const revenueToken = usePoolRate || options.startTimestamp <= 1759735276 ? "solana" : "doublezero-staked-sol";
 
     const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
       start: options.startTimestamp,
@@ -984,7 +1001,10 @@ const doublezeroAdapter = (() => {
       exclude_mints_filter: baseCfg.excludeMintsForRevenue ? "AND action!='mint'" : "",
     });
 
-    const results = await queryDuneSql(options, query);
+    const [results, dzSolToSol] = await Promise.all([
+      queryDuneSql(options, query),
+      usePoolRate ? getDzSolExchangeRate() : 1,
+    ]);
 
     const dailyFees = options.createBalances();
     const dailyRevenue = options.createBalances();
@@ -993,9 +1013,9 @@ const doublezeroAdapter = (() => {
       if (row.metric_type === "dailyFees" || row.metric_type === "dailyMevRewards") {
         dailyFees.addCGToken("solana", row.amount || 0, row.metric_type === "dailyMevRewards" ? METRIC.MEV_REWARDS : METRIC.STAKING_REWARDS);
       } else if (row.metric_type === "dailyRevenue") {
-        dailyRevenue.addCGToken(revenueToken, row.amount || 0);
+        dailyRevenue.addCGToken(revenueToken, (row.amount || 0) * dzSolToSol);
       } else if (row.metric_type === "dailyUserFees") {
-        dailyFees.addCGToken(revenueToken, row.amount || 0);
+        dailyFees.addCGToken(revenueToken, (row.amount || 0) * dzSolToSol);
       }
     });
 
