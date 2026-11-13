@@ -11,9 +11,8 @@ import { CHAIN } from "./chains";
 import { getEnv } from "./env";
 import { BuilderAddressConfig, CoinGeckoMaps, getUnitDeployedCoins, LLAMA_HL_INDEXER_FROM_TIME } from "./hyperliquid";
 
-// Daily summaries from the /v2 routes of the DefiLlama Hyperliquid indexer, documented at
-// https://hl-indexer.llama.rip/llms.txt. The indexer sums the 24 hourly rows of a UTC day itself,
-// replacing the client-side summing of /v1/data/hourly in queryHyperliquidIndexer.
+// Daily summaries from the /v2 routes of the DefiLlama Hyperliquid indexer. The indexer sums the 24 hourly
+// rows of a UTC day itself, replacing the client-side summing of /v1/data/hourly in queryHyperliquidIndexer.
 
 type TokenMap = Record<string, number>;
 
