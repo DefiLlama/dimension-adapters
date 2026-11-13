@@ -1,3 +1,4 @@
+import { Balances } from "@defillama/sdk";
 import { AbiCoder, keccak256 } from "ethers";
 import { FetchOptions } from "../adapters/types";
 
@@ -69,9 +70,20 @@ const poolId = (k: any) =>
   lower(keccak256(AbiCoder.defaultAbiCoder().encode(["address", "address", "uint24", "int24", "address"], [k.currency0, k.currency1, k.fee, k.tickSpacing, k.hooks])));
 
 export type KleosBalances = {
-  dailyVolume: any; dailyFees: any; dailyRevenue: any; dailyProtocolRevenue: any; dailyHoldersRevenue: any; dailySupplySideRevenue: any;
+  dailyVolume: Balances;
+  dailyFees: Balances;
+  dailyRevenue: Balances;
+  dailyProtocolRevenue: Balances;
+  dailyHoldersRevenue: Balances;
+  dailySupplySideRevenue: Balances;
 };
 
+/**
+ * The six balances a Kleos adapter fills, each empty: volume; fees (taxes and LP fees traders pay, also reported as user
+ * fees); revenue (the platform's cut, kept or burned); protocol revenue (the part the platform keeps); holders revenue
+ * (the platform's cut on $KLEOS-paired coins, burned); and supply-side revenue (creators, coin holders, buybacks, the
+ * Road to Core fund and liquidity providers).
+ */
 export function kleosBalances(options: FetchOptions): KleosBalances {
   return {
     dailyVolume: options.createBalances(),
@@ -83,7 +95,7 @@ export function kleosBalances(options: FetchOptions): KleosBalances {
   };
 }
 
-const addAsset = (balances: any, asset: string, amount: bigint, label?: string) => {
+const addAsset = (balances: Balances, asset: string, amount: bigint, label?: string) => {
   if (amount === 0n) return;
   if (asset === NATIVE) balances.addGasToken(amount, label);
   else balances.add(asset, amount, label);
@@ -125,6 +137,16 @@ export async function addTaxHook(options: FetchOptions, b: KleosBalances, hook: 
     tokenOfPool[id] = token;
   });
 
+  // Each buy's tax, by transaction and coin, in log order: a buy's Swap amount is net of it (volume below).
+  const buyTaxes = new Map<string, bigint[]>();
+  for (const log of taxed) {
+    if (!log.args.buy) continue;
+    const key = `${lower(log.transactionHash)}|${lower(log.args.token)}`;
+    const list = buyTaxes.get(key) ?? [];
+    list.push(BigInt(log.args.tax));
+    buyTaxes.set(key, list);
+  }
+
   // ---- fees: every tax, split as the coin's taxOf says ----
   for (const log of taxed) {
     const { quote, tax: t, burns: burnsCut } = info[lower(log.args.token)];
@@ -159,8 +181,14 @@ export async function addTaxHook(options: FetchOptions, b: KleosBalances, hook: 
     if (!token) continue;
     const { quote, quoteIs0, tax: t } = info[token];
     const amount = BigInt(quoteIs0 ? swap.args.amount0 : swap.args.amount1);
-    // The swapper's delta: negative quote = a buy, paying quote net of the tax taken before the swap.
-    const gross = amount < 0n ? (abs(amount) * BPS) / (BPS - BigInt(t.buyBps)) : amount;
+    // The swapper's delta: negative quote = a buy, paying quote net of the tax taken before the swap. Its gross is that
+    // plus the tax its own Taxed log charged in the same transaction; the coin's rate now (a creator can lower it) is
+    // only the fallback for a buy whose log isn't in the window.
+    let gross = amount;
+    if (amount < 0n) {
+      const charged = buyTaxes.get(`${lower(swap.transactionHash)}|${token}`)?.shift();
+      gross = charged !== undefined ? abs(amount) + charged : (abs(amount) * BPS) / (BPS - BigInt(t.buyBps));
+    }
     addAsset(b.dailyVolume, quote, gross);
   }
 }
@@ -229,7 +257,10 @@ export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg:
     const pool = pools[lower(s.address)];
     // The pool's delta: positive WHYPE = HYPE paid in (a buy), negative = HYPE paid out (a sell).
     const hype = BigInt(pool.whypeIs0 ? s.args.amount0 : s.args.amount1);
-    b.dailyVolume.addGasToken(abs(hype));
+    // Volume before the fee, both ways: a buy's HYPE in already includes it; a sell's fee was taken in the coin, worth
+    // fee / (1 - fee) of the HYPE it paid out, so it's added back.
+    const sellFee = hype < 0n ? (abs(hype) * pool.fee) / (1_000_000n - pool.fee) : 0n;
+    b.dailyVolume.addGasToken(abs(hype) + sellFee);
     const launch = launches[pool.coin];
     if (hype > 0n) {
       const total = (hype * pool.fee) / 1_000_000n;
@@ -249,7 +280,7 @@ export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg:
       b.dailyProtocolRevenue.addGasToken(toPlatform, LABEL.toPlatform);
     } else if (hype < 0n) {
       // The fee was paid in the coin; it's worth fee / (1 - fee) of the HYPE the sell paid out.
-      const total = (abs(hype) * pool.fee) / (1_000_000n - pool.fee);
+      const total = sellFee;
       b.dailyFees.addGasToken(total, LABEL.lpFees);
       const burned = launch ? (total * launchShare(launch, s)) / 1_000_000n : 0n;
       b.dailySupplySideRevenue.addGasToken(burned, LABEL.coinSideBurned);
