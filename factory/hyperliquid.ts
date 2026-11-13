@@ -33,9 +33,9 @@ const superxConfig: BuilderConfig = {
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
   "stratidex": {
-    // StratiDex (https://stratidex.io, https://x.com/StratiDex), a Telegram bot (https://t.me/stratidex_bot) for trading
-    // Hyperliquid perps, HIP-3 markets included, with copy trading. Its orders carry this builder code on top of
-    // Hyperliquid's own fees.
+    // StratiDex (https://stratidex.io, https://x.com/StratiDex), a Telegram trading bot (https://t.me/stratidex_bot) for
+    // Hyperliquid perps, HIP-3 markets included, with a copy wallet that copies Hyperliquid traders. Its orders carry
+    // this builder code on top of Hyperliquid's own fees.
     // Verifiable: the builder field of StratiDex orders; the address's Hyperliquid `referral` state (referrer code
     // STRATIDEXBOT, builderRewards).
     addresses: ["0x9b15e2bf6f85c5a7120a53d92a2166be8dacae96"],
