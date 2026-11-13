@@ -1139,6 +1139,11 @@ const configs: Record<string, Record<string, any>> = {
     // PancakeSwap-v2 fork: 0.25% swap fee; no documented protocol take, all fees to LPs
     [CHAIN.BSC]: { factory: '0x2Af5c23798FEc8E433E11cce4A8822d95cD90565', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0 },
   },
+  "fstswap": {
+    // Uniswap-V2 fork, 0.3% swap fee and feeTo-gated _mintFee (verified source: https://sourcify.dev/server/v2/contract/56/0x9a272d734c5a0d7d84e0a892e891a553e8066dce)
+    // feeTo is mutable and its history is unverified, so report volume only until the revenue split is established
+    [CHAIN.BSC]: { factory: '0x9a272d734c5a0d7d84e0a892e891a553e8066dce', start: '2021-12-23', fees: 0.003, customLogic: volumeOnly },
+  },
   "swapbased-v2": {
     // 0.30% swap fee: 0.25% to LPs, 0.05% to the treasury
     [CHAIN.BASE]: { factory: '0x04C9f118d21e8B767D2e50C946f0cC9F6C367300', start: '2023-07-28', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
@@ -1191,6 +1196,9 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "fstswap": {
+    Volume: "Swap volume from all FstSwap V2 pairs deployed by the FstSwap factory on BNB Smart Chain.",
+  },
   "bitblocks-finance-v2": {
     Volume: 'Volume is derived from Swap events emitted by BitBlocks Finance V2 pairs on BNB Smart Chain.',
     Fees: 'Traders pay a 0.25% fee on every V2 swap.',
