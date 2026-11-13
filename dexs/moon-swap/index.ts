@@ -38,6 +38,7 @@ const adapter: SimpleAdapter = {
   methodology: {
     Volume: "Daily swap volume in USD from the MoonSwap dashboard API.",
   },
+  deadFrom: '2026-09-11'
 };
 
 export default adapter;
