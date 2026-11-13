@@ -5,9 +5,11 @@ import { FetchOptions } from "../adapters/types";
 // that holds all of its supply, with the liquidity locked forever. Two kinds of venue:
 //
 // - Classic launches trade on KleosSwap, Kleos's own Uniswap v3-style DEX (factory 0x809ff799…), in pools against Kleos's
-//   wrapped HYPE. The pool's 1% LP fee belongs to the launchpad, which owns every launch's position: the HYPE side is split
-//   between the coin's creator (creatorShareBps, part of it possibly set aside for buyback & burn of the coin), the Road to Core
-//   fund (coreBpsOf) and the platform; the coin side is burned (FluxLaunchpad.collectFees).
+//   wrapped HYPE. The launchpad owns every launch's position (locked), whose share of the pool's 1% LP fee is split: the HYPE
+//   side between the coin's creator (creatorShareBps, part of it possibly set aside for buyback & burn of the coin), the Road
+//   to Core fund (coreBpsOf) and the platform; the coin side is burned (FluxLaunchpad.collectFees). Since 2026-11-13 anyone can
+//   add liquidity to these pools too (thekleos.pro/liquidity): their share of the fee is theirs, less the 10% of it the
+//   platform keeps when they collect through Kleos's page.
 // - Taxed launches trade in Uniswap v4 pools whose hook charges a buy / sell tax set by the creator (1-10%) in the pool's pair
 //   asset (HYPE, $KLEOS, KNTQ, tokenized stocks…). Every Kleos tax hook (KleosTaxHook, KleosPairHook, KleosV5Hook) splits it
 //   the same way and logs it as Taxed: platformBps of it to the platform (or burned, for a pair asset whose platform cut burns,
@@ -27,6 +29,7 @@ export const KLEOS_LABEL = {
   toCoreFund: "Fees To Road To Core Fund",
   coinSideBurned: "Coin-Side LP Fees Burned",
   toLps: "LP Fees To Liquidity Providers",
+  lpInterfaceFee: "Kleos Share Of LP Fees Collected",
 };
 const LABEL = KLEOS_LABEL;
 
@@ -46,6 +49,8 @@ const V4_SWAP_TOPIC0 = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94d
 
 const V3_POOL_CREATED = "event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)";
 const V3_SWAP = "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)";
+const V3_COLLECT = "event Collect(address indexed owner, address recipient, int24 indexed tickLower, int24 indexed tickUpper, uint128 amount0, uint128 amount1)";
+const NPM_POSITIONS = "function positions(uint256 tokenId) view returns (uint96 nonce, address operator, address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128, uint128 tokensOwed0, uint128 tokensOwed1)";
 const GET_LAUNCH = "function getLaunch(address token) view returns ((address creator, uint64 createdAt, uint64 createdBlock, bool tokenIsToken0, uint16 creatorShareBps, uint16 buybackBps, uint64 windowEndsAt, address pool, uint256 positionId, int24 tickLower, int24 tickUpper, uint256 startMarketCap))";
 const CORE_BPS_OF = "function coreBpsOf(address token) view returns (uint16)";
 
@@ -162,10 +167,15 @@ export async function addTaxHook(options: FetchOptions, b: KleosBalances, hook: 
 
 /**
  * KleosSwap pools against Kleos's wrapped HYPE: volume on the HYPE leg, and the pool's LP fee. On a launchpad coin's pool the
- * launchpad owns the liquidity: a buy's fee (paid in HYPE) is split as the launch says; a sell's (paid in the coin) is burned
- * when collected, valued here at the HYPE the sell paid out. On any other pool the fee goes to its liquidity providers.
+ * launch's locked position earns its share of each trade's fee: its liquidity over the pool's active liquidity after the trade
+ * (the Swap log's `liquidity`), when the price is inside its range. That share of a buy's fee (paid in HYPE) is split as the
+ * launch says; of a sell's (paid in the coin) it's burned when collected, valued here at the HYPE the sell paid out. The rest,
+ * and every fee on a pool that isn't a launch, goes to the pool's other liquidity providers.
+ *
+ * The platform's 10% of the LP fees outside providers collect through Kleos's page (`treasury` as a pool Collect's recipient)
+ * is revenue, moved out of what those providers were counted to earn. Only its HYPE side: the coin side isn't priced.
  */
-export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg: { factory: string; fromBlock: number; whype: string; launchpads: string[] }) {
+export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg: { factory: string; fromBlock: number; whype: string; launchpads: string[]; positionManager: string; treasury: string }) {
   const whype = lower(cfg.whype);
   const created = await options.getLogs({ target: cfg.factory, eventAbi: V3_POOL_CREATED, fromBlock: cfg.fromBlock, cacheInCloud: true });
   const pools: Record<string, { coin: string; whypeIs0: boolean; fee: bigint }> = {};
@@ -181,7 +191,8 @@ export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg:
 
   const active = [...new Set(swaps.map((s: any) => lower(s.address)))];
   const coins = active.map((p) => pools[p].coin);
-  const launches: Record<string, { creatorShareBps: bigint; buybackBps: bigint; coreBps: bigint } | null> = {};
+  type Launch = { creatorShareBps: bigint; buybackBps: bigint; coreBps: bigint; positionId: string; tickLower: number; tickUpper: number; liquidity: bigint };
+  const launches: Record<string, Launch | null> = {};
   for (const lp of cfg.launchpads) {
     const [ls, cores] = await Promise.all([
       options.api.multiCall({ target: lp, abi: GET_LAUNCH, calls: coins, permitFailure: true }),
@@ -190,9 +201,29 @@ export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg:
     coins.forEach((coin, i) => {
       const l = ls[i];
       if (launches[coin] || !l || lower(l.creator) === NATIVE) return;
-      launches[coin] = { creatorShareBps: BigInt(l.creatorShareBps), buybackBps: BigInt(l.buybackBps), coreBps: BigInt(cores[i] ?? 0) };
+      launches[coin] = {
+        creatorShareBps: BigInt(l.creatorShareBps),
+        buybackBps: BigInt(l.buybackBps),
+        coreBps: BigInt(cores[i] ?? 0),
+        positionId: String(l.positionId),
+        tickLower: Number(l.tickLower),
+        tickUpper: Number(l.tickUpper),
+        liquidity: 0n,
+      };
     });
   }
+  // Each launch position's liquidity (locked, so it doesn't change).
+  const withLaunch = Object.values(launches).filter((l): l is Launch => !!l);
+  const positions = await options.api.multiCall({ target: cfg.positionManager, abi: NPM_POSITIONS, calls: withLaunch.map((l) => l.positionId), permitFailure: true });
+  withLaunch.forEach((l, i) => (l.liquidity = positions[i] ? BigInt(positions[i].liquidity) : 0n));
+  /** The launch position's share of a trade's fee, in millionths: its liquidity over the active liquidity, while in range. */
+  const launchShare = (launch: Launch, s: any) => {
+    const active = BigInt(s.args.liquidity);
+    const tick = Number(s.args.tick);
+    if (tick < launch.tickLower || tick >= launch.tickUpper || launch.liquidity === 0n) return 0n;
+    if (active <= launch.liquidity) return 1_000_000n;
+    return (launch.liquidity * 1_000_000n) / active;
+  };
 
   for (const s of swaps) {
     const pool = pools[lower(s.address)];
@@ -201,9 +232,12 @@ export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg:
     b.dailyVolume.addGasToken(abs(hype));
     const launch = launches[pool.coin];
     if (hype > 0n) {
-      const fee = (hype * pool.fee) / 1_000_000n;
-      b.dailyFees.addGasToken(fee, LABEL.lpFees);
-      if (!launch) { b.dailySupplySideRevenue.addGasToken(fee, LABEL.toLps); continue; }
+      const total = (hype * pool.fee) / 1_000_000n;
+      b.dailyFees.addGasToken(total, LABEL.lpFees);
+      // The launch position's part of the fee; the rest is other providers'.
+      const fee = launch ? (total * launchShare(launch, s)) / 1_000_000n : 0n;
+      b.dailySupplySideRevenue.addGasToken(total - fee, LABEL.toLps);
+      if (!launch || fee === 0n) continue;
       const toCreatorSide = (fee * launch.creatorShareBps) / BPS;
       const toBuyback = (toCreatorSide * launch.buybackBps) / BPS;
       const toCore = (fee * launch.coreBps) / BPS;
@@ -215,10 +249,26 @@ export async function addKleosSwap(options: FetchOptions, b: KleosBalances, cfg:
       b.dailyProtocolRevenue.addGasToken(toPlatform, LABEL.toPlatform);
     } else if (hype < 0n) {
       // The fee was paid in the coin; it's worth fee / (1 - fee) of the HYPE the sell paid out.
-      const fee = (abs(hype) * pool.fee) / (1_000_000n - pool.fee);
-      b.dailyFees.addGasToken(fee, LABEL.lpFees);
-      b.dailySupplySideRevenue.addGasToken(fee, launch ? LABEL.coinSideBurned : LABEL.toLps);
+      const total = (abs(hype) * pool.fee) / (1_000_000n - pool.fee);
+      b.dailyFees.addGasToken(total, LABEL.lpFees);
+      const burned = launch ? (total * launchShare(launch, s)) / 1_000_000n : 0n;
+      b.dailySupplySideRevenue.addGasToken(burned, LABEL.coinSideBurned);
+      b.dailySupplySideRevenue.addGasToken(total - burned, LABEL.toLps);
     }
+  }
+
+  // The platform's share of fees collected through Kleos's page: pool Collects paid to the treasury, HYPE side.
+  const treasury = lower(cfg.treasury);
+  const collects = dedupeLogs(await options.getLogs({ targets, eventAbi: V3_COLLECT, onlyArgs: false }));
+  for (const c of collects) {
+    if (lower(c.args.recipient) !== treasury) continue;
+    const pool = pools[lower(c.address)];
+    const hype = BigInt(pool.whypeIs0 ? c.args.amount0 : c.args.amount1);
+    if (hype === 0n) continue;
+    b.dailyRevenue.addGasToken(hype, LABEL.lpInterfaceFee);
+    b.dailyProtocolRevenue.addGasToken(hype, LABEL.lpInterfaceFee);
+    // Already counted with the fees, as other providers' share: it's the platform's instead.
+    b.dailySupplySideRevenue.subtractToken(NATIVE, hype, LABEL.toLps); // keyed as addGasToken keys it (the null address)
   }
 }
 
@@ -226,10 +276,10 @@ export const KLEOS_METHODOLOGY = {
   Volume: "Value of every trade in Kleos's pools, in the pool's pair asset (HYPE, $KLEOS, KNTQ, …) and before the trading fee or tax. Kleos's own buyback & burn swaps are left out.",
   Fees: "On taxed coins, the buy / sell tax each creator set (1-10%), paid in the pair asset on every trade. On classic coins, KleosSwap's LP fee (1%).",
   UserFees: "The taxes and LP fees traders pay on every trade.",
-  Revenue: "The platform's cut of every tax (or, for a pair asset whose platform cut burns, such as $KLEOS, that burn), and the platform's part of KleosSwap LP fees on classic coins.",
-  ProtocolRevenue: "The platform's cut of taxes and classic LP fees that the platform keeps.",
+  Revenue: "The platform's cut of every tax (or, for a pair asset whose platform cut burns, such as $KLEOS, that burn), the platform's part of the LP fees classic coins' locked launch positions earn on KleosSwap, and the platform's 10% of the LP fees other providers collect through Kleos's liquidity page (its HYPE side).",
+  ProtocolRevenue: "The platform's cut of taxes and classic LP fees that the platform keeps, and its 10% of LP fees collected through Kleos's page.",
   HoldersRevenue: "The platform's cut of taxes on $KLEOS-paired coins, which is burned.",
-  SupplySideRevenue: "The rest: each coin's creator, its holders (rewards), its buyback & burn, the Road to Core fund on classic coins, the coin side of classic LP fees (burned), and LP fees on KleosSwap pools that aren't launches.",
+  SupplySideRevenue: "The rest: each coin's creator, its holders (rewards), its buyback & burn, the Road to Core fund on classic coins, the coin side of classic launch positions' LP fees (burned), and the LP fees other liquidity providers earn on KleosSwap (their share of each trade by active liquidity), less the platform's 10% of what they collect through Kleos's page.",
 };
 
 export const KLEOS_BREAKDOWN = {
@@ -244,9 +294,11 @@ export const KLEOS_BREAKDOWN = {
   Revenue: {
     [LABEL.toPlatform]: "The platform's share of taxes (platformBps, stamped per coin) and of classic coins' HYPE-side LP fees.",
     [LABEL.platformBurned]: "The platform's share of taxes on $KLEOS-paired coins, burned.",
+    [LABEL.lpInterfaceFee]: "10% of the LP fees other providers collect through Kleos's liquidity page (HYPE side), paid to the platform in the collect.",
   },
   ProtocolRevenue: {
     [LABEL.toPlatform]: "The platform's share the platform keeps.",
+    [LABEL.lpInterfaceFee]: "10% of the LP fees collected through Kleos's liquidity page (HYPE side).",
   },
   HoldersRevenue: {
     [LABEL.platformBurned]: "The platform's share of taxes on $KLEOS-paired coins, burned.",
@@ -257,6 +309,6 @@ export const KLEOS_BREAKDOWN = {
     [LABEL.toCoinBuyback]: "Set aside to buy back and burn the coin.",
     [LABEL.toCoreFund]: "Classic coins' Road to Core share (coreBpsOf).",
     [LABEL.coinSideBurned]: "Classic coins' LP fees paid in the coin, burned by the launchpad.",
-    [LABEL.toLps]: "LP fees on KleosSwap pools that aren't Kleos launches, to their liquidity providers.",
+    [LABEL.toLps]: "LP fees earned by liquidity providers other than the launch position (by their share of active liquidity), less the platform's 10% of what's collected through Kleos's page.",
   },
 };
