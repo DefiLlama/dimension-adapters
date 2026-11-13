@@ -86,10 +86,11 @@ const contract: Contract = {
     yBridge: "0xF103b5B479d2A629F422C42bb35E7eEceE1ad55E",
     xyRouter: "0xbF26ca7cf925e9EA0765c737B066253CF80e0E09"
   },
-  [CHAIN.NUMBERS]: {
-    yBridge: "",
-    xyRouter: "0x1acCfC3a45313f8F862BE7fbe9aB25f20A93d598"
-  },
+  // no rpc configured for numbers in this repo (getBlock 400s), the run fails without it
+  // [CHAIN.NUMBERS]: {
+  //   yBridge: "",
+  //   xyRouter: "0x1acCfC3a45313f8F862BE7fbe9aB25f20A93d598"
+  // },
   [CHAIN.WEMIX]: {
     yBridge: "0x73Ce60416035B8D7019f6399778c14ccf5C9c7A1",
     xyRouter: "0x6471fAd467ac2854b403e7FE3e95FBbB3287a7ee"
@@ -114,6 +115,8 @@ const contract: Contract = {
 const yBridgeContractTopic = '0xb0e9a29a6096a927bd389ba0d0d1a15f82df21a331d23a33eeb7de1cf7ab2684'
 const xyRouterContractTopic = '0xcfdc06da1b80f541716b9dc11dba02141fbc401b0d152e9286df44c79b9d4000'
 const yBridgeContractEventAbi = 'event SwapRequested(uint256 _swapId, address indexed _aggregatorAdaptor, tuple(uint32 dstChainId, address dstChainToken, address dstAggregatorAdaptor, uint256 expectedDstChainTokenAmount, uint32 slippage) _dstChainDesc, address _srcToken, address indexed _vaultToken, uint256 _vaultTokenAmount, address _receiver, uint256 _srcTokenAmount, uint256 _expressFeeAmount, address indexed _referrer)'
+// yBridge was upgraded in Dec 2024 (Ethereum: from block 21363748, 2024-12-09) and SwapRequested gained an extra address after _swapId, changing topic0 to 0xdf401b57 (signature hash-verified, field name inferred)
+const yBridgeContractEventAbiV2 = 'event SwapRequested(uint256 _swapId, address indexed _aggregatorAdaptor, address _caller, tuple(uint32 dstChainId, address dstChainToken, address dstAggregatorAdaptor, uint256 expectedDstChainTokenAmount, uint32 slippage) _dstChainDesc, address _srcToken, address indexed _vaultToken, uint256 _vaultTokenAmount, address _receiver, uint256 _srcTokenAmount, uint256 _expressFeeAmount, address indexed _referrer)'
 const xyRouterContractEventAbi = `event XYRouterRequested(
         uint256 xyRouterRequestId,
         address indexed sender,
@@ -141,43 +144,41 @@ const xyRouterContractEventAbi = `event XYRouterRequested(
 
 const fetch = async ({ chain, getLogs, createBalances }: FetchOptions) => {
   const dailyVolume  = createBalances();
-  try {
-    const yBridgeContract = contract[chain].yBridge;
-    const xyRouterContract = contract[chain].xyRouter;
+  const yBridgeContract = contract[chain].yBridge;
+  const xyRouterContract = contract[chain].xyRouter;
 
-    const logPromises: (Promise<any[]>)[] = [];
-    if (yBridgeContract) {
-      logPromises.push(getLogs({
-        target: yBridgeContract,
-        topics: [yBridgeContractTopic],
-        eventAbi: yBridgeContractEventAbi,
-      }))
-    }
-    if (xyRouterContract) {
-      logPromises.push(getLogs({
-        target: xyRouterContract,
-        topics: [xyRouterContractTopic],
-        eventAbi: xyRouterContractEventAbi,
-      }))
-    }
-    const [yBridgeData, xyRouterData] = await Promise.all(logPromises);
-    yBridgeData?.forEach((e: any) => {
-      dailyVolume.add(e._vaultToken, e._vaultTokenAmount)
-    });
+  const [yBridgeData, yBridgeDataV2, xyRouterData] = await Promise.all([
+    yBridgeContract ? getLogs({
+      target: yBridgeContract,
+      topics: [yBridgeContractTopic],
+      eventAbi: yBridgeContractEventAbi,
+    }) : [],
+    yBridgeContract ? getLogs({
+      target: yBridgeContract,
+      eventAbi: yBridgeContractEventAbiV2,
+    }) : [],
+    xyRouterContract ? getLogs({
+      target: xyRouterContract,
+      topics: [xyRouterContractTopic],
+      eventAbi: xyRouterContractEventAbi,
+    }) : [],
+  ]);
+  yBridgeData.concat(yBridgeDataV2).forEach((e: any) => {
+    dailyVolume.add(e._vaultToken, e._vaultTokenAmount)
+  });
 
-    xyRouterData?.forEach((e: any) => {
-      dailyVolume.add(e.bridgeToken, e.bridgeAmount);
-    });
-  } catch (error) {
-    console.error(`XY Finance fetch chain ${chain} error: ${JSON.stringify(error)}`);
-  } finally {
-    return { dailyBridgeVolume: dailyVolume };
-  }
+  xyRouterData.forEach((e: any) => {
+    dailyVolume.add(e.bridgeToken, e.bridgeAmount);
+  });
+
+  return { dailyBridgeVolume: dailyVolume };
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  // XY Finance announced its sunset on 2025-10-17 (bridge & swap services stopped, pivot to SuperIntent); later yBridge events come from two wallets fanning liquidity out to other chains
+  deadFrom: '2025-10-18',
   adapter: Object.keys(contract).reduce((acc, chain) => {
     return {
       ...acc,
