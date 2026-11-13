@@ -237,7 +237,8 @@ async function fetchFromOku(options: FetchOptions) {
     console.error(`uniswap-v3-dune: Oku request failed on ${options.chain}`, (e as any)?.message);
   }
   // Oku returns no `result` for some windows/chains; degrade to empty instead of crashing.
-  if (!Array.isArray(response)) return {};
+  // On etherlink an empty result is missing history too, fetchEtherlink turns {} into an error.
+  if (!Array.isArray(response) || (options.chain === CHAIN.ETHERLINK && !response.length)) return {};
 
   const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
   const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
