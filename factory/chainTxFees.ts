@@ -12,7 +12,7 @@ const alliumFeesConfigs: Record<string, { chain: CHAIN; start: string }> = {
   "core": { chain: CHAIN.CORE, start: "2023-04-19" },
   "fraxtal": { chain: CHAIN.FRAXTAL, start: "2025-02-05" },
   "linea": { chain: CHAIN.LINEA, start: "2025-02-05" },
-  "ronin": { chain: CHAIN.RONIN, start: "2025-02-05" },
+  // "ronin": moved to fees/ronin.ts: an OP Stack rollup since 2026-05-12, revenue nets out its Ethereum batch and proposal costs
   "sonic": { chain: CHAIN.SONIC, start: "2025-02-05" },
   "xlayer": { chain: CHAIN.XLAYER, start: "2024-03-30" },
 };
