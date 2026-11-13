@@ -143,7 +143,8 @@ async function fetch(options: FetchOptions) {
 
     do {
         page++;
-        const currentUrl = nextCursor ? `${url}?after=${nextCursor}` : url;
+        // 1000 pools per request (the API maximum) instead of the default 50: same pools, same order, same cursors
+        const currentUrl = nextCursor ? `${url}?limit=1000&after=${nextCursor}` : `${url}?limit=1000`;
         const response: StatsApiResponse = await asyncRetry(
             async () => {
                 return await httpGet(currentUrl);
