@@ -2,6 +2,9 @@ import { FetchOptions, SimpleAdapter, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
+const innerTxnFees = (txn: any): number =>
+  (txn['inner-txns'] || []).reduce((sum: number, inner: any) => sum + (typeof inner.fee === 'number' ? inner.fee : 0) + innerTxnFees(inner), 0);
+
 /**
  * Fetches Algorand blockchain transaction fees using AlgoNode's public API
  * and aggregates them for the given time period
@@ -12,13 +15,13 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = options.createBalances();
 
   // Convert to ISO format for the API
-  const startDate = new Date(options.startTimestamp * 1000).toISOString();
+  const startDate = new Date((options.startTimestamp - 1) * 1000).toISOString();
   const endDate = new Date(options.endTimestamp * 1000).toISOString();
 
   let totalFees = 0;
   let nextToken: string | undefined = undefined;
   let requestCount = 0;
-  const MAX_REQUESTS = 100; // Safety limit to prevent infinite loops
+  const MAX_REQUESTS = 1000;
 
   // Query transactions from AlgoNode public indexer (more reliable)
   do {
@@ -35,14 +38,17 @@ const fetch = async (options: FetchOptions) => {
       if (txn.fee && typeof txn.fee === 'number') {
         totalFees += txn.fee;
       }
+      totalFees += innerTxnFees(txn);
     }
 
     nextToken = response['next-token'];
     requestCount++;
 
-    // Safety checks
-    if (!nextToken || txns.length === 0 || requestCount >= MAX_REQUESTS) {
+    if (!nextToken || txns.length === 0) {
       break;
+    }
+    if (requestCount >= MAX_REQUESTS) {
+      throw new Error(`algorand: more than ${MAX_REQUESTS} pages of transactions between ${startDate} and ${endDate}, refusing to publish a partial sum`);
     }
   } while (nextToken);
 
