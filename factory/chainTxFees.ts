@@ -13,7 +13,6 @@ const alliumFeesConfigs: Record<string, { chain: CHAIN; start: string }> = {
   "fraxtal": { chain: CHAIN.FRAXTAL, start: "2025-02-05" },
   "linea": { chain: CHAIN.LINEA, start: "2025-02-05" },
   "ronin": { chain: CHAIN.RONIN, start: "2025-02-05" },
-  "sonic": { chain: CHAIN.SONIC, start: "2025-02-05" },
   "xlayer": { chain: CHAIN.XLAYER, start: "2024-03-30" },
 };
 
@@ -87,6 +86,82 @@ function validatorFeesExport({ chain, start, rpcFrom, supplySideLabel, methodolo
   };
 }
 
+// Sonic pays gas fees through the SFC 0xFC00FACE00000000000000000000000000000000 (github.com/0xsoniclabs/sonic-sfc, SFC.sol):
+// at each epoch seal it mints treasuryFeeShare (90%) of the epoch's fees to the FeeM fee treasury, never mints burntFeeShare
+// back (0 until block 57,765,019 on 2025-12-12, 5% since) and pays the rest to validators. The FeeM treasury pays registered
+// apps their share and about once a day sends what is left to SFC.distributeExtraReward(epoch, true), which burns
+// extraRewardsBurnRatio (50%) of it and stashes the rest for validators (DistributedExtraRewards(epoch, received, distributed)).
+// The shares change rarely and are read at the window's opening block; the FeeM residual is counted when it is sent.
+// Daily, not hourly: the residual is a once-a-day batch, so an hourly window holding it would go deeply negative.
+const SONIC_SFC = '0xFC00FACE00000000000000000000000000000000';
+const SONIC_BURN_LABEL = 'Transaction Gas Fees Burned';
+const SONIC_FEEM_LABEL = 'Transaction Gas Fees To FeeM Apps';
+const SONIC_VALIDATORS_LABEL = 'Transaction Gas Fees To Validators';
+
+async function fetchSonicFees(options: FetchOptions) {
+  const dailyFees = await fetchTransactionFees(options);
+  // full signatures, not 'address:...': the sdk caches 'address:' reads per contract across blocks, and both have changed
+  // (ConstantsManager 0xe8D29F12... in 2025-12, 0xC7262D6C... now; FeeM treasury 0xB2B5879e... until 2025-04, 0x0B5f0731... now)
+  const [consts, feemTreasury] = await options.fromApi.batchCall([
+    { target: SONIC_SFC, abi: 'function constsAddress() view returns (address)' },
+    { target: SONIC_SFC, abi: 'function treasuryAddress() view returns (address)' },
+  ]);
+  const [burnt, treasury] = await options.fromApi.batchCall([
+    { target: consts, abi: 'uint256:burntFeeShare' },
+    { target: consts, abi: 'uint256:treasuryFeeShare' },
+  ]);
+  const burntShare = Number(burnt) / 1e18;
+  const treasuryShare = Number(treasury) / 1e18;
+  if (!(burntShare >= 0 && treasuryShare >= 0 && burntShare + treasuryShare <= 1))
+    throw new Error(`sonic: invalid SFC fee shares at block ${options.fromApi.block}: burnt ${burnt}, treasury ${treasury}`);
+
+  // every distributeExtraReward call on the SFC so far comes from the FeeM treasury (from 2025-12-16); keep only those
+  const [feemTxs, extraRewards] = await Promise.all([
+    options.getLogs({ target: feemTreasury, eventAbi: 'event ValidatorsRewarded(uint256 indexed startEpoch, uint256 indexed endEpoch, uint256 amount)', entireLog: true }),
+    options.getLogs({ target: SONIC_SFC, eventAbi: 'event DistributedExtraRewards(uint256 indexed epochID, uint256 received, uint256 distributed)', entireLog: true, parseLog: true }),
+  ]);
+  const fromFeem = new Set(feemTxs.map((log: any) => log.transactionHash.toLowerCase()));
+  let residual = 0n, residualBurned = 0n;
+  for (const log of extraRewards) {
+    if (!fromFeem.has(log.transactionHash.toLowerCase())) continue;
+    residual += BigInt(log.args.received);
+    residualBurned += BigInt(log.args.received) - BigInt(log.args.distributed);
+  }
+
+  const dailyRevenue = dailyFees.clone(burntShare, SONIC_BURN_LABEL);
+  dailyRevenue.addGasToken(residualBurned, SONIC_BURN_LABEL);
+  const dailySupplySideRevenue = dailyFees.clone(treasuryShare, SONIC_FEEM_LABEL);
+  dailySupplySideRevenue.addGasToken(-residual, SONIC_FEEM_LABEL);
+  dailySupplySideRevenue.addBalances(dailyFees.clone(1 - burntShare - treasuryShare, SONIC_VALIDATORS_LABEL));
+  dailySupplySideRevenue.addGasToken(residual - residualBurned, SONIC_VALIDATORS_LABEL);
+  return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue.clone(), dailyProtocolRevenue: 0, dailySupplySideRevenue };
+}
+
+const sonicAdapter: SimpleAdapter = {
+  version: 1,
+  adapter: { [CHAIN.SONIC]: { fetch: fetchSonicFees, start: '2025-02-05' } },
+  dependencies: [Dependencies.ALLIUM],
+  protocolType: ProtocolType.CHAIN,
+  isExpensiveAdapter: true,
+  allowNegativeValue: true, // the FeeM residual sent in a day covers the previous day's epochs and can exceed the FeeM share of a quiet day
+  methodology: {
+    Fees: 'Transaction fees paid by users for executing transactions on Sonic.',
+    Revenue: 'Gas fees burned: the SFC burntFeeShare (0 until 2025-12-12, 5% since), plus from 2025-12-16 the burned half of the FeeM fees left after app payouts, counted on the day the FeeM treasury sends them to the SFC.',
+    HoldersRevenue: 'Gas fees burned: the SFC burntFeeShare (0 until 2025-12-12, 5% since), plus from 2025-12-16 the burned half of the FeeM residual.',
+    ProtocolRevenue: 'Sonic keeps no gas fees.',
+    SupplySideRevenue: 'Gas fees earned by apps through Fee Monetization (FeeM) and by validators: the 90% FeeM share minus the residual the FeeM treasury sends to the SFC (from 2025-12-16), plus the validators\' share of the SFC split (10% until 2025-12-12, 5% since) and half of that residual.',
+  },
+  breakdownMethodology: {
+    Fees: { [METRIC.TRANSACTION_GAS_FEES]: 'Gas fees paid by users for executing transactions on Sonic.' },
+    Revenue: { [SONIC_BURN_LABEL]: 'burntFeeShare of gas fees, never minted back at the epoch seal, plus the extraRewardsBurnRatio share of the FeeM residual sent to SFC.distributeExtraReward.' },
+    HoldersRevenue: { [SONIC_BURN_LABEL]: 'burntFeeShare of gas fees plus the burned share of the FeeM residual.' },
+    SupplySideRevenue: {
+      [SONIC_FEEM_LABEL]: 'treasuryFeeShare (90%) of gas fees minted to the FeeM treasury 0x0B5f073135dF3f5671710F08b08C0c9258aECc35 for registered apps, minus the residual it sends to the SFC.',
+      [SONIC_VALIDATORS_LABEL]: 'Gas fees left after the burn and FeeM shares, plus the part of the FeeM residual the SFC stashes for validators.',
+    },
+  },
+};
+
 // Non-EVM chains: the day's total fees in the native coin from CoinMetrics (FeeTotNtv), priced by CoinGecko id.
 // No protocol revenue: the fees go to miners / validators.
 const coinMetricsFeesConfigs: Record<string, { chain: CHAIN; assetId: string; cgId: string; start: string }> = {
@@ -124,6 +199,7 @@ for (const [name, config] of Object.entries(alliumFeesConfigs)) {
 for (const [name, config] of Object.entries(alliumValidatorFeesConfigs)) {
   feesProtocols[name] = validatorFeesExport(config);
 }
+feesProtocols["sonic"] = sonicAdapter;
 for (const [name, config] of Object.entries(coinMetricsFeesConfigs)) {
   feesProtocols[name] = coinMetricsFeesExport(config);
 }
