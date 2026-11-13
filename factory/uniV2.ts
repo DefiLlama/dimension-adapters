@@ -28,6 +28,11 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "wemix.fi": {
+    // factory from the wemix-fi TVL adapter (DefiLlama-Adapters registries/uniswapV2.js), deployed block 207061 (2022-10-22)
+    // volume only: pair source unverified, fee split unknown
+    [CHAIN.WEMIX]: { factory: '0xe1F36C7B919c9f893E2Cd30b471434Aa2494664A', start: '2023-02-21', customLogic: volumeOnly },
+  },
   "rcpswap": {
     // Unchanged Uniswap V2: https://moonsdust.gitbook.io/rcpswap ; V2 charges 0.3%: https://developers.uniswap.org/docs/unichain/guides/create-a-pool
     // Factory deployment: https://arbitrum-nova.blockscout.com/tx/0x64e8b50b2dda7f8d5e36ca43a177954b616a483f92e61535149e4b5a7fc395fa

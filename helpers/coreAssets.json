@@ -1283,7 +1283,8 @@
     "OMAX": "0x373e4b4E4D328927bc398A9B50e0082C6f91B7bb"
   },
   "wemix": {
-    "WWEMIX": "0x7d72b22a74a216af4a002a1095c8c707d6ec1c5f"
+    "WWEMIX": "0x7d72b22a74a216af4a002a1095c8c707d6ec1c5f",
+    "USDC_e": "0x44bb111010dfffb3695f9a1b66aa879976199e7b"
   },
   "tlchain": {
     "WTLC": "0x422b6cdf97c750a0edcddc39c88f25379e59e96e"
