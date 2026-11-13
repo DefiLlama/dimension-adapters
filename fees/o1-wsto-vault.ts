@@ -28,8 +28,6 @@ const chainConfig: Record<string, { wsto: string; hook: string; start: string }>
 // O has no coins-service price on Robinhood Chain; value it with its CoinGecko id on every chain.
 const O_COINGECKO_ID = "o1-exchange";
 const O_DECIMALS = 18;
-// Bound RPC requests like the existing o1-launchpad adapter; Robinhood hours can span >10k blocks.
-const MAX_BLOCK_RANGE = 5000;
 
 // burnAmount is the quote token taken from each swap and burned in the same call (QuoteBurned).
 const TradeEvent = "event Trade(bytes32 indexed poolId, address indexed executor, bool isBuy, address indexed quoteToken, uint256 grossQuoteAmount, uint256 launchTokenAmount, uint256 burnAmount, bytes32 comment)";
@@ -46,7 +44,7 @@ const fetch = async (options: FetchOptions) => {
   // https://docs.o1.exchange/token/whitepaper
   // https://docs.o1.exchange/launchpad/wsto/overview
 
-  const trades = await options.getLogs({ target: hook, eventAbi: TradeEvent, maxBlockRange: MAX_BLOCK_RANGE });
+  const trades = await options.getLogs({ target: hook, eventAbi: TradeEvent });
   // The hook can serve other registered quote tokens; only wstO burns accrue to O stakers.
   const burnedShares = trades
     .filter((trade: any) => trade.quoteToken.toLowerCase() === wsto)
