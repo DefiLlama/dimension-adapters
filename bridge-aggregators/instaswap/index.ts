@@ -2,105 +2,46 @@ import { ChainApi } from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
 import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
-/**
- * InstaSwap volume adapter.
- *
- * InstaSwap is a non-custodial cross-chain swap aggregator (live since 2018) that routes
- * orders across decentralized protocols and liquidity sources, including private settlement
- * routes. Per-order deposit and payout addresses are never exposed by design, so volume is
- * read from the InstaswapStats reporter contract on BNB Chain: one row per UTC day, written
- * once a day by the project's publisher wallet. The same figures are shown on the public
- * explorer (https://explorer.instaswap.com), and the contract source is verified on BscScan.
- */
+// InstaswapStats reporter contract on BNB Chain (source verified on BscScan), same design as bridge-aggregators/silentswap.
+// InstaSwap's publisher wallet 0x2D1C5929419c9d1b45444A2b61bB8F9dCb4ab938 writes one row per UTC day at ~00:10 UTC the
+// next day. Deployed 2026-10-18 and backfilled from 2026-01-01 (zero seed row on 2025-12-31). Per-order deposit addresses
+// are not exposed (private routes), so there are no swap events to index. Same figures as https://explorer.instaswap.com
+const STATS_CONTRACT = "0x82993005910f83fb3e510d5dcc1f40beeb41afe5";
 
-const STATS_CONTRACT = "0x82993005910f83fb3e510d5dcc1f40beeb41afe5"; // BNB mainnet, deployed 2026-10-18
-// The contract was backfilled from the explorer history: the first row it holds is 2026-01-01,
-// preceded by a zero seed row for 2025-12-31. Earlier days have no snapshot by design.
-const FIRST_SNAPSHOT_DATE = 20260101n;
-const ONE_DAY_SECONDS = 24 * 60 * 60;
+// USD fields are cumulative, in micro-USD. dailyUsd counts both legs (deposit + payout), so volume is the inflowUsd delta.
+const volumeByDateAbi = "function volumeByDate(uint64 yyyymmdd) view returns (uint128 cumulativeUsd, uint128 inflowUsd, uint128 outflowUsd, uint128 dailyUsd, uint64 transferCount, uint32 tokenCount, uint64 bnbBlock, uint64 publishedAt)";
 
-const volumeByDateAbi =
-  "function volumeByDate(uint64) view returns (" +
-  "uint128 cumulativeUsd, uint128 inflowUsd, uint128 outflowUsd, " +
-  "uint128 dailyUsd, uint64 transferCount, uint32 tokenCount, " +
-  "uint64 bnbBlock, uint64 publishedAt)";
-
-function toYYYYMMDD(ts: number): bigint {
-  const date = new Date(ts * 1000);
-  return BigInt(
-    date.getUTCFullYear() * 10_000 + (date.getUTCMonth() + 1) * 100 + date.getUTCDate(),
-  );
-}
+const toDateKey = (timestamp: number) => new Date(timestamp * 1000).toISOString().slice(0, 10).replace(/-/g, "");
 
 const fetch = async (options: FetchOptions) => {
-  // With pullHourly: false the window is one UTC day, so startTimestamp is the midnight of the day being
-  // reported. toYYYYMMDD floors to the UTC date either way.
-  const { startTimestamp } = options;
-  const date = toYYYYMMDD(startTimestamp);
-  const prevDate = toYYYYMMDD(startTimestamp - ONE_DAY_SECONDS);
+  const days = [toDateKey(options.startOfDay - 86400), toDateKey(options.startOfDay)];
 
-  // Read at the latest block: the whole daily series lives in current storage keyed by YYYYMMDD,
-  // and the contract did not exist before 2026-10, so historical-block reads would return 0.
-  const bscApi = new ChainApi({ chain: CHAIN.BSC });
-
-  const rows = await bscApi.multiCall({
+  // Read at the latest block: the whole series lives in current storage, and the contract did not exist before 2026-10-18
+  const [prev, curr] = await new ChainApi({ chain: CHAIN.BSC }).multiCall({
     abi: volumeByDateAbi,
-    calls: [
-      { target: STATS_CONTRACT, params: [date.toString()] },
-      { target: STATS_CONTRACT, params: [prevDate.toString()] },
-    ],
+    calls: days.map((day) => ({ target: STATS_CONTRACT, params: [day] })),
   });
 
-  // publishedAt == 0 means the row was never written (struct default). A genuine zero-volume
-  // day still carries a real publishedAt, so a missing row is a stalled publisher, not $0.
-  const [today, yesterday] = rows.map((row: any) => ({
-    inflowUsd: BigInt(row.inflowUsd),
-    publishedAt: BigInt(row.publishedAt),
-  }));
+  // publishedAt == 0 means the row was never written (publisher has not run yet), not a zero-volume day
+  [prev, curr].forEach((row, i) => {
+    if (Number(row.publishedAt) === 0) throw new Error(`instaswap: no stats row published for ${days[i]}`);
+  });
 
-  if (today.publishedAt === 0n) {
-    throw new Error(
-      `instaswap: no snapshot published yet for ${date} (publishedAt=0) - ` +
-      `stats publisher may be stalled, not a genuine zero-volume day`,
-    );
-  }
-  if (prevDate >= FIRST_SNAPSHOT_DATE && yesterday.publishedAt === 0n) {
-    throw new Error(
-      `instaswap: no snapshot published yet for prior day ${prevDate} ` +
-      `(publishedAt=0) - cannot compute a valid delta against it`,
-    );
-  }
+  const volume = BigInt(curr.inflowUsd) - BigInt(prev.inflowUsd);
+  if (volume < 0n) throw new Error(`instaswap: cumulative inflow decreased on ${days[1]}`);
 
-  // The day before FIRST_SNAPSHOT_DATE is the zero seed row, so the first day's delta is its full inflow.
-  const delta = today.inflowUsd - yesterday.inflowUsd;
-  const dailyInflows = delta > 0n ? delta : 0n;
-
-  return {
-    dailyBridgeVolume: Number(dailyInflows) / 1e6, // contract stores micro-USD (6 decimals)
-  };
-};
-
-const methodology = {
-  Volume: "Daily deposit volume in USD read from the InstaswapStats reporter contract on BNB Chain (" +
-    STATS_CONTRACT + "): dailyVolume = volumeByDate(date).inflowUsd - volumeByDate(date-1).inflowUsd " +
-    "(micro-USD, clamped to >= 0). inflowUsd is the running total of the USD value of every completed " +
-    "swap's deposit, valued at the time of the swap, across all supported chains; DefiLlama accumulates " +
-    "the running total from this daily series. InstaSwap is a cross-chain aggregator: swaps that start and " +
-    "end on the same chain are included in the series but are a marginal share of it (0.6% of 2026 volume, " +
-    "1.36M of 212M USD as of 2026-11-12, measured on the explorer's row set). Per-order addresses are " +
-    "intentionally not exposed to preserve user privacy; the same daily figures are published on " +
-    "explorer.instaswap.com.",
+  return { dailyBridgeVolume: Number(volume) / 1e6 };
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  // The reporter contract holds one snapshot per UTC day, written once a day at 00:10 UTC, so there is
-  // nothing finer than daily to pull.
-  pullHourly: false,
-  chains: [CHAIN.CHAIN_GLOBAL], // swaps span 60+ chains; the aggregate series is stored on BNB Chain
-  start: "2026-01-01",
+  // v1: the source is one finished row per UTC day.
+  version: 1,
   fetch,
-  methodology,
+  chains: [CHAIN.CHAIN_GLOBAL], // swaps span 60+ chains; only the aggregate series is published (on BNB Chain)
+  start: "2026-01-01",
+  methodology: {
+    BridgeVolume: "USD value deposited into completed InstaSwap swaps across all supported chains, valued at swap time and published daily by InstaSwap to its stats contract on BNB Chain. Includes a small share of same-chain swaps, which the published series does not separate.",
+  },
 };
 
 export default adapter;
