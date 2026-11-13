@@ -70,7 +70,7 @@ export const pheasantSwapChainConfig = () => Object.fromEntries(Object.entries(p
  *
  * Every SwapNewTrade log is classified by `trade.toChainId`: equal to the chain's own id means a same-chain swap, any
  * other value a cross-chain swap. Only trades matching `mode` are counted, at `trade.amount - trade.relayerFee` of
- * `token`, the amount the Swap contract forwards to the routing tool.
+ * `token`, the amount the Swap contract forwards to the routing tool. Trades with a zero relayer fee are skipped.
  *
  * @param options fetch options for the chain and window; `options.chain` must be a key of `pheasantSwapConfig`
  * @param mode which trades to count: "same-chain" (aggregators listing) or "cross-chain" (bridge-aggregators listing)
@@ -84,6 +84,7 @@ export async function fetchPheasantSwapVolume(options: FetchOptions, mode: "same
     const { toChainId, amount, relayerFee } = log.trade;
     const sameChain = Number(toChainId) === chainId;
     if (sameChain !== (mode === "same-chain")) continue;
+    if (BigInt(relayerFee) === 0n) continue;
     volume.add(log.token, BigInt(amount) - BigInt(relayerFee));
   }
   return volume;
