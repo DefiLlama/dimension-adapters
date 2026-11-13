@@ -13,7 +13,8 @@ import { METRIC } from "../helpers/metrics";
 // fee charged on Ronin is ~0 (0.0004 RON into the L1FeeVault on 2026-11-12), and EigenDA is paid off Ethereum, so neither
 // is counted.
 const L2_FROM = 1778601600 // 2026-05-12 16:00 UTC: the 15:00 hour holds the last sidechain blocks, the rollup produced blocks again from ~22:00
-const HALT_TO = 1778623200 // 2026-05-12 22:00 UTC: the migration halted Ronin, the first rollup block the RPC serves is 55,577,500 at 22:09:47
+const HALT_FROM = 1778599036 // 2026-05-12 15:17:16 UTC: the migration halted Ronin, the last sidechain block any index serves is 55,577,501 at 15:17:15
+const HALT_TO = 1778623200 // 2026-05-12 22:00 UTC: the first rollup block the RPC serves is 55,577,500 at 22:09:47
 const BATCHER_CHECK_FROM = 1778716800 // 2026-05-14 00:00 UTC; the batcher has posted every ~10 minutes since 2026-05-12
 const BATCHER_SILENCE = 24 * 3600 // no post in the day before a window's end means a rotated key or missing data
 const BATCHER = '0x9aa8feacbb42659a806cdd6933ab3982586824f1' // L1Block.batcherHash() on Ronin
@@ -22,8 +23,9 @@ const L1_BATCH_POSTING_COSTS = 'Ethereum L1 Batch Posting Costs'
 const L1_STATE_ROOT_COSTS = 'Ethereum L1 State Root Proposal Costs'
 
 const fetch = async (options: FetchOptions) => {
-  // hours of the migration halt have no Ronin transactions, which fetchTransactionFees reads as missing data
-  const halted = options.startTimestamp >= L2_FROM && options.endTimestamp <= HALT_TO
+  // windows inside the migration halt have no Ronin transactions, which fetchTransactionFees reads as missing data.
+  // HALT_FROM is the halt itself, not the L2_FROM cost cutoff, so windows ending HH:59:59 (16:59:59 starts at 15:59:59) are covered too
+  const halted = options.startTimestamp >= HALT_FROM && options.endTimestamp <= HALT_TO
   const dailyFees = halted ? options.createBalances() : await fetchTransactionFees(options)
   if (options.endTimestamp <= L2_FROM) return { dailyFees, dailyRevenue: dailyFees.clone() }
 
