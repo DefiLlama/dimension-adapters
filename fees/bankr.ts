@@ -1,5 +1,7 @@
+import { ethers } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import ADDRESSES from "../helpers/coreAssets.json";
 import { addTokensReceived } from "../helpers/token";
 import fetchURL from "../utils/fetchURL";
 
@@ -56,6 +58,7 @@ const BANKR_FEES = "Bankr Launch and Integration Fees";
 const HOOK_FEES = "Launch Pool Hook Fees";
 const LP_FEES = "Launch Pool LP Fees";
 const CLANKER_FEES = "Clanker Pool LP Fees";
+const CLANKER_V3_FEES = "Clanker v3 Pool LP Fees";
 const INTEGRATION_FEES = "Integration Fees";
 const STAKING_REWARDS = "BNKR Staking Rewards From Bankr Fees";
 const STAKING_DONATIONS = "BNKR Staking Rewards From Others";
@@ -72,6 +75,33 @@ const toBankr = (label: string) => `${label} To Bankr`;
 const BNKR_STAKING = '0x88470240ff0663faefa68b1d7621b472ddd9584a';
 const BNKR = '0x22af33fe49fd1fa80c7149773dde5890d3c76f3b';
 const BNKR_STAKING_START = '2026-09-26';
+
+// Clanker v3 and v3.1 tokens (DRB among them) pay Bankr through 0xSplits v2 splits, not through
+// the fee lockers listed in feeSources. Base only.
+// The v3 LP locker 0x5ec4f99f342038c67a312a166ff56e6d70383d86 pays the non-creator part of each claim
+// to an immutable split (owner() is the zero address) shared 66/34 by Bankr's Safe and Clanker's Safe
+// 0x1eaf444e…. When the split distributes, the Splits Warehouse credits each recipient with an ERC-6909
+// Transfer (sender = the split), e.g. tx 0x87a89884a2eb4246240a6a8ef14712e43824c667d0832a3a7c546c78c2426c23.
+// The ERC-20 withdrawal from the Warehouse comes later and is not counted.
+const SPLITS_WAREHOUSE = '0x8fb66f38cf86a3d5e8768f8f1754a24a6c661fb8';
+const CLANKER_V3_SPLIT = '0x3d099bdf43e68eab7910fb9a9033fe20f182dbc9';
+const BANKR_SPLIT_SAFE = '0x5f8da8f88ec81e27f2e22fcb9ca5d926c595e508';
+const WAREHOUSE_TRANSFER = 'event Transfer(address caller, address indexed sender, address indexed receiver, uint256 indexed id, uint256 amount)';
+// The split's balance at ONCHAIN_START (historical state at Base block 48123726: 13,913,781.84 DRB and
+// 0.000879 WETH) came from claims made before it, a period booked from Bankr's dashboard. Each
+// distribution pays out the split's whole balance, so Bankr's 66% of it is taken off the first credit
+// of that token: WETH on 2026-07-04 (tx 0x6054d9acc7e11882156ffd6dd775fbd7183e3fdb1aa3f770f3dd96ac8443b810),
+// DRB on 2026-08-22 (tx 0x526519e73ddb6b3a5f1106b3697122a0388ecf0490bee800416de05488ac0557).
+const CLANKER_V3_SPLIT_OPENING: { day: string; token: string; amount: bigint }[] = [
+  { day: '2026-07-04', token: ADDRESSES.base.WETH, amount: 580113232404885n },
+  { day: '2026-08-22', token: '0x3ec2156d4c0a9cbdab4a016633b7bcf6a8d68ea2', amount: 9183096012714313850430222n },
+];
+// The v3.1 LP locker pays Bankr's part of each claim to a split whose only recipient is Bankr's Safe.
+// That split has an owner (0xeea96d959963eab488a3d4b7d5d347785cf1eab8) who can change its recipients,
+// and it held fees from before ONCHAIN_START (paid out on 2026-10-09), so the locker's payments into
+// the split are counted, on the day they are paid, rather than its distributions.
+const CLANKER_V3_1_LOCKER = '0x33e2eda238edcf470309b8c6d228986a1204c8f9';
+const CLANKER_V3_1_SPLIT = '0xbb251ce08509cd6eef32ab4771e9d81522644be6';
 
 const chainConfig: Record<string, { start: string; dashboardKey: keyof Omit<DailyByChain, "date">; feeSources: Record<string, string[]> }> = {
   [CHAIN.BASE]: {
@@ -178,6 +208,35 @@ const fetch = async (options: FetchOptions) => {
       dailyFees.addBalances(received, label);
       dailyRevenue.addBalances(received.clone(), toBankr(label));
     }
+
+    if (options.chain === CHAIN.BASE) {
+      const credits = await options.getLogs({
+        target: SPLITS_WAREHOUSE,
+        eventAbi: WAREHOUSE_TRANSFER,
+        topics: [
+          ethers.id('Transfer(address,address,address,uint256,uint256)'),
+          ethers.zeroPadValue(CLANKER_V3_SPLIT, 32),
+          ethers.zeroPadValue(BANKR_SPLIT_SAFE, 32),
+        ],
+      });
+      // the Warehouse token id is the token address
+      const credited: Record<string, bigint> = {};
+      for (const log of credits) {
+        const token = ethers.toBeHex(log.id, 20).toLowerCase();
+        credited[token] = (credited[token] ?? 0n) + BigInt(log.amount);
+      }
+      for (const { day, token, amount } of CLANKER_V3_SPLIT_OPENING) {
+        if (day !== targetDate) continue;
+        if ((credited[token] ?? 0n) < amount) throw new Error(`Bankr: Clanker v3 split credit of ${token} on ${day} is below its opening balance`);
+        credited[token] -= amount;
+      }
+      const clankerV3 = options.createBalances();
+      for (const [token, amount] of Object.entries(credited)) clankerV3.add(token, amount);
+      await addTokensReceived({ options, target: CLANKER_V3_1_SPLIT, fromAddressFilter: CLANKER_V3_1_LOCKER, balances: clankerV3 });
+      clankerV3.removeTokenBalance(BANKR_LAUNCHED_TOKEN);
+      dailyFees.addBalances(clankerV3, CLANKER_V3_FEES);
+      dailyRevenue.addBalances(clankerV3.clone(), toBankr(CLANKER_V3_FEES));
+    }
   }
 
   if (options.chain === CHAIN.BASE && targetDate >= BNKR_STAKING_START) {
@@ -223,7 +282,7 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   methodology: {
     Volume: 'Trade volume routed through Bankr, taken per chain from the dashboard\'s dailyVolumeByChain series.',
-    Fees: 'Creator fees plus Bankr\'s own fees from token launches and integrations. Bankr\'s fees are the tokens its fee contracts pay to Bankr\'s three fee addresses on each chain, priced with DefiLlama prices; fees paid in Bankr-launched tokens are left out. Creator fees come from Bankr\'s dashboard, per chain.',
+    Fees: 'Creator fees plus Bankr\'s own fees from token launches and integrations. Bankr\'s fees are the tokens its fee contracts pay to Bankr\'s three fee addresses on each chain, plus, on Base, Bankr\'s share of LP fees on Clanker v3 and v3.1 tokens paid through 0xSplits splits, priced with DefiLlama prices; fees paid in tokens launched on Bankr\'s Doppler launchpad (addresses ending in ba3) are left out. Creator fees come from Bankr\'s dashboard, per chain.',
     Revenue: 'Bankr\'s fees from token launches and integrations, read on-chain per chain since 2026-07-03. Before that, the dashboard\'s combined figure is reported on Base.',
     ProtocolRevenue: 'Bankr\'s fees from token launches and integrations, minus the BNKR it sends from its fee addresses into the BNKR staking stream (negative on the days it funds the stream).',
     SupplySideRevenue: 'Fees paid out to token creators, split per chain, from Bankr\'s dashboard.',
@@ -240,6 +299,7 @@ const adapter: SimpleAdapter = {
       [LP_FEES]: 'Bankr\'s beneficiary share of LP fees in Doppler multicurve launch pools, claimed by Bankr\'s fee wallet',
       [CLANKER_FEES]: 'Bankr\'s share of LP fees on Clanker v4 tokens it deployed, claimed from the Clanker fee locker',
       [INTEGRATION_FEES]: 'Fees paid to Bankr through BankrFeeRouterV2 by integrations',
+      [CLANKER_V3_FEES]: 'Bankr\'s share of LP fees on Clanker v3 and v3.1 tokens that pay Bankr a share (DRB among them), on Base: the v3 split\'s credits to Bankr\'s Safe in the Splits Warehouse, and the v3.1 locker\'s payments into Bankr\'s split. The v3 split\'s balance from before 2026-07-03 is left out',
     },
     Revenue: {
       [BANKR_FEES]: 'Bankr\'s own cut of token launches and integrations from the dashboard, reported combined across chains on Base (before 2026-07-03)',
@@ -247,6 +307,7 @@ const adapter: SimpleAdapter = {
       [toBankr(LP_FEES)]: 'Bankr\'s share of multicurve launch pool LP fees',
       [toBankr(CLANKER_FEES)]: 'Bankr\'s share of Clanker v4 LP fees',
       [toBankr(INTEGRATION_FEES)]: 'Integration fees received by Bankr',
+      [toBankr(CLANKER_V3_FEES)]: 'Bankr\'s share of Clanker v3 and v3.1 LP fees, paid through 0xSplits splits',
     },
     ProtocolRevenue: {
       [NET_BANKR_FEES]: 'Bankr\'s launch and integration fees (from the dashboard, combined across chains on Base, before 2026-07-03; received on-chain per chain since), minus the BNKR Bankr sends from its fee addresses into the BNKR staking stream (negative on the days it funds the stream)',
