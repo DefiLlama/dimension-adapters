@@ -222,6 +222,7 @@ const fetch = async (options: FetchOptions) => {
       // the Warehouse token id is the token address
       const credited: Record<string, bigint> = {};
       for (const log of credits) {
+        if (BigInt(log.amount) === 0n) continue;
         const token = ethers.toBeHex(log.id, 20).toLowerCase();
         credited[token] = (credited[token] ?? 0n) + BigInt(log.amount);
       }
