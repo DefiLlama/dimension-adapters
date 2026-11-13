@@ -1,24 +1,17 @@
-// LPStation — fees & revenue adapter.
+// LPStation — fees adapter.
 //
 // LPStation (https://lpstation.xyz) is a non-custodial liquidity manager for concentrated-liquidity DEXes. A user
 // zaps into, rebalances, tops up, migrates or withdraws a position in one transaction through the LPStation Hub; the
 // position NFT stays in the user's own wallet, so LPStation has no TVL of its own.
 //
-// LPStation's only income is a zap/rebalance fee, charged inside the Hub transaction and paid to one fee wallet that
-// is the same address on every chain:
+// LPStation is free to use for now. A fee may be added later on zaps, rebalances or swaps; it would be paid inside the
+// user's Hub transaction to one wallet, the same address on every chain:
 //
 //   0x86b9610Fc80f3af1D94114ECBede5d4B77445074
 //
-// That wallet is also LPStation's deployer, so it receives transfers that are not fees (gas top-ups, refunds). Only
-// ERC20 transfers into it made inside a Hub execution are counted: the fee is paid within the user's own Hub
-// transaction by construction (the swap leg that carries it runs inside that transaction), so matching on the
-// transaction hash is exact here, and anything else the wallet receives is left out. The Hub transactions of the
-// period are found from the Hub's events and their receipts are read; there are few of them, so this is far lighter
-// than scanning every transfer into the wallet. Fees settle in ERC20 (wrapped native included); native-coin inflows
-// are not counted.
-//
-// The fee is not switched on yet: until it is, every day is a correct zero. LPStation keeps all of it — there is no
-// token, referral payout or revenue share — so revenue equals fees.
+// That wallet also receives transfers that are not fees, so only ERC20 transfers into it made inside a Hub execution
+// are counted. The period's Hub transactions are found from the Hub's events and their receipts are read. Native-coin
+// inflows are not counted. Until a fee is added, every day is a correct zero.
 // -----------------------------------------------------------------------------------------------------
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -79,35 +72,20 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   dailyRevenue.addBalances(fees, METRIC.SERVICE_FEES);
 
-  return {
-    dailyFees,
-    dailyUserFees: dailyFees,
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
-    dailySupplySideRevenue: 0,
-  };
+  return { dailyFees, dailyRevenue };
 };
 
 const methodology = {
-  Fees: "The zap and rebalance fee users pay LPStation: ERC20 transfers into the LPStation fee wallet made inside a Hub execution. Zero until the fee is switched on.",
-  UserFees: "Users pay the whole fee.",
-  Revenue: "LPStation keeps the whole fee.",
-  ProtocolRevenue: "LPStation keeps the whole fee; there is no token and no revenue share.",
-  SupplySideRevenue: "None: the fee is not shared with LPs, referrers or integrators.",
+  Fees: "Fees users pay on zaps, rebalances and swaps through LPStation, if any: ERC20 transfers into the LPStation fee wallet made inside a Hub execution.",
+  Revenue: "Fees received by LPStation.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SERVICE_FEES]: "Zap and rebalance fee, paid to the LPStation fee wallet inside the user's Hub transaction.",
-  },
-  UserFees: {
-    [METRIC.SERVICE_FEES]: "Zap and rebalance fee, paid to the LPStation fee wallet inside the user's Hub transaction.",
+    [METRIC.SERVICE_FEES]: "Fees on zaps, rebalances and swaps through LPStation.",
   },
   Revenue: {
-    [METRIC.SERVICE_FEES]: "The whole zap and rebalance fee, retained by LPStation.",
-  },
-  ProtocolRevenue: {
-    [METRIC.SERVICE_FEES]: "The whole zap and rebalance fee, retained by LPStation.",
+    [METRIC.SERVICE_FEES]: "Fees on zaps, rebalances and swaps through LPStation.",
   },
 };
 
