@@ -4,7 +4,6 @@ import { queryAllium } from "../../helpers/allium";
 import { isCoreAsset } from "../../helpers/prices";
 
 const NAVI_ROUTER_EVENT = '0x88dfe5e893bc9fa984d121e4d0d5b2e873dc70ae430cf5b3228ae6cb199cb32b::slippage::SwapEvent';
-const MAX_INGESTION_GAP_SECONDS = 300;
 
 // 0x000...0002::sui::SUI -> 0x2::sui::SUI, so framework coins match coreAssets.json
 const shortCoinType = (t: string) => t.replace(/^0x0+(?=[0-9a-f]{1,4}::)/i, '0x');
@@ -23,28 +22,29 @@ const fetch = async (options: FetchOptions) => {
 
   const start = new Date(options.startTimestamp * 1000).toISOString();
   const end = new Date(options.endTimestamp * 1000).toISOString();
+  const probeEnd = new Date((options.endTimestamp + 3600) * 1000).toISOString();
 
   // The coins only exist in the event's type parameters (SwapEvent<CoinIn, CoinOut>), the payload has
   // just the amounts, so read the type column too. queryEventsAllium returns parsed_json alone.
-  const rows: { last_event: number, type: string | null, parsed_json: any }[] = await queryAllium(`
+  const rows: { indexed: number, type: string | null, parsed_json: any }[] = await queryAllium(`
     WITH ingested AS (
-      SELECT DATE_PART(epoch_second, MAX(checkpoint_timestamp)) AS last_event
-      FROM sui.raw.events
-      WHERE checkpoint_timestamp >= '${start}' AND checkpoint_timestamp < '${end}'
+      SELECT IFF(EXISTS (
+        SELECT 1 FROM sui.raw.events
+        WHERE checkpoint_timestamp >= '${end}' AND checkpoint_timestamp < '${probeEnd}'
+      ), 1, 0) AS indexed
     ), swaps AS (
       SELECT type, parsed_json
       FROM sui.raw.events
       WHERE checkpoint_timestamp >= '${start}' AND checkpoint_timestamp < '${end}'
         AND type LIKE '${NAVI_ROUTER_EVENT}<%'
     )
-    SELECT ingested.last_event, swaps.type, swaps.parsed_json
+    SELECT ingested.indexed, swaps.type, swaps.parsed_json
     FROM ingested LEFT JOIN swaps ON TRUE
   `);
 
-  // quiet hours are real, so an empty window is only trusted once Allium has indexed up to its end
-  const lastEvent = Number(rows[0]?.last_event);
-  if (!lastEvent || lastEvent < options.endTimestamp - MAX_INGESTION_GAP_SECONDS)
-    throw new Error(`navi: Allium sui.raw.events is incomplete for ${start} - ${end} (last event ${rows[0]?.last_event})`);
+  // quiet hours are real, so the window is only trusted once Allium has events past its end
+  if (Number(rows[0]?.indexed) !== 1)
+    throw new Error(`navi: Allium has not indexed sui.raw.events past ${end}`);
 
   for (const row of rows) {
     if (!row.type) continue;
