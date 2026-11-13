@@ -33,10 +33,11 @@ function toYYYYMMDD(ts: number): bigint {
 }
 
 const fetch = async (options: FetchOptions) => {
-  // startOfDay is the UTC midnight of the day being reported (v1 adapter: one row per calendar day).
-  const { startOfDay } = options;
-  const date = toYYYYMMDD(startOfDay);
-  const prevDate = toYYYYMMDD(startOfDay - ONE_DAY_SECONDS);
+  // With pullHourly: false the window is one UTC day, so startTimestamp is the midnight of the day being
+  // reported. toYYYYMMDD floors to the UTC date either way.
+  const { startTimestamp } = options;
+  const date = toYYYYMMDD(startTimestamp);
+  const prevDate = toYYYYMMDD(startTimestamp - ONE_DAY_SECONDS);
 
   // Read at the latest block: the whole daily series lives in current storage keyed by YYYYMMDD,
   // and the contract did not exist before 2026-10, so historical-block reads would return 0.
@@ -75,7 +76,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyInflows = delta > 0n ? delta : 0n;
 
   return {
-    dailyBridgeVolume: Number(dailyInflows) / 1e6,
+    dailyBridgeVolume: Number(dailyInflows) / 1e6, // contract stores micro-USD (6 decimals)
   };
 };
 
@@ -84,12 +85,18 @@ const methodology = {
     STATS_CONTRACT + "): dailyVolume = volumeByDate(date).inflowUsd - volumeByDate(date-1).inflowUsd " +
     "(micro-USD, clamped to >= 0). inflowUsd is the running total of the USD value of every completed " +
     "swap's deposit, valued at the time of the swap, across all supported chains; DefiLlama accumulates " +
-    "the running total from this daily series. Per-order addresses are intentionally not exposed to " +
-    "preserve user privacy; the same daily figures are published on explorer.instaswap.com.",
+    "the running total from this daily series. InstaSwap is a cross-chain aggregator: swaps that start and " +
+    "end on the same chain are included in the series but are a marginal share of it (0.6% of 2026 volume, " +
+    "1.36M of 212M USD as of 2026-11-12, measured on the explorer's row set). Per-order addresses are " +
+    "intentionally not exposed to preserve user privacy; the same daily figures are published on " +
+    "explorer.instaswap.com.",
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
+  version: 2,
+  // The reporter contract holds one snapshot per UTC day, written once a day at 00:10 UTC, so there is
+  // nothing finer than daily to pull.
+  pullHourly: false,
   chains: [CHAIN.CHAIN_GLOBAL], // swaps span 60+ chains; the aggregate series is stored on BNB Chain
   start: "2026-01-01",
   fetch,
