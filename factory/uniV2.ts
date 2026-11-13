@@ -28,6 +28,12 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "rcpswap": {
+    // Unchanged Uniswap V2: https://moonsdust.gitbook.io/rcpswap ; V2 charges 0.3%: https://developers.uniswap.org/docs/unichain/guides/create-a-pool
+    // Factory deployment: https://arbitrum-nova.blockscout.com/tx/0x64e8b50b2dda7f8d5e36ca43a177954b616a483f92e61535149e4b5a7fc395fa
+    // volume only: historical fee split not documented.
+    [CHAIN.ARBITRUM_NOVA]: { factory: '0xF9901551B4fDb1FE8d5617B5deB6074Bb8E1F6FB', start: '2022-07-24', fees: 0.003, customLogic: volumeOnly },
+  },
   "bescswap": {
     // Factory and 3/1000 pair invariant: https://explorer.beschyperchain.com/api?module=contract&action=getsourcecode&address=0x20EE72D1B7E36e97566f31761dfF14eDc35Fbf22
     // Deployment 2025-08-25: https://explorer.beschyperchain.com/api/v2/addresses/0x20EE72D1B7E36e97566f31761dfF14eDc35Fbf22
