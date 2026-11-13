@@ -39,7 +39,9 @@ const fetch = async (options: FetchOptions) => {
   const totalFees = Number(row.total_fees)
   if (options.startTimestamp >= PRIORITY_FEES_REQUIRED_FROM) {
     if (row.total_priority_fees == null) throw new Error('Missing Solana priority fees')
-    if (Number(row.fees_lag_seconds) > 600) throw new Error('solana.raw.fees is lagging solana.raw.transactions')
+    const feesLagSeconds = Number(row.fees_lag_seconds)
+    if (feesLagSeconds < 0) throw new Error('solana.raw.fees is ahead of solana.raw.transactions')
+    if (feesLagSeconds > 600) throw new Error('solana.raw.fees is lagging solana.raw.transactions')
   }
   const totalPriorityFees = row.total_priority_fees == null ? 0 : Number(row.total_priority_fees)
   if (!Number.isFinite(totalFees) || !Number.isFinite(totalPriorityFees) || totalPriorityFees < 0 || totalPriorityFees > totalFees) {
