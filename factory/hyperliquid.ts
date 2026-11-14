@@ -32,6 +32,22 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "stratidex": {
+    // StratiDex (https://stratidex.io, https://x.com/StratiDex), a Telegram trading bot (https://t.me/stratidex_bot) for
+    // Hyperliquid perps, HIP-3 markets included, with a copy wallet that copies Hyperliquid traders. Its orders carry
+    // this builder code on top of Hyperliquid's own fees.
+    // Verifiable: the builder field of StratiDex orders; the address's Hyperliquid `referral` state (referrer code
+    // STRATIDEXBOT, builderRewards).
+    addresses: ["0x9b15e2bf6f85c5a7120a53d92a2166be8dacae96"],
+    // first day with fills carrying the code
+    start: "2026-10-31",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through the StratiDex Telegram bot with its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through StratiDex; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
+      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through StratiDex, all kept by StratiDex.",
+      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through StratiDex, all kept by StratiDex.",
+    },
+  },
   "bitso-onchain-perps": {
     // onchain.cc (https://onchain.cc, https://x.com/Onchaincc; formerly Bitso Onchain, onchain.bitso.com redirects to it),
     // Bitso's self-custodial trading terminal. Its Hyperliquid perps (HIP-3 stock, index and commodity markets included)
