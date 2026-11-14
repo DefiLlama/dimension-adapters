@@ -354,6 +354,16 @@ const configs: Record<string, CuratorConfig> = {
       },
     },
   },
+  "pangolins": {
+    vaults: {
+      [CHAIN.BASE]: {
+        // Pangolins, verified curator on api.morpho.org (curator 0x98554757 on chain 8453). 0xB8108fA5 is the
+        // initialOwner in the CreateMetaMorpho event of Pangolins USDC 0x1401d1271C47648AC70cBcdfA3776D4A87CE006B (base block 38108843).
+        morphoVaultOwners: ['0xB8108fA53B7228D8bfC84712Ba3B870c78Ab7c2E'],
+        morphoVaultV2Owners: ['0xB8108fA53B7228D8bfC84712Ba3B870c78Ab7c2E'],
+      },
+    },
+  },
   "re7": {
     breakdownFees: true,
     vaults: {
