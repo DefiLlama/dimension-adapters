@@ -180,10 +180,26 @@ const SQL_L2_FEES = `
 
 type L2FeesRow = Row & { l2_fees_wei: string };
 
+// L2 fees of the window from the indexer, null when the window has no block past the 50-block reorg margin yet
+export const getIndexerL2FeesWei = async (options: FetchOptions, chainName: string = options.chain): Promise<bigint | null> => {
+	const fromBlock = Number(options.fromApi.block);
+	const safeBlock = Number(options.toApi.block) - 50;
+	if (safeBlock <= fromBlock) return null;
+
+	const l2FeesRows = await queryClickhouse<L2FeesRow>(SQL_L2_FEES, {
+		chain: Number(options.api.chainId),
+		fromBlock,
+		toBlock: safeBlock,
+	});
+	if (!l2FeesRows?.length || l2FeesRows[0]?.l2_fees_wei == null)
+		throw new Error(`${chainName}: the indexer returned no row for this window, refusing to report it as zero fees`);
+	return BigInt(l2FeesRows[0].l2_fees_wei);
+};
+
 // Small Dune query for L1 costs only - scans the tiny pre-aggregated
 // `rollup_economics_ethereum.l1_fees` Spellbook table (~1 row per rollup per
 // day). Negligible scan cost compared to the original `gas.fees` query.
-const buildL1FeesDuneQuery = (rollupName: string, fromTs: number, toTs: number) => `
+export const buildL1FeesDuneQuery = (rollupName: string, fromTs: number, toTs: number) => `
   SELECT
     COUNT(*) AS l1_rows,
     COALESCE(SUM(data_fee_native), 0) AS l1_calldata_native,
@@ -203,30 +219,18 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 	// L2 fees from ClickHouse; L1 calldata/blob/verification still from Dune
 	// but via a tiny Spellbook-only query (no `gas.fees` scan).
 	if (INDEXER_SUPPORTED_CHAINS.has(options.chain) && rollupName) {
-		const fromBlock = Number(options.fromApi.block);
-		const safeBlock = Number(options.toApi.block) - 50;
-
 		const dailyFees = options.createBalances();
 		const dailyRevenue = options.createBalances();
 
-		if (safeBlock <= fromBlock) {
-			return { dailyFees, dailyRevenue };
-		}
-
-		const [l2FeesRows, l1FeesRows] = await Promise.all([
-			queryClickhouse<L2FeesRow>(SQL_L2_FEES, {
-				chain: Number(options.api.chainId),
-				fromBlock,
-				toBlock: safeBlock,
-			}),
+		const [l2FeesWei, l1FeesRows] = await Promise.all([
+			getIndexerL2FeesWei(options, chainName),
 			queryDuneSql(options, buildL1FeesDuneQuery(rollupName, options.startTimestamp, options.endTimestamp)) as Promise<any[]>,
 		]);
 
-		// same distinction as the fallback below: no row back is a failed read, not a free chain
-		if (!l2FeesRows?.length || l2FeesRows[0]?.l2_fees_wei == null)
-			throw new Error(`${chainName}: the indexer returned no row for this window, refusing to report it as zero fees`);
+		if (l2FeesWei === null) {
+			return { dailyFees, dailyRevenue };
+		}
 
-		const l2FeesWei = BigInt(l2FeesRows[0].l2_fees_wei);
 		const l1Calldata = Number(l1FeesRows?.[0]?.l1_calldata_native) || 0;
 		const l1Blob     = Number(l1FeesRows?.[0]?.l1_blob_native)     || 0;
 		const l1Verify   = Number(l1FeesRows?.[0]?.l1_verify_native)   || 0;
@@ -387,7 +391,7 @@ const l2FeesDuneProtocols: Record<string, Adapter> = {
 		Fees: 'Transaction fees paid by users',
 		Revenue: 'Total revenue on Scroll, calculated by subtracting the L1 Batch Costs from the total gas fees',
 	}),
-	'zksync-era': l2FeesDuneAdapter(CHAIN.ERA, '2023-02-14', 'zksync'),
+	// 'zksync-era' lives in fees/zksync-era.ts: its L1 cost comes from Allium since 2026-02-01
 	'zora-chain': l2FeesDuneAdapter(CHAIN.ZORA, '2023-06-13', undefined, {
 		Fees: 'Transaction fees paid by users',
 		Revenue: 'Total revenue on Zora, calculated by subtracting the L1 Batch Costs from the total gas fees',
