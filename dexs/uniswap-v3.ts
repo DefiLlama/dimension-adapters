@@ -237,8 +237,7 @@ async function fetchFromOku(options: FetchOptions) {
     console.error(`uniswap-v3-dune: Oku request failed on ${options.chain}`, (e as any)?.message);
   }
   // Oku returns no `result` for some windows/chains; degrade to empty instead of crashing.
-  // On etherlink an empty result is missing history too, fetchEtherlink turns {} into an error.
-  if (!Array.isArray(response) || (options.chain === CHAIN.ETHERLINK && !response.length)) return {};
+  if (!Array.isArray(response)) return {};
 
   const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
   const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
@@ -298,15 +297,6 @@ async function fetchFromLogs(options: FetchOptions) {
   };
 }
 
-// Oku has returned nothing for etherlink since 2026-09-23 while the pools kept trading, so from then
-// on the pools are read directly. Earlier days stay on Oku so a refill does not rewrite them.
-async function fetchEtherlink(options: FetchOptions) {
-  if (options.dateString >= '2026-09-23') return fetchFromLogs(options);
-  const res = await fetchFromOku(options);
-  if (!('dailyVolume' in res)) throw new Error('uniswap-v3: Oku returned nothing for etherlink, not storing 0');
-  return res;
-}
-
 // One entry per chain. blockchain = the source's own slug (Dune dex.trades name
 // or Oku slug). start = first uni-v3 data on that source:
 //  - Dune rows: MIN(block_time) in dex.trades
@@ -349,11 +339,12 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
   [CHAIN.SAGA]: { blockchain: 'saga', start: '2025-02-11', fetch: fetchFromOku },
   [CHAIN.XDC]: { blockchain: 'xdc', start: '2025-04-12', fetch: fetchFromOku },
   [CHAIN.NIBIRU]: { blockchain: 'nibiru', start: '2025-05-12', fetch: fetchFromOku },
-  [CHAIN.ETHERLINK]: { blockchain: 'etherlink', start: '2025-05-12', fetch: fetchEtherlink },
   [CHAIN.REDBELLY]: { blockchain: 'redbelly', start: '2025-02-19', fetch: fetchFromOku },
 
   // On-chain logs (no Dune dex.trades or Oku API coverage)
   [CHAIN.OG]: { blockchain: '0g', start: '2025-09-24', fetch: fetchFromLogs },
+  // Oku stopped returning etherlink after 2026-09-22 while the pools kept trading, so the whole range reads the pools
+  [CHAIN.ETHERLINK]: { blockchain: 'etherlink', start: '2025-05-12', fetch: fetchFromLogs },
   [CHAIN.ARC]: { blockchain: 'arc', start: '2026-05-28', fetch: fetchFromLogs },
   [CHAIN.ELYSIUM]: { blockchain: 'elysium', start: '2026-11-03', fetch: fetchFromLogs },
 }
