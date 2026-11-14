@@ -583,6 +583,20 @@ const configs: Record<string, CuratorConfig> = {
         ],
         start: '2026-06-03', // first vault deployment (0xbeef0007)
       },
+      [CHAIN.SOLANA]: {
+        // Kamino kvaults whose vaultAdminAuthority is 9ceRgz579BcfWogs3RE11FKNQaWW7Lmtnev3MXspxUjF, the admin the
+        // TVL adapter attributes to Steakhouse (kaminoLendVaultAdmins). These are every kvault under that admin
+        // on api.kamino.finance/kvaults/vaults, and all six are named "Steakhouse ...".
+        kaminoVaults: [
+          'BoZDRc1RDY9FzUZZ19WT4GbtTnnbXQ8AGSU5ByEw3ut5', // Steakhouse High Yield USDG, 2.5% performance fee
+          'HDsayqAsDWy3QvANGqh2yNraqcD8Fnjgh73Mhb3WRS5E', // Steakhouse USDC, 5%
+          'BEEfo7xwgK2ZP13Pxo7qqTPzAteKJmXjVWtMWcXSvbn2', // Steakhouse High Yield USDC, 5%
+          'BqBsS4myH82S4yfqeKjXSF7yErWwSi5WTshSzKmHQgzw', // Steakhouse USDG, 5%
+          '2eCcHyUfFmiLX5RnNY21Qfndqww7TmwaKBgNXX5Unu7o', // Steakhouse High Yield USD1, 5%
+          'CEGA5ps5JvDjYrp6a3RbzJypanxwFzZ3PW5T7MrpdzCC', // Steakhouse USDT, 5%, empty today
+        ],
+        start: '2025-04-02', // first metrics snapshot of HDsayq..., the oldest of the six
+      },
     },
   },
   "telosc": {
