@@ -245,8 +245,9 @@ const configs: Record<string, Record<string, any>> = {
     // V2 factory from the rocketswap-anubis TVL adapter (DefiLlama-Adapters registries/uniswapV2.js), deployed at Anubis block 2059 (2026-04-07)
     // start is the first full day pool balances can be read: Multicall3 only exists on Anubis from 2026-05-06,
     // and scanning Sync logs of all 900+ pairs instead (useSyncReserves) does not complete for a day.
+    // maxPairSize 100: 53 to 56 pools pass the $200 pooled value filter (2026-11-13), above the default cap of 42.
     // volume only: the swap fee and its split are not documented. The V3 pools are listed separately as rocketswap-anubis-v3.
-    [CHAIN.ANUBI]: { factory: '0xaf6F4e641C86A25518509BC840051A8652Af598A', start: '2026-05-07', customLogic: volumeOnly },
+    [CHAIN.ANUBI]: { factory: '0xaf6F4e641C86A25518509BC840051A8652Af598A', start: '2026-05-07', customLogic: volumeOnly, maxPairSize: 100 },
   },
   "bdex-v2": {
     // stock uniV2 fork on BOT Chain. Factory: https://dev-docs.botchain.ai/docs/DEX/contract-addresses/

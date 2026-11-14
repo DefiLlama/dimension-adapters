@@ -11,6 +11,7 @@ type Config = {
   chains: Record<string, ChainConfig>;
   options?: Record<string, any>;
   deadFrom?: string;
+  skipLiquidations?: boolean; // no derived liquidations entry (the fork does not emit the standard LiquidateBorrow)
 };
 
 const configs: Record<string, Config> = {
@@ -42,13 +43,16 @@ const configs: Record<string, Config> = {
     // Era start is the first day every stable market can be priced: coins.llama.fi has no historical price
     // for Era USDT before 2024-02-03 or Era USDC (0x3355df6d...) before 2024-02-15, so earlier days undercount.
     // Telos deployed at block 313919328 (2023-12-07)
-    // rf tokens do not emit AccrueInterest, so interest is read from exchange rate growth.
+    // AccrueInterest and LiquidateBorrow are emitted by the comptroller with an extra indexed cToken field, not by the rf tokens
+    // (verified source: https://explorer.zksync.io/address/0xC5db68F30D21cBe0C9Eac7BE5eA83468d69297e6#contract),
+    // so interest is read from exchange rate growth and the log-based liquidations entry is skipped.
     // No revenue ratios: the split of reserves between treasury and token holders is not documented.
     chains: {
       [CHAIN.ERA]: { comptroller: "0x23848c28Af1C3AA7B999fA57e6b6E8599C17F3f2", start: '2024-02-15' },
       [CHAIN.TELOS]: { comptroller: "0x19646a04BfDcf3553Adc8fAAf8B16D76EC41E494", start: '2023-12-07' },
     },
     options: { useExchangeRate: true },
+    skipLiquidations: true,
   },
   "elara": {
     chains: { [CHAIN.ZIRCUIT]: { comptroller: "0x695aCEf58D1a10Cf13CBb4bbB2dfB7eDDd89B296", start: '2024-11-20' } },
@@ -195,7 +199,8 @@ const liquidationConfigs: Record<string, LiquidationConfig> = {
   },
 };
 
-for (const [name, { chains }] of Object.entries(configs)) {
+for (const [name, { chains, skipLiquidations }] of Object.entries(configs)) {
+  if (skipLiquidations) continue;
   const config: LiquidationConfig = {};
   for (const [chain, { comptroller, start }] of Object.entries(chains)) {
     config[chain] = { comptroller, start };
