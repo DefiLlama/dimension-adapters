@@ -44,6 +44,7 @@ const fetch = async (options: FetchOptions) => {
             polymarket_v2_polygon.ctfexchange_evt_orderfilled a --includes both ctf and negrisk
         WHERE
             a.evt_block_number > 85050371
+            AND a.taker = a.contract_address -- taker order leg only, see the comment below the query
             AND evt_block_time >= from_unixtime(${options.startTimestamp})
             AND evt_block_time < from_unixtime(${options.endTimestamp})
 
@@ -60,6 +61,7 @@ const fetch = async (options: FetchOptions) => {
                 END) / 1e6 as notional_volume
         FROM polymarket_polygon.NegRiskCtfExchange_evt_OrderFilled b
         where b.evt_block_number > 50505492
+            and b.taker = b.contract_address
             and evt_block_time >= from_unixtime(${options.startTimestamp})
             and evt_block_time < from_unixtime(${options.endTimestamp})
 
@@ -76,6 +78,7 @@ const fetch = async (options: FetchOptions) => {
                 END) / 1e6 as notional_volume
         FROM polymarket_polygon.CTFExchange_evt_OrderFilled a
         where a.evt_block_number > 33605403
+            and a.taker = a.contract_address
             and evt_block_time >= from_unixtime(${options.startTimestamp})
             and evt_block_time < from_unixtime(${options.endTimestamp})
 
@@ -105,10 +108,15 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyNotionalVolume = options.createBalances();
 
-  // Polymarket emits two OrderFilled events per trade (maker + taker), so summing them directly double-counts volume. Dividing by 2 converts this into true one-sided volume. This also normalizes swaps and merge/split fills, where maker and taker amounts can differ but still represent the same underlying trade, preventing inflated totals
+  // matchOrders emits one OrderFilled per maker order plus one for the taker order, whose `taker` is the exchange itself
+  // (ctf-exchange Trading.sol, v1 and v2). Only that taker leg is counted: it is Polymarket's own definition ("Only taker
+  // volume is counted", https://data.polymarket.com); with dexs/polymarket-combos it reproduces Polymarket's daily dollar
+  // and contract volume (US Eastern days). v1 fillOrder fills have no taker leg and are not counted. Halving all legs
+  // matches it only for buy-vs-sell matches: in a mint (two buys) or merge (two sells) the legs are the two complementary
+  // prices, so the half is S/2 for S shares whatever the taker paid. Shares are unchanged: taker shares = all shares / 2.
 
-  dailyVolume.addUSDValue(data[0].total_volume_usd / 2);
-  dailyNotionalVolume.addUSDValue(data[0].total_notional_volume/2);
+  dailyVolume.addUSDValue(data[0].total_volume_usd);
+  dailyNotionalVolume.addUSDValue(data[0].total_notional_volume);
 
   return { dailyVolume, dailyNotionalVolume }
 }
@@ -120,6 +128,10 @@ const adapters: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   start: '2020-09-30',
   isExpensiveAdapter: true,
+  methodology: {
+    Volume: "Collateral paid or received by the taker order of each matched trade on Polymarket's CTF exchanges, the definition Polymarket uses for its own volume.",
+    NotionalVolume: "Outcome shares bought or sold by the taker order of each matched trade, each share paying $1 if its outcome wins.",
+  },
 }
 
 export default adapters
