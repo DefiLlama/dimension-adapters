@@ -74,6 +74,19 @@ const configs: Record<string, CuratorConfig> = {
       },
     },
   },
+  "august-digital": {
+    vaults: {
+      // August Digital, verified curator on api.morpho.org (owner 0x2a155ed4 and curator 0xA81AE7d5 on chains 1 and 143).
+      // Morpho VaultV2s created by this owner, e.g. August USDC V2 0x80017bF0f793EBbE9679Cd61ff0e395B62CAbB59
+      // (monad block 61808998) and August USPC 0xdE16452C1f8CC209D8E9b104b7F240D9A251768B (monad block 110391543).
+      [CHAIN.ETHEREUM]: {
+        morphoVaultV2Owners: ['0x2a155ed454Dc5861a755F9C6bc7334a23B80cdAF'],
+      },
+      [CHAIN.MONAD]: {
+        morphoVaultV2Owners: ['0x2a155ed454Dc5861a755F9C6bc7334a23B80cdAF'],
+      },
+    },
+  },
   "avantgarde": {
     vaults: {
       [CHAIN.ETHEREUM]: {
