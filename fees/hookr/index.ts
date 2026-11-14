@@ -30,7 +30,7 @@ const fetch = async (options: FetchOptions) => {
   await fetchVaultFees(accounting);
   await fetchHolderRevenue(accounting);
 
-  return accounting.getResults();
+  return accounting.balances;
 };
 
 /** Build each metric's breakdown from the labels that its fee sources actually emit. */

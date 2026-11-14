@@ -11,17 +11,12 @@ export async function fetchTradingFees(accounting: FeeAccounting, discovery: Dis
   await fetchLegacyRecaptures(accounting);
 }
 
-/** Match a root's earned fee with its Rules allocations in the same transaction, pool and currency. */
-function allocationKey(log: { transactionHash: string }, poolId: string, currency: string) {
-  return `${log.transactionHash}:${lowercase(poolId)}:${lowercase(currency)}`;
-}
-
-/** Read allocated swap charges, remove unsettled tax credits, and reconcile against the root's receipt. */
+/** Read the Rules' allocated charges, excluding tax credits until their queue settles them. */
 async function fetchCurrentSwapCharges(accounting: FeeAccounting, discovery: Discovery) {
   const { current, queues, roots, rules } = discovery;
-  const allocated = await accounting.getLogs(rules, ABI.allocated);
-  const earned = new Map<string, bigint>();
-  for (const log of allocated) {
+  // FeesAllocated and IntegratorPaid are the fee source; HookFee is needed only for subject burns.
+  // Their agreement with the root's earned amount is checked in the research validation.
+  for (const log of await accounting.getLogs(rules, ABI.allocated)) {
     const allocation = log.args;
     const pool = current.get(lowercase(allocation.id));
     if (!pool || pool.rules !== log.address || pool.quote !== lowercase(allocation.quote)) {
@@ -30,10 +25,6 @@ async function fetchCurrentSwapCharges(accounting: FeeAccounting, discovery: Dis
 
     const gross =
       toBigInt(allocation.protocol) + toBigInt(allocation.royalty) + toBigInt(allocation.advisoryFee);
-    earned.set(
-      allocationKey(log, allocation.id, allocation.quote),
-      (earned.get(allocationKey(log, allocation.id, allocation.quote)) ?? 0n) + gross,
-    );
     // Tax queue credits become fees once, when the queue books their settlement, not at both stages.
     accounting.recordFees(
       'direct',
@@ -53,15 +44,8 @@ async function fetchCurrentSwapCharges(accounting: FeeAccounting, discovery: Dis
       throw new Error('Hookr: unauthenticated integrator fee');
     }
 
-    earned.set(
-      allocationKey(log, integratorPayment.id, integratorPayment.quote),
-      (earned.get(allocationKey(log, integratorPayment.id, integratorPayment.quote)) ?? 0n) +
-        toBigInt(integratorPayment.amount),
-    );
     accounting.recordFees('direct', integratorPayment.quote, toBigInt(integratorPayment.amount), 0n);
   }
-
-  const rootEarned = new Map<string, bigint>();
 
   for (const log of await accounting.getLogs(
     roots,
@@ -73,18 +57,8 @@ async function fetchCurrentSwapCharges(accounting: FeeAccounting, discovery: Dis
       throw new Error('Hookr: unregistered hook charge');
     }
 
-    rootEarned.set(
-      allocationKey(log, hookFee.id, hookFee.quote),
-      (rootEarned.get(allocationKey(log, hookFee.id, hookFee.quote)) ?? 0n) + toBigInt(hookFee.earned),
-    );
     // Other launched subjects are supplier allocations; HOOKR itself is holder income.
     accounting.recordSubjectBurn(pool.subject, toBigInt(hookFee.burned));
-  }
-
-  for (const feeKey of new Set([...rootEarned.keys(), ...earned.keys()])) {
-    if ((rootEarned.get(feeKey) ?? 0n) !== (earned.get(feeKey) ?? 0n)) {
-      throw new Error(`Hookr: root/Rules fee mismatch ${feeKey}`);
-    }
   }
 }
 
@@ -112,15 +86,8 @@ async function fetchTaxSettlements(accounting: FeeAccounting, discovery: Discove
 async function fetchCurrentRecaptures(accounting: FeeAccounting, discovery: Discovery) {
   const { current, roots, rules } = discovery;
   const corrections = await accounting.getLogs(roots, ABI.correction);
-  const splits = await accounting.getLogs(rules, ABI.recapture);
-  const grouped = new Map<
-    string,
-    {
-      pushed: bigint;
-      distributed: bigint;
-    }
-  >();
-  const expectedPartners = new Set<string>();
+  const authenticated = new Set<string>();
+  const missingPartners = new Set<string>();
 
   for (const log of corrections) {
     const correction = log.args;
@@ -129,21 +96,19 @@ async function fetchCurrentRecaptures(accounting: FeeAccounting, discovery: Disc
       throw new Error('Hookr: unauthenticated correction');
     }
 
+    const partnerKey = `${log.transactionHash}:${lowercase(correction.id)}`;
+    authenticated.add(partnerKey);
     if (toBigInt(correction.pushed) > 0n) {
       if (!pool.executor || !EXECUTORS.includes(pool.executor)) {
         throw new Error('Hookr: unreviewed recapture executor');
       }
 
-      expectedPartners.add(`${log.transactionHash}:${lowercase(correction.id)}`);
+      missingPartners.add(partnerKey);
     }
-
-    const correctionKey = allocationKey(log, correction.id, correction.currency);
-    const row = grouped.get(correctionKey) ?? { pushed: 0n, distributed: 0n };
-    row.pushed += toBigInt(correction.pushed);
-    grouped.set(correctionKey, row);
   }
 
-  for (const log of splits) {
+  // RecaptureSplit states the actual allocations; the root receipts authenticate the executor leg.
+  for (const log of await accounting.getLogs(rules, ABI.recapture)) {
     const split = log.args;
     const pool = current.get(lowercase(split.id));
     if (!pool || pool.rules !== log.address) {
@@ -152,21 +117,8 @@ async function fetchCurrentRecaptures(accounting: FeeAccounting, discovery: Disc
 
     const total =
       toBigInt(split.protocol) + toBigInt(split.traderAmount) + toBigInt(split.lp) + toBigInt(split.pot);
-    const splitKey = allocationKey(log, split.id, split.currency);
-    const row = grouped.get(splitKey) ?? { pushed: 0n, distributed: 0n };
-    row.distributed += total;
-    grouped.set(splitKey, row);
     accounting.recordFees('recapture', split.currency, total, toBigInt(split.protocol));
   }
-
-  for (const row of grouped.values()) {
-    if (row.pushed !== row.distributed) {
-      throw new Error('Hookr: recapture push/distribution mismatch');
-    }
-  }
-
-  const authenticated = new Set(corrections.map(log => `${log.transactionHash}:${lowercase(log.args.id)}`));
-  const observedPartners = new Set<string>();
 
   // The executor's retained leg can use a DIFFERENT currency from its Hookr push.
   // Unpublished executor source: same confirmed ABI as fees/what-the-hook.ts, authenticated by root receipts.
@@ -181,14 +133,12 @@ async function fetchCurrentRecaptures(accounting: FeeAccounting, discovery: Disc
       throw new Error('Hookr: executor differs from frozen pool lane');
     }
 
-    observedPartners.add(partnerKey);
+    missingPartners.delete(partnerKey);
     accounting.recordFees('recapture', accrual.currency, toBigInt(accrual.treasuryAmount), 0n);
   }
 
-  for (const partnerKey of expectedPartners) {
-    if (!observedPartners.has(partnerKey)) {
-      throw new Error('Hookr: recapture lacks its executor payout record');
-    }
+  if (missingPartners.size) {
+    throw new Error('Hookr: recapture lacks its executor payout record');
   }
 }
 

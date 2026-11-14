@@ -74,7 +74,7 @@ async function fetchOpenZapsBuybacks(
     }
 
     // This is EXTERNAL holder income, never Hookr operating fees or an expense against its treasury.
-    addCurrency(accounting.dailyHoldersRevenue, NATIVE, purchase.input, HOLDERS.openzaps);
+    addCurrency(accounting.balances.dailyHoldersRevenue, NATIVE, purchase.input, HOLDERS.openzaps);
   }
 
   for (const log of burns) {
@@ -98,7 +98,7 @@ async function fetchLegacyBuybacks(accounting: FeeAccounting, burnAmounts: Map<s
       throw new Error('Hookr: legacy buyback/burn mismatch');
     }
 
-    addCurrency(accounting.dailyHoldersRevenue, NATIVE, toBigInt(log.args.ethIn), HOLDERS.legacy);
+    addCurrency(accounting.balances.dailyHoldersRevenue, NATIVE, toBigInt(log.args.ethIn), HOLDERS.legacy);
   }
 }
 
@@ -180,7 +180,7 @@ async function fetchJarRedemptions(accounting: FeeAccounting, windowBurns: Hookr
       // Only the fee-funded slice has proven cost provenance. Unattributed donations are excluded.
       const amount = inventory.get(asset) ?? 0n;
       if (inWindow) {
-        addCurrency(accounting.dailyHoldersRevenue, asset, amount, HOLDERS.jar);
+        addCurrency(accounting.balances.dailyHoldersRevenue, asset, amount, HOLDERS.jar);
       }
 
       inventory.set(asset, 0n); // TokenJar releases the entire selected balance, not a percentage.

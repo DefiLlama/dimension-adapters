@@ -2,7 +2,7 @@ import { Balances, ChainApi } from '@defillama/sdk';
 import { EventFragment, zeroPadValue } from 'ethers';
 import { FetchGetLogsOptions, FetchOptions } from '../../adapters/types';
 import { toPositionedLogArgs } from '../../helpers/logs';
-import { CONTRACT, NATIVE } from './config';
+import { CONTRACT } from './config';
 
 export const lowercase = (value: any): string => String(value).toLowerCase();
 
@@ -157,24 +157,22 @@ export const HOLDERS = {
 
 /** Keep raw token units; the zero address denotes native ETH, not an ERC-20. */
 export function addCurrency(balance: Balances, currency: string, amount: bigint, label: string) {
-  if (amount === 0n) {
-    return;
-  }
-
-  if (lowercase(currency) === NATIVE) {
-    balance.addGasToken(amount.toString(), label);
-  } else {
+  // SDK Balances accepts the zero address for native ETH as well as ERC-20 addresses.
+  if (amount !== 0n) {
     balance.add(lowercase(currency), amount.toString(), label);
   }
 }
 
 /** Share the five metric balances and their allocation rules across Hookr's fee sources. */
 export class FeeAccounting {
-  dailyFees: Balances;
-  dailyRevenue: Balances;
-  dailySupplySideRevenue: Balances;
-  dailyProtocolRevenue: Balances;
-  dailyHoldersRevenue: Balances;
+  // This is also the fetch result; pricing remains the runner's responsibility.
+  readonly balances = {
+    dailyFees: this.options.createBalances(),
+    dailyRevenue: this.options.createBalances(),
+    dailySupplySideRevenue: this.options.createBalances(),
+    dailyProtocolRevenue: this.options.createBalances(),
+    dailyHoldersRevenue: this.options.createBalances(),
+  };
   openingApi: ChainApi;
 
   constructor(
@@ -182,11 +180,6 @@ export class FeeAccounting {
     public fromBlock: number,
     public toBlock: number,
   ) {
-    this.dailyFees = options.createBalances();
-    this.dailyRevenue = options.createBalances();
-    this.dailySupplySideRevenue = options.createBalances();
-    this.dailyProtocolRevenue = options.createBalances();
-    this.dailyHoldersRevenue = options.createBalances();
     // getFromBlock is the first INCLUDED block. fromApi is pinned to that block too,
     // so a cumulative-counter opening snapshot must explicitly read the preceding block.
     this.openingApi = new ChainApi({ chain: options.chain, block: fromBlock - 1 });
@@ -203,14 +196,14 @@ export class FeeAccounting {
     if ((revenue > 0n && !labels.revenue) || (supplierAmount > 0n && !labels.supplySide)) {
       throw new Error(`Hookr: unexpected destination for ${source}`);
     }
-    addCurrency(this.dailyFees, currency, gross, labels.fees);
+    addCurrency(this.balances.dailyFees, currency, gross, labels.fees);
     if (labels.revenue) {
-      addCurrency(this.dailyRevenue, currency, revenue, labels.revenue);
+      addCurrency(this.balances.dailyRevenue, currency, revenue, labels.revenue);
     }
     if (labels.supplySide) {
-      addCurrency(this.dailySupplySideRevenue, currency, supplierAmount, labels.supplySide);
+      addCurrency(this.balances.dailySupplySideRevenue, currency, supplierAmount, labels.supplySide);
     }
-    addCurrency(this.dailyProtocolRevenue, currency, revenue, RETAINED);
+    addCurrency(this.balances.dailyProtocolRevenue, currency, revenue, RETAINED);
   }
 
   /** Remove fee-funded burn allocations from retained income; holder income waits for the burn. */
@@ -220,7 +213,7 @@ export class FeeAccounting {
     }
 
     // Net capital allocations against the SAME retained-income label, not a negative expense row.
-    addCurrency(this.dailyProtocolRevenue, currency, -amount, RETAINED);
+    addCurrency(this.balances.dailyProtocolRevenue, currency, -amount, RETAINED);
   }
 
   /** Classify fee burns by whose token is retired: HOOKR holders or another pool's participants. */
@@ -232,7 +225,7 @@ export class FeeAccounting {
     // A fee burned in HOOKR itself benefits this protocol's holders, unlike other launched subjects.
     this.recordFees('directBurn', currency, amount, amount);
     this.recordBurnFunding(currency, amount);
-    addCurrency(this.dailyHoldersRevenue, currency, amount, HOLDERS.direct);
+    addCurrency(this.balances.dailyHoldersRevenue, currency, amount, HOLDERS.direct);
   }
 
   /** Fetch targeted logs with the position, emitter and transaction needed for provenance checks. */
@@ -270,16 +263,5 @@ export class FeeAccounting {
         };
       })
       .sort(compareLogPosition);
-  }
-
-  /** Return the standard dimension balances; pricing remains the runner's responsibility. */
-  getResults() {
-    return {
-      dailyFees: this.dailyFees,
-      dailyRevenue: this.dailyRevenue,
-      dailySupplySideRevenue: this.dailySupplySideRevenue,
-      dailyProtocolRevenue: this.dailyProtocolRevenue,
-      dailyHoldersRevenue: this.dailyHoldersRevenue,
-    };
   }
 }

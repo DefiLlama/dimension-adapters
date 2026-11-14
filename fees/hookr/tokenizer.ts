@@ -105,31 +105,18 @@ async function fetchCurrentTokenizerFees(accounting: FeeAccounting) {
     tokens,
     'event LegPaid(uint256 indexed door,uint256 indexed asset,uint256 amount)',
   );
-  const paidAssetsByKey = new Map<
-    string,
-    {
-      token: string;
-      index: number;
-    }
-  >();
-
-  for (const log of legPayments) {
-    paidAssetsByKey.set(`${log.address}:${log.args.asset}`, {
-      token: log.address,
-      index: Number(log.args.asset),
-    });
-  }
-
-  const assetKeys = [...paidAssetsByKey.keys()];
-  const paidAssets = [...paidAssetsByKey.values()];
-  const paidAssetStates = paidAssets.length
+  // Resolve each distinct token/asset once; repeated payments use the same currency.
+  const assetKey = (log: { address: string; args: Record<string, any> }) =>
+    `${log.address}:${log.args.asset}`;
+  const paidAssets = [...new Map(legPayments.map(log => [assetKey(log), log])).values()];
+  const assetStates = paidAssets.length
     ? await options.toApi.multiCall({
         abi: assetAt,
-        calls: paidAssets.map(asset => ({ target: asset.token, params: [asset.index] })),
+        calls: paidAssets.map(log => ({ target: log.address, params: [log.args.asset] })),
       })
     : [];
   const currencies = new Map(
-    assetKeys.map((assetKey, index) => [assetKey, lowercase(paidAssetStates[index].currency)]),
+    paidAssets.map((log, index) => [assetKey(log), lowercase(assetStates[index].currency)]),
   );
 
   // New tokenizer fees are actual per-door delivery charges, not the old supply-share model.
@@ -137,7 +124,7 @@ async function fetchCurrentTokenizerFees(accounting: FeeAccounting) {
   for (const log of legPayments) {
     accounting.recordFees(
       'tokenizer',
-      currencies.get(`${log.address}:${log.args.asset}`)!,
+      currencies.get(assetKey(log))!,
       toBigInt(log.args.amount),
       toBigInt(log.args.amount),
     );
