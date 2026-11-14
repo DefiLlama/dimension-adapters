@@ -24,8 +24,13 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(total - perp, "Swap fees");
   dailyFees.addUSDValue(perp, "Perp builder fees");
+  // Amahub keeps every trade fee, so revenue and protocol revenue carry the same amounts.
+  const dailyRevenue = options.createBalances();
+  dailyRevenue.addUSDValue(total - perp, "Swap fees to Amahub");
+  dailyRevenue.addUSDValue(perp, "Perp builder fees to Amahub");
+  const dailyProtocolRevenue = dailyRevenue.clone();
 
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -33,13 +38,21 @@ const adapter: SimpleAdapter = {
   adapter: { [CHAIN.CHAIN_GLOBAL]: { fetch, start: "2026-11-01" } },
   methodology: {
     Fees: "Trade fees users pay to Amahub: the swap fee on spot trades and the builder fee on perpetual orders routed through Amahub, verified on chain and counted once per execution.",
-    Revenue: "All trade fees are kept by Amahub.",
-    ProtocolRevenue: "All trade fees go to Amahub.",
+    Revenue: "All trade fees users pay on swaps and perpetual orders routed through Amahub, kept by Amahub.",
+    ProtocolRevenue: "All trade fees users pay on swaps and perpetual orders routed through Amahub, sent to Amahub's fee wallet and builder address.",
   },
   breakdownMethodology: {
     Fees: {
       "Swap fees": "Fee charged on spot swaps routed through Amahub, paid to the Amahub fee wallet inside the swap transaction.",
       "Perp builder fees": "Amahub's builder fee on perpetual orders it routes (the venue's own trading fee is excluded).",
+    },
+    Revenue: {
+      "Swap fees to Amahub": "All swap fees paid on spot swaps routed through Amahub, kept by Amahub.",
+      "Perp builder fees to Amahub": "All builder fees on perpetual orders routed through Amahub, kept by Amahub.",
+    },
+    ProtocolRevenue: {
+      "Swap fees to Amahub": "All swap fees paid on spot swaps routed through Amahub, sent to the Amahub fee wallet.",
+      "Perp builder fees to Amahub": "All builder fees on perpetual orders routed through Amahub, paid to the Amahub builder address.",
     },
   },
 };
