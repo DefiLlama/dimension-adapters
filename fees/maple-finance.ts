@@ -44,6 +44,7 @@ const MIP_021_DEFAULT_RATE = 0.2
 const MIP_021_MONTH_RATES: Record<string, number> = {
   '2026-07': 0.1, // $136,768 buyback published by Maple, revenue under $1.5m
   '2026-08': 0.1, // $147,098 buyback published by Maple, revenue under $1.5m
+  '2026-10': 0.1, // $146,535 buyback published by Maple, 10% of its $1.465m revenue
 }
 
 // Share of revenue spent buying back SYRUP. Each rate is confirmed against the monthly
