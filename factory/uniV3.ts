@@ -26,6 +26,14 @@ const kalosDexRevenueRatio = ({ protocolFeeRatioToken0, protocolFeeRatioToken1 }
   return { _revenueRatio: rate, _protocolRevenueRatio: rate }
 }
 
+// StockiumSwap: per-pool slot0().feeProtocol (1/N of the swap fee per token, collected by the factory owner); a pool whose
+// feeProtocol cannot be read fails the run instead of being booked as 0
+const stockiumSwapRevenueRatio = ({ protocolFeeRatioToken0, protocolFeeRatioToken1 }: UniGetRevenueRatioProps) => {
+  if (protocolFeeRatioToken0 === undefined || protocolFeeRatioToken1 === undefined) throw new Error('stockiumswap: slot0().feeProtocol unreadable')
+  const rate = (protocolFeeRatioToken0 + protocolFeeRatioToken1) / 2
+  return { _revenueRatio: rate, _protocolRevenueRatio: rate }
+}
+
 // https://docs.roninchain.com/apps/katana/swap-tokens
 const katanaV3RevenueRatio = ({ poolFeeTier }: UniGetRevenueRatioProps) => {
   if (poolFeeTier === 0.0001) return { _revenueRatio: 0.5, _protocolRevenueRatio: 0.5 } // 20% of fees
@@ -421,6 +429,13 @@ const configs: Record<string, Record<string, any>> = {
   "kalos-dex": {
     [CHAIN.ELYSIUM]: { factory: '0x8C60243181370bDA9A7d1a45b1249A8263da0158', start: '2026-11-05', userFeesRatio: 1, protocolRevenueRatio: 0, dynamicProtocolFees: true, getRevenueRatio: kalosDexRevenueRatio },
   },
+  // StockiumSwap (https://stockium.fun, https://x.com/Stockium): Stockium's Uniswap V3 fork on Kinetiq Elysium, factory listed under
+  // "StockiumSwap" in https://stockium.fun/docs. Created in block 42214 on 2026-10-29 by its owner 0x40269087501bd81eff75ced85cd2277580728b68;
+  // fee tiers 0.01% to 7% (FeeAmountEnabled), first swap 2026-10-29 20:03 UTC. The docs give no split for these pools: the protocol
+  // share is read per pool from slot0().feeProtocol (0 on every pool checked on 2026-11-12, so LPs earn all fees).
+  "stockiumswap": {
+    [CHAIN.ELYSIUM]: { factory: '0x4F66184A9FFabB7f7071D590C2c48DEDf41676f4', start: '2026-10-29', userFeesRatio: 1, protocolRevenueRatio: 0, dynamicProtocolFees: true, getRevenueRatio: stockiumSwapRevenueRatio },
+  },
   "superswap-v3": {
     [CHAIN.OPTIMISM]: { factory: '0xe52a36Bb76e8f40e1117db5Ff14Bd1f7b058B720', userFeesRatio: 1, revenueRatio: 0.8, protocolRevenueRatio: 0.8 },
   },
@@ -587,10 +602,13 @@ const configs: Record<string, Record<string, any>> = {
   "brownfi-clamm": {
     [CHAIN.HEMI]: { factory: '0x10253594A832f967994b44f33411940533302ACb', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, userFeesRatio: 1, revenueRatio: 0.9, protocolRevenueRatio: 0.9 },
   },
-  // Synthra V3 (synthra.org): deterministic-deployment factory, same address on both chains.
+  // Synthra V3 (synthra.org): deterministic-deployment factory, same address on every chain.
   // https://docs.synthra.org/docs/contract-addresses
   "synthra": {
     [CHAIN.ARC]: { factory: '0x6307fc239C7964942c1BfFE51930E55606619c74', start: "2026-09-16" },
+    // Elysium factory listed in the docs above; created by 0xfd2301819c2064b7bd06212d22594ceb172c07bf (nonce 0, same deployer and
+    // owner 0x20a32b077906feb43d5ecac7ef1425a48e25b4cc as on Arc) in block 105690 on 2026-10-31; first swap 2026-11-02 12:40 UTC
+    [CHAIN.ELYSIUM]: { factory: '0x6307fc239C7964942c1BfFE51930E55606619c74', start: "2026-11-02" },
     // [CHAIN.ROBINHOOD]: factory '0x6307fc239C7964942c1BfFE51930E55606619c74', deployed 2026-07-14, no pools created so far
   },
   "unitflow-finance-v3": {
@@ -692,6 +710,14 @@ const methodologyMap: Record<string, any> = {
     Revenue: "The protocol share of the swap fees, set per pool (slot0().feeProtocol, 20% where Kalos switched it on), collected to the Kalos revenue splitter.",
     ProtocolRevenue: "The protocol share of the swap fees, set per pool (slot0().feeProtocol, 20% where Kalos switched it on), collected to the Kalos revenue splitter. Referral rewards are not deducted: referral codes are kept off chain and one weekly payout covers every Kalos product, so they cannot be attributed to a product on chain.",
     SupplySideRevenue: "The rest of the swap fees, earned by liquidity providers.",
+  },
+  "stockiumswap": {
+    Volume: "Swap volume of the StockiumSwap pools (Uniswap V3 pools created by the StockiumSwap factory on Elysium), from their Swap events, counted on one side of each swap. Excludes Stockium launchpad trading on Uniswap V4.",
+    Fees: "Swap fees paid by traders in StockiumSwap pools, at the pool fee tier.",
+    UserFees: "Swap fees paid by traders in StockiumSwap pools, at the pool fee tier.",
+    Revenue: "The protocol share of StockiumSwap pool swap fees, set per pool by slot0().feeProtocol (0 on every pool checked on 2026-11-12).",
+    ProtocolRevenue: "The protocol share of StockiumSwap pool swap fees, set per pool by slot0().feeProtocol and collectable by the factory owner.",
+    SupplySideRevenue: "The swap fees of StockiumSwap pools earned by liquidity providers.",
   },
   "hydrex": {
     Volume: "Value swapped across the Hydrex Integral (Algebra Integral) pools created by the Hydrex factory on Base, counting one side of each trade. Pools launched through custom deployers are not included.",
@@ -1144,6 +1170,14 @@ protocols['kalos-dex'].breakdownMethodology = {
   UserFees: { 'Trading fees': 'Swap fees paid by traders in Kalos DEX pools (fee tier 0.01%, 0.05%, 0.3% or 1%).' },
   Revenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collected to the Kalos revenue splitter.' },
   ProtocolRevenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collected to the Kalos revenue splitter.' },
+  SupplySideRevenue: { 'LP fees': 'The part of swap fees earned by liquidity providers.' },
+}
+
+protocols['stockiumswap'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': 'Swap fees paid by traders in StockiumSwap pools, at the pool fee tier (0.01% to 7%).' },
+  UserFees: { 'Trading fees': 'Swap fees paid by traders in StockiumSwap pools, at the pool fee tier (0.01% to 7%).' },
+  Revenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner.' },
+  ProtocolRevenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner.' },
   SupplySideRevenue: { 'LP fees': 'The part of swap fees earned by liquidity providers.' },
 }
 
