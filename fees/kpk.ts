@@ -31,6 +31,9 @@ const curatorConfig: CuratorConfig = {
         "0xD5cCe260E7a755DDf0Fb9cdF06443d593AaeaA13", // USDC Yield
         "0x870F0BF29A25A40E7CC087cD5C53e70C11F2C8A8", // USDT Prime
         "0x1a1985F50352b58090eb36425AfdFacbaC7806F4", // USDC Prime Core
+        "0x7a72bcD2c3F7F7e4D6679170a0625bAB15D7DDa1", // USDC Yield RWA, created at block 25624050
+        "0xb5ce3CA2C774b72955C25875022FdD91f7a7B938", // wARS Yield, created at block 25626450
+        "0x7873F890A3Eec30909Bdb2cF65C4FA70DB905aac", // wBRL Yield, created at block 26254368
       ],
       // Euler: KPK earns its 5% interestFee on the UNDERLYING eVaults (borrow
       // markets), not on the Euler Earn aggregator (0% fee, no interestFee). These
@@ -49,7 +52,14 @@ const curatorConfig: CuratorConfig = {
       morpho: [
         "0x2C609d9CfC9dda2dB5C128B2a665D921ec53579d", // USDC Yield (V1)
         "0x5837e4189819637853a357aF36650902347F5e73", // USDC Yield (V2)
+        "0x7bfdE3A7bd346Da92521D384563F89BB45dE1f60", // EURe Yield (V2), created at block 507803341
       ],
+    },
+    [CHAIN.BASE]: {
+      morpho: [
+        "0x392B3CCf36C8adB8094F45573346B457414cD752", // USDC Yield (V2), created at block 50470088
+      ],
+      start: '2026-08-26',
     },
   },
 };
