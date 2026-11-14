@@ -183,6 +183,18 @@ const configs: Record<string, CuratorConfig> = {
       },
     },
   },
+  "flowdesk": {
+    vaults: {
+      [CHAIN.ETHEREUM]: {
+        // Flowdesk, verified curator on api.morpho.org. 0x415ca88b is the owner in the CreateVaultV2 event of
+        // Flowdesk Confidential High Yield USDT 0xb48C056C5608bA2Ee4cD94AF2bF4b1F25295Bd7e (block 25946991)
+        // and Flowdesk AUSD RWA Strategy 0x32401B9fb79065Bc15949DE0BD43927492f02F0C (block 24671403).
+        // Ownership has since moved to other Flowdesk addresses, but the framework filters on the creation owner.
+        morphoVaultOwners: ['0x415ca88b148CD7a3bbAd61788A9b90F2a788EEc7'],
+        morphoVaultV2Owners: ['0x415ca88b148CD7a3bbAd61788A9b90F2a788EEc7'],
+      },
+    },
+  },
   "galaxy": {
     vaults: {
       [CHAIN.ETHEREUM]: {
