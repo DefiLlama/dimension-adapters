@@ -1,11 +1,13 @@
 import { Chain } from "../../adapters/types";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 type Contract = {
   [c: string | Chain]: {
     yBridge: string,
     xyRouter: string,
+    deadFrom?: string,
   };
 }
 
@@ -72,7 +74,8 @@ const contract: Contract = {
   },
   [CHAIN.ASTAR]: {
     yBridge: "0x5C6C12Fd8b1f7E60E5B60512712cFbE0192E795E",
-    xyRouter: "0x9c83E6F9E8DA12af8a0Cb8E276b722EB3D7668aF"
+    xyRouter: "0x9c83E6F9E8DA12af8a0Cb8E276b722EB3D7668aF",
+    deadFrom: '2024-11-19',
   },
   [CHAIN.KCC]: {
     yBridge: "0x7e803b54295Cd113Bf48E7f069f0531575DA1139",
@@ -142,6 +145,11 @@ const xyRouterContractEventAbi = `event XYRouterRequested(
         ) dstChainAction,
         address indexed affiliate)`
 
+const toPricedToken = (token: string) => token.toLowerCase() === ADDRESSES.GAS_TOKEN_2 ? ADDRESSES.null : token
+
+const YBRIDGE_LABEL = 'yBridge Transfers'
+const ROUTER_LABEL = 'Third-Party Bridge Routes'
+
 const fetch = async ({ chain, getLogs, createBalances }: FetchOptions) => {
   const dailyVolume  = createBalances();
   const yBridgeContract = contract[chain].yBridge;
@@ -164,27 +172,43 @@ const fetch = async ({ chain, getLogs, createBalances }: FetchOptions) => {
     }) : [],
   ]);
   yBridgeData.concat(yBridgeDataV2).forEach((e: any) => {
-    dailyVolume.add(e._vaultToken, e._vaultTokenAmount)
+    dailyVolume.add(toPricedToken(e._vaultToken), e._vaultTokenAmount, YBRIDGE_LABEL)
   });
 
   xyRouterData.forEach((e: any) => {
-    dailyVolume.add(e.bridgeToken, e.bridgeAmount);
+    if (yBridgeContract && e.bridgeAddress.toLowerCase() === yBridgeContract.toLowerCase()) return;
+    dailyVolume.add(toPricedToken(e.bridgeToken), e.bridgeAmount, ROUTER_LABEL);
   });
 
   return { dailyBridgeVolume: dailyVolume };
 }
 
+const methodology = {
+  BridgeVolume: "Value of cross-chain transfers started through XY Finance: deposits into its own yBridge, plus XY Router requests sent to third-party bridges.",
+}
+
+const breakdownMethodology = {
+  BridgeVolume: {
+    [YBRIDGE_LABEL]: "Vault-token amount of each yBridge SwapRequested event on the source chain.",
+    [ROUTER_LABEL]: "Bridge-token amount of XY Router requests routed to bridges other than yBridge (XYRouterRequested events). The routers were paused in January 2025.",
+  },
+}
+
+// XY Finance announced its sunset on 2025-10-17 (bridge & swap services stopped, pivot to SuperIntent); later yBridge events come from two wallets fanning liquidity out to other chains
+// Set per chain, not at the root: runAdapter gives a root deadFrom precedence over every chain's own earlier deadFrom
+const SUNSET_DEAD_FROM = '2025-10-18'
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  // XY Finance announced its sunset on 2025-10-17 (bridge & swap services stopped, pivot to SuperIntent); later yBridge events come from two wallets fanning liquidity out to other chains
-  deadFrom: '2025-10-18',
   adapter: Object.keys(contract).reduce((acc, chain) => {
     return {
       ...acc,
-      [chain]: { fetch, start: '2023-08-10', }
+      [chain]: { fetch, start: '2023-08-10', deadFrom: contract[chain].deadFrom ?? SUNSET_DEAD_FROM }
     }
-  }, {})
+  }, {}),
+  methodology,
+  breakdownMethodology,
 }
 
 export default adapter
