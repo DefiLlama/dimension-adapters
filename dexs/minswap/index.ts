@@ -15,7 +15,8 @@ const fetch = async ({ startOfDay, createBalances, }: FetchOptions) => {
   const vols: IVolumeall[] = (await httpGet(historicalVolumeEndpoint));
   const volData = vols
     .find(dayItem => new Date(Number(dayItem.time)).getTime() / 1000 === startOfDay)
-  dailyVolume.addGasToken(volData?.volume)
+  // the api returns lovelace. key it as cardano:lovelace, addGasToken's cardano null-address key only has prices from 2023-03-21
+  dailyVolume.addToken("lovelace", volData?.volume)
 
   return {
     dailyVolume,
