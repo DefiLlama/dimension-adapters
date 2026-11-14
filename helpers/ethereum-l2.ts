@@ -314,6 +314,10 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 				COALESCE((SELECT l1_blob_cost FROM l1_fees_cte), 0) +
 				COALESCE((SELECT l1_verify_cost FROM l1_fees_cte), 0))
 			) AS total_revenue,
+			(COALESCE((SELECT l1_calldata_cost FROM l1_fees_cte), 0) +
+				COALESCE((SELECT l1_blob_cost FROM l1_fees_cte), 0) +
+				COALESCE((SELECT l1_verify_cost FROM l1_fees_cte), 0)
+			) AS l1_cost_eth,
 			COALESCE((SELECT l2_fees_usd FROM l2_fees_cte), 0) AS total_fee_usd,
 			(COALESCE((SELECT l2_fees_usd FROM l2_fees_cte), 0) - (
 				COALESCE((SELECT l1_calldata_cost_usd FROM l1_fees_cte), 0) +
@@ -338,7 +342,14 @@ export const fetchL2FeesWithDune = async (options: FetchOptions, chain_name?: st
 	const dailyRevenue = options.createBalances();
 
 	dailyFees.addGasToken(feesResult[0].total_fee * 1e18, METRIC.TRANSACTION_GAS_FEES); // all from above list has 18 decimals
-	dailyRevenue.addGasToken(feesResult[0].total_revenue * 1e18, METRIC.TRANSACTION_GAS_FEES); // all from above list has 18 decimals
+	if (options.chain === CHAIN.MANTLE) {
+		// Mantle's fees are in MNT but its L1 costs are in ETH: total_revenue subtracts them as raw numbers,
+		// which prices the ETH cost as MNT, so subtract it as ETH instead.
+		dailyRevenue.addGasToken(feesResult[0].total_fee * 1e18, METRIC.TRANSACTION_GAS_FEES);
+		dailyRevenue.addCGToken('ethereum', -Number(feesResult[0].l1_cost_eth), METRIC.TRANSACTION_GAS_FEES);
+	} else {
+		dailyRevenue.addGasToken(feesResult[0].total_revenue * 1e18, METRIC.TRANSACTION_GAS_FEES); // all from above list has 18 decimals
+	}
 
 	return { dailyFees, dailyRevenue };
 };
