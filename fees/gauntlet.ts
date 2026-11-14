@@ -87,6 +87,15 @@ const curatorConfig: CuratorConfig = {
       ],
       start: '2026-04-16',
     },
+    // Morpho V2; listed explicitly (no Morpho vault factory is configured for morph).
+    // Same vault as the TVL adapter. Created in tx 0xa198dc2e51db9e08cbbf166374ab0b30cf4bf2536a6daf9be60e70230af03563
+    // (morph block 24184602); performanceFee and managementFee both read 0.
+    [CHAIN.MORPH]: {
+      morphoV2: [
+        '0x9131eb40bd0bdce73c72755f1bb2cf39a9453341', // Gauntlet USDC
+      ],
+      start: '2026-06-30',
+    },
     // Moolah (Morpho V1 fork), 10% performance fee
     [CHAIN.BSC]: {
       morpho: [
