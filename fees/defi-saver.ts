@@ -2,7 +2,16 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
 
-const FeeWallet = '0x6467e807db1e71b9ef04e0e3afb962e4b0900b2b';
+// FeeReceiver per chain, from DeFi Saver's own address book:
+// https://github.com/defisaver/defisaver-v3-contracts/tree/main/addresses
+// The L2 receivers were added in commit 0f4865c7 ("chore: deploy fee receiver on l2s", 2026-07-01).
+// Each chain's FeeRecipient pointer returns its receiver, e.g. arbitrum 0xe000e3c9...getFeeAddr() -> 0x47b61a9E...
+// Where L2 fees went before that date is not tracked here.
+const FeeWallets: Record<string, string> = {
+  [CHAIN.ETHEREUM]: '0x6467e807db1e71b9ef04e0e3afb962e4b0900b2b',
+  [CHAIN.ARBITRUM]: '0x47b61a9Ec0c09B39653e55e6ad748dAcaF06D0a7',
+  [CHAIN.BASE]: '0x0909201d8bc9906C95B248c1A4476C07a7769983',
+};
 const LABEL = 'Service Fees';
 
 // DeFi Saver's own wallets: the fee wallet periodically sweeps its balance to them,
@@ -17,7 +26,7 @@ const OwnWallets = new Set([
 const fetch = async (options: FetchOptions) => {
   const receivedFees = await addTokensReceived({
     options,
-    target: FeeWallet,
+    target: FeeWallets[options.chain],
     logFilter: (log) => !OwnWallets.has(log.from),
   })
 
@@ -43,7 +52,15 @@ const adapter: SimpleAdapter = {
     [CHAIN.ETHEREUM]: {
       fetch: fetch as any,
       start: '2022-01-01',
-    }
+    },
+    [CHAIN.ARBITRUM]: {
+      fetch: fetch as any,
+      start: '2026-07-02', // first inflow: block 479597099, tx 0xf28a65e2e8ad65a61d47ca428ff2246344427f1c26beda71dc4c335b22f0e2fa
+    },
+    [CHAIN.BASE]: {
+      fetch: fetch as any,
+      start: '2026-06-30', // FeeReceiver deployed at block 48014786; first inflow not pinned (public Base RPCs returned empty or errors)
+    },
   },
   methodology: {
     Fees: 'Total fees paid by users for using DefiSaver services, excluding tokens sent back to the fee wallet from DefiSaver\'s own treasury wallets.',
