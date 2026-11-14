@@ -482,6 +482,19 @@ const configs: Record<string, CuratorConfig> = {
       },
     },
   },
+  "sharpbyte-capital": {
+    vaults: {
+      // SharpByte, verified curator on api.morpho.org (owner 0x07A1eC35 and curator 0x73fceD2C on chains 1 and 143).
+      // Morpho VaultV2s created by this owner, e.g. SharpByte AUSD Tori Ecosystem 0x790e4f829fe865d432c4Ea83B8B15F8871415B6c
+      // (monad block 103274908) and SharpByte USDC High Yield 0xf57E9898575fab80b0f2aCDe5443276BeC8C542D (monad block 105321746).
+      [CHAIN.ETHEREUM]: {
+        morphoVaultV2Owners: ['0x07A1eC352EF67BB5b8b75A7fF9540b27f9a53d71'],
+      },
+      [CHAIN.MONAD]: {
+        morphoVaultV2Owners: ['0x07A1eC352EF67BB5b8b75A7fF9540b27f9a53d71'],
+      },
+    },
+  },
   "singularv": {
     breakdownFees: true,
     vaults: {
