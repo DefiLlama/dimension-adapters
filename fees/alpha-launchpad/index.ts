@@ -25,7 +25,7 @@ const FEES_TO_OPERATIONS = "Protocol Fees To Operations";
 const FEES_TO_BUYBACK = "Protocol Fees Released To ALPHA Buyback And Burn";
 
 // Ethereum, Base, BSC, Robinhood and Arc have two ALPHA deployments: the first one (retired between 2026-10-28 and 2026-11-01,
-// its markets still trade) and the current one. Monad, Avalanche and Arbitrum have only the current one.
+// its markets still trade) and the current one. Monad, Avalanche, Arbitrum and Polygon have only the current one.
 // factory: LaunchFactory, block: a block at or before the factory's first launch, hook: LaunchTradingHookV1,
 // splitter: ProtocolRevenueSplitter. Addresses: ALPHA mainnet release records (indexer manifests).
 type Deployment = { factory: string; block: number; hook: string; splitter: string };
@@ -88,6 +88,13 @@ const chainConfig: Record<string, { deployments: Deployment[]; start: string }> 
       { factory: "0xB2Aa70bF167AEc63DBC49f14F12d4301E5a3c2A8", block: 523406566, hook: "0x07C5151D69806477A50D71F1cd81494A9e1D20CC", splitter: "0x48E9f6E30E83037643Ff0614D2b5d79b1FFbcE45" },
     ],
     start: "2026-11-11",
+  },
+  // Polygon PoS has one deployment (2026-11-13), with the same factory and splitter address as Monad, Avalanche and Arbitrum One.
+  [CHAIN.POLYGON]: {
+    deployments: [
+      { factory: "0xB2Aa70bF167AEc63DBC49f14F12d4301E5a3c2A8", block: 97230966, hook: "0xE161860d4387CD72d183E8d544aCF09d92B820CC", splitter: "0x48E9f6E30E83037643Ff0614D2b5d79b1FFbcE45" },
+    ],
+    start: "2026-11-13",
   },
 };
 
