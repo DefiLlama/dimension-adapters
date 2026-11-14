@@ -1,18 +1,17 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
-import { PEDDLES, POOL_REGISTERED, PeddlesPool } from "../helpers/peddles";
+import { PEDDLES, POOL_REGISTERED, PeddlesPool, SWAP_EVENTS } from "../helpers/peddles";
 
 // Peddles: a token launchpad on Uniswap v4. Volume is the quote side of every swap on a pool that
-// PeddlesFeeHook registered: ETH, BNB, USDC, or the tokenised stock the launch is paired against.
+// PeddlesFeeHook registered: ETH, BNB, USDC, DAI, or the tokenised stock the launch is paired against.
 //
 // The pools sit on the canonical Uniswap v4 PoolManager and their positions are minted through
 // Uniswap's PositionManager, so dexs/uniswap-v4 can count the same swaps: hence doublecounted.
+// On Anubis the pools sit on Gully Core's CLPoolManager (a PancakeSwap Infinity fork), whose Swap
+// event has one more field; the hook there emits the same PoolRegistered.
 //
 // Pools are identified by the hook's own PoolRegistered event, never by their quote token. All
 // PoolManager swaps are pulled from the indexer and filtered to the registered pool ids client
 // side (the indexer does not support an OR list in topic1).
-
-const SWAP =
-  "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)";
 
 const fetch = async (options: FetchOptions) => {
   const deployment = PEDDLES[options.chain];
@@ -30,12 +29,12 @@ const fetch = async (options: FetchOptions) => {
   for (const log of registered) {
     const token = String(log.token).toLowerCase();
     const quote = String(log.quote).toLowerCase();
-    // v4 orders a pool's two currencies by address, so this is the slot the PoolManager filled.
+    // v4 and Infinity both order a pool's two currencies by address, so this is the slot the PoolManager filled.
     pools.set(String(log.poolId).toLowerCase(), { quote, quoteIsCurrency0: BigInt(quote) < BigInt(token) });
   }
   if (!pools.size) return { dailyVolume };
 
-  const swaps = await options.getLogs({ target: deployment.poolManager, eventAbi: SWAP });
+  const swaps = await options.getLogs({ target: deployment.poolManager, eventAbi: SWAP_EVENTS[deployment.venue ?? "uniswap-v4"] });
   for (const log of swaps) {
     const pool = pools.get(String(log.id).toLowerCase());
     if (!pool) continue;
@@ -53,7 +52,7 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: PEDDLES,
   methodology: {
-    Volume: "Swap volume on the pools of tokens launched on Peddles, counted once per trade on the side the token is paired against: ETH, BNB, USDC or a tokenised stock.",
+    Volume: "Swap volume on the pools of tokens launched on Peddles, counted once per trade on the side the token is paired against: ETH, BNB, USDC, DAI or a tokenised stock.",
   },
 };
 
