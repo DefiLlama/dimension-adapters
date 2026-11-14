@@ -36,6 +36,20 @@ const configs: Record<string, Config> = {
     },
     options: { holdersRevenueRatio: 1 },
   },
+  "reactorfusion": {
+    // Comptrollers from the reactorfusion TVL adapter (DefiLlama-Adapters registries/compound.js)
+    // Era deployed 2023-04-21: https://explorer.zksync.io/tx/0x9064096e0af5a5d99cd267161a2c3f93a0bf27e0f6ab93d432874c2b85a43073
+    // Era start is the first day every stable market can be priced: coins.llama.fi has no historical price
+    // for Era USDT before 2024-02-03 or Era USDC (0x3355df6d...) before 2024-02-15, so earlier days undercount.
+    // Telos deployed at block 313919328 (2023-12-07)
+    // rf tokens do not emit AccrueInterest, so interest is read from exchange rate growth.
+    // No revenue ratios: the split of reserves between treasury and token holders is not documented.
+    chains: {
+      [CHAIN.ERA]: { comptroller: "0x23848c28Af1C3AA7B999fA57e6b6E8599C17F3f2", start: '2024-02-15' },
+      [CHAIN.TELOS]: { comptroller: "0x19646a04BfDcf3553Adc8fAAf8B16D76EC41E494", start: '2023-12-07' },
+    },
+    options: { useExchangeRate: true },
+  },
   "elara": {
     chains: { [CHAIN.ZIRCUIT]: { comptroller: "0x695aCEf58D1a10Cf13CBb4bbB2dfB7eDDd89B296", start: '2024-11-20' } },
     options: { protocolRevenueRatio: 1 },
