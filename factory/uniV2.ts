@@ -228,6 +228,27 @@ const configs: Record<string, Record<string, any>> = {
     // Factory deployment block 295 is 2023-08-18 UTC; volume only: fee split not documented.
     [CHAIN.BEAM]: { factory: '0x662b526FB70EBB508962f3f61c9F735f687C8fA5', start: '2023-08-18', fees: 0.003, customLogic: volumeOnly },
   },
+  "bscswap": {
+    // V2 pair creation and 3/1000 swap invariant: https://sourcify.dev/server/v2/contract/56/0xce8fd65646f2a2a897755a1188c04ace94d2b8d0?fields=sources
+    // Deployment block 458157 (2020-09-14); volume only: fee split not documented, feeTo is mutable.
+    [CHAIN.BSC]: { factory: '0xce8fd65646f2a2a897755a1188c04ace94d2b8d0', start: '2020-09-14', fees: 0.003, customLogic: volumeOnly },
+  },
+  "spacefi-zksync": {
+    // Factory from the spacefi-zksync TVL adapter (DefiLlama-Adapters registries/uniswapV2.js)
+    // Deployed 2023-03-18: https://explorer.zksync.io/tx/0x4e768c3e9cd2e765c03fc74fe558f4b1b54f9357b29ca43364add1106458ace9
+    // start is the first day the pools can be valued: coins.llama.fi has no historical price for Era USDC
+    // (0x3355df6d...) before 2024-02-15, so earlier days filter down to zero pools.
+    // volume only: the factory source is not verified, so the swap fee and its split are not established.
+    [CHAIN.ERA]: { factory: '0x0700Fb51560CfC8F896B2c812499D17c5B0bF6A7', start: '2024-02-15', customLogic: volumeOnly },
+  },
+  "rocketswap-anubis": {
+    // V2 factory from the rocketswap-anubis TVL adapter (DefiLlama-Adapters registries/uniswapV2.js), deployed at Anubis block 2059 (2026-04-07)
+    // start is the first full day pool balances can be read: Multicall3 only exists on Anubis from 2026-05-06,
+    // and scanning Sync logs of all 900+ pairs instead (useSyncReserves) does not complete for a day.
+    // maxPairSize 100: 53 to 56 pools pass the $200 pooled value filter (2026-11-13), above the default cap of 42.
+    // volume only: the swap fee and its split are not documented. The V3 pools are listed separately as rocketswap-anubis-v3.
+    [CHAIN.ANUBI]: { factory: '0xaf6F4e641C86A25518509BC840051A8652Af598A', start: '2026-05-07', customLogic: volumeOnly, maxPairSize: 100 },
+  },
   "bdex-v2": {
     // stock uniV2 fork on BOT Chain. Factory: https://dev-docs.botchain.ai/docs/DEX/contract-addresses/
     // feeTo() is the zero address (https://scan.botchain.ai/address/0x117115f3B72C8d1989178089A67D0C26f8EE0AA3, checked 2026-09-22) => 0.3% swap fee, 100% to LPs
