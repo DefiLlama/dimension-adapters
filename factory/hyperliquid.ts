@@ -32,6 +32,22 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "stratidex": {
+    // StratiDex (https://stratidex.io, https://x.com/StratiDex), a Telegram trading bot (https://t.me/stratidex_bot) for
+    // Hyperliquid perps, HIP-3 markets included, with a copy wallet that copies Hyperliquid traders. Its orders carry
+    // this builder code on top of Hyperliquid's own fees.
+    // Verifiable: the builder field of StratiDex orders; the address's Hyperliquid `referral` state (referrer code
+    // STRATIDEXBOT, builderRewards).
+    addresses: ["0x9b15e2bf6f85c5a7120a53d92a2166be8dacae96"],
+    // first day with fills carrying the code
+    start: "2026-10-31",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through the StratiDex Telegram bot with its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through StratiDex; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
+      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through StratiDex, all kept by StratiDex.",
+      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through StratiDex, all kept by StratiDex.",
+    },
+  },
   "bitso-onchain-perps": {
     // onchain.cc (https://onchain.cc, https://x.com/Onchaincc; formerly Bitso Onchain, onchain.bitso.com redirects to it),
     // Bitso's self-custodial trading terminal. Its Hyperliquid perps (HIP-3 stock, index and commodity markets included)
@@ -50,6 +66,22 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder code fees received by onchain.cc's builder account, before the Colosseum cashback it pays back to traders.",
     },
     breakdownFees: true,
+  },
+  "mojo-perps": {
+    // MOJO (https://www.mojo.trade, https://x.com/MojoAI_HQ), an AI trading agent app (iOS and web): users set a plan,
+    // approve it, and the agent places the orders on Hyperliquid (crypto perps and HIP-3 stock perps), among other venues.
+    // Its Hyperliquid orders carry this builder code: 0.05% on perps (both sides) and 0.05% on spot sells only.
+    // Verifiable: the public config at https://api.mojo.trade/api/v1/trading/quote-config?environment=mainnet
+    // (hyperliquid.builderAddress, builderFeeTenthsBps); the builder field of MOJO orders; builderRewards of the address.
+    addresses: ["0x7e60c68538c967b76381db4f46010ef378977997"],
+    // first day with fills carrying the code
+    start: "2026-06-27",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through MOJO with its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through MOJO; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
+      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through MOJO, all kept by MOJO.",
+      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through MOJO, all kept by MOJO.",
+    },
   },
   "eyed": {
     // EYED (https://eyed.cc, https://x.com/EyedTrade), a trading app for Hyperliquid perps (HIP-3 included) with copy
@@ -245,7 +277,6 @@ const builderConfigs: Record<string, BuilderConfig> = {
   },
   "ditto-perps": {
     // Public Hyperliquid builder attribution; the daily indexer counts every tagged fill.
-    // Scope/fields: https://hl-indexer.llama.rip/llms.txt (builder daily summaries).
     addresses: ["0x2530e4a72587450529fb99518db39d6a218a4177"],
     // Earliest positive public archive: https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0x2530e4a72587450529fb99518db39d6a218a4177/20260828.csv.lz4
     start: "2026-08-28",
@@ -1649,7 +1680,6 @@ function hip3Methodology(name: string) {
 // (its outcome listing for outcome-only builders); these are the builder's other markets, reusing its addresses
 // and settings. Spot and perps listings start with the builder, outcome listings no earlier than HIP-4 (2026-05-02).
 const builderMarketListings: Record<string, { builder: string; market: HyperliquidBuilderMarketV2; start: string; deadFrom?: string }> = {
-  // Earliest positive Spot day: https://hl-indexer.llama.rip/v2/data/builder/0x2530e4a72587450529fb99518db39d6a218a4177/daily/2026-09-30
   "ditto-spot": { builder: "ditto-perps", market: "spot", start: "2026-09-30" },
   "alphapilot-spot": { builder: "alphapilot", market: "spot", start: "2025-08-01" },
   "aura-money-outcome": { builder: "aura-money-perps", market: "outcome", start: "2026-05-04" },
@@ -1712,6 +1742,8 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "metascalp-spot": { builder: "metascalp-perps", market: "spot", start: "2025-09-11" },
   "metascalp-outcome": { builder: "metascalp-perps", market: "outcome", start: "2026-05-02" },
   "midas-spot": { builder: "midas-perps", market: "spot", start: "2026-01-15" },
+  // first day with spot fills carrying the code (sells only pay the builder fee)
+  "mojo-spot": { builder: "mojo-perps", market: "spot", start: "2026-08-26" },
   "moonbot-spot": { builder: "moonbot", market: "spot", start: "2025-08-01" },
   "moonbot-outcome": { builder: "moonbot", market: "outcome", start: "2026-05-02" },
   "moontrader-spot": { builder: "moontrader-perps", market: "spot", start: "2025-09-01" },

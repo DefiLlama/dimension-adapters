@@ -74,6 +74,7 @@ interface IRouter {
   // date or within the router's longest earlier silence. Metis and Blast aren't on Dune, so theirs follow
   // retiredOn. At the next rotation, give a retired router STILL_TRIMMING until its trims are checked.
   addresses: Array<{ address: string, retiredOn?: string, trimsUntil?: string }>;
+  start?: string; // chains OKX added after the adapter's 2025-08-05 start
 }
 
 // Every contract that has emitted a commission event and paid the referrer
@@ -294,6 +295,12 @@ const routers: Record<string, IRouter> = {
       { address: '0x472fc4f7fd3C9F06f0b8637c5505815ac80938Ad' },
     ],
   },
+  [CHAIN.ELYSIUM]: {
+    addresses: [
+      { address: '0x91ab9c4b07f479d48b60aefe8f7e31b3760c88c1' },
+    ],
+    start: '2026-11-09',
+  },
 }
 
 const fetch: any = async (options: FetchOptions) => {
@@ -390,8 +397,7 @@ const adapter: SimpleAdapter = {
       [PARTNER_POSITIVE_SLIPPAGE]: "Positive slippage paid to the address named in the swap, other than OKX's own fee accounts.",
     },
   },
-  chains: Object.keys(routers),
-  start: '2025-08-05',
+  adapter: Object.fromEntries(Object.entries(routers).map(([chain, { start = '2025-08-05' }]) => [chain, { start }])),
 }
 
 export default adapter;

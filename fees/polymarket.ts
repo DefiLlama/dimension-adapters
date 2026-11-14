@@ -30,6 +30,7 @@ const POLYMARKET_ADDRESSES = {
   common: {
     MakerRebatesDistributors: ['0x3a9418b2651c8164DB5EBc56F12008137865e0f7', '0xfdB1b8dC7f5789a0c9A398026585B8B10FbA5507'],
     ProtocolFeeWallet: '0x2d507657cA4EBCc8F9a38F6764c07310B66DEA54',
+    TreasuryWallet: '0x9d7f260b604fe71f4c6df11a1ca907a76520db6c',
     LiquidityRewardsDistributors: ['0xc288480574783BD7615170660d71753378159c47', '0x2c2795EA295d5Eb51F9121B728eD2eA4e936a709'],
     HoldingRewardsDistributors: ['0xC536633Ff12ee52e280b2aF2594031060C5aAf41', '0x607C8c9866Ef3b4665C5a384188706be738d8Bf8'],
     TakerRebatesDistributors: ['0x520BF77D9d34C34a6A9723f50E1Dcb887eD238C5'],
@@ -49,10 +50,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const pusd = ADDRESSES.polygon.PUSD
   const pusdLc = pusd.toLowerCase()
   const protocolFeeWalletLc = POLYMARKET_ADDRESSES.common.ProtocolFeeWallet.toLowerCase()
+  const treasuryWalletLc = POLYMARKET_ADDRESSES.common.TreasuryWallet.toLowerCase()
 
   const logFilter = (log: any) => {
     const to = String(log.to ?? log.to_address ?? '').toLowerCase()
-    return to !== pusdLc && to !== protocolFeeWalletLc
+    return to !== pusdLc && to !== protocolFeeWalletLc && to !== treasuryWalletLc
   }
 
   const fees = await addTokensReceived({

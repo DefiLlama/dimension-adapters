@@ -32,7 +32,8 @@ const addAmount = (
   if (!assetId) return;
 
   if (assetId === ADA_ID) {
-    balanceObj.addGasToken(quantity, label);
+    // not addGasToken: its key (cardano:0x000...) has no price before 2023-03-21, cardano:lovelace does
+    balanceObj.addToken("lovelace", quantity, label);
   } else {
     balanceObj.addToken(formatAsset(assetId), quantity, label);
   }

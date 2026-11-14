@@ -56,6 +56,7 @@ const BANKR_FEES = "Bankr Launch and Integration Fees";
 const HOOK_FEES = "Launch Pool Hook Fees";
 const LP_FEES = "Launch Pool LP Fees";
 const CLANKER_FEES = "Clanker Pool LP Fees";
+const CLANKER_V3_FEES = "Clanker v3 Pool LP Fees";
 const INTEGRATION_FEES = "Integration Fees";
 const STAKING_REWARDS = "BNKR Staking Rewards From Bankr Fees";
 const STAKING_DONATIONS = "BNKR Staking Rewards From Others";
@@ -72,6 +73,24 @@ const toBankr = (label: string) => `${label} To Bankr`;
 const BNKR_STAKING = '0x88470240ff0663faefa68b1d7621b472ddd9584a';
 const BNKR = '0x22af33fe49fd1fa80c7149773dde5890d3c76f3b';
 const BNKR_STAKING_START = '2026-09-26';
+
+// Clanker v3 and v3.1 tokens deployed through Bankr (DRB among them) pay Bankr's share of their LP fees
+// into 0xSplits v2 splits, not through the fee contracts in feeSources. Base only. Each split is counted
+// when its LP locker pays into it (the fee claim), like the other sources here; the splits' later
+// payouts to Bankr's Safe 0x5f8da8… through the Splits Warehouse are not counted again.
+// Bankr's dashboard bankrFees leaves these splits out (in Mar-Jun 2025 Bankr's WETH share paid into them
+// alone exceeded the month's whole bankrFees), so they are counted on top of it before ONCHAIN_START too.
+const CLANKER_V3_SPLITS = [
+  // v3: created in tx 0x9ad11b1a6fa3e65019ba2ef89877cd66b878deb3ccd6438ced871bea8da2248d, 66% to Bankr's
+  // Safe 0x5f8da8… and 34% to Clanker's Safe 0x1eaf444e…; owner() is the zero address, so the split is fixed
+  { split: '0x3d099bdf43e68eab7910fb9a9033fe20f182dbc9', locker: '0x5ec4f99f342038c67a312a166ff56e6d70383d86', bankrShare: 0.66 },
+  // v3.1: created in tx 0x5f2d81f7f6c94f42af1913e76b855e3bd7ff547927ac389783c2c61096e97c35, 100% to Bankr's
+  // Safe 0x5f8da8…. Its owner 0xeea96d… is Clanker's Safe (the same 2-of-3 signers as 0x1eaf444e…, and the
+  // owner of both lockers), which can change the recipients
+  { split: '0xbb251ce08509cd6eef32ab4771e9d81522644be6', locker: '0x33e2eda238edcf470309b8c6d228986a1204c8f9', bankrShare: 1 },
+];
+// emitted once at each split's creation and again on any change of recipients or allocations
+const SPLIT_UPDATED = 'event SplitUpdated((address[] recipients, uint256[] allocations, uint256 totalAllocation, uint16 distributionIncentive) _split)';
 
 const chainConfig: Record<string, { start: string; dashboardKey: keyof Omit<DailyByChain, "date">; feeSources: Record<string, string[]> }> = {
   [CHAIN.BASE]: {
@@ -180,6 +199,19 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
+  if (options.chain === CHAIN.BASE) {
+    const splitUpdates = await options.getLogs({ targets: CLANKER_V3_SPLITS.map(s => s.split), eventAbi: SPLIT_UPDATED });
+    if (splitUpdates.length) throw new Error('Bankr: a Clanker v3 split changed its recipients, recheck its Bankr share');
+    const clankerV3 = options.createBalances();
+    for (const { split, locker, bankrShare } of CLANKER_V3_SPLITS) {
+      const paidIn = await addTokensReceived({ options, target: split, fromAddressFilter: locker });
+      clankerV3.addBalances(paidIn.resizeBy(bankrShare));
+    }
+    clankerV3.removeTokenBalance(BANKR_LAUNCHED_TOKEN);
+    dailyFees.addBalances(clankerV3, CLANKER_V3_FEES);
+    dailyRevenue.addBalances(clankerV3.clone(), toBankr(CLANKER_V3_FEES));
+  }
+
   if (options.chain === CHAIN.BASE && targetDate >= BNKR_STAKING_START) {
     const rewards = await options.getLogs({
       target: BNKR_STAKING,
@@ -223,8 +255,8 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   methodology: {
     Volume: 'Trade volume routed through Bankr, taken per chain from the dashboard\'s dailyVolumeByChain series.',
-    Fees: 'Creator fees plus Bankr\'s own fees from token launches and integrations. Bankr\'s fees are the tokens its fee contracts pay to Bankr\'s three fee addresses on each chain, priced with DefiLlama prices; fees paid in Bankr-launched tokens are left out. Creator fees come from Bankr\'s dashboard, per chain.',
-    Revenue: 'Bankr\'s fees from token launches and integrations, read on-chain per chain since 2026-07-03. Before that, the dashboard\'s combined figure is reported on Base.',
+    Fees: 'Creator fees plus Bankr\'s own fees from token launches and integrations. Bankr\'s fees are the tokens its fee contracts pay to Bankr\'s three fee addresses on each chain, plus, on Base, Bankr\'s share of LP fees on Clanker v3 and v3.1 tokens paid through 0xSplits splits, priced with DefiLlama prices; fees paid in tokens launched on Bankr\'s Doppler launchpad (addresses ending in ba3) are left out. Creator fees come from Bankr\'s dashboard, per chain.',
+    Revenue: 'Bankr\'s fees from token launches and integrations, read on-chain per chain since 2026-07-03. Before that, the dashboard\'s combined figure is reported on Base, plus Bankr\'s share of Clanker v3 and v3.1 LP fees read on-chain, which the dashboard leaves out.',
     ProtocolRevenue: 'Bankr\'s fees from token launches and integrations, minus the BNKR it sends from its fee addresses into the BNKR staking stream (negative on the days it funds the stream).',
     SupplySideRevenue: 'Fees paid out to token creators, split per chain, from Bankr\'s dashboard.',
     HoldersRevenue: 'BNKR paid into the BNKR staking reward stream (BnkrStakingV3) since 2026-09-26, on the day it is paid in: from Bankr\'s fee addresses (out of fees counted in Revenue) or from anyone else.',
@@ -235,21 +267,23 @@ const adapter: SimpleAdapter = {
     },
     Fees: {
       [CREATOR_FEES]: 'Fees paid out to token creators on this chain',
-      [BANKR_FEES]: 'Bankr\'s own cut of token launches and integrations from the dashboard, reported combined across chains on Base (before 2026-07-03)',
+      [BANKR_FEES]: 'Bankr\'s own cut of token launches and integrations from the dashboard, reported combined across chains on Base (before 2026-07-03); it does not include the Clanker v3 and v3.1 split fees',
       [HOOK_FEES]: 'Hook fee on swaps in tokens launched through Bankr\'s Doppler Rehype hooks, paid to Bankr per swap or claimed by Bankr\'s Safes',
       [LP_FEES]: 'Bankr\'s beneficiary share of LP fees in Doppler multicurve launch pools, claimed by Bankr\'s fee wallet',
       [CLANKER_FEES]: 'Bankr\'s share of LP fees on Clanker v4 tokens it deployed, claimed from the Clanker fee locker',
       [INTEGRATION_FEES]: 'Fees paid to Bankr through BankrFeeRouterV2 by integrations',
+      [CLANKER_V3_FEES]: 'Bankr\'s share of LP fees on Clanker v3 and v3.1 tokens deployed through Bankr (DRB among them), on Base, counted when the LP lockers pay them into Bankr\'s 0xSplits splits: 66% of the v3 split\'s intake (Clanker gets the other 34%) and all of the v3.1 split\'s. Not part of the dashboard figure, so also counted before 2026-07-03',
     },
     Revenue: {
-      [BANKR_FEES]: 'Bankr\'s own cut of token launches and integrations from the dashboard, reported combined across chains on Base (before 2026-07-03)',
+      [BANKR_FEES]: 'Bankr\'s own cut of token launches and integrations from the dashboard, reported combined across chains on Base (before 2026-07-03); it does not include the Clanker v3 and v3.1 split fees',
       [toBankr(HOOK_FEES)]: 'Hook fee on launched-token swaps received by Bankr',
       [toBankr(LP_FEES)]: 'Bankr\'s share of multicurve launch pool LP fees',
       [toBankr(CLANKER_FEES)]: 'Bankr\'s share of Clanker v4 LP fees',
       [toBankr(INTEGRATION_FEES)]: 'Integration fees received by Bankr',
+      [toBankr(CLANKER_V3_FEES)]: 'Bankr\'s share of Clanker v3 and v3.1 LP fees, paid into its 0xSplits splits',
     },
     ProtocolRevenue: {
-      [NET_BANKR_FEES]: 'Bankr\'s launch and integration fees (from the dashboard, combined across chains on Base, before 2026-07-03; received on-chain per chain since), minus the BNKR Bankr sends from its fee addresses into the BNKR staking stream (negative on the days it funds the stream)',
+      [NET_BANKR_FEES]: 'Bankr\'s launch and integration fees (from the dashboard, combined across chains on Base, before 2026-07-03; received on-chain per chain since; Clanker v3 and v3.1 split fees on-chain throughout), minus the BNKR Bankr sends from its fee addresses into the BNKR staking stream (negative on the days it funds the stream)',
     },
     SupplySideRevenue: {
       [CREATOR_FEES]: 'Fees paid out to token creators on this chain',

@@ -49,6 +49,7 @@ const CHAINS: TChain = {
   [CHAIN.SOLANA]: 501,
   [CHAIN.OSMOSIS]: 706,
   [CHAIN.TRON]: 195,
+  [CHAIN.ELYSIUM]: 99901,
 
   // [CHAIN.OKEXCHAIN]: 66,
   // [CHAIN.FLARE]: 14, // broken
@@ -154,6 +155,11 @@ async function queryOkxApi(timestamp:string, path:string){
   return data
 }
 
+// chains OKX added after 2022-05-17; the API returns `data: null` for earlier timestamps
+const chainStart: Record<string, string> = {
+  [CHAIN.ELYSIUM]: '2026-11-09', // Kinetiq Elysium mainnet launch, first timestamp with an API row
+}
+
 const invalidSpikes = {
   [CHAIN.TRON]: ["2026-06-24"],
 }
@@ -194,7 +200,7 @@ const adapter: any = {
       ...acc,
       [chain]: {
         fetch: fetch,
-        start: '2022-05-17',
+        start: chainStart[chain] ?? '2022-05-17',
       },
     };
   }, {}),

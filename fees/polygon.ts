@@ -2,6 +2,7 @@ import { CHAIN } from "../helpers/chains";
 import { Adapter, ProtocolType, FetchOptions, Dependencies } from "../adapters/types";
 import { queryDuneSql } from "../helpers/dune";
 import { METRIC } from "../helpers/metrics";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 // Polygon PoS is an L1, not a rollup: revenue is the burned EIP-1559 base fee, as for ethereum, monad and imx.
 // The base fee goes to Bor's burntContract (genesis-mainnet-v1.json): 0x70bca57f4579f58670ab2d18ef16e02c17553c38
@@ -51,10 +52,12 @@ const fetch = async (options: FetchOptions) => {
     const dailyRevenue = options.createBalances();
     const dailySupplySideRevenue = options.createBalances();
 
-    dailyFees.addGasToken(baseFees, METRIC.TRANSACTION_BASE_FEES);
-    dailyFees.addGasToken(priorityFees, METRIC.TRANSACTION_PRIORITY_FEES);
-    dailyRevenue.addGasToken(baseFees, METRIC.TRANSACTION_BASE_FEES);
-    dailySupplySideRevenue.addGasToken(priorityFees, PRIORITY_FEES_TO_VALIDATORS_AND_STAKERS);
+    // not addGasToken: coins.llama.fi prices polygon:0x000... only from 2023-10-25 (the POL series), WPOL keeps the MATIC history back to 2021-02
+    const WPOL = ADDRESSES.polygon.WMATIC_2;
+    dailyFees.add(WPOL, baseFees, METRIC.TRANSACTION_BASE_FEES);
+    dailyFees.add(WPOL, priorityFees, METRIC.TRANSACTION_PRIORITY_FEES);
+    dailyRevenue.add(WPOL, baseFees, METRIC.TRANSACTION_BASE_FEES);
+    dailySupplySideRevenue.add(WPOL, priorityFees, PRIORITY_FEES_TO_VALIDATORS_AND_STAKERS);
 
     return {
         dailyFees,

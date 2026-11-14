@@ -31,6 +31,8 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const adapter: SimpleAdapter = {
+  // neutron dex is withdraw_only (/neutron/dex/params) after the 2026-03-17 maintenance-mode announcement, last stored day 2026-03-23
+  deadFrom: '2026-03-23',
   adapter: {
     [CHAIN.NEUTRON]: {
       fetch,

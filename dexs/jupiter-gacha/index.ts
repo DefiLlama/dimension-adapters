@@ -45,7 +45,8 @@ const fetch = async (options: FetchOptions) => {
       SELECT
         txn_id,
         REGEXP_SUBSTR(
-          array_join(log_messages, '||'),
+          -- the guard stops "Left argument of string is not an array" on non-array log_messages rows
+          ARRAY_TO_STRING(IFF(IS_ARRAY(log_messages::variant), log_messages, NULL), '||'),
           'Memo \\\\(len [0-9]+\\\\): "([^"]+)"',
           1, 1, 'e', 1
         ) AS memo
