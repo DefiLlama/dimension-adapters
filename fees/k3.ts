@@ -29,6 +29,12 @@ const k3Vaults: any = {
     eulerVaultOwners: ['0xAeE4e2E8024C1B58f4686d1CB1646a6d5755F05C'],
     start: '2025-10-01',
   },
+  [CHAIN.MONAD]: {
+    // creators of the "K3 Isolated" markets (euler-labels 143/products.json, entity k3-capital).
+    // Every vault either deployer made is governed by the K3 multisig 0x060DB084 or by the deployer itself
+    eulerVaultOwners: ['0x5144b2B36EBdF0b06f62AcbCB180F016bC531232', '0x987C5739F3905FbA98eCCf4aceBc88730E0eE53D'],
+    start: '2026-05-15',
+  },
   [CHAIN.ETHEREUM]: {
     morphoVaultOwners: ['0xdD84A24eeddE63F10Ec3e928f1c8302A47538b6B'],
     eulerVaultOwners: ['0xdD84A24eeddE63F10Ec3e928f1c8302A47538b6B'],
