@@ -1,3 +1,4 @@
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
@@ -5,25 +6,21 @@ import { addOneToken } from "../../helpers/prices";
 // StoaRouter emits one Routed event per settled swap, direct or through one hop (source:
 // https://github.com/StoaDex/Stoa/blob/main/contracts/src/StoaRouter.sol). A failed swap reverts and emits nothing.
 const ROUTED = "event Routed(address indexed sender, address indexed to, address indexed referrer, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, address mid, address venue1, address venue2)";
-// StoaRouter.NATIVE: tokenIn/tokenOut for the chain's gas token (ETH on Robinhood Chain, HYPE on Elysium)
-const NATIVE = "0x0000000000000000000000000000000000000000";
-
-const chainConfig: Record<string, { router: string; start: string }> = {
+// StoaRouter.NATIVE (the zero address) is tokenIn/tokenOut for the chain's gas token (ETH on Robinhood Chain, HYPE on Elysium).
+// The router wraps it itself, so native legs are priced as `wrapped`, the router's whype() on each chain.
+const chainConfig: Record<string, { router: string; wrapped: string; start: string }> = {
   // https://robinhoodchain.blockscout.com/address/0x2F2804fad735a38015650f32f95Ad5E08D6B3eE5 (deployed block 114244443, first swap 2026-11-14)
-  [CHAIN.ROBINHOOD]: { router: "0x2F2804fad735a38015650f32f95Ad5E08D6B3eE5", start: "2026-11-14" },
+  [CHAIN.ROBINHOOD]: { router: "0x2F2804fad735a38015650f32f95Ad5E08D6B3eE5", wrapped: ADDRESSES.robinhood.WETH, start: "2026-11-14" },
   // https://elysium.kinetiq.xyz/address/0x104752D50ef893da579Ad813918269e09Ea17dbA (deployed block 5216650, first swap 2026-11-12)
-  [CHAIN.ELYSIUM]: { router: "0x104752D50ef893da579Ad813918269e09Ea17dbA", start: "2026-11-12" },
+  [CHAIN.ELYSIUM]: { router: "0x104752D50ef893da579Ad813918269e09Ea17dbA", wrapped: ADDRESSES.elysium.WHYPE, start: "2026-11-12" },
 };
 
 const fetch = async (options: FetchOptions) => {
-  const { router } = chainConfig[options.chain];
+  const { router, wrapped } = chainConfig[options.chain];
   const dailyVolume = options.createBalances();
   const logs = await options.getLogs({ target: router, eventAbi: ROUTED });
-  if (!logs.length) return { dailyVolume };
 
-  // the router wraps the gas token itself; price native legs as its wrapped token (StoaRouter.whype)
-  const wrapped: string = await options.api.call({ target: router, abi: "address:whype" });
-  const asWrapped = (token: string) => (token.toLowerCase() === NATIVE ? wrapped : token);
+  const asWrapped = (token: string) => (token.toLowerCase() === ADDRESSES.null ? wrapped : token);
 
   for (const log of logs) {
     // one side per swap: the core asset (WETH, USDG, WHYPE, USDC...) when there is one, so long-tail tokens are not priced
