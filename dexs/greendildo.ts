@@ -54,9 +54,9 @@ const adapter: Adapter = {
   methodology: {
     Volume: "Quote-token value of every buy and sell on the Raydium LaunchLab bonding curves created under the GreenDildo platform config, denominated in each pool's quote token.",
   },
-  adapter: {
-    [CHAIN.SOLANA]: { fetch, start: "2026-11-09" },
-  },
+  fetch,
+  chains: [CHAIN.SOLANA],
+  start: "2026-11-09",
 };
 
 export default adapter;
