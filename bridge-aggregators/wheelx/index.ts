@@ -86,7 +86,7 @@ async function fetch(options: FetchOptions) {
   const data: OrdersResponse = await fetchURL(url);
 
   // a failed or partial response must not be stored as a $0 day for this chain
-  if (!Array.isArray(data?.orders)) throw new Error(`WheelX returned no orders array for ${options.chain}`);
+  if (!Array.isArray(data?.orders) || !Number.isInteger(data.total)) throw new Error(`WheelX returned a malformed orders response for ${options.chain}`);
   if (data.total > data.orders.length) throw new Error(`WheelX returned ${data.orders.length} of ${data.total} orders for ${options.chain}`);
 
   for (const order of data.orders) {
