@@ -13,6 +13,11 @@ const EVENT = '435445564e54000001'
 const OPEN = `${EVENT}06`
 const CLOSE = `${EVENT}07`
 const LIQUIDATION = `${EVENT}08`
+// Since the 2026-10-20 upgrade, closes submitted through instruction 0x2e emit kind 2e, and from 2026-11-04 session
+// closes on the Pyth-priced markets emit kind 3a. Both use the kind-07 layout and a position settled by one of them
+// never gets a 07 or 08 event, so they are booked exactly like CLOSE.
+const RELAYED_CLOSE = `${EVENT}2e`
+const SESSION_CLOSE = `${EVENT}3a`
 
 // A close that executes at or past the bust price is settled as a liquidation (the whole margin is forfeited).
 // Bust price = entry * (1 - 1 / leverage + buffer) for a long, mirrored for a short. The buffer is 5 bps on every market
@@ -62,7 +67,7 @@ const queryFlows = (start: number, end: number, scanFrom: number) => queryAllium
     WHERE program_id = '${CARDBOARD_PROGRAM}'
       AND parent_tx_success = true
       AND block_timestamp >= TO_TIMESTAMP_NTZ(${scanFrom}) AND block_timestamp < TO_TIMESTAMP_NTZ(${end})
-      AND LEFT(data_hex, 20) IN ('${OPEN}', '${CLOSE}', '${LIQUIDATION}')
+      AND LEFT(data_hex, 20) IN ('${OPEN}', '${CLOSE}', '${LIQUIDATION}', '${RELAYED_CLOSE}', '${SESSION_CLOSE}')
   ),
   opens AS (
     SELECT owner, position_id, price AS entry_price, margin, leverage, is_long FROM ev WHERE kind = '${OPEN}'
@@ -74,7 +79,7 @@ const queryFlows = (start: number, end: number, scanFrom: number) => queryAllium
           >= o.entry_price * (10000 - ${LIQUIDATION_BUFFER_BPS} * o.leverage) AS liquidated
     FROM ev e
     LEFT JOIN opens o ON o.owner = e.owner AND o.position_id = e.position_id
-    WHERE e.kind IN ('${CLOSE}', '${LIQUIDATION}')
+    WHERE e.kind IN ('${CLOSE}', '${LIQUIDATION}', '${RELAYED_CLOSE}', '${SESSION_CLOSE}')
       AND e.block_timestamp >= TO_TIMESTAMP_NTZ(${start})
   ),
   window_opens AS (
