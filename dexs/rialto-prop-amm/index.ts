@@ -11,39 +11,23 @@ const RIALTO_ROUTERS = [
 const routeActionEvent = 'event RouteActionExecuted( uint256 indexed hopIndex, uint8 kind, address indexed pool, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut)';
 // RouteActionKind.RawCall in the verified RialtoRouter deployment above.
 const rawCallKind = 0n;
-// PropAMM pair deployments on Robinhood Chain:
-// https://robinhoodchain.blockscout.com/
-const propAmmPools = new Set([
-  '0x79ef2fd912e3a3b91851497017cc813f10456065',
-  '0x5744e9c5165973ba5a332135477f3000c143f16f',
-  '0x0bf53c3bf003fbbf879a8677a7407c8c2743b30a',
-  '0xaeaf9874ee5fd4c08af1f70910638a4b97a78ab8',
-  '0x95e4a408590e5ace8aab498ab0f9f4236f5162e5',
-  '0x6af2cee71babfa22f9f55a16507cc4dc6369304b',
-  '0x894b9322662f4e4ce05882f38095c6c7bcf1cc73',
-  '0x6222789510dcf233c98193107ff614a423fef6f3',
-  '0x2d96272951b4c340a40b9aee6cd0fbb87f7bb51a',
-  '0xe4c442a44b8ae699c95d313b2c407e4413ebe567',
-  '0x7b301700047d789667782baa866468ab655d1153',
-  '0x09751decf6e92ae76b5ee30d63ef752a27b85285',
-  '0x9fd0d75285c4ee7fa70537b1e18fe265a944a227',
-  '0xcd3d6b36f79ef74785bd1da226c9827b5a5c2dd8',
-  '0x89e211d43bbcf8ca5eaa9e5fbdef078cf520ecf1',
-  '0xdd479e2b6b114d23fd29e708da665678c1077c97',
-  '0x000c9f312abc95b680fcbf23767a2e64ba438771',
-  '0x28691a561d0e1d6a2661dee41b75d3b688fc4479',
-  '0x769961bbed892f4178a39e5130352b5dddb5e955',
-  '0xa0b134ca24006b4408d762fab13e40f3353f49c4',
-  '0xe0db060b92de9094b9a49e1e82ca5f11dcb50a46',
-  '0x85810a92d755feeb84afedd58ed4558910be3b43',
-  '0x998dffa31c0f5ae43b23fd9e62b0d623d022ddae',
-  '0xd8038a498ac03bae715d1c12f755f4d6730d364a',
-  '0xf57584c4e372052fcf48e2a3942b9c1087f011ad',
-  '0x0217ee258081bb431f9fa25e0943628ce9d0595a',
-  '0xfc757a2c43c79146201aa5155322c82d7c7300c7',
+// PropAMM pairs are deployed directly by 0x8dbf0d37cad30b2510d5c74e0f87a210cb298086, with no factory or
+// registry event, and get redeployed (the 2026-11-06 set replaced every earlier pair). Every pair exposes
+// traderVault(), so a RawCall target counts as PropAMM when it returns one of these vaults:
+// 0x9c76... for the first pair (0x79ef2fd912e3a3b91851497017cc813f10456065), 0x2f45... for all later ones.
+// The pair set is discovered per window; this vault set is still static and needs a new entry if the vault rotates.
+const traderVaultAbi = 'function traderVault() view returns (address)';
+const propAmmTraderVaults = new Set([
+  '0x9c7633410deace3e8a1f891ba72541691e4252b2',
+  '0x2f4579ca81717d3d61bf8b6f06571877bbe54a07',
 ]);
+// Known pair, always probed: with permitFailure a failed RPC call looks like a non-PropAMM target, so a
+// probe that does not resolve to a known vault means the lookup itself failed. It was deployed at
+// 2026-06-15 13:51:08 UTC (block 58159), so earlier windows skip the check.
+const probePool = '0x79ef2fd912e3a3b91851497017cc813f10456065';
+const probePoolDeployedAt = 1781531468;
 
-/** Returns volume executed against known PropAMM pair contracts. */
+/** Returns volume executed against PropAMM pair contracts. */
 async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
 
@@ -52,8 +36,22 @@ async function fetch(options: FetchOptions) {
     eventAbi: routeActionEvent,
   });
 
-  for (const log of routeActionLogs) {
-    if (log.kind === rawCallKind && propAmmPools.has(log.pool.toLowerCase())) {
+  const rawCallLogs = routeActionLogs.filter((log) => log.kind === rawCallKind);
+  if (!rawCallLogs.length) return { dailyVolume };
+
+  const pools = [...new Set([probePool, ...rawCallLogs.map((log) => log.pool.toLowerCase())])];
+  // RawCall also targets contracts without traderVault(), those calls revert. A failed multicall chunk comes
+  // back as all-null outputs, so retry once before giving up.
+  const lookupVaults = () => options.api.multiCall({ abi: traderVaultAbi, calls: pools, permitFailure: true });
+  let vaults = await lookupVaults();
+  const probeResolved = () => options.endTimestamp <= probePoolDeployedAt || propAmmTraderVaults.has(vaults[0]?.toLowerCase());
+  if (!probeResolved()) vaults = await lookupVaults();
+  if (!probeResolved()) throw new Error('rialto-prop-amm: traderVault() lookup failed for the probe pair');
+
+  const propAmmPools = new Set(pools.filter((_, i) => propAmmTraderVaults.has(vaults[i]?.toLowerCase())));
+
+  for (const log of rawCallLogs) {
+    if (propAmmPools.has(log.pool.toLowerCase())) {
       dailyVolume.add(log.tokenIn, log.amountIn);
     }
   }
@@ -64,7 +62,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Volume: "Volume executed against known PropAMM pairs.",
+  Volume: "Volume of swaps Rialto routes through its PropAMM market-making pairs.",
 }
 
 const adapter: SimpleAdapter = {
