@@ -416,6 +416,7 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean | R
     [CHAIN.STABLE]: aoriBridge("0xffe691a6ddb5d2645321e0a920c2e7bdd00dd3d8", "2026-04-01"),
     [CHAIN.MEGAETH]: aoriBridge("0xffe691a6ddb5d2645321e0a920c2e7bdd00dd3d8", "2026-04-02"),
     [CHAIN.PLASMA]: aoriBridge("0xffe691a6ddb5d2645321e0a920c2e7bdd00dd3d8", "2026-04-04"),
+    [CHAIN.ROOTSTOCK]: aoriBridge("0xffe691a6ddb5d2645321e0a920c2e7bdd00dd3d8", "2026-04-03"),
   },
   "helixbox": {
     [CHAIN.ARBITRUM]: helixboxBridge("0xbA5D580B18b6436411562981e02c8A9aA1776D10", "2024-06-24"),

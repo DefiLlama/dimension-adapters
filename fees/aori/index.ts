@@ -1,3 +1,4 @@
+import { Balances } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -48,6 +49,12 @@ const chainConfig: any = {
         eid: 30398n,
         start: "2026-02-06",
     },
+    // https://docs.aori.io/developers/chains, eid matches endpoint().eid() on the contract and the peers() of the other deployments
+    [CHAIN.ROOTSTOCK]: {
+        contract: "0xffe691a6ddb5d2645321e0a920c2e7bdd00dd3d8",
+        eid: 30333n,
+        start: "2026-04-03",
+    },
 }
 
 const FILL_EVENT = `event Fill(
@@ -73,6 +80,15 @@ const eidToChain = new Map(
 const normalizeToken = (token: string) =>
     token.toLowerCase() === ADDRESSES.GAS_TOKEN_2 ? ADDRESSES.null : token.toLowerCase();
 
+// USDT0 on MegaETH has no coins price under its own address, so it is priced by its coingecko id
+const MEGAETH_USDT0 = ADDRESSES.megaeth.USDT.toLowerCase();
+
+const addLeg = (balances: Balances, chain: string, token: string, amount: bigint) => {
+    const normalized = normalizeToken(token)
+    if (chain === CHAIN.MEGAETH && normalized === MEGAETH_USDT0) balances.addCGToken("usdt0", Number(amount) / 1e6) // 6 decimals, single fills stay far below 2^53
+    else balances.add(`${chain}:${normalized}`, amount, { skipChain: true })
+}
+
 async function fetch(options: FetchOptions) {
     const fillLogs = await options.getLogs({
         target: chainConfig[options.chain].contract,
@@ -85,8 +101,10 @@ async function fetch(options: FetchOptions) {
     fillLogs.forEach((log: any) => {
         const { inputToken, inputAmount, outputToken, outputAmount, srcEid } = log.order;
         const srcChain = eidToChain.get(srcEid.toString());
-        if (srcChain) inputs.add(`${srcChain}:${normalizeToken(inputToken)}`, inputAmount, { skipChain: true })
-        outputs.add(normalizeToken(outputToken), outputAmount)
+        // an unknown source would drop the input but keep the output, booking the whole fill as a negative fee
+        if (!srcChain) throw new Error(`aori: unknown srcEid ${srcEid} on ${options.chain}`)
+        addLeg(inputs, srcChain, inputToken, inputAmount)
+        addLeg(outputs, options.chain, outputToken, outputAmount)
     })
 
     const dailyFees = inputs.clone(1, "Bridge Fees");
@@ -94,8 +112,8 @@ async function fetch(options: FetchOptions) {
 
     return {
         dailyFees,
-        dailyRevenue: dailyFees,
-        dailyProtocolRevenue: dailyFees,
+        dailyRevenue: dailyFees.clone(),
+        dailyProtocolRevenue: dailyFees.clone(),
     }
 }
 
@@ -124,7 +142,7 @@ const adapter: SimpleAdapter = {
     adapter: chainConfig,
     methodology,
     breakdownMethodology,
-    allowNegativeValue: true,
+    allowNegativeValue: true, // input and output legs are priced separately, so a fill can net slightly below zero
 }
 
 export default adapter;
