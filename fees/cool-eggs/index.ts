@@ -58,8 +58,8 @@ const fetch = async (options: FetchOptions) => {
   const pool = after.pool - before.pool, protocol = after.protocol - before.protocol;
   if (pool < 0n || protocol < 0n) throw new Error('Cool Eggs surplus counters decreased');
   dailyFees.addGasToken(pool + protocol, SURPLUS);
-  dailyRevenue.addGasToken(protocol, SURPLUS);
-  dailySupplySideRevenue.addGasToken(pool, SURPLUS);
+  dailyRevenue.addGasToken(protocol, `${SURPLUS} To Treasury`);
+  dailySupplySideRevenue.addGasToken(pool, `${SURPLUS} To Prize Pool`);
 
   const txs = await pageToncenterTxs({ account: TOURNAMENT,
     startTimestamp: options.startTimestamp, endTimestamp: options.endTimestamp });
@@ -69,8 +69,8 @@ const fetch = async (options: FetchOptions) => {
       if (message.opcode !== '0x1ff02422' || message.destination !== null) continue;
       const { price, pool, protocol } = allocationAmounts(message.message_content.body);
       dailyFees.addGasToken(price, SALES);
-      dailyRevenue.addGasToken(protocol, SALES);
-      dailySupplySideRevenue.addGasToken(pool, SALES);
+      dailyRevenue.addGasToken(protocol, `${SALES} To Treasury`);
+      dailySupplySideRevenue.addGasToken(pool, `${SALES} To Prize Pool`);
     }
   }
   const partnerTxs = await pageToncenterTxs({ account: TREASURY,
@@ -90,9 +90,9 @@ const fetch = async (options: FetchOptions) => {
     const amount = BigInt(message.value);
     if (amount <= 0n) continue;
     dailyFees.addGasToken(amount, PARTNER);
-    dailyRevenue.addGasToken(amount, PARTNER);
+    dailyRevenue.addGasToken(amount, `${PARTNER} To Treasury`);
   }
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
 };
 
 const feeSources = {
@@ -115,9 +115,9 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: feeSources,
-    Revenue: { [SALES]: 'Treasury share recorded in purchase logs.', [SURPLUS]: 'Increase in the protocolShare counter.', [PARTNER]: 'Full campaign payment retained by the treasury.' },
-    ProtocolRevenue: { [SALES]: 'Treasury share recorded in purchase logs.', [SURPLUS]: 'Increase in the protocolShare counter.', [PARTNER]: 'Full campaign payment retained by the treasury.' },
-    SupplySideRevenue: { [SALES]: 'Prize-pool share recorded in purchase logs.', [SURPLUS]: 'Increase in the prizeShare counter.' },
+    Revenue: { [`${SALES} To Treasury`]: 'Treasury share recorded in purchase logs.', [`${SURPLUS} To Treasury`]: 'Increase in the protocolShare counter.', [`${PARTNER} To Treasury`]: 'Full campaign payment retained by the treasury.' },
+    ProtocolRevenue: { [`${SALES} To Treasury`]: 'Treasury share recorded in purchase logs.', [`${SURPLUS} To Treasury`]: 'Increase in the protocolShare counter.', [`${PARTNER} To Treasury`]: 'Full campaign payment retained by the treasury.' },
+    SupplySideRevenue: { [`${SALES} To Prize Pool`]: 'Prize-pool share recorded in purchase logs.', [`${SURPLUS} To Prize Pool`]: 'Increase in the prizeShare counter.' },
   },
 };
 
