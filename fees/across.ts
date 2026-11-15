@@ -1,31 +1,23 @@
 /**
  * Across Adapter
- * 
- * This implementation reads Across deposits directly from the Across API and
- * uses `bridgeFeeUsd` as the relayer fee source of truth.
+ *
+ * Reads Across deposits from the Across API and uses `bridgeFeeUsd` as the relayer fee source of truth.
+ * The `/deposits` endpoint only serves the newest ~2000 rows for a destinationChainId filter (skip past the
+ * second page returns nothing), so busy destinations cannot be paged back a full day. The deposits are read
+ * instead through the bridge adapter's prefetch, which scans every origin chain by block range, and each
+ * chain then keeps the filled deposits arriving on it. Fees are attributed to the deposit time.
  */
 
-import PromisePool from "@supercharge/promise-pool";
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import fetchURL, { fetchURLAutoHandleRateLimit } from "../utils/fetchURL";
-import { sleep } from "../utils/utils";
-
-interface IResponse {
-  dst_chain: string;
-  relay_fees: number;
-  lp_fees: number;
-}
+import acrossBridge from "../bridges/across";
 
 interface IAcrossDeposit {
+  destinationChainId: number | null;
+  status: string;
   bridgeFeeUsd?: string | null;
-  fillBlockTimestamp?: string;
-  depositBlockTimestamp?: string;
 }
 
-const ACROSS_DEPOSITS_API = "https://app.across.to/api/deposits";
-const PAGE_LIMIT = 1000;
-const MAX_PAGES_PER_CHAIN = 200;
 const MIN_VALID_BRIDGE_FEE_USD = 0;
 
 const chainIdConfig: Record<string, number> = {
@@ -64,84 +56,29 @@ const parseBridgeFeeUsd = (value?: string | null): number | undefined => {
   return parsed;
 };
 
-const parseTimestamp = (deposit: IAcrossDeposit): number | undefined => {
-  const raw = deposit.fillBlockTimestamp ?? deposit.depositBlockTimestamp;
-  if (!raw) return undefined;
-  const timestamp = Math.floor(new Date(raw).getTime() / 1000);
-  if (!Number.isFinite(timestamp)) return undefined;
-  return timestamp;
-};
-
-const fetchBridgeFeesForChain = async (destinationChainId: number, startTimestamp: number, endTimestamp: number) => {
-  let skip = 0;
-  let pagesFetched = 0;
-  let totalBridgeFeesUsd = 0;
-
-  while (pagesFetched < MAX_PAGES_PER_CHAIN) {
-    const queryParams = new URLSearchParams({
-      destinationChainId: String(destinationChainId),
-      status: "filled",
-      limit: String(PAGE_LIMIT),
-      skip: String(skip),
-    });
-    const deposits: IAcrossDeposit[] = await fetchURLAutoHandleRateLimit(`${ACROSS_DEPOSITS_API}?${queryParams.toString()}`);
-    if (!Array.isArray(deposits) || !deposits.length) break;
-
-    let reachedOlderData = false;
-    for (const deposit of deposits) {
-      const timestamp = parseTimestamp(deposit);
-      if (timestamp === undefined) continue;
-      if (timestamp >= endTimestamp) continue;
-      if (timestamp < startTimestamp) {
-        reachedOlderData = true;
-        continue;
-      }
-      const bridgeFeeUsd = parseBridgeFeeUsd(deposit.bridgeFeeUsd);
-      if (bridgeFeeUsd !== undefined) totalBridgeFeesUsd += bridgeFeeUsd;
-    }
-
-    if (reachedOlderData || deposits.length < PAGE_LIMIT) break;
-
-    skip += PAGE_LIMIT;
-    pagesFetched += 1;
-    await sleep(200);
-  }
-
-  return totalBridgeFeesUsd;
-};
-
-// Prefetch function that will run once before any fetch calls
-const prefetch = async (options: FetchOptions): Promise<any> => {
-  const entries = Object.entries(chainIdConfig);
-  const { results } = await PromisePool.withConcurrency(3)
-    .for(entries)
-    .process(async ([dst_chain, destinationChainId]) => {
-      let relay_fees = 0;
-      try {
-        relay_fees = await fetchBridgeFeesForChain(destinationChainId, options.startTimestamp, options.endTimestamp);
-      } catch (error) {
-        console.error(`[across][prefetch] failed chain=${dst_chain} chainId=${destinationChainId}`, error);
-      }
-      await sleep(1000);
-      return { dst_chain, relay_fees, lp_fees: 0 };
-    });
-
-  return results as any;
-};
-
 const fetch = async (options: FetchOptions) => {
-  const results: IResponse[] = options.preFetchedResults || [];
-  const chainData = results.find(item => item.dst_chain === options.chain);
+  const deposits = options.preFetchedResults as IAcrossDeposit[];
+  const chainId = chainIdConfig[options.chain];
+  let relayFees = 0;
+  let filled = 0;
+  let priced = 0;
+  for (const deposit of deposits) {
+    if (deposit.destinationChainId !== chainId || deposit.status !== "filled") continue;
+    filled++;
+    if (deposit.bridgeFeeUsd != null) priced++;
+    const bridgeFeeUsd = parseBridgeFeeUsd(deposit.bridgeFeeUsd);
+    if (bridgeFeeUsd !== undefined) relayFees += bridgeFeeUsd;
+  }
+  // the shared prefetch must keep the raw API rows, a missing bridgeFeeUsd on every fill would store a fake 0
+  if (filled > 0 && priced === 0) throw new Error(`across: ${filled} fills on ${options.chain} without bridgeFeeUsd`);
 
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  if (chainData) {
-    dailyFees.addUSDValue(chainData.relay_fees, 'Relayer Fees');
-    dailyFees.addUSDValue(chainData.lp_fees, 'LP Fees');
-    dailySupplySideRevenue.addUSDValue(chainData.relay_fees, 'Relayer Fees');
-    dailySupplySideRevenue.addUSDValue(chainData.lp_fees, 'LP Fees');
-  }
+  dailyFees.addUSDValue(relayFees, 'Relayer Fees');
+  dailyFees.addUSDValue(0, 'LP Fees');
+  dailySupplySideRevenue.addUSDValue(relayFees, 'Relayer Fees');
+  dailySupplySideRevenue.addUSDValue(0, 'LP Fees');
 
   return {
     dailyFees,
@@ -181,12 +118,12 @@ const adapter: Adapter = {
     [CHAIN.ZKSYNC]: { start: "2024-02-21" },
     [CHAIN.BASE]: { start: "2024-02-21" },
     [CHAIN.LINEA]: { start: "2024-03-20" },
-    [CHAIN.BLAST]: { start: "2024-07-10" },
+    [CHAIN.BLAST]: { start: "2024-07-10", deadFrom: "2026-08-01" }, // last Across deposit from or to Blast was 2026-07-31
     [CHAIN.SCROLL]: { start: "2024-07-31" },
     [CHAIN.ZORA]: { start: "2024-08-15" },
     [CHAIN.WC]: { start: "2024-10-10" },
     [CHAIN.REDSTONE]: { start: "2024-08-12" },
-    [CHAIN.LISK]: { start: "2024-07-04" },
+    [CHAIN.LISK]: { start: "2024-07-04", deadFrom: "2026-08-18" }, // last Across deposit from or to Lisk was 2026-08-17
     [CHAIN.SONEIUM]: { start: "2025-01-14" },
     [CHAIN.INK]: { start: "2025-01-02" },
     [CHAIN.MODE]: { start: "2024-05-23" },
@@ -200,11 +137,11 @@ const adapter: Adapter = {
     [CHAIN.ROBINHOOD]: { start: "2026-07-02" },
   },
   fetch,
-  prefetch: prefetch as any,
+  prefetch: acrossBridge.prefetch,
   methodology,
   breakdownMethodology,
+  pullHourly: false, // one prefetch scans every origin chain by block range, hourly windows would multiply the calls against a rate-limited API
   allowNegativeValue: true, // Gas Fee cost be higher than estimated
-  runAtCurrTime: true, // API doesnt provide sufficient data for historic refill
 };
 
 export default adapter;
