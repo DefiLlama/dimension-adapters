@@ -1,5 +1,6 @@
 // https://sosovalue.gitbook.io/sosovalue-indices/resources/faq
 
+import * as sdk from "@defillama/sdk";
 import { FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -15,20 +16,54 @@ const chainMapping: { [key: string]: { chain: CHAIN; gasCgTokenId: string | null
     'HYPEREVM_HYPE': { chain: CHAIN.HYPERLIQUID, gasCgTokenId: 'hyperliquid' },
 };
 
+// SetFeeTokenset carries the whole unclaimed fee balance, not the fee of the day: collectFeeTokenset() adds the
+// day's fee to it and burnFeeTokenset() takes the claimed part out, both emitting the new balance (AssetToken
+// implementation https://repo.sourcify.dev/8453/0x9fBF0775f1740078e93E488C1DfEa9a2065B5d5F). The fee is the
+// per-token increase between consecutive balances of the same index token; decreases are claims, not fees.
+// Every index token on Base: MAG7.ssi, DEFI.ssi, MEME.ssi (https://sosovalue.gitbook.io/sosovalue-indices/solution-design/key-addresses-on-base).
+// AssetFactory 0xb04eB6b64137d1673D46731C8f84718092c50B0D getAssetIDs() returns these three (ids 19, 1, 11) and has no removal path.
+const indexTokens = [
+    '0x9E6A46f294bB67c20F1D1E7AfB0bBEf614403B55',
+    '0x164ffdaE2fe3891714bc2968f1875ca4fA1079D0',
+    '0xdd3acDBDc7b358Df453a6CB6bCA56C92aA5743aA',
+];
+const getFeeTokensetAbi = 'function getFeeTokenset() view returns ((string chain, string symbol, string addr, uint8 decimals, uint256 amount)[])';
+const tokenKey = ([chain, symbol, addr, decimals]: any) => `${chain}:${symbol}:${addr}:${decimals}`;
+
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
 
     const logs = await options.getLogs({
-        noTarget: true,
-        topic: '0xff3230afb6342b834472ce477d29346e00de72df80243109b963c7bc0f9ec578',
-        eventAbi: 'event SetFeeTokenset((string chain, string symbol, string addr, uint8 decimals, uint256 amount)[] feeTokenset)'
+        targets: indexTokens,
+        eventAbi: 'event SetFeeTokenset((string chain, string symbol, string addr, uint8 decimals, uint256 amount)[] feeTokenset)',
+        onlyArgs: false,
     });
+    logs.sort((a: any, b: any) => a.blockNumber - b.blockNumber || (a.logIndex ?? a.index) - (b.logIndex ?? b.index));
 
-    logs.forEach(log => {
-        const feeTokenset = log.feeTokenset;
-        feeTokenset.forEach((tokenData: any) => {
-            const [chainStr, _symbol, addr, _decimalsFromLog, amount] = tokenData;
-            
+    // Balance of each index token before its first event in this window, then updated event by event.
+    const balances: Record<string, Record<string, bigint>> = {};
+    for (const log of logs) {
+        const indexToken = log.address.toLowerCase();
+        if (!balances[indexToken]) {
+            const openingTokenset = await sdk.api2.abi.call({
+                chain: options.chain,
+                target: indexToken,
+                abi: getFeeTokensetAbi,
+                block: log.blockNumber - 1,
+            });
+            balances[indexToken] = {};
+            openingTokenset.forEach((token: any) => { balances[indexToken][tokenKey(token)] = BigInt(token[4]); });
+        }
+        const previous = balances[indexToken];
+        balances[indexToken] = {};
+
+        log.args.feeTokenset.forEach((tokenData: any) => {
+            const [chainStr, _symbol, addr, _decimalsFromLog, total] = tokenData;
+            balances[indexToken][tokenKey(tokenData)] = BigInt(total);
+            const increase = BigInt(total) - (previous[tokenKey(tokenData)] ?? 0n);
+            if (increase <= 0n) return;
+            const amount = increase.toString();
+
             const mappedChainData = chainMapping[chainStr];
             if (!mappedChainData) {
                 throw new Error(`Chain ${chainStr} not found in mapping`);
@@ -45,12 +80,12 @@ const fetch = async (options: FetchOptions) => {
                 throw new Error(`Cannot process fee for chain ${chainStr}`);
             }
         });
-    });
+    }
 
     return {
         dailyFees,
-        dailyRevenue: dailyFees,
-        dailyProtocolRevenue: dailyFees,
+        dailyRevenue: dailyFees.clone(),
+        dailyProtocolRevenue: dailyFees.clone(),
         dailyHoldersRevenue: 0
     };
 };
@@ -75,6 +110,9 @@ export default {
             'Indexes Services Fees': 'The protocol charges a daily service fee of 0.01% based on the value of the underlying assets',
         },
         Revenue: {
+            'Indexes Services Fees': 'The protocol charges a daily service fee of 0.01% based on the value of the underlying assets',
+        },
+        ProtocolRevenue: {
             'Indexes Services Fees': 'The protocol charges a daily service fee of 0.01% based on the value of the underlying assets',
         },
     },
