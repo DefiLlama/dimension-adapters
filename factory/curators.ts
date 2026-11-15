@@ -169,6 +169,8 @@ const configs: Record<string, CuratorConfig> = {
       // creation receipt, not the current owner() (every one of these vaults is owned today by
       // 0xb3CF59A5, a Clearstar address in Morpho's curators registry on chains 1, 143 and 8453).
       // 0x829A1385 is already registered as a Clearstar V2 owner on katana below.
+      // 0x6539519E deployed Clearstar's Euler vaults on ethereum, base and monad. Each one is governed
+      // by 0xb3CF59A5 / 0x30988479 (Clearstar in euler-labels entities.json) or by the deployer itself.
       [CHAIN.BASE]: {
         morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'],
         // 0x829A1385 created "Clearstar cbAssets Vault" (0x91C0...3a3c), "Clearstar Core ETH"
@@ -176,6 +178,7 @@ const configs: Record<string, CuratorConfig> = {
         // "Clearstar Reactor EURC" (0x4C7b...C55C) and "Clearstar Boring USDC" (0x0282...0681).
         // https://base.blockscout.com/tx/0xebe8310f28cb502a87403f501db7fce667c7fafd95d65c56d5e913bd7139e6f2
         morphoVaultV2Owners: ['0x829A13850b684A575C0580a83322890e19c5eFaa', '0x30988479C2E6a03E7fB65138b94762D41a733458'],
+        eulerVaultOwners: ['0x6539519E69343535a2aF6583D9BAE3AD74c6A293'],
       },
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'],
@@ -184,11 +187,13 @@ const configs: Record<string, CuratorConfig> = {
         // "Clearstar Boring USDC" (0xF3Cc...Db49).
         // https://etherscan.io/tx/0x54939debbe1cf29d026262333b63b209613f4a84ef32739d07658d47a9287335
         morphoVaultV2Owners: ['0x30988479C2E6a03E7fB65138b94762D41a733458', '0x829A13850b684A575C0580a83322890e19c5eFaa'],
+        eulerVaultOwners: ['0x6539519E69343535a2aF6583D9BAE3AD74c6A293'],
       },
       [CHAIN.MONAD]: {
         // 0x829A1385 created "Clearstar Accountable AUSD" (0xbe3E...E9a1, the start date below is
         // its creation) and "Clearstar Yield AUSD" (0x8192...ad06).
         morphoVaultV2Owners: ['0x829A13850b684A575C0580a83322890e19c5eFaa'],
+        eulerVaultOwners: ['0x6539519E69343535a2aF6583D9BAE3AD74c6A293'],
         start: '2026-05-28',
       },
       [CHAIN.POLYGON]: { morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'] },
