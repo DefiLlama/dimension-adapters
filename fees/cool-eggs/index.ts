@@ -5,9 +5,12 @@ import { getTonBlock, pageToncenterTxs, toncenterPost } from '../../helpers/ton'
 
 // Mainnet tournament: https://tonscan.org/address/EQD3UGFe4F4fadfJrQamevZuNT-lUgEfXpANNkZqx4eEX30i
 const TOURNAMENT = 'EQD3UGFe4F4fadfJrQamevZuNT-lUgEfXpANNkZqx4eEX30i';
+// Treasury receiving campaign payments, resolved from the tournament configuration.
+const TREASURY = 'UQDpsOCco_iOJCEotwNEdke2R61v6yk9gx_zK2-7t_nnCKiZ';
 const DEPLOYED_AT = 1793379596;
 const SALES = 'Egg Sales';
 const SURPLUS = 'Game Surplus';
+const PARTNER = 'Partner Campaigns';
 
 async function surplusAt(timestamp: number) {
   if (timestamp < DEPLOYED_AT) return { pool: 0n, protocol: 0n };
@@ -70,12 +73,32 @@ const fetch = async (options: FetchOptions) => {
       dailySupplySideRevenue.addGasToken(pool, SALES);
     }
   }
+  const partnerTxs = await pageToncenterTxs({ account: TREASURY,
+    startTimestamp: options.startTimestamp, endTimestamp: options.endTimestamp });
+  const seen = new Set<string>();
+  for (const tx of partnerTxs) {
+    const message = tx.in_msg;
+    if (tx.description?.aborted !== false || tx.description?.compute_ph?.success !== true ||
+        tx.description?.action?.success === false || !message?.source || message.bounced ||
+        !message.destination || !chains.ton.compareAddress(message.destination, TREASURY) ||
+        chains.ton.compareAddress(message.source, TOURNAMENT) || chains.ton.compareAddress(message.source, TREASURY)) continue;
+    const comment = message.message_content?.decoded?.comment;
+    if (typeof comment !== 'string' || !/^Cool Eggs partner [0-9a-f]{32} [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(comment)) continue;
+    if (!message.hash) throw new Error('Missing Partner payment message hash');
+    if (seen.has(message.hash)) continue;
+    seen.add(message.hash);
+    const amount = BigInt(message.value);
+    if (amount <= 0n) continue;
+    dailyFees.addGasToken(amount, PARTNER);
+    dailyRevenue.addGasToken(amount, PARTNER);
+  }
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 };
 
 const feeSources = {
   [SALES]: 'Egg purchase price from successful AllocationRecorded logs, before its prize-pool/treasury split; free allocations contribute zero.',
   [SURPLUS]: 'Increase in the tournament prizeShare plus protocolShare surplus counters, after execution costs and before their split.',
+  [PARTNER]: 'Successful incoming campaign payments to the treasury with the Cool Eggs partner campaign/operation comment. Each message is counted once; tournament payouts and treasury self-transfers are excluded.',
 };
 
 const adapter: SimpleAdapter = {
@@ -85,15 +108,15 @@ const adapter: SimpleAdapter = {
   start: '2026-10-30',
   fetch,
   methodology: {
-    Fees: 'Egg sales plus distributed game surplus before the 50/50 prize-pool/treasury split. Excludes network costs, refunds, prize top-ups, secondary NFT sales and off-contract partner campaigns.',
-    Revenue: 'The actual treasury portion of the same sales and surplus.',
-    ProtocolRevenue: 'The actual treasury portion of the same sales and surplus.',
+    Fees: 'Egg sales plus distributed game surplus before the 50/50 prize-pool/treasury split, plus direct Partner campaign payments. Excludes network costs, refunds, prize top-ups and secondary NFT sales.',
+    Revenue: 'The actual treasury portion of game sales and surplus, plus 100% of Partner campaign payments.',
+    ProtocolRevenue: 'The actual treasury portion of game sales and surplus, plus 100% of Partner campaign payments.',
     SupplySideRevenue: 'The portion of the same sales and surplus allocated to the player prize pool, counted when allocated rather than when the champion claims.',
   },
   breakdownMethodology: {
     Fees: feeSources,
-    Revenue: { [SALES]: 'Treasury share recorded in purchase logs.', [SURPLUS]: 'Increase in the protocolShare counter.' },
-    ProtocolRevenue: { [SALES]: 'Treasury share recorded in purchase logs.', [SURPLUS]: 'Increase in the protocolShare counter.' },
+    Revenue: { [SALES]: 'Treasury share recorded in purchase logs.', [SURPLUS]: 'Increase in the protocolShare counter.', [PARTNER]: 'Full campaign payment retained by the treasury.' },
+    ProtocolRevenue: { [SALES]: 'Treasury share recorded in purchase logs.', [SURPLUS]: 'Increase in the protocolShare counter.', [PARTNER]: 'Full campaign payment retained by the treasury.' },
     SupplySideRevenue: { [SALES]: 'Prize-pool share recorded in purchase logs.', [SURPLUS]: 'Increase in the prizeShare counter.' },
   },
 };
