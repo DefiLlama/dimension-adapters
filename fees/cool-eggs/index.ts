@@ -7,6 +7,8 @@ import { getTonBlock, pageToncenterTxs, toncenterPost } from '../../helpers/ton'
 const TOURNAMENT = 'EQD3UGFe4F4fadfJrQamevZuNT-lUgEfXpANNkZqx4eEX30i';
 // Treasury receiving campaign payments, resolved from the tournament configuration.
 const TREASURY = 'UQDpsOCco_iOJCEotwNEdke2R61v6yk9gx_zK2-7t_nnCKiZ';
+// First mainnet tournament transaction: masterchain block 102325186, 2026-10-30 16:59:56 UTC.
+// Source: https://tonscan.org/address/EQD3UGFe4F4fadfJrQamevZuNT-lUgEfXpANNkZqx4eEX30i#transactions
 const DEPLOYED_AT = 1793379596;
 const SALES = 'Egg Sales';
 const SURPLUS = 'Game Surplus';
@@ -28,7 +30,9 @@ async function surplusAt(timestamp: number) {
     }
   }
   const { result } = response;
-  // Runtime stack fields 16 and 17 are cumulative surplus prizeShare and protocolShare.
+  // Cool Eggs V5.10 get_runtime_state ABI: TournamentRuntimeState has 20 fixed
+  // TVM stack values plus 3 slots for the optional Leader (23 total).
+  // sales.revenue.prizeShare and protocolShare are values 16 and 17 (zero-based).
   if (result.exit_code !== 0 || result.stack.length !== 23 ||
       result.stack[16][0] !== 'num' || result.stack[17][0] !== 'num')
     throw new Error('Unexpected Cool Eggs runtime state');
@@ -40,6 +44,8 @@ function allocationAmounts(body: string) {
   if (boc.roots !== 1 || boc.root[0] !== 0 || (boc.cellData[0] & 8))
     throw new Error('Unexpected Cool Eggs allocation cell');
   const reader = new chains.ton.BitReader(boc.cellData.subarray(2, 2 + Math.ceil(boc.cellData[1] / 2)));
+  // Cool Eggs V5.10 external-log schema: AllocationRecorded#1ff02422
+  // queryId:uint64 allocation:^EggAllocation root:uint256 price:Coins poolShare:Coins protocolShare:Coins.
   if (reader.readUint(32) !== 0x1ff02422) throw new Error('Invalid allocation opcode');
   reader.skip(64 + 256); // queryId, root; allocation is stored in a reference.
   const coins = () => reader.readBigUint(reader.readUint(4) * 8);
@@ -66,6 +72,7 @@ const fetch = async (options: FetchOptions) => {
   for (const tx of txs) {
     if (tx.description?.aborted || !tx.description?.compute_ph?.success || !tx.description?.action?.success) continue;
     for (const message of tx.out_msgs ?? []) {
+      // AllocationRecorded#1ff02422, using the schema documented in allocationAmounts.
       if (message.opcode !== '0x1ff02422' || message.destination !== null) continue;
       const { price, pool, protocol } = allocationAmounts(message.message_content.body);
       dailyFees.addGasToken(price, SALES);
