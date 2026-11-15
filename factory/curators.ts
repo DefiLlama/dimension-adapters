@@ -362,6 +362,10 @@ const configs: Record<string, CuratorConfig> = {
         morphoVaultOwners: ['0xB8108fA53B7228D8bfC84712Ba3B870c78Ab7c2E'],
         morphoVaultV2Owners: ['0xB8108fA53B7228D8bfC84712Ba3B870c78Ab7c2E'],
       },
+      [CHAIN.BSC]: {
+        morpho: ['0xEB4F6FFB1038E1cCa701e7d53083B37ec5b6Ba33'], // Lista/Moolah Pangolins USDT Vault
+        start: '2025-05-06',
+      },
     },
   },
   "re7": {
