@@ -70,7 +70,7 @@ const fetch: any = async (options: FetchOptions) => {
   }
 }
 
-const prefetch = async (_: FetchOptions) => {
+const prefetch = async (options: FetchOptions) => {
   const API_KEY = '4a624ab5-16ff-4f96-90b7-ab00ddfc342c'
   const BREAKDOWN = 'SOURCE'
 
@@ -84,6 +84,9 @@ const prefetch = async (_: FetchOptions) => {
     `&txType=DEX`;
 
   const response = await httpGet(url);
+  const nextDay = new Date((options.startOfDay + 86400) * 1000).toISOString().slice(0, 10)
+  if (!response.stats.some((s: any) => s.date.startsWith(nextDay)))
+    throw new Error(`Rango stats have no ${nextDay} rows yet (lastUpdateTime ${response.lastUpdateTime}), day may be incomplete`)
   const resultsByChain: Record<string, any> = {};
 
   for (const stat of response.stats) {
