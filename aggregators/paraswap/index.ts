@@ -1,3 +1,4 @@
+import { zeroPadValue } from "ethers";
 import { FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
@@ -28,6 +29,18 @@ const chainConfig: Record<string, { id: string; start: string; deadFrom?: string
   [CHAIN.AVAX]: { id: '43114', start: '2022-03-22' },
 }
 
+// The API stopped updating Polygon during 2026-11-13 (that row ends around 20:00 UTC, later rows have no chain 137),
+// so from that day Polygon volume is read from Augustus v6.2, which matched the API within 0.2% on 2026-11-10..12
+const POLYGON_ONCHAIN_FROM = 1794528000; // 2026-11-13
+const AUGUSTUS_V6_2 = '0x6a000f20005980200259b80c5102003040001068';
+const POL_NATIVE = '0x0000000000000000000000000000000000001010'; // emits LogTransfer for every native POL transfer
+const WPOL = '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270'; // an unwrap to Augustus follows the WPOL transfer that was already counted
+const EURE_LEGACY = '0x18ec0a6e18e5bc3784fdd3a3634b31245ab704f6'; // Monerium EURe v1, mirrors each transfer of EURe 0xe0aea583266584dafbb3f9c3211d5588c73fea8d
+const TRANSFER_EVENT = 'event Transfer(address indexed from, address indexed to, uint256 value)';
+const LOG_TRANSFER_EVENT = 'event LogTransfer(address indexed token, address indexed from, address indexed to, uint256 amount, uint256 input1, uint256 input2, uint256 output1, uint256 output2)';
+const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+const LOG_TRANSFER_TOPIC = '0xe6497e3ee548a3372136af2fcb0696db31fc6cf20260707645068bd3fe97f3c4';
+
 const prefetch = async (_: any) => {
   const headers: any = {
     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
@@ -54,7 +67,41 @@ const prefetch = async (_: any) => {
 
 }
 
+// Augustus v6.2 emits no swap event. Executors send the swap output to Augustus, which pays the beneficiary and the fees,
+// so volume is what Augustus receives. Fees are left out: vault deposits and direct partner fees can't be split from logs alone.
+const fetchPolygonVolume = async (options: FetchOptions): Promise<FetchResult> => {
+  const dailyVolume = options.createBalances();
+  const augustus = zeroPadValue(AUGUSTUS_V6_2, 32);
+  // noTarget is filtered on the indexed recipient, Augustus is not the emitter of the token transfers it receives
+  // allowParseFailure skips NFT transfers to Augustus (same topic0, 4 topics) instead of failing the day
+  const erc20Logs = await options.getLogs({ noTarget: true, eventAbi: TRANSFER_EVENT, topics: [TRANSFER_TOPIC, null as any, augustus], entireLog: true, maxBlockRange: 10000, allowParseFailure: true });
+  const nativeLogs = await options.getLogs({ target: POL_NATIVE, eventAbi: LOG_TRANSFER_EVENT, topics: [LOG_TRANSFER_TOPIC, null as any, null as any, augustus], entireLog: true, parseLog: true });
+
+  const inflows = [
+    ...erc20Logs.filter((log: any) => log.args).map((log: any) => ({ tx: log.transactionHash.toLowerCase(), index: Number(log.logIndex ?? log.index), token: log.address.toLowerCase(), from: log.args.from.toLowerCase(), amount: log.args.value })),
+    ...nativeLogs.map((log: any) => ({ tx: log.transactionHash.toLowerCase(), index: Number(log.logIndex ?? log.index), token: POL_NATIVE, from: log.args.from.toLowerCase(), amount: log.args.amount })),
+  ];
+  const inflowsByTx: Record<string, typeof inflows> = {};
+  for (const inflow of inflows) (inflowsByTx[inflow.tx] ??= []).push(inflow);
+
+  for (const inflow of inflows) {
+    if (inflow.token === EURE_LEGACY) continue;
+    if (inflow.token !== POL_NATIVE) {
+      dailyVolume.add(inflow.token, inflow.amount);
+      continue;
+    }
+    if (inflow.from === WPOL) continue;
+    // native POL sent with the call (msg.value) is the swap input, the output token reaches Augustus after it
+    if (inflowsByTx[inflow.tx].some((other) => other.token !== POL_NATIVE && other.index > inflow.index)) continue;
+    dailyVolume.addGasToken(inflow.amount);
+  }
+
+  return { dailyVolume };
+}
+
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
+  if (options.chain === CHAIN.POLYGON && options.startOfDay >= POLYGON_ONCHAIN_FROM) return fetchPolygonVolume(options);
+
   const { id } = chainConfig[options.chain];
   const response: IResponse = options.preFetchedResults;
   const day = response?.daily?.find(([time]: any) => time === options.startOfDay);
@@ -102,11 +149,12 @@ const adapter: SimpleAdapter = {
   fetch,
   prefetch,
   methodology: {
-    Fees: "All trading fees paid by users",
-    UserFees: "All trading fees paid by users",
-    Revenue: "Share of 80% trading fees to Velora, DAO, and token stakers.",
-    ProtocolRevenue: "Trading fees shared to Velora and DAO.",
-    HoldersRevenue: "Trading fees to stakers as part of PSP 2.0 staking rewards.",
+    Volume: "Swap volume from the Velora stats API. Polygon from 2026-11-13 is read on-chain: tokens delivered to Augustus v6.2 as swap output.",
+    Fees: "All trading fees paid by users. Excludes Polygon from 2026-11-13.",
+    UserFees: "All trading fees paid by users. Excludes Polygon from 2026-11-13.",
+    Revenue: "Share of 80% trading fees to Velora, DAO, and token stakers. Excludes Polygon from 2026-11-13.",
+    ProtocolRevenue: "Trading fees shared to Velora and DAO. Excludes Polygon from 2026-11-13.",
+    HoldersRevenue: "Trading fees to stakers as part of PSP 2.0 staking rewards. Excludes Polygon from 2026-11-13.",
   },
   breakdownMethodology: {
     Fees: {
