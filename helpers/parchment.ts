@@ -24,6 +24,8 @@ const PARCHMENT_GAME = "0x0de3c36d56dab5b3f030dd39e4210d5db14a4858858825a5cded17
 // `parchment_game` version 4 (2026-11-15), which added the long-hold fee and `ChargeLongHoldFeeEventV1`.
 const PARCHMENT_GAME_V4 = "0xb5f3bd1e753d70026939dd7c117abfcf4075a273e17cc3606d651a28998b9fbf";
 export const LONG_HOLD_FEE_EVENT = `${PARCHMENT_GAME}::game_events::Event<${PARCHMENT_GAME_V4}::game_events::ChargeLongHoldFeeEventV1>`;
+// Upgrade to `parchment_game` v4 (checkpoint 345622695, 2026-11-15T21:09:58Z): no long-hold fee before it.
+export const LONG_HOLD_START = 1794776998;
 
 // Events of one type in the half-open window [start, end), unwrapped from the `Event<T>` envelope (`pos0`).
 export async function getParchmentEvents(name: string, startTimestamp: number, endTimestamp: number): Promise<any[]> {
@@ -176,7 +178,8 @@ export function matchQueuedFees(closes: ParchmentTxEvent[], enqueues: ParchmentT
 
 // Per close, its long-hold fee (`ChargeLongHoldFeeEventV1.fee`, emitted before the close fees event of the same
 // settlement). The event carries no `exchange_id`, so it is kept when its transaction settles a close of the Parchment
-// Exchange (`closes`); within such a transaction an event without its close fails the run.
+// Exchange (`closes`); within such a transaction an event without its close fails the run. Parchment runs a single
+// Exchange, so a transaction never settles closes of two exchanges.
 export function matchLongHoldFees(closes: ParchmentTxEvent[], charges: ParchmentTxEvent[]): bigint[] {
   const digests = new Set(closes.map(({ digest }) => digest));
   return matchToCloses(closes, charges.filter(({ digest }) => digests.has(digest)), "long-hold fee", "fee");

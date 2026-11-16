@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { LONG_HOLD_FEE_EVENT, PARCHMENT_START, PARCHMENT_USDC, closeFeesCollected, getParchmentEvents, getParchmentMarketFilter, getParchmentTxEvents, isParchmentExchange, matchLongHoldFees, matchQueuedFees } from "../../helpers/parchment";
+import { LONG_HOLD_FEE_EVENT, LONG_HOLD_START, PARCHMENT_START, PARCHMENT_USDC, closeFeesCollected, getParchmentEvents, getParchmentMarketFilter, getParchmentTxEvents, isParchmentExchange, matchLongHoldFees, matchQueuedFees } from "../../helpers/parchment";
 
 // Fee schedule (https://docs.parchment.trade/trading/fees and /house-pool). Rates change over time and are per
 // market or per position, so every amount is read from events rather than assumed:
@@ -62,7 +62,7 @@ const fetch = async (options: FetchOptions) => {
     // With transaction digests and event indexes, to match each queued payout to its own close.
     getParchmentTxEvents("CloseFeesEventV2", start, end),
     getParchmentTxEvents("EnqueuePayoutEventV2", start, end),
-    getParchmentTxEvents(LONG_HOLD_FEE_EVENT, start, end),
+    end > LONG_HOLD_START ? getParchmentTxEvents(LONG_HOLD_FEE_EVENT, start, end) : [],
     getParchmentEvents("BuilderOnTopAccruedEventV1", start, end),
     getParchmentEvents("LiquidationDetailEventV1", start, end),
     getParchmentEvents("HarvestFeesEventV2", start, end),
@@ -143,9 +143,9 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Fees paid by Parchment traders: open fees (0 since launch), close fees on notional, win fees on profit, long-hold fees added to the win fee on positions held past a free period, loss fees on margin lost, liquidation bounties, the flat execution fee per filled order and optional builder fees, net of the discount referred traders get back on close and win fees. The house pool's own trading profit is not counted.",
-  Revenue: "Open, close, win, long-hold and loss fees kept by Parchment after referral shares, split on chain between the house pool, stakers and the treasury.",
-  ProtocolRevenue: "House pool and treasury shares of the open, close, win, long-hold and loss fees Parchment keeps. The house pool is Parchment's own trading capital, with no outside depositors.",
+  Fees: "Fees paid by Parchment traders: open fees (0 since launch), close fees on notional, win fees on profit, long-hold fees added to the win fee on positions held past a free period (since 2026-11-15), loss fees on margin lost, liquidation bounties, the flat execution fee per filled order and optional builder fees, net of the discount referred traders get back on close and win fees. The house pool's own trading profit is not counted.",
+  Revenue: "Open, close, win, long-hold and loss fees kept by Parchment after referral shares, split on chain between the house pool, stakers and the treasury: since 2026-11-13, 80% to the house pool, 10% to stakers and 10% to the treasury; before that, 30% to 70% to stakers by house pool coverage and the rest to the treasury.",
+  ProtocolRevenue: "House pool and treasury shares of the open, close, win, long-hold and loss fees Parchment keeps. The house pool is Parchment's own trading capital, with no outside depositors (house pool share since 2026-11-13). Later surplus sweeps out of the pool are not counted again.",
   HoldersRevenue: "Share of the open, close, win, long-hold and loss fees Parchment keeps that is paid in USDC to PARCHMENT stakers.",
   SupplySideRevenue: "Execution fees reimbursing the order keeper's gas, referral fees paid to referrers, builder fees paid to builders and liquidation bounties paid to liquidators.",
 };
