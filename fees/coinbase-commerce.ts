@@ -15,32 +15,63 @@ const contracts: TContract = {
 
 // Commerce shut down 2026-03-31, its Base payments moved to Coinbase's operator on the commerce-payments escrow
 const ESCROW_START = new Date('2026-04-02').getTime() / 1000
-const AUTH_CAPTURE_ESCROW = '0xBdEA0D1bcC5966192B070Fdf62aB4EF5b4420cff' // v1.0.0
-const COINBASE_TOKEN_STORE = '0x47C5d3fc37F66f7Cbf450Bd3Ea912b0765104Fc3' // getTokenStore(0x00f8d7a519c70bf71d411e4bd89bf6d7e3065835)
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
 const PAYMENT_INFO = '(address operator, address payer, address receiver, address token, uint120 maxAmount, uint48 preApprovalExpiry, uint48 authorizationExpiry, uint48 refundExpiry, uint16 minFeeBps, uint16 maxFeeBps, address feeReceiver, uint256 salt)'
 
-// fee = token store transfer to the feeReceiver of a PaymentCharged/PaymentCaptured in the same tx
-async function addEscrowFees({ getLogs }: FetchOptions, dailyFees: Balances) {
-  const [charged, captured] = await Promise.all([
-    getLogs({ target: AUTH_CAPTURE_ESCROW, onlyArgs: false, eventAbi: `event PaymentCharged(bytes32 indexed paymentInfoHash, ${PAYMENT_INFO} paymentInfo, uint256 amount, address tokenCollector, uint16 feeBps, address feeReceiver)` }),
-    getLogs({ target: AUTH_CAPTURE_ESCROW, onlyArgs: false, eventAbi: 'event PaymentCaptured(bytes32 indexed paymentInfoHash, uint256 amount, uint16 feeBps, address feeReceiver)' }),
-  ])
-  const feeLegs = new Set<string>()
-  for (const log of [...charged, ...captured])
-    if (Number(log.args.feeBps) > 0) feeLegs.add(`${log.transactionHash}-${log.args.feeReceiver}`.toLowerCase())
-  if (!feeLegs.size) return
+// tokenStore = getTokenStore(0x00f8d7a519c70bf71d411e4bd89bf6d7e3065835), Coinbase's operator, on each escrow
+// v1 events carry feeBps, the escrow Coinbase moved to on 2026-11-12 emits feeAmount instead
+const ESCROWS = [
+  {
+    escrow: '0xBdEA0D1bcC5966192B070Fdf62aB4EF5b4420cff', // v1.0.0
+    tokenStore: '0x47C5d3fc37F66f7Cbf450Bd3Ea912b0765104Fc3',
+    start: ESCROW_START,
+    fee: 'uint16 feeBps',
+    exactFee: false,
+  },
+  {
+    escrow: '0xf96815976523e00e65BE8f34Ca5E64B4f41eb19c', // AuthCaptureEscrow verified on Sourcify, first Coinbase fee at block 56533651
+    tokenStore: '0x62104e875D79B93cB0270E70DE82c686B1fA8635',
+    start: new Date('2026-11-12').getTime() / 1000,
+    fee: 'uint256 feeAmount',
+    exactFee: true,
+  },
+]
 
-  const transfers = await getLogs({
-    noTarget: true,
-    entireLog: true,
-    eventAbi: 'event Transfer(address indexed from, address indexed to, uint256 value)',
-    topics: [TRANSFER_TOPIC, ethers.zeroPadValue(COINBASE_TOKEN_STORE, 32)],
-  })
-  transfers.forEach((log: any) => {
-    if (feeLegs.has(`${log.transactionHash}-0x${log.topics[2].slice(-40)}`.toLowerCase()))
+// fee = token store transfer to the feeReceiver of a PaymentCharged/PaymentCaptured in the same tx
+async function addEscrowFees({ getLogs, toTimestamp }: FetchOptions, dailyFees: Balances) {
+  await Promise.all(ESCROWS.filter(e => toTimestamp > e.start).map(async ({ escrow, tokenStore, fee, exactFee }) => {
+    const [charged, captured] = await Promise.all([
+      getLogs({ target: escrow, onlyArgs: false, eventAbi: `event PaymentCharged(bytes32 indexed paymentInfoHash, ${PAYMENT_INFO} paymentInfo, uint256 amount, address tokenCollector, ${fee}, address feeReceiver)` }),
+      getLogs({ target: escrow, onlyArgs: false, eventAbi: `event PaymentCaptured(bytes32 indexed paymentInfoHash, uint256 amount, ${fee}, address feeReceiver)` }),
+    ])
+    // v2 logs the exact fee, so a transfer must also match one of those amounts
+    const feeLegs = new Map<string, bigint[]>()
+    for (const log of [...charged, ...captured]) {
+      const { feeBps, feeAmount, feeReceiver } = log.args
+      if (BigInt(feeBps ?? feeAmount) === 0n) continue
+      const key = `${log.transactionHash}-${feeReceiver}`.toLowerCase()
+      if (!feeLegs.has(key)) feeLegs.set(key, [])
+      if (feeAmount !== undefined) feeLegs.get(key)!.push(BigInt(feeAmount))
+    }
+    if (!feeLegs.size) return
+
+    const transfers = await getLogs({
+      noTarget: true,
+      entireLog: true,
+      eventAbi: 'event Transfer(address indexed from, address indexed to, uint256 value)',
+      topics: [TRANSFER_TOPIC, ethers.zeroPadValue(tokenStore, 32)],
+    })
+    transfers.forEach((log: any) => {
+      const amounts = feeLegs.get(`${log.transactionHash}-0x${log.topics[2].slice(-40)}`.toLowerCase())
+      if (!amounts) return
+      if (exactFee) {
+        const i = amounts.indexOf(BigInt(log.data))
+        if (i === -1) return
+        amounts.splice(i, 1)
+      }
       dailyFees.add(log.address ?? log.source, log.data, METRIC.SERVICE_FEES)
-  })
+    })
+  }))
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -69,7 +100,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SERVICE_FEES]: "1% of each transfer amount processed through Coinbase Commerce contracts, derived from the Transferred event spentAmount. From 2026-04-02 on Base, the fee Coinbase's operator takes on each charge and capture in the Commerce Payments Protocol escrow (amount * feeBps / 10000, mostly 1%).",
+    [METRIC.SERVICE_FEES]: "1% of each transfer amount processed through Coinbase Commerce contracts, derived from the Transferred event spentAmount. From 2026-04-02 on Base, the fee Coinbase's operator takes on each charge and capture in the Commerce Payments Protocol escrow (mostly 1%), on the v1.0.0 escrow and from 2026-11-12 on the newer escrow that logs the fee amount.",
   }
 }
 
