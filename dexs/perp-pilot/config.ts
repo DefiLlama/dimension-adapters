@@ -1,16 +1,11 @@
 import { CHAIN } from "../../helpers/chains";
 import { LIGHTER_PARTNER_FEES_LABEL } from "../../helpers/lighter";
 
-// PerpPilot (https://perppilot.io, https://x.com/PerpPilot_io): automated perp trading bots that place orders on
-// Hyperliquid, Lighter, Lighter on Robinhood Chain, Extended and Nado with PerpPilot's builder/partner code attached.
-// Each venue pays PerpPilot a builder fee on top of its own trading fees; PerpPilot pays nothing to the venues.
-// Builder ids below were supplied by the PerpPilot team. Previously listed as perp-pilot in factory/lighter.ts (zkLighter only).
-// Not tracked: GRVT (builder account 0xc5be...f708) and AFX (builder address 0xc5be...f708), both retired by PerpPilot
-// on 2026-10-05 with no public per-builder history; Phemex, a centralized exchange without builder codes.
+// PerpPilot (https://perppilot.io, https://x.com/PerpPilot_io): automated perp trading bots
 
 // PerpPilot's builder identity on each venue, and the fee label each venue's fees are reported under
 export const PERP_PILOT_CONFIG = {
-  // the same wallet owns the Hyperliquid builder code and the Lighter, Nado, GRVT and AFX builder accounts
+  // the same wallet owns the Hyperliquid builder code
   hyperliquid: {
     builderAddress: "0xc5be9a8d99f7b508fcf24f4c9dbf39e5f584f708",
     feesLabel: "Hyperliquid Builder Code Fees",
@@ -55,5 +50,5 @@ export const chainConfig: Record<string, ChainConfig> = {
   // Days the dashboard no longer serves (older than ~31 days) are stored as $0 Extended volume, so run the backfill while
   // the start is still inside that window.
   [CHAIN.ARC]: { start: "2026-10-22", venue: "extended" },
-  [CHAIN.INK]: { start: "2026-06-27", venue: "nado" }, // first BuilderFeePayment for builder 4300, tx 0xe504ab7511c85eb41e999a0ce6d4ccc332452994c872ab1ad8c75308d8e08882
+  [CHAIN.INK]: { start: "2026-06-27", venue: "nado" },
 };
