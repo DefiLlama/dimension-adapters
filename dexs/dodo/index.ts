@@ -31,20 +31,35 @@ const BUY_BASE = 'event BuyBaseToken(address indexed buyer, uint256 receiveBase,
 // lp fee stays in the pool for LPs, mt fee goes to the pool's _MAINTAINER_ (DODO's fee receiver on factory pools)
 const GET_USER_FEE_RATE = 'function getUserFeeRate(address user) view returns (uint256 lpFeeRate, uint256 mtFeeRate)'
 // DPP owners retune the lp rate many times an hour (e.g. 0xa44e85f5bb4c6e7efe5eb69931e587d9c695ae2e on avax), so it is replayed;
-// GSP MtFeeRateChange and V1 rate updates are rare (none on ethereum or bsc on 2026-11-14) and keep the opening read
+// GSP MtFeeRateChange is rare (none on ethereum or bsc on 2026-11-14) and keeps the opening read
 const LP_FEE_RATE_CHANGE = 'event LpFeeRateChange(uint256 newLpFeeRate)'
+// V1 rate updates carry the old and the new rate, so they are replayed exactly
+const V1_LP_RATE_UPDATE = 'event UpdateLiquidityProviderFeeRate(uint256 oldLiquidityProviderFeeRate, uint256 newLiquidityProviderFeeRate)'
+const V1_MT_RATE_UPDATE = 'event UpdateMaintainerFeeRate(uint256 oldMaintainerFeeRate, uint256 newMaintainerFeeRate)'
 const ZERO = '0x0000000000000000000000000000000000000000'
 const E18 = 10n ** 18n
 
-// rates are read just before the window's first block. A pool created inside the window has no state there yet,
-// so it is read at the block of its first swap (or the closing block); that read throws if it fails too
+// rates are read just before the window's first block. A pool created inside the window has no state there yet, so it is
+// read just before its first swap, or at the end of that block if it was created in it (or at the closing block without
+// a first swap); that last read throws if it fails too. A DPP that is created, swaps and is retuned all in one block keeps
+// the retuned rate on those first swaps: DPP init emits no rate event to replay from
 const getRates = async (options: FetchOptions, abi: string, targets: string[], params: any[] = [], firstBlock: Record<string, number> = {}) => {
-  const opening = new ChainApi({ chain: options.chain, block: (await options.getFromBlock()) - 1 })
-  const rates = await opening.multiCall({ abi, calls: targets.map((target) => ({ target, params })), permitFailure: true })
-  for (let i = 0; i < targets.length; i++) {
-    if (rates[i] !== null) continue
-    const api = firstBlock[targets[i]] ? new ChainApi({ chain: options.chain, block: firstBlock[targets[i]] }) : options.toApi
-    rates[i] = await api.call({ abi, target: targets[i], params })
+  const read = (block: number, idx: number[], permitFailure: boolean) =>
+    new ChainApi({ chain: options.chain, block }).multiCall({ abi, calls: idx.map((i) => ({ target: targets[i], params })), permitFailure })
+  const openingBlock = (await options.getFromBlock()) - 1
+  const toBlock = await options.getToBlock()
+  const rates = await read(openingBlock, targets.map((_, i) => i), true)
+  for (const [offset, permitFailure] of [[1, true], [0, false]] as const) {
+    const byBlock: Record<number, number[]> = {}
+    rates.forEach((rate: any, i: number) => {
+      if (rate !== null) return
+      const block = firstBlock[targets[i]] ? firstBlock[targets[i]] - offset : (offset ? 0 : toBlock)
+      if (block > openingBlock) (byBlock[block] ??= []).push(i)
+    })
+    for (const [block, idx] of Object.entries(byBlock)) {
+      const res = await read(Number(block), idx, permitFailure)
+      idx.forEach((i, j) => { rates[i] = res[j] })
+    }
   }
   return rates
 }
@@ -209,16 +224,18 @@ const fetch = async (options: FetchOptions) => {
   // replay in-window lp rate changes by (blockNumber, logIndex) on top of the opening rate
   const lpChanges: Record<string, { position: number, rate: bigint }[]> = {}
   if (swapPools.length) {
+    // one topic query like DODOSwap above, not targets: without the indexer (e.g. CI) targets is one eth_getLogs per pool,
+    // ~4.5 min per hour on bsc vs ~2.5 min per day by topic (2026-11-13). AGENTS.md: hundreds of targets is the exception
     const changeLogs = await options.getLogs({ eventAbi: LP_FEE_RATE_CHANGE, noTarget: true, entireLog: true, parseLog: true })
     for (const log of changeLogs) {
       if (!poolRates[poolOf(log)]) continue
       lpChanges[poolOf(log)] ??= []
-      lpChanges[poolOf(log)].push({ position: position(log), rate: BigInt(log.parsedLog.args.newLpFeeRate) })
+      lpChanges[poolOf(log)].push({ position: position(log), rate: BigInt(log.args.newLpFeeRate) })
     }
     Object.values(lpChanges).forEach((changes) => changes.sort((a, b) => a.position - b.position))
   }
   for (const log of swapLogs) {
-    const { fromToken, toToken, fromAmount, toAmount } = log.parsedLog.args
+    const { fromToken, toToken, fromAmount, toAmount } = log.args
     addOneToken({ chain: options.chain, balances: dailyVolume, token0: fromToken, amount0: fromAmount, token1: toToken, amount1: toAmount })
     let lp = BigInt(poolRates[poolOf(log)].lpFeeRate)
     const mt = BigInt(poolRates[poolOf(log)].mtFeeRate)
@@ -234,29 +251,49 @@ const fetch = async (options: FetchOptions) => {
     const targets = pairs.map((pair: any) => pair.newBorn)
     if (!targets.length) return result() // the zoo has not registered a V1 pair yet
     const [sells, buys] = await Promise.all([
-      options.getLogs({ targets, eventAbi: SELL_BASE, flatten: false }),
-      options.getLogs({ targets, eventAbi: BUY_BASE, flatten: false }),
+      options.getLogs({ targets, eventAbi: SELL_BASE, flatten: false, entireLog: true, parseLog: true }),
+      options.getLogs({ targets, eventAbi: BUY_BASE, flatten: false, entireLog: true, parseLog: true }),
     ])
     // read rates only on pairs that traded: the cached zoo list also holds pairs born after this window
     const active = targets.filter((_: string, i: number) => sells[i].length || buys[i].length)
-    const [lpRates, mtRates] = await Promise.all([
+    if (!active.length) return result()
+    const [lpRates, mtRates, lpUpdates, mtUpdates] = await Promise.all([
       getRates(options, 'uint256:_LP_FEE_RATE_', active),
       getRates(options, 'uint256:_MT_FEE_RATE_', active),
+      options.getLogs({ targets: active, eventAbi: V1_LP_RATE_UPDATE, flatten: false, entireLog: true, parseLog: true }),
+      options.getLogs({ targets: active, eventAbi: V1_MT_RATE_UPDATE, flatten: false, entireLog: true, parseLog: true }),
     ])
-    const pairRates = Object.fromEntries(active.map((pair: string, i: number) => [pair, [BigInt(lpRates[i]), BigInt(mtRates[i])]]))
+    // rate at a swap: the new rate of the last update at or before it, else the old rate of the first update after it, else the read
+    const rateAt = (updates: any[], log: any, read: bigint) => {
+      let rate = updates.length ? BigInt(updates[0].args[0]) : read
+      for (const update of updates) {
+        if (position(update) > position(log)) break
+        rate = BigInt(update.args[1])
+      }
+      return rate
+    }
+    const byPosition = (logs: any[]) => [...logs].sort((a, b) => position(a) - position(b))
+    const pairRates = Object.fromEntries(active.map((pair: string, i: number) => [pair, {
+      lp: BigInt(lpRates[i]), mt: BigInt(mtRates[i]), lpUpdates: byPosition(lpUpdates[i]), mtUpdates: byPosition(mtUpdates[i]),
+    }]))
     pairs.forEach(({ newBorn, baseToken, quoteToken }: any, i: number) => {
-      if (!pairRates[newBorn]) return
-      const [lp, mt] = pairRates[newBorn]
+      const pairRate = pairRates[newBorn]
+      if (!pairRate) return
+      const ratesAt = (log: any) => [rateAt(pairRate.lpUpdates, log, pairRate.lp), rateAt(pairRate.mtUpdates, log, pairRate.mt)]
       // sell base: fees come out of receiveQuote, receiveQuote = gross * (1 - lp - mt)
       sells[i].forEach((log: any) => {
-        addOneToken({ chain: options.chain, balances: dailyVolume, token0: baseToken, amount0: log.payBase, token1: quoteToken, amount1: log.receiveQuote })
-        addFees(baseToken, BigInt(log.payBase), E18, quoteToken, BigInt(log.receiveQuote), E18 - lp - mt, lp, mt)
+        const { payBase, receiveQuote } = log.args
+        const [lp, mt] = ratesAt(log)
+        addOneToken({ chain: options.chain, balances: dailyVolume, token0: baseToken, amount0: payBase, token1: quoteToken, amount1: receiveQuote })
+        addFees(baseToken, BigInt(payBase), E18, quoteToken, BigInt(receiveQuote), E18 - lp - mt, lp, mt)
       })
       // buy base: fees are charged on top of receiveBase, payQuote buys receiveBase * (1 + lp + mt)
       // (the quote-leg fee ignores the price impact of the extra base, so it is approximate)
       buys[i].forEach((log: any) => {
-        addOneToken({ chain: options.chain, balances: dailyVolume, token0: quoteToken, amount0: log.payQuote, token1: baseToken, amount1: log.receiveBase })
-        addFees(quoteToken, BigInt(log.payQuote), E18 + lp + mt, baseToken, BigInt(log.receiveBase), E18, lp, mt)
+        const { receiveBase, payQuote } = log.args
+        const [lp, mt] = ratesAt(log)
+        addOneToken({ chain: options.chain, balances: dailyVolume, token0: quoteToken, amount0: payQuote, token1: baseToken, amount1: receiveBase })
+        addFees(quoteToken, BigInt(payQuote), E18 + lp + mt, baseToken, BigInt(receiveBase), E18, lp, mt)
       })
     })
   }
