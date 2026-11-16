@@ -348,7 +348,9 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.MODE]: { factory: '0x6E36FC34eA123044F278d3a9F3819027B21c9c32', start: '2024-03-13', userFeesRatio: 1, revenueRatio: 0.64, protocolRevenueRatio: 0.64 },
   },
   "ultrasolid-v3": {
-    [CHAIN.HYPERLIQUID]: { factory: '0xD883a0B7889475d362CEA8fDf588266a3da554A1', swapEvent: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)', poolCreatedEvent: 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)', start: '2025-08-10', revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0, userFeesRatio: 1 },
+    // blacklistedAddresses: flash-loan contract that swapped 227k WHYPE through its own just-minted liquidity in the WHYPE/kHYPE
+    // 0.01% pool on 2026-11-15 23:40 UTC (tx 0xaf60e514a9899e6838bc720ab83f17a7edf2f23e1e56b4ab4823a9aeed8177dd), not organic volume
+    [CHAIN.HYPERLIQUID]: { factory: '0xD883a0B7889475d362CEA8fDf588266a3da554A1', blacklistedAddresses: ['0xbA0735019FA88C8e564d44df22A09818432EB43f'], swapEvent: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)', poolCreatedEvent: 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)', start: '2025-08-10', revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0, userFeesRatio: 1 },
   },
   "xswap-v3": {
     [CHAIN.XDC]: { factory: '0x30F317A9EC0f0D06d5de0f8D248Ec3506b7E4a8A', userFeesRatio: 1, revenueRatio: 0 },
@@ -411,7 +413,9 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.SCROLL]: { factory: '0x96a7F53f7636c93735bf85dE416A4Ace94B56Bd9', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
   },
   "hybra-v3": {
-    [CHAIN.HYPERLIQUID]: { factory: '0x2dC0Ec0F0db8bAF250eCccF268D7dFbF59346E5E', userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
+    // blacklistedAddresses: flash-loan contract that swapped 227k WHYPE through its own just-minted liquidity in the WHYPE/kHYPE
+    // 0.01% pool on 2026-11-15 23:39 UTC (tx 0x3b7361c708fff8988be9fded772d9a6c9f8dc4e4ddf1223bd6939fcb27f0e315), not organic volume
+    [CHAIN.HYPERLIQUID]: { factory: '0x2dC0Ec0F0db8bAF250eCccF268D7dFbF59346E5E', blacklistedAddresses: ['0xbA0735019FA88C8e564d44df22A09818432EB43f'], userFeesRatio: 1, revenueRatio: 0.25, protocolRevenueRatio: 0.25 },
     [CHAIN.ROBINHOOD]: {
       factory: '0xCeFc5Da47d766Fb6b48Da92D75d66b3264593d0f', start: '2026-09-07', userFeesRatio: 1,
       protocolRevenueRatio: 0, dynamicProtocolFees: true,
