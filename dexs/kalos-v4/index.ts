@@ -106,10 +106,15 @@ const fetch = async (options: FetchOptions) => {
       const countedIn = counted < 0n;
       const gross = countedIn || lpFee >= FEE_UNITS ? abs(counted) : (abs(counted) * FEE_UNITS) / (FEE_UNITS - lpFee);
       dailyVolume.add(token, gross);
-      const fee = countedIn ? (gross * lpFee) / FEE_UNITS : gross - abs(counted);
+      // the v4 LP fee itself is in the swap's input currency (the leg paid in): input × fee
+      const amount0 = BigInt(swap.amount0);
+      const amount1 = BigInt(swap.amount1);
+      const input = amount0 < 0n ? -amount0 : amount1 < 0n ? -amount1 : 0n;
+      const inputToken = amount0 < 0n ? pool.currency0 : pool.currency1;
+      const fee = (input * lpFee) / FEE_UNITS;
       if (fee > 0n) {
-        dailyFees.add(token, fee, METRIC.LP_FEES);
-        dailySupplySideRevenue.add(token, fee, LABELS.LP_FEES_TO_LPS);
+        dailyFees.add(inputToken, fee, METRIC.LP_FEES);
+        dailySupplySideRevenue.add(inputToken, fee, LABELS.LP_FEES_TO_LPS);
       }
     }
 
@@ -165,7 +170,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.LP_FEES]: "The liquidity providers' part of each swap fee: the pool's v4 LP fee, which the hook sets per swap and the PoolManager's Swap event carries, and on a sale of the fee asset (v4 LP fee 0) the part booked in the hook's fee book (LpFeeBooked).",
+    [METRIC.LP_FEES]: "The liquidity providers' part of each swap fee: the pool's v4 LP fee, which the hook sets per swap and the PoolManager's Swap event carries, counted in the swap's input currency where v4 takes it, and on a sale of the fee asset (v4 LP fee 0) the part booked in the hook's fee book (LpFeeBooked).",
     [LABELS.KALOS_FEES]: "Kalos's part of each swap fee (15%; 40% on creator pools), from the hook's FeeCharged events.",
     [METRIC.CREATOR_FEES]: "On creator pools, the token creator's 60% of the 1% fee, from the hook's FeeCharged events.",
   },
