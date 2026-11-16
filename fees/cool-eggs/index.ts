@@ -15,7 +15,7 @@ const SURPLUS = 'Game Surplus';
 const PARTNER = 'Partner Campaigns';
 
 async function surplusAt(timestamp: number) {
-  if (timestamp < DEPLOYED_AT) return { pool: 0n, protocol: 0n };
+  if (timestamp < DEPLOYED_AT) return 0n;
   const seqno = await getTonBlock(timestamp);
   let response;
   // Toncenter intermittently routes archive reads to nodes whose state was pruned.
@@ -33,13 +33,16 @@ async function surplusAt(timestamp: number) {
   // Cool Eggs V5.10 get_runtime_state ABI: TournamentRuntimeState has 20 fixed
   // TVM stack values plus 3 slots for the optional Leader (23 total).
   // sales.revenue.prizeShare and protocolShare are values 16 and 17 (zero-based).
+  // Only protocolShare is read: the prizeShare half is players' money pooled for the
+  // champion, not a fee.
   if (result.exit_code !== 0 || result.stack.length !== 23 ||
       result.stack[16][0] !== 'num' || result.stack[17][0] !== 'num')
     throw new Error('Unexpected Cool Eggs runtime state');
-  return { pool: BigInt(result.stack[16][1]), protocol: BigInt(result.stack[17][1]) };
+  return BigInt(result.stack[17][1]);
 }
 
-function allocationAmounts(body: string) {
+// Treasury share of one Egg purchase; the equal poolShare funds the prize pool and is not a fee.
+function allocationTreasuryShare(body: string) {
   const boc = chains.ton.parseBoc(Buffer.from(body, 'base64'));
   if (boc.roots !== 1 || boc.root[0] !== 0 || (boc.cellData[0] & 8))
     throw new Error('Unexpected Cool Eggs allocation cell');
@@ -51,33 +54,30 @@ function allocationAmounts(body: string) {
   const coins = () => reader.readBigUint(reader.readUint(4) * 8);
   const price = coins(), pool = coins(), protocol = coins();
   if (price !== pool + protocol) throw new Error('Invalid allocation fee split');
-  return { price, pool, protocol };
+  return protocol;
 }
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
   // End is exclusive, matching the transaction helper's [start, end) window.
   const before = await surplusAt(options.startTimestamp - 1);
   const after = await surplusAt(options.endTimestamp - 1);
-  const pool = after.pool - before.pool, protocol = after.protocol - before.protocol;
-  if (pool < 0n || protocol < 0n) throw new Error('Cool Eggs surplus counters decreased');
-  dailyFees.addGasToken(pool + protocol, SURPLUS);
-  dailyRevenue.addGasToken(protocol, `${SURPLUS} To Treasury`);
-  dailySupplySideRevenue.addGasToken(pool, `${SURPLUS} To Prize Pool`);
+  const surplus = after - before;
+  if (surplus < 0n) throw new Error('Cool Eggs surplus counter decreased');
+  dailyFees.addGasToken(surplus, SURPLUS);
+  dailyRevenue.addGasToken(surplus, `${SURPLUS} To Treasury`);
 
   const txs = await pageToncenterTxs({ account: TOURNAMENT,
     startTimestamp: options.startTimestamp, endTimestamp: options.endTimestamp });
   for (const tx of txs) {
     if (tx.description?.aborted || !tx.description?.compute_ph?.success || !tx.description?.action?.success) continue;
     for (const message of tx.out_msgs ?? []) {
-      // AllocationRecorded#1ff02422, using the schema documented in allocationAmounts.
+      // AllocationRecorded#1ff02422, using the schema documented in allocationTreasuryShare.
       if (message.opcode !== '0x1ff02422' || message.destination !== null) continue;
-      const { price, pool, protocol } = allocationAmounts(message.message_content.body);
-      dailyFees.addGasToken(price, SALES);
-      dailyRevenue.addGasToken(protocol, `${SALES} To Treasury`);
-      dailySupplySideRevenue.addGasToken(pool, `${SALES} To Prize Pool`);
+      const treasuryShare = allocationTreasuryShare(message.message_content.body);
+      dailyFees.addGasToken(treasuryShare, SALES);
+      dailyRevenue.addGasToken(treasuryShare, `${SALES} To Treasury`);
     }
   }
   const partnerTxs = await pageToncenterTxs({ account: TREASURY,
@@ -99,12 +99,12 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.addGasToken(amount, PARTNER);
     dailyRevenue.addGasToken(amount, `${PARTNER} To Treasury`);
   }
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone() };
 };
 
 const feeSources = {
-  [SALES]: 'Egg purchase price from successful AllocationRecorded logs, before its prize-pool/treasury split; free allocations contribute zero.',
-  [SURPLUS]: 'Increase in the tournament prizeShare plus protocolShare surplus counters, after execution costs and before their split.',
+  [SALES]: 'Treasury half of each Egg purchase price, from successful AllocationRecorded logs; free Egg claims contribute zero. The other half funds the prize pool and is not counted.',
+  [SURPLUS]: 'Treasury half of the unused TON players attach to duels, mints and claims, which the game keeps instead of refunding (increase in the tournament protocolShare counter, after execution costs). The other half funds the prize pool and is not counted.',
   [PARTNER]: 'Successful incoming campaign payments to the treasury with the Cool Eggs partner campaign/operation comment. Each message is counted once; tournament payouts and treasury self-transfers are excluded.',
 };
 
@@ -115,16 +115,14 @@ const adapter: SimpleAdapter = {
   start: '2026-10-30',
   fetch,
   methodology: {
-    Fees: 'Egg sales plus distributed game surplus before the 50/50 prize-pool/treasury split, plus direct Partner campaign payments. Excludes network costs, refunds, prize top-ups and secondary NFT sales.',
-    Revenue: 'The actual treasury portion of game sales and surplus, plus 100% of Partner campaign payments.',
-    ProtocolRevenue: 'The actual treasury portion of game sales and surplus, plus 100% of Partner campaign payments.',
-    SupplySideRevenue: 'The portion of the same sales and surplus allocated to the player prize pool, counted when allocated rather than when the champion claims.',
+    Fees: 'The treasury half of Egg sales and of the unused TON players attach to duels, mints and claims, plus Partner campaign payments to the treasury. The other half of sales and unused TON goes into the player prize pool and is not counted, since it is paid back to players. Excludes network costs, refunds, prize top-ups and secondary NFT sales.',
+    Revenue: 'The treasury half of Egg sales and of the unused TON players attach to duels, mints and claims, plus 100% of Partner campaign payments, all kept by the treasury.',
+    ProtocolRevenue: 'The treasury half of Egg sales and of the unused TON players attach to duels, mints and claims, plus 100% of Partner campaign payments, all sent to the treasury.',
   },
   breakdownMethodology: {
     Fees: feeSources,
-    Revenue: { [`${SALES} To Treasury`]: 'Treasury share recorded in purchase logs.', [`${SURPLUS} To Treasury`]: 'Increase in the protocolShare counter.', [`${PARTNER} To Treasury`]: 'Full campaign payment retained by the treasury.' },
-    ProtocolRevenue: { [`${SALES} To Treasury`]: 'Treasury share recorded in purchase logs.', [`${SURPLUS} To Treasury`]: 'Increase in the protocolShare counter.', [`${PARTNER} To Treasury`]: 'Full campaign payment retained by the treasury.' },
-    SupplySideRevenue: { [`${SALES} To Prize Pool`]: 'Prize-pool share recorded in purchase logs.', [`${SURPLUS} To Prize Pool`]: 'Increase in the prizeShare counter.' },
+    Revenue: { [`${SALES} To Treasury`]: 'Treasury half of each Egg purchase, recorded in purchase logs.', [`${SURPLUS} To Treasury`]: 'Treasury half of unused TON kept from player actions (increase in the protocolShare counter).', [`${PARTNER} To Treasury`]: 'Full campaign payment retained by the treasury.' },
+    ProtocolRevenue: { [`${SALES} To Treasury`]: 'Treasury half of each Egg purchase, recorded in purchase logs.', [`${SURPLUS} To Treasury`]: 'Treasury half of unused TON kept from player actions (increase in the protocolShare counter).', [`${PARTNER} To Treasury`]: 'Full campaign payment retained by the treasury.' },
   },
 };
 
