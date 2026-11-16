@@ -3,6 +3,7 @@ import { FetchOptions } from "../../adapters/types";
 import { fetchBuilderCodeDataV2 } from "../../helpers/hyperliquid-v2";
 import { fetchLighterPartnerStats } from "../../helpers/lighter";
 import { httpGet } from "../../utils/fetchURL";
+import { isExtendedBuilderDashboard } from "./extended/api-types";
 import {
   chainConfig,
   EXTENDED_BUILDER_NAME,
@@ -22,13 +23,21 @@ async function fetchHyperliquid(options: FetchOptions) {
 }
 
 async function fetchExtended(options: FetchOptions) {
-  const { data } = await httpGet(EXTENDED_BUILDERS_API);
-  if (!Array.isArray(data?.daily) || !data.daily.length) throw new Error(`Extended builder dashboard returned no daily rows`);
-  const oldest = data.daily.reduce((min: string, row: any) => (row.date < min ? row.date : min), data.daily[0].date);
+  const res: unknown = await httpGet(EXTENDED_BUILDERS_API);
+  if (!isExtendedBuilderDashboard(res)) throw new Error(`Extended builder dashboard returned an unexpected response: ${JSON.stringify(res).slice(0, 300)}`);
+  
+  const { daily } = res.data;
+  if (!daily.length) throw new Error(`Extended builder dashboard returned no daily rows`);
+
+  const oldest = daily.reduce((min, row) => (row.date < min ? row.date : min), daily[0].date);
+
   // days that have rolled out of the dashboard cannot be read, so they are missing rather than zero
   if (options.dateString < oldest) throw new Error(`Extended builder dashboard no longer serves ${options.dateString} (oldest ${oldest})`);
-  const row = data.daily.find((i: any) => i.builderName === EXTENDED_BUILDER_NAME && i.date === options.dateString);
+  
+  const row = daily.find((r) => r.builderName === EXTENDED_BUILDER_NAME && r.date === options.dateString);
   const dailyVolume = options.createBalances();
+
+  // no row inside the served window means no PerpPilot fills on Extended that day
   if (row) dailyVolume.addUSDValue(Number(row.volume));
   return { dailyVolume };
 }
@@ -39,6 +48,7 @@ async function fetchNado(options: FetchOptions) {
     eventAbi: "event BuilderFeePayment(bytes32 indexed subaccount, uint32 indexed builder, uint32 indexed productId, bytes32 digest, int128 feeAmount, int128 feeRate, int128 quoteAmount)",
     topics: [null as any, null, "0x" + NADO_BUILDER_ID.toString(16).padStart(64, "0")],
   });
+
   let volume = 0;
   let fees = 0;
   for (const log of logs) {
@@ -46,6 +56,7 @@ async function fetchNado(options: FetchOptions) {
     volume += Math.abs(Number(log.quoteAmount)) / 1e18;
     fees += Math.abs(Number(log.feeAmount)) / 1e18;
   }
+  
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   dailyVolume.addUSDValue(volume);
