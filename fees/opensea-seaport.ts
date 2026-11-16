@@ -44,13 +44,11 @@ const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) => {
     const biggestValue = recipients.reduce((a: any, b: any) => a.amount > b.amount ? a : b)
 
     // A listing pays the seller in the consideration, as its biggest fungible item. An accepted offer (ERC20 offered, NFT
-    // asked) pays the seller out of the offer, so its fungible consideration is fees only, unless an item takes half of it.
+    // asked) pays the seller out of the offer, outside the consideration, so its fungible consideration is fees only.
     const isOfferFill = log.offer.length > 0 && log.offer.every((i: any) => +i.itemType.toString() === 1) && log.consideration.some((i: any) => !isFungible(i))
-    const offerAmount = log.offer.filter((i: any) => i.token.toLowerCase() === biggestValue.token.toLowerCase()).reduce((a: bigint, i: any) => a + BigInt(i.amount), 0n)
-    const sellerInConsideration = !isOfferFill || BigInt(biggestValue.amount) * 2n >= offerAmount
 
     recipients.forEach((consideration: any) => {
-      if (sellerInConsideration && consideration.recipient === biggestValue.recipient) return; // this is sent to the NFT owner, doesn't include fees
+      if (!isOfferFill && consideration.recipient === biggestValue.recipient) return; // this is sent to the NFT owner, doesn't include fees
       if (feeCollectorSet.has(consideration.recipient.toLowerCase())) {
         dailyFees.add(consideration.token, consideration.amount, METRIC.TRADING_FEES)
         dailyRevenue.add(consideration.token, consideration.amount, 'Trading Fees To OpenSea')
