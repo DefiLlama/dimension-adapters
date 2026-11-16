@@ -1,25 +1,30 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import { PARCHMENT_START, PARCHMENT_USDC, closeFeesCollected, getParchmentEvents, getParchmentMarketFilter, getParchmentTxEvents, isParchmentExchange, matchQueuedFees } from "../../helpers/parchment";
+import { LONG_HOLD_FEE_EVENT, PARCHMENT_START, PARCHMENT_USDC, closeFeesCollected, getParchmentEvents, getParchmentMarketFilter, getParchmentTxEvents, isParchmentExchange, matchLongHoldFees, matchQueuedFees } from "../../helpers/parchment";
 
-// Fee schedule (https://docs.parchment.trade/trading/fees and /house-pool), all read from
-// events rather than assumed:
-// - open fee: market taker fee on notional, 0 bp since launch (max 2 bp)
-// - close fee: 0.4 bp of notional on every close
-// - win fee: 2% of adjusted profit on a winning close
-// - loss fee: 2% of the margin a trader loses (closes and liquidations). A separate protocol cut taken before the
-//   rest reaches the house pool and routed to stakers / treasury like every other retained fee; not pool P&L
-// - execution fee: flat 0.02 USDC per filled order, paid to the order keeper (config `exec_fee_recipient`) to
+// Fee schedule (https://docs.parchment.trade/trading/fees and /house-pool). Rates change over time and are per
+// market or per position, so every amount is read from events rather than assumed:
+// - open fee: market taker fee on notional (0 since launch)
+// - close fee: a small charge on the notional of every close (rate stamped on the position at open)
+// - win fee: a share of adjusted profit on a winning close (rate stamped on the position at open)
+// - long-hold fee: an add-on to the win fee once a position is held past a free period (since 2026-11-15), in place of
+//   a funding or borrow fee. Settled with the win fee but reported in its own event (`ChargeLongHoldFeeEventV1`)
+// - loss fee: a share of the margin a trader loses (closes and liquidations), a protocol cut routed like the fees
+//   above; not pool P&L
+// - execution fee: flat fee per filled order, paid to the order keeper (config `exec_fee_recipient`) to
 //   reimburse the gas of filling it, so it is supply side, not revenue
 // - builder fee: optional on-top fee on profit for orders routed through a builder code
 // Retained fees (everything above except execution and builder fees, net of referral shares) are split on chain
-// between stakers and the treasury by pool coverage (30% to 70% to stakers), see `FeesRoutedEventV1`.
-// The house pool's trading P&L, the profit haircut and surplus sweeps out of pool cash are not fees.
+// between the house pool, stakers and the treasury, see `FeesRoutedEventV1`. The house pool is Parchment's own
+// trading capital (it has no deposit shares), so its share is protocol revenue.
+// The house pool's trading P&L (including the size cost, which only lowers what a win pays), the profit haircut and
+// surplus sweeps out of pool cash are not fees.
 
 const LABELS = {
   OPEN: "Open Fees",
   CLOSE: "Close Fees",
   WIN: "Win Fees",
+  LONG_HOLD: "Long-Hold Fees",
   QUEUED: "Queued Win Fees",
   LOSS: "Loss Fees",
   EXEC: "Execution Fees",
@@ -27,6 +32,7 @@ const LABELS = {
   LIQ: "Liquidation Bounties",
   TO_STAKERS: "Trading Fees To Stakers",
   TO_TREASURY: "Trading Fees To Treasury",
+  TO_POOL: "Trading Fees To House Pool",
   EXEC_TO_KEEPER: "Execution Fees To Keeper",
   REFERRAL: "Referral Fees To Referrers",
   BUILDER_TO_BUILDERS: "Builder Fees To Builders",
@@ -51,11 +57,12 @@ const fetch = async (options: FetchOptions) => {
     if (BigInt(amount) > 0n) balances.add(PARCHMENT_USDC, String(amount), label);
   };
 
-  const [isParchmentMarket, closeFees, enqueued, builderPaid, liquidations, harvestFees, opens, finalized, requests, routed, referralPayouts] = await Promise.all([
+  const [isParchmentMarket, closeFees, enqueued, longHoldCharges, builderPaid, liquidations, harvestFees, opens, finalized, requests, routed, referralPayouts] = await Promise.all([
     getParchmentMarketFilter(end),
     // With transaction digests and event indexes, to match each queued payout to its own close.
     getParchmentTxEvents("CloseFeesEventV2", start, end),
     getParchmentTxEvents("EnqueuePayoutEventV2", start, end),
+    getParchmentTxEvents(LONG_HOLD_FEE_EVENT, start, end),
     getParchmentEvents("BuilderOnTopAccruedEventV1", start, end),
     getParchmentEvents("LiquidationDetailEventV1", start, end),
     getParchmentEvents("HarvestFeesEventV2", start, end),
@@ -79,10 +86,12 @@ const fetch = async (options: FetchOptions) => {
   // `closeFeesCollected`; `HarvestFeesEventV2.fee` includes the discount on a queued fee).
   const closes = closeFees.filter(({ event }) => isParchmentExchange(event));
   const queuedFees = matchQueuedFees(closes, enqueued.filter(({ event }) => isParchmentExchange(event)));
+  const longHoldFees = matchLongHoldFees(closes, longHoldCharges);
   closes.forEach(({ event }, i) => {
-    const collected = closeFeesCollected(event, queuedFees[i]);
+    const collected = closeFeesCollected(event, queuedFees[i], longHoldFees[i]);
     add(dailyFees, collected.close, LABELS.CLOSE);
     add(dailyFees, collected.win, LABELS.WIN);
+    add(dailyFees, collected.longHold, LABELS.LONG_HOLD);
     add(dailyFees, collected.loss, LABELS.LOSS);
   });
   for (const e of byExchange(harvestFees)) add(dailyFees, BigInt(e.fee) - BigInt(e.referral_discount), LABELS.QUEUED);
@@ -120,8 +129,10 @@ const fetch = async (options: FetchOptions) => {
   // Trading-referral shares paid out of fees (direct and second level).
   for (const e of referralPayouts) add(dailySupplySideRevenue, e.amount, LABELS.REFERRAL);
 
-  // What the protocol keeps, split on chain between stakers and the treasury.
+  // What the protocol keeps, split on chain between the house pool, stakers and the treasury.
   for (const e of byExchange(routed)) {
+    add(dailyProtocolRevenue, e.to_pool, LABELS.TO_POOL);
+    add(dailyRevenue, e.to_pool, LABELS.TO_POOL);
     add(dailyHoldersRevenue, e.to_stakers, LABELS.TO_STAKERS);
     add(dailyRevenue, e.to_stakers, LABELS.TO_STAKERS);
     add(dailyProtocolRevenue, e.to_treasury, LABELS.TO_TREASURY);
@@ -132,20 +143,21 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Fees paid by Parchment traders: open fees (0 since launch), 0.4 bp close fees, 2% win fees on profit, 2% loss fees on margin lost, liquidation bounties, the 0.02 USDC execution fee per filled order and optional builder fees, net of the discount referred traders get back on close and win fees. The loss fee is a separate protocol cut routed to stakers and the treasury, not house pool profit; the house pool's own trading profit is not counted.",
-  Revenue: "Open, close, win and loss fees kept by Parchment after referral shares, split between stakers and the treasury.",
-  ProtocolRevenue: "Treasury share of the open, close, win and loss fees Parchment keeps (30% to 70% depending on house pool coverage).",
-  HoldersRevenue: "Share of the open, close, win and loss fees Parchment keeps that is paid in USDC to stakers (30% to 70% depending on house pool coverage).",
+  Fees: "Fees paid by Parchment traders: open fees (0 since launch), close fees on notional, win fees on profit, long-hold fees added to the win fee on positions held past a free period, loss fees on margin lost, liquidation bounties, the flat execution fee per filled order and optional builder fees, net of the discount referred traders get back on close and win fees. The house pool's own trading profit is not counted.",
+  Revenue: "Open, close, win, long-hold and loss fees kept by Parchment after referral shares, split on chain between the house pool, stakers and the treasury.",
+  ProtocolRevenue: "House pool and treasury shares of the open, close, win, long-hold and loss fees Parchment keeps. The house pool is Parchment's own trading capital, with no outside depositors.",
+  HoldersRevenue: "Share of the open, close, win, long-hold and loss fees Parchment keeps that is paid in USDC to PARCHMENT stakers.",
   SupplySideRevenue: "Execution fees reimbursing the order keeper's gas, referral fees paid to referrers, builder fees paid to builders and liquidation bounties paid to liquidators.",
 };
 
 const FEE_SOURCES = {
-  [LABELS.OPEN]: "Open fee charged on position notional at open (market taker fee, 0 bp since launch).",
-  [LABELS.CLOSE]: "Close fee of 0.4 bp of position notional, charged on every close, net of any referee discount.",
-  [LABELS.WIN]: "Win fee of 2% of adjusted profit on winning closes paid out at once, net of any referee discount.",
-  [LABELS.QUEUED]: "Win fee, and the part of the close fee taken out of profit, on winning closes whose profit was queued; counted when the queued claim is paid out, net of any referee discount.",
-  [LABELS.LOSS]: "Loss fee of 2% of the margin a trader loses on a losing close or a liquidation, a protocol cut taken before the rest goes to the house pool.",
-  [LABELS.EXEC]: "Flat execution fee (0.02 USDC) per filled two-step order, refunded when the order is not filled.",
+  [LABELS.OPEN]: "Open fee charged on position notional at open (market taker fee, 0 since launch).",
+  [LABELS.CLOSE]: "Close fee on position notional, charged on every close, net of any referee discount.",
+  [LABELS.WIN]: "Win fee on adjusted profit on winning closes paid out at once, net of any referee discount.",
+  [LABELS.LONG_HOLD]: "Long-hold fee added to the win fee on winning closes of positions held past the free period, paid out at once, net of any referee discount.",
+  [LABELS.QUEUED]: "Win and long-hold fees, and the part of the close fee taken out of profit, on winning closes whose profit was queued; counted when the queued claim is paid out, net of any referee discount.",
+  [LABELS.LOSS]: "Loss fee on the margin a trader loses on a losing close or a liquidation, a protocol cut taken before the rest goes to the house pool.",
+  [LABELS.EXEC]: "Flat execution fee per filled two-step order, refunded when the order is not filled.",
   [LABELS.BUILDER]: "On-top fee on profit for orders placed through a builder code.",
   [LABELS.LIQ]: "Bounty paid to the liquidator out of a liquidated position's margin.",
 };
@@ -153,14 +165,16 @@ const FEE_SOURCES = {
 const breakdownMethodology = {
   Fees: FEE_SOURCES,
   Revenue: {
-    [LABELS.TO_STAKERS]: "Share of retained open, close, win and loss fees paid in USDC to stakers.",
-    [LABELS.TO_TREASURY]: "Share of retained open, close, win and loss fees kept by the Parchment treasury.",
+    [LABELS.TO_POOL]: "Share of retained fees added to the cash of the house pool, Parchment's own trading capital.",
+    [LABELS.TO_STAKERS]: "Share of retained fees paid in USDC to stakers.",
+    [LABELS.TO_TREASURY]: "Share of retained fees kept by the Parchment treasury.",
   },
   ProtocolRevenue: {
-    [LABELS.TO_TREASURY]: "Share of retained open, close, win and loss fees kept by the Parchment treasury.",
+    [LABELS.TO_POOL]: "Share of retained fees added to the cash of the house pool, Parchment's own trading capital.",
+    [LABELS.TO_TREASURY]: "Share of retained fees kept by the Parchment treasury.",
   },
   HoldersRevenue: {
-    [LABELS.TO_STAKERS]: "Share of retained open, close, win and loss fees paid in USDC to stakers.",
+    [LABELS.TO_STAKERS]: "Share of retained fees paid in USDC to stakers.",
   },
   SupplySideRevenue: {
     [LABELS.EXEC_TO_KEEPER]: "Execution fees paid to the order keeper, which pays the gas of order fills.",

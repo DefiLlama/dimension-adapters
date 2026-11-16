@@ -18,6 +18,13 @@ const SUI_FRAMEWORK = "0x0000000000000000000000000000000000000000000000000000000
 
 const eventType = (name: string) => `${PARCHMENT_CORE}::events::Event<${PARCHMENT_CORE}::events::${name}>`;
 
+// `parchment_game` package: game events are emitted as `<GAME>::game_events::Event<<DEFINER>::game_events::X>`, where
+// the envelope is keyed on the original package and the event struct on the upgrade that first defined it.
+const PARCHMENT_GAME = "0x0de3c36d56dab5b3f030dd39e4210d5db14a4858858825a5cded1707cf8aaea3";
+// `parchment_game` version 4 (2026-11-15), which added the long-hold fee and `ChargeLongHoldFeeEventV1`.
+const PARCHMENT_GAME_V4 = "0xb5f3bd1e753d70026939dd7c117abfcf4075a273e17cc3606d651a28998b9fbf";
+export const LONG_HOLD_FEE_EVENT = `${PARCHMENT_GAME}::game_events::Event<${PARCHMENT_GAME_V4}::game_events::ChargeLongHoldFeeEventV1>`;
+
 // Events of one type in the half-open window [start, end), unwrapped from the `Event<T>` envelope (`pos0`).
 export async function getParchmentEvents(name: string, startTimestamp: number, endTimestamp: number): Promise<any[]> {
   return queryEvents({
@@ -110,8 +117,9 @@ export function closedNotionals(
 // (`sequenceNumber`), unwrapped like `getParchmentEvents`. Same backwards walk from the newest event as `queryEvents`,
 // which returns neither.
 export type ParchmentTxEvent = { event: any; digest: string; seq: number };
+// `name` is a core event name, or a full event type (such as `LONG_HOLD_FEE_EVENT`).
 export async function getParchmentTxEvents(name: string, startTimestamp: number, endTimestamp: number): Promise<ParchmentTxEvent[]> {
-  const type = eventType(name);
+  const type = name.includes("::") ? name : eventType(name);
   const items: ParchmentTxEvent[] = [];
   let before: string | null = null;
   do {
@@ -134,40 +142,57 @@ export async function getParchmentTxEvents(name: string, startTimestamp: number,
   return items.reverse();
 }
 
-// Matches each queued payout (`EnqueuePayoutEventV2`) to its close (`CloseFeesEventV2`) and returns, per close, the fee
-// queued with its claim (0n when the close was not queued). A queued close emits its enqueue event before its close
-// fees event in the same transaction, so each close takes the enqueue of the same position emitted after the
-// previous close of that position in that transaction; this keeps several closes of one position in one transaction
-// (partial closes) apart. An enqueue left without its close fails the run.
-export function matchQueuedFees(closes: ParchmentTxEvent[], enqueues: ParchmentTxEvent[]): bigint[] {
+// Matches events emitted before a close in the same transaction to that close, and returns, per close, the `field`
+// of its event (0n when it has none). An event of a position is emitted before that position's `CloseFeesEventV2` in
+// the same transaction, so each close takes the event of the same position emitted after the previous close of that
+// position in that transaction; this keeps several closes of one position in one transaction (partial closes) apart.
+// An event left without its close fails the run.
+function matchToCloses(closes: ParchmentTxEvent[], events: ParchmentTxEvent[], what: string, field: string): bigint[] {
   const tagged = [
-    ...enqueues.map((e) => ({ ...e, close: -1 })),
+    ...events.map((e) => ({ ...e, close: -1 })),
     ...closes.map((e, i) => ({ ...e, close: i })),
   ].sort((a, b) => (a.digest === b.digest ? a.seq - b.seq : a.digest < b.digest ? -1 : 1));
   const pending = new Map<string, any>();
-  const queued = closes.map(() => 0n);
+  const matched = closes.map(() => 0n);
   for (const { event, digest, close } of tagged) {
     const key = `${digest}:${event.position_id}`;
     if (close < 0) {
-      if (pending.has(key)) throw new Error(`Parchment: two queued payouts of position ${event.position_id} before its close in ${digest}`);
+      if (pending.has(key)) throw new Error(`Parchment: two ${what} events of position ${event.position_id} before its close in ${digest}`);
       pending.set(key, event);
     } else if (pending.has(key)) {
-      queued[close] = BigInt(pending.get(key).fee);
+      matched[close] = BigInt(pending.get(key)[field]);
       pending.delete(key);
     }
   }
-  for (const [key] of pending) throw new Error(`Parchment: queued payout ${key} without its close`);
-  return queued;
+  for (const [key] of pending) throw new Error(`Parchment: ${what} ${key} without its close`);
+  return matched;
+}
+
+// Per close, the fee queued with its claim (`EnqueuePayoutEventV2.fee`; a queued close emits its enqueue event before
+// its close fees event). `enqueues` are already filtered to the Parchment Exchange.
+export function matchQueuedFees(closes: ParchmentTxEvent[], enqueues: ParchmentTxEvent[]): bigint[] {
+  return matchToCloses(closes, enqueues, "queued payout", "fee");
+}
+
+// Per close, its long-hold fee (`ChargeLongHoldFeeEventV1.fee`, emitted before the close fees event of the same
+// settlement). The event carries no `exchange_id`, so it is kept when its transaction settles a close of the Parchment
+// Exchange (`closes`); within such a transaction an event without its close fails the run.
+export function matchLongHoldFees(closes: ParchmentTxEvent[], charges: ParchmentTxEvent[]): bigint[] {
+  const digests = new Set(closes.map(({ digest }) => digest));
+  return matchToCloses(closes, charges.filter(({ digest }) => digests.has(digest)), "long-hold fee", "fee");
 }
 
 // Fees a close collects at the close, net of the referee discount, by kind. `queuedFee` is the fee queued with the
-// close's claim (`matchQueuedFees`). A close collects its close charge and win fee (`collected`), except the part
-// queued with a winning claim (`EnqueuePayoutEventV2.fee` = win fee + the part of the close charge taken from
-// profit), which is collected at harvest. The referee discount is a share of `collected` credited back to the trader
-// at once, so it is a fee the trader does not pay: it is netted from the close and win fees in proportion (rounding
-// to the close fee). The loss fee carries no discount.
-export function closeFeesCollected(close: any, queuedFee: bigint): { close: bigint; win: bigint; loss: bigint } {
-  const win = BigInt(close.win_fee);
+// close's claim (`matchQueuedFees`) and `longHold` its long-hold fee (`matchLongHoldFees`). The long-hold fee is settled
+// as part of the win fee (`CloseFeesEventV2.win_fee` excludes it), so the win-side fee is `win_fee + longHold`. A close
+// collects its close charge and win-side fee, except the part queued with a winning claim
+// (`EnqueuePayoutEventV2.fee` = win-side fee + the part of the close charge taken from profit), which is collected at
+// harvest. The referee discount is a share of what is collected, credited back to the trader at once, so it is a fee
+// the trader does not pay: it is netted from the close and win-side fees in proportion (rounding to the close fee),
+// and the win-side part is split between the win fee and the long-hold fee in proportion (rounding to the win fee).
+// The loss fee carries no discount.
+export function closeFeesCollected(close: any, queuedFee: bigint, longHold = 0n): { close: bigint; win: bigint; longHold: bigint; loss: bigint } {
+  const win = BigInt(close.win_fee) + longHold;
   const queuedWin = queuedFee < win ? queuedFee : win;
   const closeNow = BigInt(close.close_charge) - (queuedFee - queuedWin);
   const winNow = win - queuedWin;
@@ -175,7 +200,9 @@ export function closeFeesCollected(close: any, queuedFee: bigint): { close: bigi
   if (closeNow < 0n || discount > closeNow + winNow)
     throw new Error(`Parchment: queued fee ${queuedFee} / discount ${discount} above the fees of close ${close.position_id}`);
   const winDiscount = closeNow + winNow > 0n ? (discount * winNow) / (closeNow + winNow) : 0n;
-  return { close: closeNow - (discount - winDiscount), win: winNow - winDiscount, loss: BigInt(close.loss_fee) };
+  const winNet = winNow - winDiscount;
+  const longHoldNet = win > 0n ? (winNet * longHold) / win : 0n;
+  return { close: closeNow - (discount - winDiscount), win: winNet - longHoldNet, longHold: longHoldNet, loss: BigInt(close.loss_fee) };
 }
 
 // `objectChanges.nodes` (with input and output states) of the given transactions, by digest. 50 transactions per
