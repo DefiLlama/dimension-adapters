@@ -1,7 +1,10 @@
 import { SimpleAdapter } from "../../adapters/types";
-import { LIGHTER_PARTNER_FEES_LABEL } from "../../helpers/lighter";
-import { chainConfig, HL_BUILDER_FEES_LABEL, NADO_BUILDER_FEES_LABEL } from "./config";
+import { chainConfig, PERP_PILOT_CONFIG } from "./config";
 import { fetch } from "./fetch";
+
+const HL_FEES_LABEL = PERP_PILOT_CONFIG.hyperliquid.feesLabel;
+const LIGHTER_FEES_LABEL = PERP_PILOT_CONFIG.lighter.feesLabel;
+const NADO_FEES_LABEL = PERP_PILOT_CONFIG.nado.feesLabel;
 
 // PerpPilot builder/partner volume and fees across venues: venue config in ./config.ts, data sources in ./fetch.ts
 
@@ -18,19 +21,19 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [HL_BUILDER_FEES_LABEL]: "Builder code fees paid by users on Hyperliquid perpetual trades placed through PerpPilot.",
-      [LIGHTER_PARTNER_FEES_LABEL]: "Partner fees paid by users on Lighter and Lighter on Robinhood Chain perpetual trades placed through PerpPilot.",
-      [NADO_BUILDER_FEES_LABEL]: "Builder fees paid by users on Nado perpetual trades placed through PerpPilot.",
+      [HL_FEES_LABEL]: "Builder code fees paid by users on Hyperliquid perpetual trades placed through PerpPilot.",
+      [LIGHTER_FEES_LABEL]: "Partner fees paid by users on Lighter and Lighter on Robinhood Chain perpetual trades placed through PerpPilot.",
+      [NADO_FEES_LABEL]: "Builder fees paid by users on Nado perpetual trades placed through PerpPilot.",
     },
     Revenue: {
-      [HL_BUILDER_FEES_LABEL]: "Hyperliquid builder code fees, kept by PerpPilot.",
-      [LIGHTER_PARTNER_FEES_LABEL]: "Lighter partner fees, kept by PerpPilot.",
-      [NADO_BUILDER_FEES_LABEL]: "Nado builder fees, kept by PerpPilot.",
+      [HL_FEES_LABEL]: "Hyperliquid builder code fees, kept by PerpPilot.",
+      [LIGHTER_FEES_LABEL]: "Lighter partner fees, kept by PerpPilot.",
+      [NADO_FEES_LABEL]: "Nado builder fees, kept by PerpPilot.",
     },
     ProtocolRevenue: {
-      [HL_BUILDER_FEES_LABEL]: "Hyperliquid builder code fees, sent to PerpPilot.",
-      [LIGHTER_PARTNER_FEES_LABEL]: "Lighter partner fees, sent to PerpPilot.",
-      [NADO_BUILDER_FEES_LABEL]: "Nado builder fees, sent to PerpPilot.",
+      [HL_FEES_LABEL]: "Hyperliquid builder code fees, sent to PerpPilot.",
+      [LIGHTER_FEES_LABEL]: "Lighter partner fees, sent to PerpPilot.",
+      [NADO_FEES_LABEL]: "Nado builder fees, sent to PerpPilot.",
     },
   },
 };

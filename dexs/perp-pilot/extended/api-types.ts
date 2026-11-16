@@ -12,7 +12,7 @@ export interface ExtendedBuilderDailyStats extends ExtendedBuilderStats {
   date: string; // UTC day, YYYY-MM-DD
 }
 
-// GET EXTENDED_BUILDERS_API, public and parameterless: every builder, aggregated per period
+// GET PERP_PILOT_CONFIG.extended.dashboardApi, public and parameterless: every builder, aggregated per period
 export interface ExtendedBuilderDashboard {
   status: "OK";
   data: {
