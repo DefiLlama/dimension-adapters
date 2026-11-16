@@ -1,3 +1,4 @@
+import ADDRESSES from "../helpers/coreAssets.json";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
@@ -56,6 +57,10 @@ const OKX_FEE_ACCOUNTS = new Set([
 
 const V2_EVENTS_START = 1761955200; // Nov-01-2025 00:00:00 UTC, two weeks before the first one
 const V1_EVENTS_END = 1777507200; // Apr-30-2026 00:00:00 UTC, a month after the last one
+
+// The routers book the native token as 0xEeee...EEeE. coins.llama.fi only prices that alias on some chains
+// (not on X Layer, Polygon, Linea, zkSync Era, Mantle, Blast or Unichain), so book it as the gas token.
+const toToken = (token: string) => token.toLowerCase() === ADDRESSES.GAS_TOKEN_2 ? ADDRESSES.null : token
 
 const endOfDay = (day: string) => Math.floor(Date.parse(`${day}T23:59:59Z`) / 1e3);
 
@@ -301,6 +306,21 @@ const routers: Record<string, IRouter> = {
     ],
     start: '2026-11-09',
   },
+  // X Layer isn't on Dune either. These are every contract that emitted a commission event there, from
+  // a 500-block-per-day log sample since 2025-07-20, oldest-first; the first was deployed on 2025-08-05.
+  // Without exact last-log dates none is marked retired, so all are always queried. 0xf4739115...5cf5c
+  // emits the same events but pays its own referrer, not OKX, so it is left out.
+  [CHAIN.XLAYER]: {
+    addresses: [
+      { address: '0x69C236E021F5775B0D0328ded5EaC708E3B869DF' },
+      { address: '0xC259de94F6bedDec5Ed1C024b0283082ffa50cca' },
+      { address: '0x0EfA3a01Eb0708f9E40B661C6Cd7C56c83B9F45A' },
+      { address: '0xD1b8997AaC08c619d40Be2e4284c9C72cAB33954' },
+      { address: '0xbec6d0E341102732e4FD62EC50E2F0a9D1bd1D33' },
+      { address: '0x722db4f285F8bD91ef7AF6DA397e83f7fA4E80a7' },
+      { address: '0x7c5bEE2a8091C3ef39072f64F18Fac913060AEaF' },
+    ],
+  },
 }
 
 const fetch: any = async (options: FetchOptions) => {
@@ -326,12 +346,13 @@ const fetch: any = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
   for (const event of events.flat()) {
+    const token = toToken(event.tokenAddress)
     if (OKX_FEE_ACCOUNTS.has(event.referrerAddress.toLowerCase())) {
-      dailyFees.add(event.tokenAddress, event.commissionAmount, OKX_FEES)
-      dailyRevenue.add(event.tokenAddress, event.commissionAmount, OKX_FEES)
+      dailyFees.add(token, event.commissionAmount, OKX_FEES)
+      dailyRevenue.add(token, event.commissionAmount, OKX_FEES)
     } else {
-      dailyFees.add(event.tokenAddress, event.commissionAmount, REFERRAL_COMMISSIONS)
-      dailySupplySideRevenue.add(event.tokenAddress, event.commissionAmount, REFERRAL_COMMISSIONS)
+      dailyFees.add(token, event.commissionAmount, REFERRAL_COMMISSIONS)
+      dailySupplySideRevenue.add(token, event.commissionAmount, REFERRAL_COMMISSIONS)
     }
   }
 
@@ -342,12 +363,13 @@ const fetch: any = async (options: FetchOptions) => {
     if (blacklistTokens.includes(formatAddress(event.tokenAddress))) continue
     const receiver = event.trimAddress ?? event.chargeAddress
     const amount = event.trimAmount ?? event.chargeAmount
+    const token = toToken(event.tokenAddress)
     if (OKX_FEE_ACCOUNTS.has(receiver.toLowerCase())) {
-      dailyFees.add(event.tokenAddress, amount, OKX_POSITIVE_SLIPPAGE)
-      dailyRevenue.add(event.tokenAddress, amount, OKX_POSITIVE_SLIPPAGE)
+      dailyFees.add(token, amount, OKX_POSITIVE_SLIPPAGE)
+      dailyRevenue.add(token, amount, OKX_POSITIVE_SLIPPAGE)
     } else {
-      dailyFees.add(event.tokenAddress, amount, PARTNER_POSITIVE_SLIPPAGE)
-      dailySupplySideRevenue.add(event.tokenAddress, amount, PARTNER_POSITIVE_SLIPPAGE)
+      dailyFees.add(token, amount, PARTNER_POSITIVE_SLIPPAGE)
+      dailySupplySideRevenue.add(token, amount, PARTNER_POSITIVE_SLIPPAGE)
     }
   }
 
