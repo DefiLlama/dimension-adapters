@@ -3,7 +3,10 @@ import { CHAIN } from "../../helpers/chains";
 
 // CallPut — GMX-style on-chain options protocol (Base).
 // The Controller emits a per-trade USD delta for both notional and premium.
-const CONTROLLER = "0xfc61ba50AE7B9C4260C9f04631Ff28D5A2Fa4EB2";
+const CONTROLLERS: Record<string, string> = {
+  [CHAIN.BASE]: "0xfc61ba50AE7B9C4260C9f04631Ff28D5A2Fa4EB2",
+  [CHAIN.ROBINHOOD]: "0x0D240c1EbEeE7F74B40d6611326f5df98AB00e1B",
+};
 
 // Emitted uint256 = size * price / 10**decimals, where price carries 1e30
 // precision, so each value is the USD amount scaled by 1e30.
@@ -19,8 +22,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyPremiumVolume = options.createBalances();
 
   const [notionalLogs, premiumLogs] = await Promise.all([
-    options.getLogs({ target: CONTROLLER, eventAbi: NOTIONAL_VOLUME_ABI }),
-    options.getLogs({ target: CONTROLLER, eventAbi: EXECUTION_PRICE_ABI }),
+    options.getLogs({ target: CONTROLLERS[options.chain], eventAbi: NOTIONAL_VOLUME_ABI }),
+    options.getLogs({ target: CONTROLLERS[options.chain], eventAbi: EXECUTION_PRICE_ABI }),
   ]);
 
   for (const log of notionalLogs)
@@ -47,6 +50,7 @@ const adapter: SimpleAdapter = {
       // First Controller volume event on Base (matches the Dune dashboard start).
       start: "2026-01-30",
     },
+    [CHAIN.ROBINHOOD]: { fetch, start: "2026-10-01" },
   },
 };
 
