@@ -1123,6 +1123,31 @@ protocols['communityv3'].breakdownMethodology = {
   SupplySideRevenue: { 'LP fees': methodologyMap['communityv3'].SupplySideRevenue },
 }
 
+const hybraHyperliquidFetch = protocols['hybra-v3'].adapter[CHAIN.HYPERLIQUID].fetch
+protocols['hybra-v3'].adapter[CHAIN.HYPERLIQUID].fetch = async (options: FetchOptions) => {
+  // Exclude the self-funded liquidity cycle from volume, while retaining its fees.
+  const cycleTime = 1794785940
+  if (options.startTimestamp > cycleTime || options.endTimestamp <= cycleTime) return hybraHyperliquidFetch(options)
+  let excludedAmount = '0'
+  const result = await hybraHyperliquidFetch({
+    ...options,
+    getLogs: async (params: any) => {
+      if (!params.targets || params.flatten !== false) return options.getLogs(params)
+      const logs = await options.getLogs({ ...params, onlyArgs: false })
+      logs.forEach((poolLogs: any[], i: number) => {
+        if (params.targets[i].toLowerCase() !== '0x7ca42c636f68717f0d84e5c9f0991bb7858060da') return
+        for (const log of poolLogs) {
+          if (log.transactionHash?.toLowerCase() === '0x3b7361c708fff8988be9fded772d9a6c9f8dc4e4ddf1223bd6939fcb27f0e315' && Number(log.logIndex) === 10)
+            excludedAmount = log.args.amount0.toString()
+        }
+      })
+      return logs.map((poolLogs: any[]) => poolLogs.map(log => log.args))
+    },
+  })
+  result.dailyVolume.subtractToken('0x5555555555555555555555555555555555555555', excludedAmount)
+  return result
+}
+
 // Keep the first RH deployment's history and residual activity after the den15 migration.
 // Factories: https://hybra-foundation.gitbook.io/hybra-foundation/security/contracts
 protocols['hybra-v3'].breakdownMethodology = {
