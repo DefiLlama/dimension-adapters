@@ -54,7 +54,12 @@ function humanUnits(amount: bigint, decimals: number): string {
 function addAmount(balances: ReturnType<FetchOptions["createBalances"]>, token: string, raw: bigint) {
   if (raw <= 0n) return;
   const ref = PRICE_REFERENCES[token.toLowerCase()];
-  if (ref) balances.add(`coingecko:${ref.id}`, humanUnits(raw, ref.decimals));
+  if (ref) {
+    // DefiLlama Balances.add expects numeric CoinGecko units, not decimal strings.
+    const amount = Number(humanUnits(raw, ref.decimals));
+    if (!Number.isFinite(amount)) throw new Error("CipherTrade DEX: non-finite mapped amount");
+    balances.add(`coingecko:${ref.id}`, amount);
+  }
   else balances.add(token, raw.toString());
 }
 
