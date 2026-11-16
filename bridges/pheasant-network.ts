@@ -13,6 +13,8 @@ const FILLED = "event Filled(bytes32 indexed orderId, bytes32 indexed orderTerms
 
 // Earlier bridge deployments. Only the deposit side is recorded on-chain for them. The first two kinds emit NewTrade
 // without the amount, which is read from getTrade; they only bridged ETH.
+// Addresses: the address list of the @pheasant-network/pheasant-sdk npm package. Periods: first and last trade of the
+// contracts of each kind.
 const LEGACY_NEW_TRADE = "event NewTrade(address indexed userAddress, uint256 index)";
 const TRADE_FIELDS = "uint256 index, address user, uint8 tokenTypeIndex, uint256 amount, uint256 timestamp, address to, address relayer, uint8 status, uint256 fee";
 const GET_TRADE = {
@@ -31,6 +33,8 @@ const CURRENT_START = "2026-06-08";
 const RETIRED = "2024-12-11";
 // Earlier Morph deployments report ETH as WETH, which has no price for 2024; it is counted as ETH.
 const MORPH_WETH = "0x5300000000000000000000000000000000000011";
+const CANCELLED = 99; // trade status of a deposit returned to the user
+const isZero = (address?: string) => !address || address.toLowerCase() === ADDRESSES.null;
 const toTimestamp = (date: string) => Date.parse(`${date}T00:00:00Z`) / 1000;
 
 type ChainConfig = {
@@ -183,6 +187,7 @@ const fetch = async (options: FetchOptions) => {
     });
     for (const trade of trades) {
       if (trade.isUpward) continue; // created on the destination chain
+      if (Number(trade.status) === CANCELLED || isZero(trade.user) || isZero(trade.to)) continue;
       dailyOutgoingVolume.addCGToken("ethereum", Number(trade.amount) / 1e18);
       dailyOutgoingTxCount++;
     }
@@ -191,8 +196,11 @@ const fetch = async (options: FetchOptions) => {
 
   if (targets.length) {
     const trades = await options.getLogs({ targets, eventAbi: NEW_TRADE });
-    for (const l of trades) dailyOutgoingVolume.add(l.token.toLowerCase() === MORPH_WETH ? ADDRESSES.null : l.token, l.amount);
-    dailyOutgoingTxCount += trades.length;
+    for (const l of trades) {
+      if (isZero(l.userAddress) || isZero(l.to)) continue;
+      dailyOutgoingVolume.add(l.token.toLowerCase() === MORPH_WETH ? ADDRESSES.null : l.token, l.amount);
+      dailyOutgoingTxCount++;
+    }
   }
   if (payoutExecutor && options.toTimestamp > toTimestamp(CURRENT_START)) {
     const fills = await options.getLogs({ target: payoutExecutor, eventAbi: FILLED });
