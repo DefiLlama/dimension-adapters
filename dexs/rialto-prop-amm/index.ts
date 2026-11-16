@@ -1,3 +1,5 @@
+import { getProvider } from "@defillama/sdk";
+import { getCreateAddress } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -11,23 +13,21 @@ const RIALTO_ROUTERS = [
 const routeActionEvent = 'event RouteActionExecuted( uint256 indexed hopIndex, uint8 kind, address indexed pool, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut)';
 // RouteActionKind.RawCall in the verified RialtoRouter deployment above.
 const rawCallKind = 0n;
-// PropAMM pairs are deployed directly by 0x8dbf0d37cad30b2510d5c74e0f87a210cb298086, with no factory or
-// registry event, and get redeployed (the 2026-11-06 set replaced every earlier pair). Every pair exposes
-// traderVault(), so a RawCall target counts as PropAMM when it returns one of these vaults:
-// 0x9c76... for the first pair (0x79ef2fd912e3a3b91851497017cc813f10456065), 0x2f45... for all later ones.
-// The pair set is discovered per window; this vault set is still static and needs a new entry if the vault rotates.
-const traderVaultAbi = 'function traderVault() view returns (address)';
-const propAmmTraderVaults = new Set([
-  '0x9c7633410deace3e8a1f891ba72541691e4252b2',
-  '0x2f4579ca81717d3d61bf8b6f06571877bbe54a07',
-]);
-// Known pair, always probed: with permitFailure a failed RPC call looks like a non-PropAMM target, so a
-// probe that does not resolve to a known vault means the lookup itself failed. It was deployed at
-// 2026-06-15 13:51:08 UTC (block 58159), so earlier windows skip the check.
-const probePool = '0x79ef2fd912e3a3b91851497017cc813f10456065';
-const probePoolDeployedAt = 1781531468;
+const PAIR_DEPLOYERS = [
+  '0xb97c121f7bf12bc21ed22b9739f3695bd2ab23a8',
+  '0x8dbf0d37cad30b2510d5c74e0f87a210cb298086',
+];
 
-/** Returns volume executed against PropAMM pair contracts. */
+async function getPairAddresses(options: FetchOptions) {
+  const provider = getProvider(options.chain);
+  const pairs = new Set<string>();
+  for (const deployer of PAIR_DEPLOYERS) {
+    const nonce = await provider.getTransactionCount(deployer, 'latest');
+    for (let n = 0; n < nonce; n++) pairs.add(getCreateAddress({ from: deployer, nonce: n }).toLowerCase());
+  }
+  return pairs;
+}
+
 async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
 
@@ -39,16 +39,7 @@ async function fetch(options: FetchOptions) {
   const rawCallLogs = routeActionLogs.filter((log) => log.kind === rawCallKind);
   if (!rawCallLogs.length) return { dailyVolume };
 
-  const pools = [...new Set([probePool, ...rawCallLogs.map((log) => log.pool.toLowerCase())])];
-  // RawCall also targets contracts without traderVault(), those calls revert. A failed multicall chunk comes
-  // back as all-null outputs, so retry once before giving up.
-  const lookupVaults = () => options.api.multiCall({ abi: traderVaultAbi, calls: pools, permitFailure: true });
-  let vaults = await lookupVaults();
-  const probeResolved = () => options.endTimestamp <= probePoolDeployedAt || propAmmTraderVaults.has(vaults[0]?.toLowerCase());
-  if (!probeResolved()) vaults = await lookupVaults();
-  if (!probeResolved()) throw new Error('rialto-prop-amm: traderVault() lookup failed for the probe pair');
-
-  const propAmmPools = new Set(pools.filter((_, i) => propAmmTraderVaults.has(vaults[i]?.toLowerCase())));
+  const propAmmPools = await getPairAddresses(options);
 
   for (const log of rawCallLogs) {
     if (propAmmPools.has(log.pool.toLowerCase())) {
