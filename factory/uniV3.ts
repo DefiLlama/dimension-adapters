@@ -34,6 +34,15 @@ const stockiumSwapRevenueRatio = ({ protocolFeeRatioToken0, protocolFeeRatioToke
   return { _revenueRatio: rate, _protocolRevenueRatio: rate }
 }
 
+// Enosys: per-pool slot0().feeProtocol (1/N of the swap fee per token, collectable by the factory owner); pools were switched
+// on at 10 (10%) one by one from 2025-04-28, then to 5 (20%) in one tx on 2026-01-30 17:09 UTC (Flare block 54,677,365);
+// a pool whose feeProtocol cannot be read fails the run
+const enosysRevenueRatio = ({ protocolFeeRatioToken0, protocolFeeRatioToken1 }: UniGetRevenueRatioProps) => {
+  if (protocolFeeRatioToken0 === undefined || protocolFeeRatioToken1 === undefined) throw new Error('enosys: slot0().feeProtocol unreadable')
+  const rate = (protocolFeeRatioToken0 + protocolFeeRatioToken1) / 2
+  return { _revenueRatio: rate, _protocolRevenueRatio: rate }
+}
+
 // https://docs.roninchain.com/apps/katana/swap-tokens
 const katanaV3RevenueRatio = ({ poolFeeTier }: UniGetRevenueRatioProps) => {
   if (poolFeeTier === 0.0001) return { _revenueRatio: 0.5, _protocolRevenueRatio: 0.5 } // 20% of fees
@@ -476,7 +485,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.SHAPE]: { factory: '0xeCf9288395797Da137f663a7DD0F0CDF918776F8', start: '2024-12-09', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
   },
   "enosys": {
-    [CHAIN.FLARE]: { factory: '0x17AA157AC8C54034381b840Cb8f6bf7Fc355f0de', start: "2025-03-03", userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
+    [CHAIN.FLARE]: { factory: '0x17AA157AC8C54034381b840Cb8f6bf7Fc355f0de', start: "2025-03-03", userFeesRatio: 1, protocolRevenueRatio: 0, dynamicProtocolFees: true, getRevenueRatio: enosysRevenueRatio },
     //[CHAIN.SONGBIRD]: { factory: '0x416F1CcBc55033Ae0133DA96F9096Fe8c2c17E7d', start: "2024-09-24", userFeesRatio: 1, revenueRatio: 0.1, protocolRevenueRatio: 0.1 },
   },
   "gliquid": {
@@ -707,6 +716,13 @@ const configs: Record<string, Record<string, any>> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "enosys": {
+    Fees: "Swap fees paid by traders in Enosys V3 pools, at the pool fee tier.",
+    UserFees: "Swap fees paid by traders in Enosys V3 pools, at the pool fee tier.",
+    Revenue: "The protocol share of the swap fees, set per pool by slot0().feeProtocol (10% from each pool's switch-on, 20% since 2026-01-30).",
+    ProtocolRevenue: "The protocol share of the swap fees, set per pool by slot0().feeProtocol and collectable by the factory owner.",
+    SupplySideRevenue: "The rest of the swap fees, earned by liquidity providers.",
+  },
   "kalos-dex": {
     Volume: "Swap volume of the Kalos DEX pools (Uniswap V3 pools created by the Kalos factory), from their Swap events, counted on one side of each swap.",
     Fees: "Swap fees paid by traders in Kalos DEX pools, at the pool fee tier.",
@@ -1180,6 +1196,14 @@ protocols['kalos-dex'].breakdownMethodology = {
 protocols['stockiumswap'].breakdownMethodology = {
   Fees: { 'Token Swap Fees': 'Swap fees paid by traders in StockiumSwap pools, at the pool fee tier (0.01% to 7%).' },
   UserFees: { 'Trading fees': 'Swap fees paid by traders in StockiumSwap pools, at the pool fee tier (0.01% to 7%).' },
+  Revenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner.' },
+  ProtocolRevenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner.' },
+  SupplySideRevenue: { 'LP fees': 'The part of swap fees earned by liquidity providers.' },
+}
+
+protocols['enosys'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': 'Swap fees paid by traders in Enosys V3 pools, at the pool fee tier.' },
+  UserFees: { 'Trading fees': 'Swap fees paid by traders in Enosys V3 pools, at the pool fee tier.' },
   Revenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner.' },
   ProtocolRevenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner.' },
   SupplySideRevenue: { 'LP fees': 'The part of swap fees earned by liquidity providers.' },
