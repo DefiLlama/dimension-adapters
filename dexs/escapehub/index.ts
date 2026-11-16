@@ -1,5 +1,5 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { adapterChains, fetchEscapeHub } from "../../fees/escapehub";
+import { chainConfig, fetchEscapeHub } from "../../fees/escapehub";
 
 
 const fetch = async (options: FetchOptions) => {
@@ -11,7 +11,8 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: adapterChains(),
+  // own entries, not the fees adapter's: setModuleDefaults writes each adapter's fetch into its chain entries
+  adapter: Object.fromEntries(Object.entries(chainConfig).map(([chain, { start }]) => [chain, { start }])),
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   methodology: {

@@ -83,26 +83,29 @@ const SELL =
 const SWAP_WITH_FEE =
   "event SwapWithFee(bytes32 indexed poolId, address indexed token, address indexed sender, uint256 inputAmount, uint256 feeAmount, uint256 protocolFee, uint256 creatorFee)";
 
-type EvmConfig = { factory: string; hook: string; fromBlock: number; weth: string; start: string };
-export const EVM_CONFIG: Record<string, EvmConfig> = {
+export const SOLANA_START = "2026-11-14";
+
+type ChainConfig = { start: string; factory?: string; hook?: string; fromBlock?: number; weth?: string };
+export const chainConfig: Record<string, ChainConfig> = {
+  [CHAIN.SOLANA]: { start: SOLANA_START },
   [CHAIN.BASE]: {
+    start: "2026-11-15",
     factory: "0x99Feb0E3d5Ba40eB5DF8D914f5A06370CaE5CA6E",
     hook: "0x02B9F879b64958EAe4B4703668376F9eF42528CC",
     fromBlock: 57899403,
     weth: ADDRESSES.base.WETH,
-    start: "2026-11-15",
   },
   [CHAIN.ROBINHOOD]: {
+    start: "2026-11-15",
     factory: "0x99Feb0E3d5Ba40eB5DF8D914f5A06370CaE5CA6E",
     hook: "0x5F49F1E00F805A9038117D702a74EE3E0eA068cC",
     fromBlock: 115197467,
     weth: ADDRESSES.robinhood.WETH,
-    start: "2026-11-15",
   },
 };
 
 async function fetchEvm(options: FetchOptions) {
-  const { factory, hook, fromBlock, weth } = EVM_CONFIG[options.chain];
+  const { factory, hook, fromBlock, weth } = chainConfig[options.chain] as Required<ChainConfig>;
   const [created, routings] = await Promise.all([
     options.getLogs({ target: factory, eventAbi: TOKEN_CREATED, fromBlock, cacheInCloud: true }),
     options.getLogs({ target: factory, eventAbi: TOKEN_FEE_ROUTING, fromBlock, cacheInCloud: true }),
@@ -189,13 +192,6 @@ const fetch = async (options: FetchOptions) => {
   return fees;
 };
 
-export const SOLANA_START = "2026-11-14";
-
-export const adapterChains = () => ({
-  [CHAIN.SOLANA]: { start: SOLANA_START },
-  ...Object.fromEntries(Object.entries(EVM_CONFIG).map(([chain, { start }]) => [chain, { start }])),
-});
-
 const methodology = {
   Fees: "Bonding curve trading fees (1.20%) and fees on graduated Uniswap v4 pools taken by the EscapeHub hook (Base, Robinhood).",
   UserFees: "Bonding curve trading fees (1.20%) and fees on graduated Uniswap v4 pools taken by the EscapeHub hook (Base, Robinhood).",
@@ -233,7 +229,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: adapterChains(),
+  adapter: chainConfig,
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   methodology,
