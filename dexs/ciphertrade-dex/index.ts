@@ -40,6 +40,10 @@ const INSTANCE_POOL = "event StandardPoolInstanceCreated(bytes32 indexed poolKey
 const PROTECTED_POOL = "event ProtectedPoolReserved(bytes32 indexed poolKey, address indexed protectedToken, address indexed reservingLaunchFactory, address token0, address token1, uint256 feeBps, address pool, address lpToken, bytes32 poolRuntimeCodehash, bytes32 lpTokenRuntimeCodehash)";
 const POOL_CREATION_EVENTS = [STANDARD_POOL, INSTANCE_POOL, PROTECTED_POOL];
 
+// Temporary diagnostic switch. No HTTP calls or secrets: outputs only block
+// ranges, on-chain event counts and aggregate token balances for local testing.
+const DEBUG_VOLUME = process.env.CIPHERTRADE_VOLUME_DEBUG === "1";
+
 const POOL_SWAP = "event SwapExecuted(address indexed trader, address indexed recipient, bool indexed zeroForOne, uint256 amountIn, uint256 amountOut, uint256 netInput, uint256 protocolFee, uint256 lpFee)";
 const HYBRID_LEG = "event HybridLegExecuted(uint256 indexed index, uint8 kind, address indexed tokenIn, address indexed tokenOut, address venue, uint256 orderId, uint256 amountIn, uint256 amountOut, uint256 matchingFee)";
 const HYBRID_SWAP = "event HybridSwapExecuted(address indexed caller, address indexed recipient, address indexed tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, uint256 legCount, uint8 settlementMode)";
@@ -108,6 +112,11 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const pairTokens = await getPools(options);
   const pools = [...pairTokens.keys()];
+  if (DEBUG_VOLUME) console.log("[CipherTrade DEX] pool discovery", {
+    from: options.fromTimestamp, to: options.toTimestamp,
+    startBlock: await options.getFromBlock(), endBlock: await options.getToBlock(),
+    pools: pools.length,
+  });
 
   // Count the user-facing hybrid aggregate only once, and suppress precisely
   // its underlying pool/book legs. Preserve unrelated executions in the same tx.
@@ -119,6 +128,11 @@ const fetch = async (options: FetchOptions) => {
     options.getLogs({ target: PUBLIC_BOOK, eventAbi: DIRECT_FILL, onlyArgs: false }),
     options.getLogs({ target: PUBLIC_BOOK, eventAbi: ORDERS_MATCHED }),
   ]);
+  if (DEBUG_VOLUME) console.log("[CipherTrade DEX] execution logs", {
+    from: options.fromTimestamp, to: options.toTimestamp,
+    swaps: swaps.length, legs: legs.length, hybrid: hybrid.length,
+    created: created.length, direct: direct.length, matched: matched.length,
+  });
   const orderTokens = new Map<string, { inToken: string; outToken: string }>();
   for (const e of created) orderTokens.set(String(e.orderId), { inToken: e.tokenIn, outToken: e.tokenOut });
 
@@ -188,6 +202,7 @@ const fetch = async (options: FetchOptions) => {
     addAmount(dailyVolume, order.inToken, BigInt(log.restingAmountIn));
   }
 
+  if (DEBUG_VOLUME) console.log("[CipherTrade DEX] raw volume tokens", dailyVolume.getBalances());
   return { dailyVolume };
 };
 
