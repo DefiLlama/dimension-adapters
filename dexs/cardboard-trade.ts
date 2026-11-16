@@ -66,7 +66,7 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      [LABELS.closeFees]: 'Fees on positions closed by their owner: the 0.5 basis point close charge on the order value plus the market fee on the gain of a winning trade or on the house\'s gain from a losing one.',
+      [LABELS.closeFees]: 'Fees on positions closed without being liquidated, whether the close is sent by the owner or by the exchange\'s relayer: the 0.5 basis point close charge on the order value plus the market fee on the gain of a winning trade or on the house\'s gain from a losing one.',
       [LABELS.liquidationFees]: 'Market fee on the margin forfeited by liquidated positions, including closes that executed past the bust price.',
     },
     Revenue: {
