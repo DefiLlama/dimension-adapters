@@ -73,32 +73,28 @@ async function fetch(options: FetchOptions) {
 
   const chainId = DEFLILLAMA_TO_CHAIN_ID[options.chain];
 
-  try {
-    const params = new URLSearchParams({
-      start_date: startDate,
-      end_date: endDate,
-      limit: "500",
-    });
-    if (chainId !== null) {
-      params.append("from_chain", String(chainId));
-    }
-
-    const url = `${WHEELX_API_BASE}/orders?${params.toString()}`;
-    const data: OrdersResponse = await fetchURL(url);
-
-    if (data?.orders?.length) {
-      for (const order of data.orders) {
-        if ((order.from_chain !== order.to_chain) || (order.status !== 'Filled')) continue;
-        dailyVolume.add(order.from_token, Number(order.from_amount));
-      }
-    }
-
-    return { dailyVolume };
-  } catch (error) {
-    //allow catching errors, as one single chain failure, shouldnt affect all
-    console.error(`Error fetching WheelX data for chain ${chainId}:`, error);
-    return { dailyVolume };
+  const params = new URLSearchParams({
+    start_date: startDate,
+    end_date: endDate,
+    limit: "500",
+  });
+  if (chainId !== null) {
+    params.append("from_chain", String(chainId));
   }
+
+  const url = `${WHEELX_API_BASE}/orders?${params.toString()}`;
+  const data: OrdersResponse = await fetchURL(url);
+
+  // a failed or partial response must not be stored as a $0 day for this chain
+  if (!Array.isArray(data?.orders) || !Number.isInteger(data.total)) throw new Error(`WheelX returned a malformed orders response for ${options.chain}`);
+  if (data.total > data.orders.length) throw new Error(`WheelX returned ${data.orders.length} of ${data.total} orders for ${options.chain}`);
+
+  for (const order of data.orders) {
+    if ((order.from_chain !== order.to_chain) || (order.status !== 'Filled')) continue;
+    dailyVolume.add(order.from_token, Number(order.from_amount));
+  }
+
+  return { dailyVolume };
 }
 
 const adapter: SimpleAdapter = {
