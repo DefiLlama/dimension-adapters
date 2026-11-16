@@ -141,6 +141,26 @@ const chainConfig: Record<string, ChainConfig> = {
       { address: '0x7E9c460d0A10bd0605B15F0d0388e307d34a62E6', type: 'DSP', fromBlock: 407725 },
     ],
   },
+  // aurora and boba factories and zoos from the same contract list; a factory that never created a pool there
+  // starts at the chain's first pool
+  [CHAIN.AURORA]: {
+    start: '2021-12-09',
+    zoo: { address: '0xf50BDc9E90B7a1c138cb7935071b85c417C4cb8e', fromBlock: 55970659 },
+    factories: [
+      { address: '0x5515363c0412AdD5c72d3E302fE1bD7dCBCF93Fe', type: 'DVM', fromBlock: 54707824 },
+      { address: '0x40672211D4310ad71daDc8cDE7Aa3Fb90d420855', type: 'DPP', fromBlock: 54707824 },
+      { address: '0xbe9a66e49503e84ae59a4d0545365AABedf33b40', type: 'DSP', fromBlock: 56286500 },
+    ],
+  },
+  [CHAIN.BOBA]: {
+    start: '2021-12-02',
+    zoo: { address: '0x69f52AC40185A2A005D49114F0B77b7bA856F0a0', fromBlock: 315710 },
+    factories: [
+      { address: '0x2F2f9460500F27db68AAfBfa0472cEDDb168a5a6', type: 'DVM', fromBlock: 206812 },
+      { address: '0x3a60A76aCAe8feeC74D6B5b665d4DBaab2abC406', type: 'DPP', fromBlock: 318146 },
+      { address: '0xfF133A6D335b50bDAa6612D19E1352B049A8aE6a', type: 'DSP', fromBlock: 206812 },
+    ],
+  },
 }
 
 const fetch = async (options: FetchOptions) => {
