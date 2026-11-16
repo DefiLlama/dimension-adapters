@@ -137,18 +137,24 @@ const config: Record<string, VaultConfig[]> = {
 // At avax block 100456203 the avax factory had created 41 vaults holding 143.77M, of which the static
 // list covered 98k: XDFIS 0x1f04e890 (35.75M), xSLP 0x91f9f243 (34.32M), XDFIS-DeFi-2 0xc0fd0afa
 // (27.58M), xPPV 0xb031add7 (15.75M) and XUPL 0xad4388a3 (10.90M) were all missing.
-const FACTORIES: Record<string, { address: string; fromBlock: number }[]> = {
-  [CHAIN.AVAX]: [
-    { address: "0x4D3b32Bb456A6E387682F6CD37FacefE9A219d0c", fromBlock: 59429843 },
-  ],
-  [CHAIN.ETHEREUM]: [
-    { address: "0x0a3b7bb45ac8e267Cc4E4b2CbDB52B967d82dF18", fromBlock: 22125605 },
-    { address: "0x61424410C0BB1C580ed6363FE9405d9e84FA0578", fromBlock: 19329359 },
-    { address: "0xc472d3a47719DE5F9d808CA91d7B70BD2138bCAa", fromBlock: 18667715 },
-  ],
-  [CHAIN.PLUME]: [
-    { address: "0xA9cC3Bcf7C22895dA2A7c32a99276D734840D8d3", fromBlock: 1684555 },
-  ],
+// fromBlock is the earliest factory's deploy block on the chain.
+const FACTORIES: Record<string, { fromBlock: number; addresses: string[] }> = {
+  [CHAIN.AVAX]: {
+    fromBlock: 59429843,
+    addresses: ["0x4D3b32Bb456A6E387682F6CD37FacefE9A219d0c"],
+  },
+  [CHAIN.ETHEREUM]: {
+    fromBlock: 18667715,
+    addresses: [
+      "0x0a3b7bb45ac8e267Cc4E4b2CbDB52B967d82dF18", // deployed at block 22125605
+      "0x61424410C0BB1C580ed6363FE9405d9e84FA0578", // deployed at block 19329359
+      "0xc472d3a47719DE5F9d808CA91d7B70BD2138bCAa", // deployed at block 18667715
+    ],
+  },
+  [CHAIN.PLUME]: {
+    fromBlock: 1684555,
+    addresses: ["0xA9cC3Bcf7C22895dA2A7c32a99276D734840D8d3"],
+  },
 };
 
 // Test and empty factory pools that revert on totalAssets(), same list as projects/opentrade
@@ -182,13 +188,15 @@ async function getVaults(options: FetchOptions): Promise<VaultConfig[]> {
     ...(BLACKLIST[options.chain] ?? []),
   ]);
 
-  const logs = await Promise.all(
-    FACTORIES[options.chain].map(({ address, fromBlock }) =>
-      options.getLogs({ target: address, eventAbi: abis.poolCreated, fromBlock, cacheInCloud: true })
-    )
-  );
+  const { fromBlock, addresses } = FACTORIES[options.chain];
+  const logs = await options.getLogs({
+    targets: addresses,
+    eventAbi: abis.poolCreated,
+    fromBlock,
+    cacheInCloud: true,
+  });
   const created: string[] = [];
-  for (const log of logs.flat()) {
+  for (const log of logs) {
     const addr = log.addr?.toLowerCase();
     if (!addr || seen.has(addr)) continue;
     seen.add(addr);
