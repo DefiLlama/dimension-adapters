@@ -3,8 +3,12 @@ import { CHAIN } from "../../helpers/chains";
 import { httpGet } from "../../utils/fetchURL";
 
 const API_BASE = "https://data-api.sodex.com/api/defillama";
+// SoDEX publishes fees up to ~12h after the day closes, so recent windows are skipped until it catches up
+const PUBLICATION_DELAY = 12 * 60 * 60;
 
 const fetch = async (options: FetchOptions) => {
+  if (options.endTimestamp > Date.now() / 1e3 - PUBLICATION_DELAY)
+    throw new Error("End timestamp is less than 12 hours ago, skipping until SoDEX publishes the day");
   const volumeRes = await httpGet(`${API_BASE}/spot/volume?timestamp=${options.startOfDay}`)
   const feesRes = await httpGet(`${API_BASE}/spot/fees?timestamp=${options.startOfDay}`)
 
