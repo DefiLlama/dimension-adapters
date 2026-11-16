@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { addTokensReceived } from "../../helpers/token";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { METRIC } from "../../helpers/metrics";
+import { Interface } from "ethers";
 
 const PROTOCOL_MULTISIG = "0xc64bc02594ba7f777f26b7a1eec6e6dc4a56362b";
 // Protocol fee collector (LVF fees, lending fee shares) that remits to the multisig; the protocol leg was originally restricted to it.
@@ -15,8 +16,33 @@ const WRAPPED_NATIVE: Record<string, string> = {
   [CHAIN.BERACHAIN]: ADDRESSES.berachain.WBERA,
 };
 
+// Multicall3 at its canonical address, deployed on all five chains before the adapter start (https://www.multicall3.com/deployments)
+const MULTICALL3 = "0xcA11bde05977b3631167028862bE2a173976CA11";
+const TRY_AGGREGATE = "function tryAggregate(bool requireSuccess, tuple(address target, bytes callData)[] calls) payable returns (tuple(bool success, bytes returnData)[] returnData)";
+const GETTERS = new Interface(["function trackingToken() view returns (address)", "function poolRewards() view returns (address)"]);
+const CHUNK_SIZE = 100; // getters per tryAggregate eth_call, keeps each call far below RPC gas caps
+
 const TO_TREASURY = `${METRIC.PROTOCOL_FEES} To Treasury`;
 const TO_HOLDERS = `${METRIC.PROTOCOL_FEES} To vlPEAS Holders`;
+
+// Reads an address getter on each target, null where the target reverts or does not return one address (EOAs,
+// unrelated contracts). A permitFailure multicall returns null for an RPC failure as well, which would silently
+// drop TokenRewards senders, so this calls tryAggregate(false) directly: per-call reverts come back as
+// success = false, while an RPC failure throws and the window is retried.
+async function readAddresses(options: FetchOptions, getter: "trackingToken" | "poolRewards", targets: string[]) {
+  const callData = GETTERS.encodeFunctionData(getter);
+  const addresses: (string | null)[] = [];
+  for (let i = 0; i < targets.length; i += CHUNK_SIZE) {
+    const chunk = targets.slice(i, i + CHUNK_SIZE);
+    const results = await options.api.call({ target: MULTICALL3, abi: TRY_AGGREGATE, params: [false, chunk.map((target) => [target, callData])] });
+    if (!Array.isArray(results) || results.length !== chunk.length) throw new Error(`peapods: unexpected tryAggregate response for ${getter}`);
+    results.forEach(([success, returnData]: [boolean, string]) => {
+      const match = success && /^0x0{24}([0-9a-fA-F]{40})$/.exec(returnData); // exactly one ABI-encoded address
+      addresses.push(match ? `0x${match[1].toLowerCase()}` : null);
+    });
+  }
+  return addresses;
+}
 
 // Protocol fees reach the multisig from per-pod TokenRewards contracts, which change as pods are deployed.
 // The multisig also receives treasury movements (OTC trades, its own LP withdrawals and swap outputs, bridge
@@ -35,14 +61,12 @@ async function getProtocolRevenue(options: FetchOptions) {
 
   const senders = [...new Set(receipts.map(({ from }) => from))]
     .filter((from) => from !== ADDRESSES.null && from !== REVENUE_WALLET);
-  const trackingTokens = await options.api.multiCall({ abi: "address:trackingToken", calls: senders, permitFailure: true });
-  const candidates = senders.filter((_, i) => trackingTokens[i] && trackingTokens[i] !== ADDRESSES.null);
-  const poolRewards = await options.api.multiCall({
-    abi: "address:poolRewards",
-    calls: candidates.map((sender) => trackingTokens[senders.indexOf(sender)]),
-    permitFailure: true,
-  });
-  const tokenRewards = new Set(candidates.filter((sender, i) => poolRewards[i]?.toLowerCase() === sender));
+  const trackingTokens = await readAddresses(options, "trackingToken", senders);
+  const candidates = senders
+    .map((sender, i) => ({ sender, trackingToken: trackingTokens[i] }))
+    .filter(({ trackingToken }) => trackingToken && trackingToken !== ADDRESSES.null);
+  const poolRewards = await readAddresses(options, "poolRewards", candidates.map(({ trackingToken }) => trackingToken!));
+  const tokenRewards = new Set(candidates.filter(({ sender }, i) => poolRewards[i] === sender).map(({ sender }) => sender));
 
   const wrappedNative = WRAPPED_NATIVE[options.chain].toLowerCase();
   const protocolRevenue = options.createBalances();
