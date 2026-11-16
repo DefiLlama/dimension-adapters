@@ -32,8 +32,10 @@ const k3Vaults: any = {
   [CHAIN.MONAD]: {
     // creators of the "K3 Isolated" markets (euler-labels 143/products.json, entity k3-capital).
     // Every vault either deployer made is governed by the K3 multisig 0x060DB084 or by the deployer itself
+    // their first vault is from 2026-05-15, but the chain start is read from here first, so keep the
+    // migrated DAO vaults' start (EULER_DAO_SUNSET_DATE) rather than cutting 05-06..05-14 of history
     eulerVaultOwners: ['0x5144b2B36EBdF0b06f62AcbCB180F016bC531232', '0x987C5739F3905FbA98eCCf4aceBc88730E0eE53D'],
-    start: '2026-05-15',
+    start: EULER_DAO_SUNSET_DATE,
   },
   [CHAIN.ETHEREUM]: {
     morphoVaultOwners: ['0xdD84A24eeddE63F10Ec3e928f1c8302A47538b6B'],
