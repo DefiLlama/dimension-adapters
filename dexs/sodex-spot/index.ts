@@ -7,7 +7,14 @@ const API_BASE = "https://data-api.sodex.com/api/defillama";
 const fetch = async (options: FetchOptions) => {
   const volumeRes = await httpGet(`${API_BASE}/spot/volume?timestamp=${options.startOfDay}`)
   const feesRes = await httpGet(`${API_BASE}/spot/fees?timestamp=${options.startOfDay}`)
-  
+
+  const { dailyVolume } = volumeRes;
+  if (![dailyVolume, feesRes.dailyFees, feesRes.dailyRevenue].every((v) => typeof v === 'number' && Number.isFinite(v)))
+    throw new Error(`sodex-spot: invalid volume/fees response for ${options.dateString}`);
+  // the API serves 0 for a day it has not published yet (fees land well after volume), so a 0 is not a real day
+  if (dailyVolume <= 0 || feesRes.dailyFees <= 0 || feesRes.dailyRevenue <= 0)
+    throw new Error(`sodex-spot: volume/fees for ${options.dateString} are not published yet (the API returns 0 for unpublished days)`);
+
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -17,7 +24,7 @@ const fetch = async (options: FetchOptions) => {
   dailySupplySideRevenue.addUSDValue(Number(feesRes.dailyFees) - Number(feesRes.dailyRevenue), 'SoDEX Spot Fees To LPs');
   
   return {
-    dailyVolume: volumeRes.dailyVolume,
+    dailyVolume,
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
