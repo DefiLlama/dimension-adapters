@@ -569,6 +569,11 @@ export const LifiFeeCollectors: IContract = {
   [CHAIN.MONAD]: {
     id: '0x954d55105CDF5371224268691FAf6178be5f62F5',
     start: '2025-10-02'
+  },
+  // HyperEVM, deployments/hyperevm.json
+  [CHAIN.HYPERLIQUID]: {
+    id: '0x7CaC679Cc2dF9c602590eA4965091F54EC32F2Fc',
+    start: '2025-05-19'
   }
 }
 

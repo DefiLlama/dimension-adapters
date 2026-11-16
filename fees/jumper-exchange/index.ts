@@ -9,7 +9,7 @@ const SwapFee = 'Swap Fees';
 const BridgeFee = 'Bridge Fees';
 
 // FeesForwarded logs; X Layer skipped (RPCs reject the log scan, no Jumper fees seen)
-const OnchainChains = [...Object.keys(LifiFeeCollectors), CHAIN.HYPERLIQUID]
+const OnchainChains = Object.keys(LifiFeeCollectors)
   .filter((chain) => /^0x[0-9a-f]{40}$/i.test(LifiDiamonds[chain]?.id ?? ''));
 
 // LI.FI API 'LIFI Fixed Fee' leg, equal to FeesForwarded per tx on EVM. Fee wallets: solana 34FKjAdVcTax2DHqV2XnbXa9J3zmyKcFuFKWbcmgxjgm,
