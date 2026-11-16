@@ -75,7 +75,9 @@ const eulerDaoMigratedVaults: any = {
 };
 
 function getMergedConfig(dateString: string): any {
-  const config: any = { ...k3Vaults };
+  // copy each chain entry: assigning into the shared k3Vaults objects made every call append the
+  // migrated vaults again, so later chains saw the same vault listed several times
+  const config: any = Object.fromEntries(Object.entries(k3Vaults).map(([chain, vaults]: [string, any]) => [chain, { ...vaults }]));
 
   if (dateString >= EULER_DAO_SUNSET_DATE) {
     for (const [chain, vaultConfig] of Object.entries(eulerDaoMigratedVaults) as [string, any][]) {
