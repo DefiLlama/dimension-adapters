@@ -146,6 +146,10 @@ const configs: Record<string, CuratorConfig> = {
         morphoVaultOwners: ['0x510F3b6621D9eA392d4F7632d02aBCf8ba92Bd6F'],
         morphoVaultV2Owners: ['0x510F3b6621D9eA392d4F7632d02aBCf8ba92Bd6F'],
       },
+      [CHAIN.ARC]: {
+        morphoV2: ['0x7610094B846657dCF166D59e42973db52c7015F9'], // Bitwise Premium RWA USDC
+        start: '2026-09-15', // vault deployment
+      },
     },
   },
   "block-analitica": {
