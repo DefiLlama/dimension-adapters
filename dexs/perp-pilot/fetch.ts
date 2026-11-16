@@ -4,49 +4,40 @@ import { fetchBuilderCodeDataV2 } from "../../helpers/hyperliquid-v2";
 import { fetchLighterPartnerStats } from "../../helpers/lighter";
 import { httpGet } from "../../utils/fetchURL";
 import { isExtendedBuilderDashboard } from "./extended/api-types";
-import {
-  chainConfig,
-  EXTENDED_BUILDER_NAME,
-  EXTENDED_BUILDERS_API,
-  HL_BUILDER_ADDRESSES,
-  HL_BUILDER_FEES_LABEL,
-  NADO_BUILDER_FEES_LABEL,
-  NADO_BUILDER_ID,
-  NADO_OFFCHAIN_EXCHANGE,
-} from "./config";
+import { chainConfig, PERP_PILOT_CONFIG } from "./config";
+
+const { hyperliquid, extended, nado } = PERP_PILOT_CONFIG;
 
 async function fetchHyperliquid(options: FetchOptions) {
-  const data = await fetchBuilderCodeDataV2({ options, builderAddresses: HL_BUILDER_ADDRESSES, market: "perps" });
+  const data = await fetchBuilderCodeDataV2({ options, builderAddresses: [hyperliquid.builderAddress], market: "perps" });
   const dailyFees = options.createBalances();
-  dailyFees.add(data.dailyFees, HL_BUILDER_FEES_LABEL);
+  dailyFees.add(data.dailyFees, hyperliquid.feesLabel);
   return { dailyVolume: data.dailyVolume, dailyFees };
 }
 
 async function fetchExtended(options: FetchOptions) {
-  const res: unknown = await httpGet(EXTENDED_BUILDERS_API);
+  const res: unknown = await httpGet(extended.dashboardApi);
   if (!isExtendedBuilderDashboard(res)) throw new Error(`Extended builder dashboard returned an unexpected response: ${JSON.stringify(res).slice(0, 300)}`);
   
-  const { daily } = res.data;
-  if (!daily.length) throw new Error(`Extended builder dashboard returned no daily rows`);
+  // the endpoint takes no date parameter, so every call returns all builders for the last ~31 days
+  const rowsOfDay = res.data.daily.filter((r) => r.date === options.dateString);
 
-  const oldest = daily.reduce((min, row) => (row.date < min ? row.date : min), daily[0].date);
+  // no builder at all on that day: it has rolled out of the window or is not published yet, so it is missing rather than zero
+  if (!rowsOfDay.length) throw new Error(`Extended builder dashboard has no rows for ${options.dateString}`);
 
-  // days that have rolled out of the dashboard cannot be read, so they are missing rather than zero
-  if (options.dateString < oldest) throw new Error(`Extended builder dashboard no longer serves ${options.dateString} (oldest ${oldest})`);
-  
-  const row = daily.find((r) => r.builderName === EXTENDED_BUILDER_NAME && r.date === options.dateString);
+  const row = rowsOfDay.find((r) => r.builderName === extended.builderName);
   const dailyVolume = options.createBalances();
 
-  // no row inside the served window means no PerpPilot fills on Extended that day
+  // the day is published but has no PerpPilot row: no PerpPilot fills on Extended that day
   if (row) dailyVolume.addUSDValue(Number(row.volume));
   return { dailyVolume };
 }
 
 async function fetchNado(options: FetchOptions) {
   const logs = await options.getLogs({
-    target: NADO_OFFCHAIN_EXCHANGE,
+    target: nado.offchainExchange,
     eventAbi: "event BuilderFeePayment(bytes32 indexed subaccount, uint32 indexed builder, uint32 indexed productId, bytes32 digest, int128 feeAmount, int128 feeRate, int128 quoteAmount)",
-    topics: [null as any, null, "0x" + NADO_BUILDER_ID.toString(16).padStart(64, "0")],
+    topics: [null as any, null, "0x" + nado.builderId.toString(16).padStart(64, "0")],
   });
 
   let volume = 0;
@@ -60,7 +51,7 @@ async function fetchNado(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   dailyVolume.addUSDValue(volume);
-  dailyFees.addUSDValue(fees, NADO_BUILDER_FEES_LABEL);
+  dailyFees.addUSDValue(fees, nado.feesLabel);
   return { dailyVolume, dailyFees };
 }
 
@@ -78,6 +69,6 @@ export const fetch = async (options: FetchOptions) => {
     case "hyperliquid": return withRevenue(await fetchHyperliquid(options));
     case "lighter": return withRevenue(await fetchLighterPartnerStats(options, config.lighterAccountIndex));
     case "nado": return withRevenue(await fetchNado(options));
-    case "extended": return fetchExtended(options); // volume only, see EXTENDED_BUILDERS_API
+    case "extended": return fetchExtended(options); // volume only, see PERP_PILOT_CONFIG.extended
   }
 };
