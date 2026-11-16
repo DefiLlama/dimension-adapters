@@ -4,16 +4,17 @@ import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
 import { timeFilter, u64, u8 } from "../../helpers/alliumSolanaEvents";
 
-const CURVE_PROGRAM = "EscapeCu75SSPg24kyh7R6NvwgMUT8QEpCLY6kKHYCeD";
-const FEE_PROGRAM = "EscapeFezQneK4bXRhcaBW19qQNj2xLJpaJX9pouM6C1";
+const CURVE_PROGRAM = "EscapeCu75SSPg24kyh7R6NvwgMUT8QEpCLY6kKHYCeD"; // https://solscan.io/account/EscapeCu75SSPg24kyh7R6NvwgMUT8QEpCLY6kKHYCeD
+const FEE_PROGRAM = "EscapeFezQneK4bXRhcaBW19qQNj2xLJpaJX9pouM6C1"; // https://solscan.io/account/EscapeFezQneK4bXRhcaBW19qQNj2xLJpaJX9pouM6C1
 
+// event data: emit_cpi tag (8 bytes) + event discriminator (8 bytes) + Borsh-encoded event
 const EVENT_CPI_TAG = "e445a52e51cb9a1d";
 // u64: sol_amount @81, fee @97
 const TRADE_EVENT = "bddb7fd34ee661ee";
-const TRADE_EVENT_LENGTH = 129;
+const TRADE_EVENT_LENGTH = 129; // 16 + 113 bytes of event
 // u8: source @80 (0 curve, 1 escapeswap), routing @81 (0 cashback, 1 sharing); u64: amount @82
 const CREATOR_FEE_DEPOSITED = "ce8820587791f4c2";
-const CREATOR_FEE_DEPOSITED_MIN_LENGTH = 114;
+const CREATOR_FEE_DEPOSITED_MIN_LENGTH = 114; // 16 + 98 bytes, the shortest encoding of the event
 export const SOURCE_CURVE = "00";
 export const SOURCE_ESCAPESWAP = "01";
 const ROUTING_CASHBACK = "00";
@@ -31,10 +32,14 @@ export const creatorFeesSql = (options: FetchOptions, source: string) => `
     AND SUBSTR(data_hex, 17, 16) = '${CREATOR_FEE_DEPOSITED}'
     AND ${u8("data_hex", 80)} = '${source}'`;
 
+// The window is complete in Allium once it holds Solana transfers from right after it.
+// Solana has transfers every second, so 15 minutes always has some and keeps this lookup small.
+const INDEXED_LOOKAHEAD_SECONDS = 15 * 60;
+
 export const indexedSql = (options: FetchOptions) => `
   SELECT EXISTS (SELECT 1 FROM solana.assets.transfers
     WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.endTimestamp})
-      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp + 900})) AS indexed`;
+      AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp + INDEXED_LOOKAHEAD_SECONDS})) AS indexed`;
 
 async function fetchSolana(options: FetchOptions) {
   const [rows] = await queryAllium(`
@@ -66,6 +71,7 @@ async function fetchSolana(options: FetchOptions) {
   const creator = BigInt(rows.creator);
   // 0.50% of 1.20%
   const gap = cashback + creator - (fee * 5n) / 12n;
+  // each trade rounds its fee split to whole lamports: up to 1 per trade, plus 1 for the division above
   const tolerance = BigInt(rows.trades) + 1n;
   if (gap > tolerance || -gap > tolerance)
     throw new Error(`escapehub: creator fee mismatch ${cashback + creator} vs ${fee}`);
@@ -90,16 +96,16 @@ export const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.SOLANA]: { start: SOLANA_START },
   [CHAIN.BASE]: {
     start: "2026-11-15",
-    factory: "0x99Feb0E3d5Ba40eB5DF8D914f5A06370CaE5CA6E",
-    hook: "0x02B9F879b64958EAe4B4703668376F9eF42528CC",
-    fromBlock: 57899403,
+    factory: "0x99Feb0E3d5Ba40eB5DF8D914f5A06370CaE5CA6E", // https://basescan.org/address/0x99Feb0E3d5Ba40eB5DF8D914f5A06370CaE5CA6E
+    hook: "0x02B9F879b64958EAe4B4703668376F9eF42528CC", // https://basescan.org/address/0x02B9F879b64958EAe4B4703668376F9eF42528CC
+    fromBlock: 57899403, // block the factory was deployed in
     weth: ADDRESSES.base.WETH,
   },
   [CHAIN.ROBINHOOD]: {
     start: "2026-11-15",
-    factory: "0x99Feb0E3d5Ba40eB5DF8D914f5A06370CaE5CA6E",
-    hook: "0x5F49F1E00F805A9038117D702a74EE3E0eA068cC",
-    fromBlock: 115197467,
+    factory: "0x99Feb0E3d5Ba40eB5DF8D914f5A06370CaE5CA6E", // https://robinhoodchain.blockscout.com/address/0x99Feb0E3d5Ba40eB5DF8D914f5A06370CaE5CA6E
+    hook: "0x5F49F1E00F805A9038117D702a74EE3E0eA068cC", // https://robinhoodchain.blockscout.com/address/0x5F49F1E00F805A9038117D702a74EE3E0eA068cC
+    fromBlock: 115197467, // block of the deployment's first contract creation; the factory is not older
     weth: ADDRESSES.robinhood.WETH,
   },
 };
@@ -202,6 +208,14 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
+    [LABELS.CurveProtocol]: "0.70% of every bonding curve trade.",
+    [LABELS.CurveCreator]: "0.50% of every bonding curve trade on Sharing tokens.",
+    [LABELS.CurveCashback]: "0.50% of every bonding curve trade on Cashback tokens.",
+    [LABELS.PoolProtocol]: "Protocol share of graduated pool fees (Base, Robinhood).",
+    [LABELS.PoolCreator]: "Creator share of graduated pool fees on Sharing tokens (Base, Robinhood).",
+    [LABELS.PoolCashback]: "Cashback share of graduated pool fees on Cashback tokens (Base, Robinhood).",
+  },
+  UserFees: {
     [LABELS.CurveProtocol]: "0.70% of every bonding curve trade.",
     [LABELS.CurveCreator]: "0.50% of every bonding curve trade on Sharing tokens.",
     [LABELS.CurveCashback]: "0.50% of every bonding curve trade on Cashback tokens.",

@@ -5,12 +5,13 @@ import { queryAllium } from "../../helpers/allium";
 import { timeFilter, u64 } from "../../helpers/alliumSolanaEvents";
 import { creatorFeesSql, indexedSql, SOURCE_ESCAPESWAP, SOLANA_START } from "../escapehub";
 
-const SWAP_PROGRAM = "EscapeSwCMQocQoabyGaXDyN1BmhCR6orUV7kmxFRmY";
+const SWAP_PROGRAM = "EscapeSwCMQocQoabyGaXDyN1BmhCR6orUV7kmxFRmY"; // https://solscan.io/account/EscapeSwCMQocQoabyGaXDyN1BmhCR6orUV7kmxFRmY
 
+// event data: emit_cpi tag (8 bytes) + event discriminator (8 bytes) + Borsh-encoded event
 const EVENT_CPI_TAG = "e445a52e51cb9a1d";
 // u64: gross_quote @129, protocol_fee @137, creator_fee @145, lp_fee @153
 const SWAP_EVENT = "eac10367dc1dbe72";
-const SWAP_EVENT_LENGTH = 242;
+const SWAP_EVENT_LENGTH = 242; // 16 + 226 bytes of event
 
 export async function fetchEscapeSwap(options: FetchOptions) {
   const dailyVolume = options.createBalances();
@@ -74,6 +75,12 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
+    "Swap Fees To Protocol": "Protocol share of swap fees.",
+    "Swap Fees To Creators": "Creator share of swap fees on Sharing tokens.",
+    "Swap Cashback To Traders": "Cashback share of swap fees on Cashback tokens.",
+    "Swap Fees To LPs": "LP share of swap fees, kept in the pool.",
+  },
+  UserFees: {
     "Swap Fees To Protocol": "Protocol share of swap fees.",
     "Swap Fees To Creators": "Creator share of swap fees on Sharing tokens.",
     "Swap Cashback To Traders": "Cashback share of swap fees on Cashback tokens.",
