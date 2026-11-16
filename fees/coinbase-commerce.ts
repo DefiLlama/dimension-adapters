@@ -1,5 +1,6 @@
 import { Balances } from "@defillama/sdk";
 import { ethers } from "ethers";
+import ADDRESSES from "../helpers/coreAssets.json";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -16,6 +17,8 @@ const contracts: TContract = {
 // Commerce shut down 2026-03-31, its Base payments moved to Coinbase's operator on the commerce-payments escrow
 const ESCROW_START = new Date('2026-04-02').getTime() / 1000
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+// Coinbase's escrow fees are in Base USDC: Oct-Nov 2026 USDC store->feeReceiver transfers match the old any-token query within 0.3%
+const ESCROW_TOKENS = [ADDRESSES.base.USDC]
 const PAYMENT_INFO = '(address operator, address payer, address receiver, address token, uint120 maxAmount, uint48 preApprovalExpiry, uint48 authorizationExpiry, uint48 refundExpiry, uint16 minFeeBps, uint16 maxFeeBps, address feeReceiver, uint256 salt)'
 
 // tokenStore = getTokenStore(0x00f8d7a519c70bf71d411e4bd89bf6d7e3065835), Coinbase's operator, on each escrow
@@ -55,13 +58,16 @@ async function addEscrowFees({ getLogs, toTimestamp }: FetchOptions, dailyFees: 
     }
     if (!feeLegs.size) return
 
+    // captures carry no token, so a charge in a new token is picked up from the event, an authorized one needs ESCROW_TOKENS
+    const tokens = [...new Set([...ESCROW_TOKENS, ...charged.map((log: any) => log.args.paymentInfo.token)].map(t => t.toLowerCase()))]
     const transfers = await getLogs({
-      noTarget: true,
+      targets: tokens,
       entireLog: true,
       eventAbi: 'event Transfer(address indexed from, address indexed to, uint256 value)',
       topics: [TRANSFER_TOPIC, ethers.zeroPadValue(tokenStore, 32)],
     })
     transfers.forEach((log: any) => {
+      if (!log.topics[2]) return
       const amounts = feeLegs.get(`${log.transactionHash}-0x${log.topics[2].slice(-40)}`.toLowerCase())
       if (!amounts) return
       if (exactFee) {
