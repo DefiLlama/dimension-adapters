@@ -37,6 +37,25 @@ const configs: Record<string, CuratorConfig> = {
       },
     },
   },
+  'anthias': {
+    vaults: {
+      [CHAIN.BASE]: {
+        // Anthias Labs, verified curator on api.morpho.org.
+        // Curates flagship Moonwell Morpho vaults on Base.
+        morpho: [
+          '0xa0E430870c4604CcfC7B38Ca7845B1FF653D0ff1',
+          '0xc1256Ae5FF1cf2719D4937adb3bbCCab2E00A2Ca',
+          '0x543257eF2161176D7C8cD90BA65C2d4CaEF5a796',
+          '0xf24608E0CCb972b0b0f4A6446a0BBf58c701a026',
+          '0xdbA76Bc542bb07538e046B40F2e8a215B409F7A8',
+          '0x89BeDBB1C4837444Da215A377275Ff96A84D6f53',
+          '0xbB2F06CeAE42CBcF5559Ed0713538c8892D977c9',
+          '0x5083b1387Ec3d4Ee6467B83890D98f1AF93F7c48',
+          '0x48a90E85be5C56b0A669985A12ee7C449fC79965',
+        ],
+      },
+    },
+  },
   "api3": {
     vaults: {
       [CHAIN.ETHEREUM]: {
@@ -57,6 +76,15 @@ const configs: Record<string, CuratorConfig> = {
       },
       [CHAIN.BSC]: {
         eulerVaultOwners: ['0x3B8DfE237895f737271371F339eEcbd66Face43e', '0xf726311F85D45a7fECfFbC94bD8508a0A39958c6'],
+      },
+    },
+  },
+  'architect': {
+    vaults: {
+      [CHAIN.BASE]: {
+        // Architect, verified curator on api.morpho.org.
+        morphoVaultOwners: ['0xC2f4848Adc95Adb16Cc79a3365814cB08439ee28'],
+        morphoVaultV2Owners: ['0xC2f4848Adc95Adb16Cc79a3365814cB08439ee28'],
       },
     },
   },
@@ -104,6 +132,19 @@ const configs: Record<string, CuratorConfig> = {
       },
       [CHAIN.BASE]: {
         morphoVaultOwners: ['0x17e7bB9fe7983947FdCf02c1E3d8e6C92C21da54'],
+      },
+    },
+  },
+  'bitwise': {
+    vaults: {
+      [CHAIN.ETHEREUM]: {
+        // Bitwise, verified curator on api.morpho.org.
+        morphoVaultOwners: ['0x3585f2427b5D2746472A49406321b71799402a7d'],
+        morphoVaultV2Owners: ['0x3585f2427b5D2746472A49406321b71799402a7d'],
+      },
+      [CHAIN.BASE]: {
+        morphoVaultOwners: ['0x510F3b6621D9eA392d4F7632d02aBCf8ba92Bd6F'],
+        morphoVaultV2Owners: ['0x510F3b6621D9eA392d4F7632d02aBCf8ba92Bd6F'],
       },
     },
   },
@@ -390,6 +431,21 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.BSC]: {
         morpho: ['0xEB4F6FFB1038E1cCa701e7d53083B37ec5b6Ba33'], // Lista/Moolah Pangolins USDT Vault
         start: '2025-05-06',
+      },
+    },
+  },
+  'presto': {
+    vaults: {
+      [CHAIN.ETHEREUM]: {
+        // Presto, verified curator on api.morpho.org.
+        morphoVaultOwners: [
+          '0x21d7f2430E33054151AC3963aCBD4813e78cB3C9',
+          '0xb41437827266a20aB30bf457A81561f7b5e1bE6D',
+        ],
+        morphoVaultV2Owners: [
+          '0x21d7f2430E33054151AC3963aCBD4813e78cB3C9',
+          '0xb41437827266a20aB30bf457A81561f7b5e1bE6D',
+        ],
       },
     },
   },
