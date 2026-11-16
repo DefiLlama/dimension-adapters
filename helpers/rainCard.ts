@@ -22,6 +22,7 @@ export const DefaultRainContracts: Record<string, string> = {
   [CHAIN.OPTIMISM]: "0x753Fb325Ca30f229E616eA8E6Eb620D0Bb29D0Df",
   [CHAIN.ETHEREUM]: "0xE5D3d7da4b24bc9D2FDA0e206680CD8A00C0FeBD",
   [CHAIN.POLYGON]: "0x5d5Cef756412045617415FC78D510003238EAfFd",
+  [CHAIN.AVAX]: "0x753Fb325Ca30f229E616eA8E6Eb620D0Bb29D0Df",
 };
 
 /** Rain Coordinator contracts, start = 2026-11-04. */
@@ -32,6 +33,8 @@ export const RainCoordinatorContracts: Record<string, { address: string; start: 
   [CHAIN.ARBITRUM]: { address: "0x0bbB2e4C8F159406ADD28506F33D20Fbec4E57F4", start: 1793750400 },
   // https://repo.sourcify.dev/10/0x0bbB2e4C8F159406ADD28506F33D20Fbec4E57F4
   [CHAIN.OPTIMISM]: { address: "0x0bbB2e4C8F159406ADD28506F33D20Fbec4E57F4", start: 1793750400 },
+  // https://repo.sourcify.dev/43114/0x0bbB2e4C8F159406ADD28506F33D20Fbec4E57F4
+  [CHAIN.AVAX]: { address: "0x0bbB2e4C8F159406ADD28506F33D20Fbec4E57F4", start: 1793750400 },
 };
 
 export interface RainCardChainConfig {
@@ -161,6 +164,20 @@ const rainCardProtocols: Record<string, SimpleAdapter> = {
     },
     {
       Volume: "Total USD value of spends settled through Kolo Rain contracts.",
+    }
+  ),
+  "ethena-pay": rainCardAdapterExport(
+    {
+      [CHAIN.AVAX]: {
+        // Rain Collateral proxy created 2026-06-02 by Rain's Factory 0x154f97554eaa9ecca7b75fc3daca021613f9ac95
+        // (tx 0x0ebf2458e381cbe51d6d6a0559b047ceb7bb399059194421db722251a09f4a0e); first matched log: 2026-07-25.
+        start: "2026-07-25",
+        collateralProxy: "0x6070848bd19c37488d0516058f2933dd992733de",
+      },
+    },
+    {
+      Volume:
+        "Total USD value of Ethena Pay card spends settled from its Rain collateral contract on Avalanche, in USDe (the first settlement, on 2026-07-25, was in USDC).",
     }
   ),
 };
