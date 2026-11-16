@@ -23,7 +23,9 @@ const fetch = async (options: FetchOptions) => {
   if (res[0]?.computation_fees == null)
     throw new Error(`Allium returned no Sui transactions for ${options.startTimestamp}-${options.endTimestamp}`);
   const computationFees = Number(res[0].computation_fees) / 10 ** 9;
-  const storageFeeBurnt = Number(res[0].storage_fee_burnt ?? 0) / 10 ** 9;
+  if (res[0].storage_fee_burnt == null)
+    throw new Error(`Allium returned no Sui storage fee total for ${options.startTimestamp}-${options.endTimestamp}`);
+  const storageFeeBurnt = Number(res[0].storage_fee_burnt) / 10 ** 9;
 
   dailyFees.addCGToken('sui', computationFees, 'Transaction Gas Fees');
   dailyFees.addCGToken('sui', storageFeeBurnt, 'Transaction Storage Fees');
