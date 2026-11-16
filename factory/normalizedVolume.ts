@@ -65,8 +65,10 @@ async function fromSnapshot(slug: string) {
   let dailyNormalizedVolume = 0;
   let dailyActiveLiquidity = 0;
   for (const { nvol } of pairs) {
+    if (nvol && typeof nvol.active_liquidity_measured !== 'number')
+      throw new Error(`${slug}: snapshot pair nvol is missing active_liquidity_measured`);
     dailyNormalizedVolume += nvol?.normalized ?? 0;
-    dailyActiveLiquidity += nvol?.active_liquidity ?? 0;
+    dailyActiveLiquidity += nvol?.active_liquidity_measured ?? 0;
   }
   return { dailyNormalizedVolume, dailyActiveLiquidity };
 }
