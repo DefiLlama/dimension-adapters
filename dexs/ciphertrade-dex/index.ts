@@ -32,10 +32,13 @@ const PRICE_REFERENCES: Record<string, { id: string; decimals: number }> = {
   "0x394b3c4328160f000763ca391d07f902926edaac": { id: "coti-governance-token", decimals: 18 }, // p.gCOTI
 };
 
-const ALL_POOLS_LENGTH = "uint256:allPoolsLength";
-const ALL_POOLS = "function allPools(uint256) view returns (address)";
-const TOKEN0 = "address:token0";
-const TOKEN1 = "address:token1";
+// Both factories emit the pool address and its token identities at creation.
+// Index those immutable event facts instead of doing historical eth_call reads:
+// COTI public RPCs may not retain the corresponding historical state tries.
+const STANDARD_POOL = "event StandardPoolCreated(bytes32 indexed poolKey, address indexed token0, address indexed token1, uint256 feeBps, address pool, address lpToken, bytes32 poolRuntimeCodehash, bytes32 lpTokenRuntimeCodehash)";
+const INSTANCE_POOL = "event StandardPoolInstanceCreated(bytes32 indexed poolKey, address indexed token0, address indexed token1, uint256 feeBps, address pool, address lpToken, bytes32 poolRuntimeCodehash, bytes32 lpTokenRuntimeCodehash, bytes32 instanceId, address instanceNamespace, bytes32 nonce)";
+const PROTECTED_POOL = "event ProtectedPoolReserved(bytes32 indexed poolKey, address indexed protectedToken, address indexed reservingLaunchFactory, address token0, address token1, uint256 feeBps, address pool, address lpToken, bytes32 poolRuntimeCodehash, bytes32 lpTokenRuntimeCodehash)";
+const POOL_CREATION_EVENTS = [STANDARD_POOL, INSTANCE_POOL, PROTECTED_POOL];
 
 const POOL_SWAP = "event SwapExecuted(address indexed trader, address indexed recipient, bool indexed zeroForOne, uint256 amountIn, uint256 amountOut, uint256 netInput, uint256 protocolFee, uint256 lpFee)";
 const HYBRID_LEG = "event HybridLegExecuted(uint256 indexed index, uint8 kind, address indexed tokenIn, address indexed tokenOut, address venue, uint256 orderId, uint256 amountIn, uint256 amountOut, uint256 matchingFee)";
@@ -75,25 +78,36 @@ function logKey(log: any): string {
   return String(log.transactionHash).toLowerCase() + ":" + logIndex(log);
 }
 
-async function getPools(options: FetchOptions): Promise<string[]> {
-  // A consistent end-of-window snapshot includes every pool existing by then.
+async function getPools(options: FetchOptions): Promise<Map<string, [string, string]>> {
   const factories = [
-    { address: MODE0_FACTORY, start: FROM_MODE0 },
-    { address: MODE3_FACTORY, start: FROM_MODE3 },
-  ].filter(({ start }) => !options.toApi.block || options.toApi.block >= start);
-  const groups = await Promise.all(factories.map(({ address }) =>
-    options.toApi.fetchList({ target: address, lengthAbi: ALL_POOLS_LENGTH, itemAbi: ALL_POOLS })
+    { address: MODE0_FACTORY, fromBlock: FROM_MODE0 },
+    { address: MODE3_FACTORY, fromBlock: FROM_MODE3 },
+  ].filter(({ fromBlock }) => !options.toApi.block || options.toApi.block >= fromBlock);
+
+  const logs = await Promise.all(factories.flatMap(({ address, fromBlock }) =>
+    POOL_CREATION_EVENTS.map(eventAbi =>
+      options.getLogs({ target: address, eventAbi, fromBlock, cacheInCloud: true })
+    )
   ));
-  return [...new Set(groups.flat().map((address: string) => address.toLowerCase()))];
+  const pools = new Map<string, [string, string]>();
+  for (const group of logs) for (const log of group) {
+    const address = String(log.pool ?? "").toLowerCase();
+    const token0 = String(log.token0 ?? "").toLowerCase();
+    const token1 = String(log.token1 ?? "").toLowerCase();
+    if (![address, token0, token1].every(value => /^0x[0-9a-f]{40}$/.test(value)))
+      throw new Error("CipherTrade DEX: malformed factory pool event");
+    const existing = pools.get(address);
+    if (existing && (existing[0] !== token0 || existing[1] !== token1))
+      throw new Error(`CipherTrade DEX: contradictory pool creation logs for ${address}`);
+    pools.set(address, [token0, token1]);
+  }
+  return pools;
 }
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  const pools = await getPools(options);
-  const [token0s, token1s] = pools.length ? await Promise.all([
-    options.toApi.multiCall({ abi: TOKEN0, calls: pools }),
-    options.toApi.multiCall({ abi: TOKEN1, calls: pools }),
-  ]) : [[], []];
+  const pairTokens = await getPools(options);
+  const pools = [...pairTokens.keys()];
 
   // Count the user-facing hybrid aggregate only once, and suppress precisely
   // its underlying pool/book legs. Preserve unrelated executions in the same tx.
@@ -107,8 +121,7 @@ const fetch = async (options: FetchOptions) => {
   ]);
   const orderTokens = new Map<string, { inToken: string; outToken: string }>();
   for (const e of created) orderTokens.set(String(e.orderId), { inToken: e.tokenIn, outToken: e.tokenOut });
-  const pairTokens = new Map<string, [string, string]>();
-  pools.forEach((pool, i) => pairTokens.set(pool, [token0s[i], token1s[i]]));
+
   const underlyings = [...swaps.map((log: any) => ({ kind: 0, log })),
                        ...direct.map((log: any) => ({ kind: 1, log }))];
   const underlyingByTx = new Map<string, typeof underlyings>();
