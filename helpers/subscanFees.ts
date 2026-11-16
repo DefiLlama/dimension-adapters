@@ -76,14 +76,15 @@ async function firstBlockAtOrAfter(rpc: string, ts: number, first: number, head:
     return hi.block
 }
 
-// the public portal often answers 529 (overloaded) for minutes, so retry everything but 4xx with a capped backoff
+// the public portal often answers 529 (overloaded) for minutes, or 429, so retry everything but the other 4xx with a capped backoff
 async function portalStream(dataset: string, query: any): Promise<any[]> {
     for (let i = 0; ; i++) {
         try {
-            const text: string = await httpPost(`https://portal.sqd.dev/datasets/${dataset}/stream`, { type: 'substrate', ...query }, { responseType: 'text', timeout: 120_000, validateStatus: (status: number) => status === 200 })
+            const text: string = await httpPost(`https://portal.sqd.dev/datasets/${dataset}/stream`, { type: 'substrate', ...query }, { responseType: 'text', timeout: 120_000, validateStatus: (status: number) => status === 200 }, { withMetadata: true })
             return text.trim().split('\n').map((line) => JSON.parse(line))
         } catch (e: any) {
-            if (i >= 12 || /status code 4\d\d/.test(e.message)) throw e
+            const status = e.response?.status
+            if (i >= 12 || (status >= 400 && status < 500 && status !== 429)) throw e
             await sleep(Math.min(60_000, 2000 * 2 ** i) * (0.5 + Math.random()))
         }
     }
@@ -101,13 +102,15 @@ async function getAssetHubFees(chain: string, options: FetchOptions): Promise<bi
     const portalHead = (await httpGet(`https://portal.sqd.dev/datasets/${dataset}/finalized-head`)).number
     if (portalHead < toBlock) throw new Error(`${dataset}: portal finalized head ${portalHead} is behind block ${toBlock}`)
 
-    // the portal returns the range in chunks, one line per block, so continue after the last block it sent
+    // the portal returns the range in chunks, one line per block, so continue after the last block it sent (includeAllBlocks:
+    // without it, a range whose last blocks have no fee event can come back empty)
     let fees = 0n
     let next = fromBlock
     while (next <= toBlock) {
         const blocks = await portalStream(dataset, {
             fromBlock: next,
             toBlock,
+            includeAllBlocks: true,
             fields: { block: { number: true }, event: { name: true, args: true } },
             events: [{ name: ['TransactionPayment.TransactionFeePaid'] }],
         })
