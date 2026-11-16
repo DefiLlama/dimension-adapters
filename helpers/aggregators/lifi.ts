@@ -252,6 +252,11 @@ export const LifiDiamonds: IContract = {
     id: '0x026F252016A7C47CDEf1F05a3Fc9E20C92a49C37',
     start: '2025-10-02'
   },
+  // deployments/arc.json; start is Arc's public launch, the first day of sustained swaps
+  [CHAIN.ARC]: {
+    id: '0xA4072583658Fae592A3506A42431cb6316a8d40b',
+    start: '2026-09-16'
+  },
   // Sei is fetched via the LI.FI analytics API (getLogs unreliable here); id is the LI.FI chainId
   [CHAIN.SEI]: {
     id: '1329',
