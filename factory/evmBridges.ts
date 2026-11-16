@@ -508,7 +508,11 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean | R
     [CHAIN.MANTLE]: { start: "2025-11-27", events: oftEvents("0xcb768e263FB1C62214E7cab4AA8d036D76dc59CC", ADDRESSES.xlayer.USDT0) },
     [CHAIN.MONAD]: { start: "2025-11-27", events: oftEvents("0x9151434b16b9763660705744891fA906F660EcC5", ADDRESSES.flare.USDT0) },
     [CHAIN.STABLE]: { start: "2025-12-10", events: oftEvents("0xedaba024be4d87974d5aB11C6Dd586963CcCB027", ADDRESSES.xlayer.USDT0) },
-    [CHAIN.MEGAETH]: { start: "2026-01-20", events: oftEvents("0x9151434b16b9763660705744891fA906F660EcC5", ADDRESSES.corn.USDT0) },
+    // coins has no price for USDT0 under megaeth; price it as the same token on plasma
+    [CHAIN.MEGAETH]: {
+      start: "2026-01-20",
+      events: oftEvents("0x9151434b16b9763660705744891fA906F660EcC5", ADDRESSES.corn.USDT0).map((event) => ({ ...event, tokenChain: CHAIN.PLASMA })),
+    },
     [CHAIN.MORPH]: { start: "2026-02-23", events: oftEvents("0xcb768e263FB1C62214E7cab4AA8d036D76dc59CC", ADDRESSES.flare.USDT0) },
     [CHAIN.HEDERA]: { start: "2026-03-17", events: oftEvents("0xe3119e23fC2371d1E6b01775ba312035425A53d6", "0x00000000000000000000000000000000009Ce723") },
     [CHAIN.TEMPO]: { start: "2026-04-08", events: oftEvents("0xaf37E8B6C9ED7f6318979f56Fc287d76c30847ff", ADDRESSES.tempo.USDT0) },

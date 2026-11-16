@@ -33,6 +33,12 @@ const EXCLUDED_TOKENS: Record<string, string[]> = {
   [CHAIN.ARC]: ["0xa83a7be150d97b77c4ad96742ea38ab7c8e13782"],
 };
 
+// Tokens coins.llama.fi does not price on their own chain, priced as the same token on another chain (lowercase addresses)
+const PRICE_ON_CHAIN: Record<string, Record<string, string>> = {
+  // USDT0 has no megaeth price; the same OFT token address is priced on plasma
+  [CHAIN.MEGAETH]: { [ADDRESSES.megaeth.USDT.toLowerCase()]: CHAIN.PLASMA },
+};
+
 type OftTransfer = { oapp: string; amount: string };
 
 // emitter -> token() (an OFT returns itself, an OFT adapter its escrowed token, a native OFT adapter the zero address), then sum
@@ -52,8 +58,13 @@ const addOftTransfers = async (options: FetchOptions, sent: OftTransfer[], recei
   const keep = (t: OftTransfer) => !excluded.has(tokenOf[t.oapp]);
   const sentKept = sent.filter(keep);
   const receivedKept = received.filter(keep);
-  for (const t of sentKept) dailyOutgoingVolume.add(tokenOf[t.oapp] ?? NATIVE, t.amount);
-  for (const t of receivedKept) dailyIncomingVolume.add(tokenOf[t.oapp] ?? NATIVE, t.amount);
+  const priceOn = PRICE_ON_CHAIN[options.chain] ?? {};
+  const add = (balances: sdk.Balances, token: string, amount: string) => {
+    if (priceOn[token]) balances.add(`${priceOn[token]}:${token}`, amount, { skipChain: true });
+    else balances.add(token, amount);
+  };
+  for (const t of sentKept) add(dailyOutgoingVolume, tokenOf[t.oapp] ?? NATIVE, t.amount);
+  for (const t of receivedKept) add(dailyIncomingVolume, tokenOf[t.oapp] ?? NATIVE, t.amount);
   return { dailyOutgoingVolume, dailyIncomingVolume, dailyOutgoingTxCount: sentKept.length, dailyIncomingTxCount: receivedKept.length };
 };
 
