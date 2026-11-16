@@ -1,3 +1,4 @@
+import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -11,8 +12,10 @@ const SWAP_ON_OPENOCEAN = "event SwapOnOpenOcean(address indexed safe, address i
 // src/enso/EnsoSwapModule.sol: the safe's owners sign a request, a keeper then executes it through Enso's router
 const ENSO_SWAP_REQUESTED = "event SwapRequested(address indexed safe, bytes32 indexed swapId, address srcToken, uint256 srcAmount, uint256 dstChainId, address dstToken, address recipient, uint256 minOut, uint256 deadline)";
 const ENSO_SWAP_EXECUTED = "event SwapExecuted(address indexed safe, bytes32 indexed swapId, uint256 dstChainId, address indexed dstToken, uint256 minOut)";
+const ENSO_GET_SWAP = "function getSwap(address safe) view returns (((address srcToken, uint256 srcAmount, uint256 dstChainId, address dstToken, address recipient, uint256 minOut, uint256 deadline) order, bytes swapData, bytes32 swapId, address target, uint256 nativeFee, bool hasWithdrawalHold))";
 
-// Executions so far follow their request within 25 minutes; requests are read from this far before the window.
+// The contract bounds execution only by the order's signed deadline, so this lookback is a fast path: requests are read
+// from this far before the window, and an older request is read from getSwap at the block before its execution.
 const ENSO_REQUEST_LOOKBACK = 2 * 3600;
 
 type Config = {
@@ -60,9 +63,9 @@ const fetch = async (options: FetchOptions) => {
   openOceanSwaps.forEach((swap: any) => dailyVolume.add(swap.fromAsset, swap.fromAssetAmount));
 
   if (ensoSwapModule) {
-    const executions = await options.getLogs({ target: ensoSwapModule, eventAbi: ENSO_SWAP_EXECUTED });
+    const executions = await options.getLogs({ target: ensoSwapModule, eventAbi: ENSO_SWAP_EXECUTED, onlyArgs: false });
     // only swaps that settle on this chain; the others send the funds to the user's trading safe on another chain
-    const sameChain = executions.filter((execution: any) => Number(execution.dstChainId) === chainId);
+    const sameChain = executions.filter((execution: any) => Number(execution.args.dstChainId) === chainId);
     if (sameChain.length) {
       const requests = await options.getLogs({
         target: ensoSwapModule,
@@ -71,11 +74,20 @@ const fetch = async (options: FetchOptions) => {
       });
       const requestById: Record<string, any> = {};
       requests.forEach((request: any) => { requestById[`${request.safe.toLowerCase()}-${request.swapId}`] = request; });
+      const unmatched: any[] = [];
       sameChain.forEach((execution: any) => {
-        const request = requestById[`${execution.safe.toLowerCase()}-${execution.swapId}`];
-        if (!request) throw new Error(`No SwapRequested found for Enso swap ${execution.swapId} of safe ${execution.safe}`);
-        dailyVolume.add(request.srcToken, request.srcAmount);
+        const { safe, swapId } = execution.args;
+        const request = requestById[`${safe.toLowerCase()}-${swapId}`];
+        if (request) dailyVolume.add(request.srcToken, request.srcAmount);
+        else unmatched.push(execution);
       });
+      for (const execution of unmatched) {
+        const { safe, swapId } = execution.args;
+        // options.api.call always reads at the api's own block, so the historical read goes through sdk directly
+        const swap = await sdk.api2.abi.call({ chain: options.chain, target: ensoSwapModule, abi: ENSO_GET_SWAP, params: [safe], block: Number(execution.blockNumber) - 1 });
+        if (swap.swapId !== swapId) throw new Error(`No SwapRequested found for Enso swap ${swapId} of safe ${safe}`);
+        dailyVolume.add(swap.order.srcToken, swap.order.srcAmount);
+      }
     }
   }
 
