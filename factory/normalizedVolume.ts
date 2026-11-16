@@ -66,7 +66,10 @@ async function fromSnapshot(slug: string) {
   let dailyActiveLiquidity = 0;
   for (const { nvol } of pairs) {
     dailyNormalizedVolume += nvol?.normalized ?? 0;
-    dailyActiveLiquidity += nvol?.active_liquidity ?? 0;
+    if (slug === 'katana' && nvol && typeof nvol.active_liquidity_measured !== 'number')
+      throw new Error(`${slug}: missing measured active liquidity`);
+    // Katana's history series reports measured depth, not the extrapolated volume-cap input.
+    dailyActiveLiquidity += (slug === 'katana' ? nvol?.active_liquidity_measured : nvol?.active_liquidity) ?? 0;
   }
   return { dailyNormalizedVolume, dailyActiveLiquidity };
 }
