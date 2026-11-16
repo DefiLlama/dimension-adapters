@@ -1,9 +1,8 @@
 import { Balances } from "@defillama/sdk";
 import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { fetchBuilderCodeDataV2 } from "../../helpers/hyperliquid-v2";
+import { fetchBuilderData } from "../../helpers/extended-exchange";
 import { fetchLighterPartnerStats } from "../../helpers/lighter";
-import { httpGet } from "../../utils/fetchURL";
-import { isExtendedBuilderDashboard } from "./extended/api-types";
 import { chainConfig, PERP_PILOT_CONFIG } from "./config";
 
 const { hyperliquid, extended, nado } = PERP_PILOT_CONFIG;
@@ -13,24 +12,6 @@ async function fetchHyperliquid(options: FetchOptions) {
   const dailyFees = options.createBalances();
   dailyFees.add(data.dailyFees, hyperliquid.feesLabel);
   return { dailyVolume: data.dailyVolume, dailyFees };
-}
-
-async function fetchExtended(options: FetchOptions) {
-  const res: unknown = await httpGet(extended.dashboardApi);
-  if (!isExtendedBuilderDashboard(res)) throw new Error(`Extended builder dashboard returned an unexpected response: ${JSON.stringify(res).slice(0, 300)}`);
-  
-  // the endpoint takes no date parameter, so every call returns all builders for the last ~31 days
-  const rowsOfDay = res.data.daily.filter((r) => r.date === options.dateString);
-
-  // no builder at all on that day: it has rolled out of the window or is not published yet, so it is missing rather than zero
-  if (!rowsOfDay.length) throw new Error(`Extended builder dashboard has no rows for ${options.dateString}`);
-
-  const row = rowsOfDay.find((r) => r.builderName === extended.builderName);
-  const dailyVolume = options.createBalances();
-
-  // the day is published but has no PerpPilot row: no PerpPilot fills on Extended that day
-  if (row) dailyVolume.addUSDValue(Number(row.volume));
-  return { dailyVolume };
 }
 
 async function fetchNado(options: FetchOptions) {
@@ -69,6 +50,12 @@ export const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     case "hyperliquid": return withRevenue(await fetchHyperliquid(options));
     case "lighter": return withRevenue(await fetchLighterPartnerStats(options, config.lighterAccountIndex));
     case "nado": return withRevenue(await fetchNado(options));
-    case "extended": return fetchExtended(options); // volume only, see PERP_PILOT_CONFIG.extended
+    case "extended": {
+      // Volume only: without a builderFeeRate the helper's fees are Extended's own trading fees, not PerpPilot's builder
+      // fee, and PerpPilot's builder rate varies by plan and bot. A day the dashboard does not serve (older than ~31 days,
+      // or not published yet) returns $0 volume, so an Extended gap never blocks the other chains of that day.
+      const { dailyVolume } = await fetchBuilderData({ options, builderNames: [extended.builderName] });
+      return { dailyVolume };
+    }
   }
 };
