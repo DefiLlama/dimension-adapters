@@ -32,6 +32,23 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "liqwall": {
+    // Liqwall (https://liqwall.com, https://x.com/liqwall), a crypto trading terminal (https://liqwall.com/chart) with
+    // liquidation maps, order-book walls and Hyperliquid whale positions. Users who connect a Hyperliquid wallet approve
+    // a 0.01% builder fee to this address; orders placed from the terminal and by its trading bots carry this builder code
+    // on top of Hyperliquid's own fees.
+    // Verifiable: the builder field of orders placed through the Liqwall terminal; the address's Hyperliquid `referral`
+    // state (builderRewards).
+    addresses: ["0x3572487bd8f5b8c61c0f5e97111ee6cb9ac5292b"],
+    // first day with fills carrying the code
+    start: "2026-10-03",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades placed through the Liqwall terminal and its bots with its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through Liqwall; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through Liqwall, all kept by Liqwall.",
+      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through Liqwall, all kept by Liqwall.",
+    },
+  },
   "stratidex": {
     // StratiDex (https://stratidex.io, https://x.com/StratiDex), a Telegram trading bot (https://t.me/stratidex_bot) for
     // Hyperliquid perps, HIP-3 markets included, with a copy wallet that copies Hyperliquid traders. Its orders carry
