@@ -1,5 +1,5 @@
 import { CHAIN } from "../helpers/chains";
-import { createEvmChainFeesAdapter } from "../helpers/evmChainFees";
+import { createEvmChainFeesAdapter, createUrlRpcSenders } from "../helpers/evmChainFees";
 
 // Moved from factory/blockscout.ts: vinuexplorer.org stopped completing TLS handshakes after 2026-11-03 (plain http only
 // serves an nginx 404), so gas fees are summed from RPC receipts instead. Check on 2026-11-02: RPC 19.91 VC ($0.0106)
@@ -12,6 +12,11 @@ export default createEvmChainFeesAdapter({
   chain: CHAIN.VINUCHAIN,
   CGToken: "vinuchain",
   blockChunkSize: 100, // rpc.vinuchain.org rejects JSON-RPC batches of 200+ calls with "batch too large"
+  // rpc.vinuchain.org only: it has no eth_getBlockReceipts, and with the SDK list the other node (207.rpc.thirdweb.com,
+  // which answers every call with an error or 429) made the helper give up on batches and read each block and each
+  // receipt in its own request (2,246 requests per hourly run in production). Alone, it gets batched
+  // eth_getBlockByNumber and eth_getTransactionReceipt calls (17 requests for an hour of blocks).
+  rpcSenders: createUrlRpcSenders(["https://rpc.vinuchain.org"]),
   revenueShare: 0.3,
   holdersRevenueShare: 0.3,
   supplySideRevenueShare: 0.7,

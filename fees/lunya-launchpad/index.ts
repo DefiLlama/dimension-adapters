@@ -57,7 +57,6 @@ async function fetch(options: FetchOptions) {
   if (!created.length) return result();
   const quoteOf: Record<string, string> = {};
   for (const log of created) quoteOf[String(log.args.launch).toLowerCase()] = log.args.quoteToken;
-  const launches = Object.keys(quoteOf);
 
   // creationFee is factory.quoteConfig(quote).creationFee, last QuoteTokenApproved at or before toBlock.
   // Source: https://docs.lunya.io/developers/launchpad/fees.md
@@ -75,8 +74,12 @@ async function fetch(options: FetchOptions) {
     }
   }
 
-  const trades = await getEventLogs({ chain, targets: launches, eventAbi: eventTrade, fromBlock, toBlock, ...parsed, maxBlockRange: MAX_BLOCK_RANGE });
-  const graduations = await getEventLogs({ chain, targets: launches, eventAbi: eventGraduated, fromBlock, toBlock, ...parsed, maxBlockRange: MAX_BLOCK_RANGE });
+  // One topic-only query per event, filtered to our launches here: a targets query costs one eth_getLogs
+  // per launch per block chunk.
+  const ofLaunch = (log: any) => quoteOf[addressOf(log)] !== undefined;
+  const windowLogs = { chain, noTarget: true, fromBlock, toBlock, ...parsed, allowParseFailure: true, maxBlockRange: MAX_BLOCK_RANGE };
+  const trades = (await getEventLogs({ ...windowLogs, eventAbi: eventTrade })).filter(ofLaunch);
+  const graduations = (await getEventLogs({ ...windowLogs, eventAbi: eventGraduated })).filter(ofLaunch);
   if (!trades.length && !graduations.length) return result();
 
   // A launch's config and opening time are fixed once it opens, so reading them now reads them as they were

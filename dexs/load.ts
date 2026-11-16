@@ -109,16 +109,24 @@ const fetch = async (options: FetchOptions) => {
     dailyProtocolRevenue.add(USDC, CREATE_FEE_USDC6, "Launch Fees");
   }
 
-  const curves = historicalCreates
-    .map((log: any) => log.curve)
-    .filter(nonzero);
+  const curves = new Set<string>(
+    historicalCreates
+      .map((log: any) => log.curve)
+      .filter(nonzero)
+      .map((curve: string) => curve.toLowerCase()),
+  );
 
-  if (curves.length) {
+  if (curves.size) {
+    // One topic-only query for the window, filtered to our curves here: a targets
+    // query costs one eth_getLogs per curve, and there are thousands of curves.
     const trades = await options.getLogs({
-      targets: curves,
+      noTarget: true,
       eventAbi: TRADE,
+      onlyArgs: false,
+      allowParseFailure: true,
     });
-    for (const log of trades) {
+    for (const { address, args: log } of trades) {
+      if (!curves.has(String(address).toLowerCase())) continue;
       const usdcAmount = toUsdc6(log.usdcAmount);
       const fee = toUsdc6(log.fee);
       dailyVolume.add(USDC, usdcAmount);

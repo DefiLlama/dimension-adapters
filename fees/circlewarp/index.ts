@@ -64,12 +64,15 @@ async function fetchCurve(options: FetchOptions) {
     fromBlock: LAUNCH_FACTORY_DEPLOY_BLOCK,
     cacheInCloud: true,
   });
-  const curves = launches.map((log: any) => log.curve);
-  if (!curves.length) return { dailyFees, dailyRevenue, dailySupplySideRevenue };
+  const curves = new Set<string>(launches.map((log: any) => String(log.curve).toLowerCase()));
+  if (!curves.size) return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 
-  const trades = await options.getLogs({ targets: curves, eventAbi: TRADE_EVENT });
+  // One topic-only query for the window, filtered to our curves here: a `targets` query costs
+  // one eth_getLogs per curve, and there are well over a thousand curves.
+  const trades = await options.getLogs({ noTarget: true, eventAbi: TRADE_EVENT, onlyArgs: false, allowParseFailure: true });
   for (const log of trades) {
-    const gross = BigInt(log.usdcGross);
+    if (!curves.has(String(log.address).toLowerCase())) continue;
+    const gross = BigInt(log.args.usdcGross);
     const totalFee = (gross * CURVE_FEE_BPS) / BPS;
     const creatorFee = totalFee / 2n;
     const protocolFee = totalFee - creatorFee;
@@ -94,29 +97,30 @@ async function fetchGraduatedPool(options: FetchOptions) {
   });
   if (!pairsCreated.length) return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 
-  const pairs = pairsCreated.map((log: any) => log.pair);
   const pairTokens = new Map<string, [string, string]>(
     pairsCreated.map((log: any) => [log.pair.toLowerCase(), [log.token0, log.token1]]),
   );
 
-  const swapLogsByPair = await options.getLogs({ targets: pairs, eventAbi: SWAP_EVENT, flatten: false });
-  swapLogsByPair.forEach((logs: any[], i: number) => {
-    const [token0, token1] = pairTokens.get(pairs[i].toLowerCase())!;
-    for (const log of logs) {
-      const amount0In = BigInt(log.amount0In);
-      const amount1In = BigInt(log.amount1In);
-      const [feeToken, amountIn] = amount0In > 0n ? [token0, amount0In] : [token1, amount1In];
-      if (amountIn === 0n) continue;
-      const totalFee = (amountIn * (POOL_LP_BPS + POOL_CREATOR_BPS + POOL_PROTOCOL_BPS)) / BPS;
-      const lpFee = (amountIn * POOL_LP_BPS) / BPS;
-      const creatorFee = (amountIn * POOL_CREATOR_BPS) / BPS;
-      const protocolFee = totalFee - lpFee - creatorFee;
-      dailyFees.add(feeToken, totalFee, POOL_SWAP_FEES);
-      dailyRevenue.add(feeToken, protocolFee, POOL_FEES_TO_PROTOCOL);
-      dailySupplySideRevenue.add(feeToken, creatorFee, POOL_FEES_TO_CREATORS);
-      dailySupplySideRevenue.add(feeToken, lpFee, POOL_FEES_TO_LPS);
-    }
-  });
+  // One topic-only query for the window instead of one eth_getLogs per pool; swaps of other
+  // Uniswap V2 forks on Arc share the topic and are dropped by the pairTokens lookup.
+  const swapLogs = await options.getLogs({ noTarget: true, eventAbi: SWAP_EVENT, onlyArgs: false, allowParseFailure: true });
+  for (const log of swapLogs) {
+    const tokens = pairTokens.get(String(log.address).toLowerCase());
+    if (!tokens) continue;
+    const [token0, token1] = tokens;
+    const amount0In = BigInt(log.args.amount0In);
+    const amount1In = BigInt(log.args.amount1In);
+    const [feeToken, amountIn] = amount0In > 0n ? [token0, amount0In] : [token1, amount1In];
+    if (amountIn === 0n) continue;
+    const totalFee = (amountIn * (POOL_LP_BPS + POOL_CREATOR_BPS + POOL_PROTOCOL_BPS)) / BPS;
+    const lpFee = (amountIn * POOL_LP_BPS) / BPS;
+    const creatorFee = (amountIn * POOL_CREATOR_BPS) / BPS;
+    const protocolFee = totalFee - lpFee - creatorFee;
+    dailyFees.add(feeToken, totalFee, POOL_SWAP_FEES);
+    dailyRevenue.add(feeToken, protocolFee, POOL_FEES_TO_PROTOCOL);
+    dailySupplySideRevenue.add(feeToken, creatorFee, POOL_FEES_TO_CREATORS);
+    dailySupplySideRevenue.add(feeToken, lpFee, POOL_FEES_TO_LPS);
+  }
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue };
 }

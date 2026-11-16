@@ -205,13 +205,17 @@ const fetch = async (options: FetchOptions) => {
       fromBlock: Math.min(...factories.map((f) => f.deployBlock)),
       cacheInCloud: true,
     })
-    const accounts = created.map((l: any) => l.account)
-    if (accounts.length) {
+    const accounts = new Set<string>(created.map((l: any) => String(l.account).toLowerCase()))
+    if (accounts.size) {
+      // one topic-only query per event, filtered to the trade accounts here: a targets query costs one
+      // eth_getLogs per account, and there is one account per user
       const [buys, sells] = await Promise.all([
-        getLogs({ targets: accounts, eventAbi: ABI.AccountBought }),
-        getLogs({ targets: accounts, eventAbi: ABI.AccountSold }),
+        getLogs({ noTarget: true, eventAbi: ABI.AccountBought, onlyArgs: false, allowParseFailure: true }),
+        getLogs({ noTarget: true, eventAbi: ABI.AccountSold, onlyArgs: false, allowParseFailure: true }),
       ])
-      buys.concat(sells).forEach((l: any) => addFee(undefined, l.fee, CRONUS_BURNER))
+      buys.concat(sells).forEach((l: any) => {
+        if (accounts.has(String(l.address).toLowerCase())) addFee(undefined, l.args.fee, CRONUS_BURNER)
+      })
     }
   }
 

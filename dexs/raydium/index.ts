@@ -28,7 +28,9 @@ const fetch = async (options: FetchOptions) => {
         const response = await fetchURL(`https://api-v3.raydium.io/pools/info/list?poolType=all&poolSortField=volume24h&sortType=desc&pageSize=1000&page=${page + index}`)
         const data = response.data.data
         const validPoolCount = addPoolData(data)
-        if (data.length === 0) {
+        // pools come sorted by 24h volume: once a page ends at zero volume the pages after it (~1,100 of ~1,150)
+        // add nothing to volume or fees
+        if (data.length === 0 || !data[data.length - 1].day.volume) {
           hasMore = false
         }
         /* if (data.length) {

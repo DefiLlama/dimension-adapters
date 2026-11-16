@@ -148,11 +148,17 @@ async function fetchOriginDeposits(chain: string, options: FetchOptions): Promis
   });
 }
 
+// Chains that shut down. prefetch scans every origin whatever chains the runner skips, so a dead chain
+// is still kept for refills of the days it was alive, and left out of the windows after it.
+const deadFrom: Record<string, number> = {
+  [CHAIN.BLAST]: toUnix("2026-10-26T00:00:00Z"),
+};
+
 // a few origins at a time; the block range splits within one origin stay sequential
 const prefetch = async (options: FetchOptions) => {
   const activeChains = Object.keys(chainIds).filter((chain) => !deadChains[chain] || options.dateString < deadChains[chain]);
   const { results, errors } = await PromisePool.withConcurrency(3)
-    .for(activeChains)
+    .for(Object.keys(chainIds).filter((chain) => !(options.startTimestamp >= deadFrom[chain])))
     .process((chain) => fetchOriginDeposits(chain, options));
   if (errors.length) throw errors[0];
   return results.flat();

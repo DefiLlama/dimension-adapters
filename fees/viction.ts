@@ -1,5 +1,5 @@
 import { CHAIN } from "../helpers/chains";
-import { createEvmChainFeesAdapter } from "../helpers/evmChainFees";
+import { createEvmChainFeesAdapter, createUrlRpcSenders } from "../helpers/evmChainFees";
 
 // Moved from factory/blockscout.ts: viction.blockscout.com answers "default backend - 404" on every path (UI, /api,
 // /api/v2), and the last stored explorer value is 2026-04-30. Gas fees are now summed from RPC receipts instead.
@@ -12,6 +12,12 @@ import { createEvmChainFeesAdapter } from "../helpers/evmChainFees";
 export default createEvmChainFeesAdapter({
   chain: CHAIN.TOMOCHAIN,
   CGToken: "tomochain", // same pricing as the old explorer config
+  // rpc.viction.xyz first: it is the only node that takes a 500-block eth_getBlockReceipts batch (~6 MB, 3-6 s; the
+  // helper's default timeout is 10 s). viction.drpc.org rejects batches above 3 calls and 88.rpc.thirdweb.com above 25,
+  // and once no batch gets through the helper reads each block and each receipt in its own request (production
+  // averaged 18,000 requests per hourly run, a batched run takes ~10). viction.drpc.org stays as the fallback.
+  rpcSenders: createUrlRpcSenders(["https://rpc.viction.xyz", "https://viction.drpc.org"]),
+  rpcTimeoutMs: 30_000,
   revenueShare: 0,
   supplySideRevenueShare: 1,
 });

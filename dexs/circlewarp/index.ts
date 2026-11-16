@@ -51,14 +51,17 @@ async function fetchCurve(options: FetchOptions) {
     fromBlock: LAUNCH_FACTORY_DEPLOY_BLOCK,
     cacheInCloud: true,
   });
-  const curves = launches.map((log: any) => log.curve);
-  if (!curves.length) return { dailyVolume };
+  const curves = new Set<string>(launches.map((log: any) => String(log.curve).toLowerCase()));
+  if (!curves.size) return { dailyVolume };
 
-  const trades = await options.getLogs({ targets: curves, eventAbi: TRADE_EVENT });
+  // One topic-only query for the window, filtered to our curves here: a `targets` query costs
+  // one eth_getLogs per curve, and there are well over a thousand curves.
+  const trades = await options.getLogs({ noTarget: true, eventAbi: TRADE_EVENT, onlyArgs: false, allowParseFailure: true });
   for (const log of trades) {
+    if (!curves.has(String(log.address).toLowerCase())) continue;
     // usdcGross is the gross value on both sides (verified: matches the pre-fee amount,
     // not net of the 1% curve fee), so no add-back is needed for sells.
-    dailyVolume.addGasToken(BigInt(log.usdcGross));
+    dailyVolume.addGasToken(BigInt(log.args.usdcGross));
   }
 
   return { dailyVolume };
@@ -125,7 +128,9 @@ async function fetchGraduatedPools(options: FetchOptions) {
 
   // Logs are matched back to their pool by the emitting address, so the pair order above and
   // each pool's token0/token1 orientation never have to line up with the query result.
-  const swapLogs = await options.getLogs({ targets: pairs, eventAbi: SWAP_EVENT, onlyArgs: false });
+  // One topic-only query for the window instead of one eth_getLogs per pool; swaps of other
+  // Uniswap V2 forks on Arc share the topic; they are not in usdcSideOfPair and are skipped.
+  const swapLogs = await options.getLogs({ noTarget: true, eventAbi: SWAP_EVENT, onlyArgs: false, allowParseFailure: true });
   for (const log of swapLogs) {
     const side = usdcSideOfPair.get(String(log.address).toLowerCase());
     if (side === null || side === undefined) continue;
