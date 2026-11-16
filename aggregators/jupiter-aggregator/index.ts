@@ -4,6 +4,10 @@ import { Dependencies, FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
 
 const JUP6_EVENTS_START = '2025-09-01'; //aggregator_swaps coverage incomplete from here
+// Sources used for days from 2025-09-01: jupiter_solana.aggregator_swaps until #7231 (merged
+// 2026-05-27), dex_solana.trades summed per pool hop under #7231, one row per swap (largest
+// hop) under #8289 (merged 2026-07-20), JUP6 swap events below under #9963 (merged 2026-10-07).
+// Days stored before 2026-10-07 keep the earlier source's value until refilled from 2025-09-01.
 
 // JUP6 emits one anchor event per pool hop, as a self-CPI with the anchor event prefix
 // e445a52e51cb9a1d. SwapEvent (40c6cde8260871e2) carries one hop:
