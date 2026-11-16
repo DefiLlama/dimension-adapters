@@ -12,6 +12,7 @@ const USDC = "0x1f3aa82227281ca364bfb3d253b0f1af1da6473e";
 const W0G = "0x1cd0690ff9a693f5ef2dd976660a8dafc81a109c";
 const MANAGER = "0xaabd31f24914b48daea998e69683225e289d08b0";
 const HOOK = "0x809acd73ac30b4e2d2dfd7d35b1fda850dcd4334";
+const IAI_HOOK = "0xc912324aca9ea0cc34c2615dc53d5a0465bbad30";
 const SPLITTER = "0x500acfbb2199d35ab1aa87736665d76c56bf633e";
 const FIRST = 45552900;
 type Event = {
@@ -126,6 +127,46 @@ test("prefers a priced quote currency on listed ERC20 pairs", async () => {
   assert.equal(amount(result, "dailyVolume", USDC), 200n);
   assert.equal(amount(result, "dailyVolume", W0G), 50n);
   assert.equal(amount(result, "dailyVolume", TOKEN), 0n);
+});
+
+test("counts launch, iAI and hookless pools on the production manager", async () => {
+  const cases = [
+    {
+      events: [pool(), split(), swap(-1_000_000n, 50n, 3000n, 1000n), charge(10_000n, 0n, 0n)],
+      expected: [1_010_000n, 13_000n, 3000n, 10_000n],
+    },
+    {
+      events: [pool("iai", NATIVE, TOKEN, IAI_HOOK), swap(-2_000_000n, 100n, 3997n, 1000n, "iai")],
+      expected: [2_000_000n, 7994n, 2000n, 5994n],
+    },
+    {
+      events: [pool("listed", NATIVE, TOKEN, NATIVE), swap(-3_000_000n, 150n, 500n, 0n, "listed")],
+      expected: [3_000_000n, 1500n, 0n, 1500n],
+    },
+  ];
+  for (const { events, expected } of cases) {
+    const result = await run(events);
+    assert.deepEqual(["dailyVolume", "dailyFees", "dailyRevenue", "dailySupplySideRevenue"].map(metric => amount(result, metric)), expected);
+    assertAccounting(result);
+  }
+});
+
+test("excludes another manager's pools and swaps while retaining production activity", async () => {
+  const otherManager = "0x2222222222222222222222222222222222222222";
+  const foreignEvents = [
+    { ...pool("foreign", USDC, TOKEN), target: otherManager },
+    { ...swap(-9_000_000n, 450n, 3000n, 1000n, "foreign"), target: otherManager },
+  ];
+  const result = await run([pool(), swap(-1_000_000n, 50n, 3000n, 1000n), ...foreignEvents]);
+  assert.deepEqual(["dailyVolume", "dailyFees", "dailyRevenue", "dailySupplySideRevenue"].map(metric => amount(result, metric)), [1_000_000n, 3000n, 1000n, 2000n]);
+  for (const metric of Object.keys(result)) assert.equal(amount(result, metric, USDC), 0n);
+  assertAccounting(result, [NATIVE, TOKEN, USDC]);
+
+  const foreignOnly = await run(foreignEvents);
+  for (const metric of Object.keys(foreignOnly)) {
+    assert.equal(amount(foreignOnly, metric), 0n);
+    assert.equal(amount(foreignOnly, metric, USDC), 0n);
+  }
 });
 
 test("hourly partitions produce the same raw balances as one combined interval", async () => {

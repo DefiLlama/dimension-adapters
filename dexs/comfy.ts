@@ -6,13 +6,20 @@ import { isCoreAsset } from "../helpers/prices";
 // Production Infinity manager: https://chainscan.0g.ai/address/0xaabd31f24914b48daea998e69683225e289d08b0
 const deployment = {
   manager: "0xaabd31f24914b48daea998e69683225e289d08b0",
+  // Production launch hook. https://chainscan.0g.ai/address/0x809acd73ac30b4e2d2dfd7d35b1fda850dcd4334
   hook: "0x809acd73ac30b4e2d2dfd7d35b1fda850dcd4334",
+  // Launch fee splitter. https://chainscan.0g.ai/address/0x500acfbb2199d35ab1aa87736665d76c56bf633e
   splitter: "0x500acfbb2199d35ab1aa87736665d76c56bf633e",
+  // Manager creation. https://chainscan.0g.ai/tx/0xc8108c1b02fedd0ac718533ce80b0f7979d0f1dc996c61b90c992eb5c4cc6d74
   managerStartBlock: 45552804,
+  // Splitter creation. https://chainscan.0g.ai/tx/0x61ed07ba7b09b683bdec439e088f54b4109bf115ae631331d25cde644ac3842f
   splitterStartBlock: 45552817,
   quoteCurrencies: [
+    // Native 0G uses CurrencyLibrary.NATIVE. https://github.com/pancakeswap/infinity-core/blob/d0e879334da8ea789a895d864dbe34259ea9fb65/src/types/Currency.sol
     "0x0000000000000000000000000000000000000000",
+    // USDC.e. https://chainscan.0g.ai/address/0x1f3aa82227281ca364bfb3d253b0f1af1da6473e
     "0x1f3aa82227281ca364bfb3d253b0f1af1da6473e",
+    // W0G. https://chainscan.0g.ai/address/0x1cd0690ff9a693f5ef2dd976660a8dafc81a109c
     "0x1cd0690ff9a693f5ef2dd976660a8dafc81a109c",
   ],
 };
@@ -77,6 +84,7 @@ const fetch = async (options: FetchOptions) => {
       const input = amount0 < 0n ? -amount0 : -amount1;
       const inputCurrency = amount0 < 0n ? pool.currency0 : pool.currency1;
       // Swap reports rates, not the exact fee rounded at each crossed tick. Protocol fees are included in fee.
+      // Rates use millionths. https://github.com/pancakeswap/infinity-core/blob/d0e879334da8ea789a895d864dbe34259ea9fb65/src/libraries/ProtocolFeeLibrary.sol
       const fees = input * BigInt(swap.fee) / 1_000_000n;
       const protocolFees = input * BigInt(swap.protocolFee) / 1_000_000n;
       dailyFees.add(inputCurrency, fees, "Pool Swap Fees");
@@ -98,6 +106,7 @@ const fetch = async (options: FetchOptions) => {
       const creatorTax = BigInt(charge.creatorTax);
       const fees = baseFee + openingFee + creatorTax;
       // The splitter rounds aggregated pending fees at sweep time. This estimates entitlement on each trade date.
+      // PoolConfigured.protocolBps uses basis points, where 10,000 is 100%. The splitter is linked in deployment.
       const protocolFees = (baseFee + openingFee) * protocolBps / 10_000n;
       dailyFees.add(currency, baseFee, "Launch Base Fees");
       dailyFees.add(currency, openingFee, "Launch Opening Fees");
@@ -124,8 +133,8 @@ const adapter: SimpleAdapter = {
   start: "2026-09-28",
   fetch,
   methodology: {
-    Volume: "One quote side of each production pool swap, including input-side launch charges; excludes liquidity deposits and withdrawals.",
-    Fees: "Pool swap fees estimated from input amounts and emitted rates, plus exact launch base, opening and creator charges; tick rounding can differ.",
+    Volume: "Quote-side core swap volume from non-blacklisted pools on Comfy's production manager, plus Comfy launch-hook buy charges, excluding adjustments from other hooks.",
+    Fees: "Estimated core swap fees on Comfy's production manager plus exact charges from its configured launch hook, excluding extra charges from other hooks and subject to core tick rounding.",
     Revenue: "Accrued treasury share of pool and launch fees at trade time; per-trade rounding can differ from later splitter sweeps.",
     ProtocolRevenue: "Accrued treasury share of pool and launch fees at trade time; per-trade rounding can differ from later splitter sweeps.",
     SupplySideRevenue: "Pool fees allocated to liquidity providers and launch fees allocated to creators, including their recipient and compute allocations.",
