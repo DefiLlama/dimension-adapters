@@ -87,9 +87,9 @@ const fetch = async (options: FetchOptions) => {
       // Rates use millionths. https://github.com/pancakeswap/infinity-core/blob/d0e879334da8ea789a895d864dbe34259ea9fb65/src/libraries/ProtocolFeeLibrary.sol
       const fees = input * BigInt(swap.fee) / 1_000_000n;
       const protocolFees = input * BigInt(swap.protocolFee) / 1_000_000n;
-      dailyFees.add(inputCurrency, fees, "Pool Swap Fees");
-      dailyRevenue.add(inputCurrency, protocolFees, "Pool Swap Fees To Treasury");
-      dailySupplySideRevenue.add(inputCurrency, fees - protocolFees, "Pool Swap Fees To Liquidity Providers");
+      dailyFees.add(inputCurrency, fees, "Trading Fees");
+      dailyRevenue.add(inputCurrency, protocolFees, "Trading Fees To Protocol");
+      dailySupplySideRevenue.add(inputCurrency, fees - protocolFees, "Trading Fees To Liquidity Providers");
     }
 
     const charges: Charge[] = await options.getLogs({ target: deployment.hook, eventAbi: events.charge });
@@ -108,11 +108,9 @@ const fetch = async (options: FetchOptions) => {
       // The splitter rounds aggregated pending fees at sweep time. This estimates entitlement on each trade date.
       // PoolConfigured.protocolBps uses basis points, where 10,000 is 100%. The splitter is linked in deployment.
       const protocolFees = (baseFee + openingFee) * protocolBps / 10_000n;
-      dailyFees.add(currency, baseFee, "Launch Base Fees");
-      dailyFees.add(currency, openingFee, "Launch Opening Fees");
-      dailyFees.add(currency, creatorTax, "Launch Creator Fees");
-      dailyRevenue.add(currency, protocolFees, "Launch Fees To Treasury");
-      dailySupplySideRevenue.add(currency, fees - protocolFees, "Launch Fees To Creators");
+      dailyFees.add(currency, fees, "Trading Fees");
+      dailyRevenue.add(currency, protocolFees, "Trading Fees To Protocol");
+      dailySupplySideRevenue.add(currency, fees - protocolFees, "Trading Fees To Creators");
       // Buy input reaches the core after the hook charge. Sell quote output is already gross of that charge.
       if (charge.isBuy && currency === pool.volumeCurrency) dailyVolume.add(currency, fees);
     }
@@ -122,8 +120,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const treasuryMethodology = {
-  "Pool Swap Fees To Treasury": "Protocol swap fees estimated from each swap's input and emitted protocol rate.",
-  "Launch Fees To Treasury": "Accrued protocol share of base and opening charges, using each pool's configured split and per-trade integer rounding.",
+  "Trading Fees To Protocol": "Comfy's share of trading fees, accrued at trade time using on-chain rates and pool settings, subject to rounding.",
 };
 
 const adapter: SimpleAdapter = {
@@ -133,24 +130,21 @@ const adapter: SimpleAdapter = {
   start: "2026-09-28",
   fetch,
   methodology: {
-    Volume: "Quote-side core swap volume from non-blacklisted pools on Comfy's production manager, plus Comfy launch-hook buy charges, excluding adjustments from other hooks.",
-    Fees: "Estimated core swap fees on Comfy's production manager plus exact charges from its configured launch hook, excluding extra charges from other hooks and subject to core tick rounding.",
-    Revenue: "Accrued treasury share of pool and launch fees at trade time; per-trade rounding can differ from later splitter sweeps.",
-    ProtocolRevenue: "Accrued treasury share of pool and launch fees at trade time; per-trade rounding can differ from later splitter sweeps.",
-    SupplySideRevenue: "Pool fees allocated to liquidity providers and launch fees allocated to creators, including their recipient and compute allocations.",
+    Volume: "One quote-currency side of each supported Comfy swap, including fees deducted before buy input reaches the pool; excludes additional volume adjustments from other hooks.",
+    Fees: "User-paid trading fees across supported Comfy pools, including estimated pool fees and recorded additional trading charges; excludes token creation fees and separate charges from other hooks.",
+    Revenue: "Comfy's share of trading fees, accrued at trade time using on-chain rates and pool settings, subject to rounding.",
+    ProtocolRevenue: "Comfy's treasury share of trading fees, accrued at trade time using on-chain rates and pool settings, subject to rounding.",
+    SupplySideRevenue: "Trading fees allocated to liquidity providers and creators, including allocations funded from their share.",
   },
   breakdownMethodology: {
     Fees: {
-      "Pool Swap Fees": "Estimated pool swap fees, including the iAI pool's dynamic opening fee.",
-      "Launch Base Fees": "Base charges emitted by the launch hook.",
-      "Launch Opening Fees": "Opening charges emitted by the launch hook.",
-      "Launch Creator Fees": "Creator charges emitted by the launch hook, allocated entirely to creators.",
+      "Trading Fees": "Pool swap fees and additional trading charges paid by users, with pool fees estimated from each swap's input and emitted rate.",
     },
     Revenue: treasuryMethodology,
     ProtocolRevenue: treasuryMethodology,
     SupplySideRevenue: {
-      "Pool Swap Fees To Liquidity Providers": "Estimated pool swap fees after the core protocol fee.",
-      "Launch Fees To Creators": "Creator share of base and opening charges plus all creator charges, including creator-funded compute.",
+      "Trading Fees To Liquidity Providers": "Pool trading fees allocated to liquidity providers after the protocol share.",
+      "Trading Fees To Creators": "Additional trading fees allocated to creators, including allocations funded from their share.",
     },
   },
 };

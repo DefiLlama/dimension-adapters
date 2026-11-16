@@ -1,3 +1,5 @@
+import { Interface } from "ethers";
+import receiptFixtures from "./fixtures/comfy-receipts.json";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Balances, ChainApi } from "@defillama/sdk";
@@ -226,4 +228,47 @@ test("registers the same hourly production adapter for fees and volume", () => {
   assert.equal(adapter.pullHourly, true);
   assert.deepEqual(adapter.chains, ["0g"]);
   assert.equal(adapter.start, "2026-09-28");
+});
+
+test("decodes captured mainnet receipts with the requested event ABI", async () => {
+  const expected = [
+    { kind: "launch-buy", volume: 10_000_000_000_000_000_000n, fees: 100_000_000_000_000_000n, revenue: 30_000_000_000_000_000n, supply: 70_000_000_000_000_000n },
+    { kind: "launch-sell", volume: 78_889_154_878_817_570_284n, fees: 788_891_548_788_175_702n, revenue: 236_667_464_636_452_710n, supply: 552_224_084_151_722_992n },
+    { kind: "iai-buy", volume: 745_000_000_000_000_000n, fees: 2_977_765_000_000_000n, revenue: 745_000_000_000_000n, supply: 2_232_765_000_000_000n },
+  ];
+  for (const values of expected) {
+    const sample = receiptFixtures.samples.find(sample => sample.kind === values.kind);
+    assert.ok(sample);
+    const request = options([], sample.blockNumber, sample.blockNumber);
+    request.getLogs = async params => {
+      assert.ok(params.eventAbi);
+      const iface = new Interface([params.eventAbi]);
+      return sample.logs.filter(log => log.address === params.target
+        && log.blockNumber >= (params.fromBlock ?? sample.blockNumber)
+        && log.blockNumber <= (params.toBlock ?? sample.blockNumber))
+        .flatMap(log => {
+          const decoded = iface.parseLog(log);
+          return decoded ? [decoded.args] : [];
+        });
+    };
+    assert.ok(adapter.fetch);
+    const result = await adapter.fetch(request);
+    assert.equal(amount(result, "dailyVolume"), values.volume, values.kind);
+    assert.equal(amount(result, "dailyFees"), values.fees, values.kind);
+    assert.equal(amount(result, "dailyRevenue"), values.revenue, values.kind);
+    assert.equal(amount(result, "dailySupplySideRevenue"), values.supply, values.kind);
+    assertAccounting(result);
+  }
+});
+
+test("preserves raw fees above the JavaScript safe integer range", async () => {
+  const result = await run([
+    pool("large", NATIVE, TOKEN, NATIVE),
+    swap(-9_007_199_254_740_993_000n, 100n, 3000n, 1000n, "large"),
+  ]);
+  assert.equal(amount(result, "dailyVolume"), 9_007_199_254_740_993_000n);
+  assert.equal(amount(result, "dailyFees"), 27_021_597_764_222_979n);
+  assert.equal(amount(result, "dailyRevenue"), 9_007_199_254_740_993n);
+  assert.equal(amount(result, "dailySupplySideRevenue"), 18_014_398_509_481_986n);
+  assertAccounting(result);
 });
