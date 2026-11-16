@@ -1,5 +1,5 @@
 import { Balances } from "@defillama/sdk";
-import { FetchOptions } from "../../adapters/types";
+import { FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { fetchBuilderCodeDataV2 } from "../../helpers/hyperliquid-v2";
 import { fetchLighterPartnerStats } from "../../helpers/lighter";
 import { httpGet } from "../../utils/fetchURL";
@@ -63,7 +63,7 @@ const withRevenue = ({ dailyVolume, dailyFees }: { dailyVolume: Balances; dailyF
   dailyProtocolRevenue: dailyFees.clone(),
 });
 
-export const fetch = async (options: FetchOptions) => {
+export const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const config = chainConfig[options.chain];
   switch (config.venue) {
     case "hyperliquid": return withRevenue(await fetchHyperliquid(options));
