@@ -41,27 +41,25 @@ import { CHAIN } from "../../helpers/chains";
 // so a new pool or factory generation needs no change here beyond a new factory address. The first
 // generation stays listed: it keeps pre-v2 days resolving and holds its LPs' liquidity while it
 // winds down. Both emit `Swapped` and `Withdrawn` alike; `LiabilitySwapped` has two shapes (below).
-const FACTORIES: Record<string, string[]> = {
-  [CHAIN.MONAD]: [
-    "0xbbbbbbb16b9B5Fa94AD8CD35e696bEA55DB9C8B0", // current generation (pool deployed at block 121555891)
-    "0xbbbbbbbbbd5e955E20F323cA1F95f8191fD0E0BF", // first generation
-  ],
-};
-
 const factoryAbi = {
   count: "uint256:getOfficialPoolsCount",
   pool: "function officialPools(uint256) view returns (address)",
 };
 
 const getPools = async (options: FetchOptions): Promise<string[]> => {
-  const factories = FACTORIES[options.chain] ?? [];
-  const counts = await options.api.multiCall({ abi: factoryAbi.count, calls: factories, permitFailure: true });
+  // A factory is skipped only before its first pool exists (`from`). Every other factory must
+  // resolve: a failed call throws, it never becomes zero pools.
+  const factories = chainConfig[options.chain].factories
+    .filter((f) => options.toTimestamp >= f.from)
+    .map((f) => f.address);
+  const counts = await options.api.multiCall({ abi: factoryAbi.count, calls: factories });
   const calls: { target: string; params: [number] }[] = [];
   factories.forEach((target, i) => {
-    for (let j = 0; j < Number(counts[i] ?? 0); j++) calls.push({ target, params: [j] });
+    for (let j = 0; j < Number(counts[i]); j++) calls.push({ target, params: [j] });
   });
-  const pools = await options.api.multiCall({ abi: factoryAbi.pool, calls, permitFailure: true });
-  return pools.filter(Boolean);
+  const pools = await options.api.multiCall({ abi: factoryAbi.pool, calls });
+  if (pools.some((p: any) => !p)) throw new Error("btr: pool discovery failed");
+  return pools;
 };
 
 const SWAPPED =
@@ -84,8 +82,16 @@ const abi = {
 const U128 = (1n << 128n) - 1n;
 
 // Only chains with a live deployment are listed (Monad, chain 143).
-const chainConfig: Record<string, { start: string }> = {
-  [CHAIN.MONAD]: { start: "2026-10-01" }, // first pool, block 109610388
+const chainConfig: Record<string, { start: string; factories: { address: string; from: number }[] }> = {
+  [CHAIN.MONAD]: {
+    start: "2026-10-01", // first pool, block 109610388
+    factories: [
+      // current generation (pool deployed at block 121555891, 2026-11-12)
+      { address: "0xbbbbbbb16b9B5Fa94AD8CD35e696bEA55DB9C8B0", from: 1794472602 },
+      // first generation
+      { address: "0xbbbbbbbbbd5e955E20F323cA1F95f8191fD0E0BF", from: 0 },
+    ],
+  },
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -131,7 +137,7 @@ const fetch = async (options: FetchOptions) => {
       .filter((w) => Number(w.logIndex) > at && Number(w.logIndex) < until && BigInt(w.args.lpAmount) === 0n)
       .sort((a, b) => Number(a.logIndex) - Number(b.logIndex))[0];
     if (next && lower(next.args.token) === lower(tokenOut) && lower(next.args.sender) === lower(sender))
-      dailyVolume.add(tokenOut, next.args.amount, "Cross-Asset Withdrawals");
+      dailyVolume.add(tokenOut, next.args.amount);
   }
   if (mints.length) {
     const previews = await options.api.multiCall({
@@ -139,7 +145,7 @@ const fetch = async (options: FetchOptions) => {
       calls: mints.map((m) => ({ target: m.pool, params: [m.token, m.lp.toString()] })),
     });
     previews.forEach((p: any, i: number) =>
-      dailyVolume.add(mints[i].token, BigInt(p.amountOut) + BigInt(p.haircut), "Liability Swaps")
+      dailyVolume.add(mints[i].token, BigInt(p.amountOut) + BigInt(p.haircut))
     );
   }
 
@@ -150,7 +156,7 @@ const fetch = async (options: FetchOptions) => {
     const lpFee = fees >> 128n;
     // Input-leg amount only, counted once per fill: the input leg is the notional the taker
     // actually moved, and the fee is charged on the output leg so it is not double-counted here.
-    dailyVolume.add(log.tokenIn, amounts & U128, "Swaps");
+    dailyVolume.add(log.tokenIn, amounts & U128);
     dailyFees.add(log.tokenOut, protoFee + lpFee, "Swap Fees");
     dailyRevenue.add(log.tokenOut, protoFee, "Swap Fees To Protocol");
     dailySupplySideRevenue.add(log.tokenOut, lpFee, "Swap Fees To LPs");
@@ -178,11 +184,6 @@ const methodology = {
 };
 
 const breakdownMethodology = {
-  Volume: {
-    Swaps: "Input-token amount of every Swapped fill, public and coop-arbitrage.",
-    "Cross-Asset Withdrawals": "Output-token amount an LP withdrew into a different token than its claim (withdrawTo), read from the Withdrawn paired with its LiabilitySwapped.",
-    "Liability Swaps": "Value of the claim a swapLiability re-denominated into another leg (previewWithdraw face of the minted shares).",
-  },
   Fees: {
     "Swap Fees": "Swap fee charged on the output token of each swap (protocol share plus LP share).",
     "Conversion Fees": "Route fee a liability conversion charged on its output token (protocol share plus LP share), read from LiabilitySwapped.",
