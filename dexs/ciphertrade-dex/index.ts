@@ -102,7 +102,8 @@ const fetch = async (options: FetchOptions) => {
   ]);
   const orderTokens = new Map<string, { inToken: string; outToken: string }>();
   for (const e of created) orderTokens.set(String(e.orderId), { inToken: e.tokenIn, outToken: e.tokenOut });
-  const pairTokens = new Map(pools.map((pool, i) => [pool, [token0s[i], token1s[i]]]));
+  const pairTokens = new Map<string, [string, string]>();
+  pools.forEach((pool, i) => pairTokens.set(pool, [token0s[i], token1s[i]]));
   const underlyings = [...swaps.map((log: any) => ({ kind: 0, log })),
                        ...direct.map((log: any) => ({ kind: 1, log }))];
   const underlyingByTx = new Map<string, typeof underlyings>();
