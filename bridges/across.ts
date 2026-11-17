@@ -56,6 +56,31 @@ const deadChains: Record<string, string> = {
   [CHAIN.BLAST]: "2026-08-01", // last Across deposit from or to Blast was 2026-07-31
 };
 
+// Two days after block 1, for origin chains younger than the oldest Across history. No deposit can predate its
+// chain, and around genesis getBlock cannot resolve a range, which failed the whole prefetch for every chain.
+const chainLaunch: Record<string, string> = {
+  [CHAIN.ERA]: "2023-02-16",
+  [CHAIN.ZORA]: "2023-06-15",
+  [CHAIN.BASE]: "2023-06-17",
+  [CHAIN.LINEA]: "2023-07-08",
+  [CHAIN.SCROLL]: "2023-10-12",
+  [CHAIN.MODE]: "2023-11-18",
+  [CHAIN.BLAST]: "2024-02-26",
+  [CHAIN.LISK]: "2024-05-05",
+  [CHAIN.WC]: "2024-06-27",
+  [CHAIN.UNICHAIN]: "2024-11-06",
+  [CHAIN.SONEIUM]: "2024-12-04",
+  [CHAIN.INK]: "2024-12-08",
+  [CHAIN.HYPERLIQUID]: "2025-02-20",
+  [CHAIN.LENS]: "2025-02-23",
+  [CHAIN.MONAD]: "2025-05-16",
+  [CHAIN.PLASMA]: "2025-09-05",
+  [CHAIN.MEGAETH]: "2025-11-12",
+  [CHAIN.TEMPO]: "2026-01-18",
+  [CHAIN.ROBINHOOD]: "2026-05-02",
+  [CHAIN.ARC]: "2026-05-17",
+};
+
 type AcrossDeposit = {
   originChainId: number;
   destinationChainId: number | null;
@@ -150,7 +175,9 @@ async function fetchOriginDeposits(chain: string, options: FetchOptions): Promis
 
 // a few origins at a time; the block range splits within one origin stay sequential
 const prefetch = async (options: FetchOptions) => {
-  const activeChains = Object.keys(chainIds).filter((chain) => !deadChains[chain] || options.dateString < deadChains[chain]);
+  const activeChains = Object.keys(chainIds).filter((chain) =>
+    (!deadChains[chain] || options.dateString < deadChains[chain]) && (!chainLaunch[chain] || options.dateString >= chainLaunch[chain])
+  );
   const { results, errors } = await PromisePool.withConcurrency(3)
     .for(activeChains)
     .process((chain) => fetchOriginDeposits(chain, options));
