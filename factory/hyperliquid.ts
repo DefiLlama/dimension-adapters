@@ -168,12 +168,15 @@ const builderConfigs: Record<string, BuilderConfig> = {
     breakdownFees: true,
   },
   "rxn": {
-    // RXN (https://rxn.gg, https://x.com/rxn_gg), a Hyperliquid perps terminal. Orders RXN places carry this builder code
-    // while Hyperliquid pays the builder: 0.02% on crypto and standard perps, 0.005% on HIP-3 markets in growth mode, and
-    // 0 on post-only orders, which still carry the code (f = 0) so their volume is attributed. TWAP orders, trailing stops
-    // and the deposit window's spot sale carry no builder field and are not counted; a close refused because of the
-    // builder is sent again without it. Traders approve a 0.05% ceiling once; the order ticket shows the rate before
-    // each order.
+    // RXN (https://rxn.gg, https://x.com/rxn_gg), a Hyperliquid trading terminal: perps (HIP-3 included) and, since
+    // 2026-11-02, HIP-4 outcome markets (listed separately as rxn-outcome). Orders RXN places carry this builder code
+    // while Hyperliquid pays the builder: 0.02% on crypto and standard perps, 0.005% on HIP-3 markets in growth mode,
+    // and 0 on post-only orders placed by hand, which still carry the code (f = 0) so their volume is attributed; the
+    // post-only orders of RXN's chase and scale pay 0.01% (f = 10), or the market's lower rate. On outcome markets the
+    // builder is paid only on sales (0.02%), as on spot; buys carry the code at no builder fee.
+    // TWAP orders, trailing stops and the deposit window's spot sale carry no builder field and are not counted; a close
+    // refused because of the builder is sent again without it. Traders approve a 0.05% ceiling once; the order ticket
+    // shows the rate before each order.
     // Verifiable: each order's action on the Hyperliquid explorer (builder b, f); https://rxn.gg/api/trading?op=config
     // (builder.address) while trading is open; the address's Hyperliquid `referral` state (builderRewards).
     addresses: ["0x4480dcf81d177a4295b4ff32393ebeda35bb02e2"],
@@ -182,7 +185,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
     // 2026-10-28), and are not RXN's
     start: "2026-11-01",
     methodology: {
-      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through RXN with its builder code; post-only orders carry the code at no fee and are included, TWAP orders and trailing stops carry none and are not.",
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through RXN with its builder code; post-only orders placed by hand carry the code at no fee and are included, TWAP orders and trailing stops carry none and are not.",
       Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through RXN; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
       Revenue: "Builder code fees paid on trades placed through RXN, all kept by RXN.",
       ProtocolRevenue: "Builder code fees paid on trades placed through RXN, all paid to RXN's builder account.",
@@ -1790,6 +1793,8 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "purrps-spot": { builder: "purrps", market: "spot", start: "2026-01-20" },
   "pvp-trade-spot": { builder: "pvp-trade", market: "spot", start: "2024-10-27" },
   "quote-spot": { builder: "quote", market: "spot", start: "2026-07-30" },
+  // the day of RXN's first outcome fill carrying its builder code; outcome orders carry the same code as its perps
+  "rxn-outcome": { builder: "rxn", market: "outcome", start: "2026-11-17" },
   "sendai-outcome": { builder: "sendai-perps", market: "outcome", start: "2026-05-02" },
   "sendai-spot": { builder: "sendai-perps", market: "spot", start: "2026-04-15" },
   "silhouette-naked-spot": { builder: "silhouette-naked", market: "spot", start: "2026-01-16" },
