@@ -210,6 +210,7 @@ const fetch = async (options: FetchOptions) => {
   const position = (log: any) => {
     const blockNumber = Number(log.blockNumber), logIndex = Number(log.logIndex ?? log.log_index ?? log.index)
     if (!Number.isFinite(blockNumber) || !Number.isFinite(logIndex)) throw new Error('dodo: log is missing blockNumber or logIndex')
+    // Reserve six decimal places for within-block order; assumes logIndex is below 1e6.
     return blockNumber * 1e6 + logIndex
   }
   const swapLogs = (await options.getLogs({ eventAbi: DODO_SWAP, noTarget: true, entireLog: true, parseLog: true }))
@@ -224,9 +225,12 @@ const fetch = async (options: FetchOptions) => {
   // replay in-window lp rate changes by (blockNumber, logIndex) on top of the opening rate
   const lpChanges: Record<string, { position: number, rate: bigint }[]> = {}
   if (swapPools.length) {
-    // Busy hours can involve hundreds of pools; the SDK's RPC fallback queries each target separately.
-    // Use the hundreds-of-targets exception and filter to pools that swapped in this window.
-    const changeLogs = await options.getLogs({ eventAbi: LP_FEE_RATE_CHANGE, noTarget: true, entireLog: true, parseLog: true })
+    // Apply the repository's hundreds-of-targets exception from 200 pools, not an SDK or measured performance cutoff.
+    // Cached BSC logs for 2026-11-14 16:00-17:00 UTC contain 243 factory-recognized pools with swaps.
+    const changeLogs = await options.getLogs({
+      ...(swapPools.length >= 200 ? { noTarget: true } : { targets: swapPools }),
+      eventAbi: LP_FEE_RATE_CHANGE, entireLog: true, parseLog: true,
+    })
     for (const log of changeLogs) {
       if (!poolRates[poolOf(log)]) continue
       lpChanges[poolOf(log)] ??= []
