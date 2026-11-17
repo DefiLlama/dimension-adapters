@@ -544,16 +544,24 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
     const protocolFeeRatios: IJSON<{ token0: number, token1: number }> = {}
 
     if (dynamicProtocolFees) {
-      const slot0Results = await api.multiCall({
-        abi: "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)",
-        calls: pairs,
-        permitFailure: true,
-      })
+      // PancakeSwap V3 packs feeProtocol as two uint16s (token0 low, token1 high) in 1/10000ths of the swap fee
+      const isPancakeV3 = dynamicProtocolFees === 'pancakeV3'
+      const slot0Abi = `function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, ${isPancakeV3 ? 'uint32' : 'uint8'} feeProtocol, bool unlocked)`
+      const slot0Results = await api.multiCall({ abi: slot0Abi, calls: pairs, permitFailure: true })
+      const retryIndexes = pairs.map((_: string, i: number) => i).filter((i: number) => slot0Results[i] == null)
+      if (retryIndexes.length) {
+        const retries = await api.multiCall({ abi: slot0Abi, calls: retryIndexes.map((i: number) => pairs[i]), permitFailure: true })
+        retryIndexes.forEach((i: number, j: number) => { slot0Results[i] = retries[j] })
+      }
 
       slot0Results.forEach((slot0: any, i: number) => {
         // a failed read leaves the ratio undefined, so getRevenueRatio can reject it instead of seeing feeProtocol = 0
         if (!slot0) return
         const feeProtocol = Number(slot0.feeProtocol)
+        if (isPancakeV3) {
+          protocolFeeRatios[pairs[i]] = { token0: (feeProtocol % 65536) / 10000, token1: Math.floor(feeProtocol / 65536) / 10000 }
+          return
+        }
         const token0Denominator = feeProtocol & 0x0f
         const token1Denominator = (feeProtocol >> 4) & 0x0f
 
@@ -746,7 +754,8 @@ type UniV3Config = {
   blacklistTokens?: Array<string>, // pools holding any of these tokens are skipped
   blacklistedAddresses?: string[], // swaps whose sender or recipient is listed are skipped (volume and fees)
   pools?: string[], // alternative to providing factory
-  dynamicProtocolFees?: boolean,
+  // read each pool's slot0.feeProtocol and pass it to getRevenueRatio; 'pancakeV3' for PancakeSwap V3's uint32 encoding
+  dynamicProtocolFees?: boolean | 'pancakeV3',
   // read each Algebra pool's community fee and pass it to getRevenueRatio
   algebraCommunityFee?: boolean,
   // for chains whose public RPCs keep no historical state, so no eth_call at the window block works: skips the pooled-balance
