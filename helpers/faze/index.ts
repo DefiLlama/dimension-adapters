@@ -1,3 +1,4 @@
+import { ChainApi } from '@defillama/sdk';
 import { FetchOptions } from '../../adapters/types';
 import { getPositionedLogArgs } from '../logs';
 import { ABI, CURVE, FAZE, HOOK, NATIVE, START_BLOCK } from './constants';
@@ -47,6 +48,8 @@ export async function fetchVolume(options: FetchOptions) {
 }
 
 async function collectFees(options: FetchOptions) {
+  const firstBlock = await options.getFromBlock();
+  const openingApi = new ChainApi({ chain: options.chain, block: firstBlock - 1 });
   const dailyFees = options.createBalances();
   const { buys, sells, quoteOf } = await trades(options);
   for (const t of [...buys, ...sells]) addQuote(dailyFees, quoteOf(t.token), BigInt(t.fee), 'Curve Trading Fees');
@@ -62,9 +65,8 @@ async function collectFees(options: FetchOptions) {
   const changes = created.length ? await getPositionedLogArgs(options, { target: CURVE, eventAbi: ABI.LaunchFeeSet, fromBlock: START_BLOCK, cacheInCloud: true }) : [];
   const order = (a: any, b: any) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex;
   changes.sort(order);
-  const inWindow = created.filter(l => l.blockNumber > fromBlock);
   const initialFee = 1_000_000_000_000_000n;
-  for (const launch of inWindow) {
+  for (const launch of created) {
     const active = changes.filter(c => order(c, launch) < 0).at(-1);
     addQuote(dailyFees, NATIVE, active ? BigInt(active.launchFee) : initialFee, 'Token Launch Fees');
   }
@@ -80,8 +82,8 @@ async function collectFees(options: FetchOptions) {
   }
   if (pools.length) {
     const closing = await options.toApi.multiCall({ target: HOOK, abi: ABI.pools, calls: pools.map(p => p.poolId) });
-    const existing = pools.filter(p => p.blockNumber <= fromBlock);
-    const opening = existing.length ? await options.fromApi.multiCall({ target: HOOK, abi: ABI.pools, calls: existing.map(p => p.poolId) }) : [];
+    const existing = pools.filter(p => p.blockNumber < firstBlock);
+    const opening = existing.length ? await openingApi.multiCall({ target: HOOK, abi: ABI.pools, calls: existing.map(p => p.poolId) }) : [];
     const old = new Map(existing.map((p, i) => [String(p.poolId).toLowerCase(), BigInt(opening[i].accrued)]));
     pools.forEach((p, i) => {
       const key = String(p.poolId).toLowerCase();
@@ -90,7 +92,7 @@ async function collectFees(options: FetchOptions) {
       addQuote(dailyFees, p.quote, amount, 'Hook Trading Fees');
     });
   }
-  return { dailyFees, pools, settlements };
+  return { dailyFees, pools, settlements, openingApi, firstBlock };
 }
 
 /** Return accrued user fees before recipient allocations. */
@@ -103,7 +105,7 @@ export async function fetchGrossFees(options: FetchOptions) {
 // Buyback funding is a reclassification of retained fees, never additional gross fees.
 /** Reconcile accrued fees, supplier allocations, and fee-funded buyback distributions. */
 export async function fetchFees(options: FetchOptions) {
-  const { dailyFees, pools, settlements } = await collectFees(options);
+  const { dailyFees, pools, settlements, openingApi, firstBlock } = await collectFees(options);
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
@@ -118,8 +120,8 @@ export async function fetchFees(options: FetchOptions) {
   }
   if (pools.length) {
     const closing = await options.toApi.multiCall({ target: HOOK, abi: ABI.hookPendingFees, calls: pools.map(p => p.poolId) });
-    const existing = pools.filter(p => p.blockNumber <= fromBlock);
-    const opening = existing.length ? await options.fromApi.multiCall({ target: HOOK, abi: ABI.hookPendingFees, calls: existing.map(p => p.poolId) }) : [];
+    const existing = pools.filter(p => p.blockNumber < firstBlock);
+    const opening = existing.length ? await openingApi.multiCall({ target: HOOK, abi: ABI.hookPendingFees, calls: existing.map(p => p.poolId) }) : [];
     const old = new Map(existing.map((p, i) => [String(p.poolId).toLowerCase(), opening[i]]));
     pools.forEach((p, i) => {
       const key = String(p.poolId).toLowerCase(), a = allocated.get(key)!, prev = old.get(key);
@@ -142,8 +144,8 @@ export async function fetchFees(options: FetchOptions) {
       if (amounts.has(key)) amounts.set(key, amounts.get(key)! + BigInt(s.creatorAmount));
     }
     const closing = await options.toApi.multiCall({ target: CURVE, abi: ABI.curvePendingFees, calls: shared.map(l => l.token) });
-    const existing = shared.filter(l => l.blockNumber <= fromBlock);
-    const opening = existing.length ? await options.fromApi.multiCall({ target: CURVE, abi: ABI.curvePendingFees, calls: existing.map(l => l.token) }) : [];
+    const existing = shared.filter(l => l.blockNumber < firstBlock);
+    const opening = existing.length ? await openingApi.multiCall({ target: CURVE, abi: ABI.curvePendingFees, calls: existing.map(l => l.token) }) : [];
     const old = new Map(existing.map((l, i) => [String(l.token).toLowerCase(), opening[i]]));
     shared.forEach((l, i) => {
       const key = String(l.token).toLowerCase();
