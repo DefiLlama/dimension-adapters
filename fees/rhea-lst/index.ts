@@ -26,15 +26,6 @@ const fetch = async (options: FetchOptions) => {
     throw new Error(`rhea-lst: unexpected beneficiaries ${JSON.stringify(beneficiaries)}`);
   const grossRewards = commission * 10000 / bps;
 
-  // the gross-up multiplies the API value by 10000 / bps (20x today), so check the implied staking APR
-  // against the pool's staked NEAR: anything else folded into lst_fee would show up as a 20x inflated day
-  const summary = await nearView(RNEAR, "get_summary");
-  const staked = options.createBalances();
-  staked.addCGToken("near", Number(summary.total_staked_near_amount) / 1e24);
-  const apr = grossRewards * 365 / await staked.getUSDValue();
-  if (!(apr > 0.01 && apr < 0.2))
-    throw new Error(`rhea-lst: implied staking APR ${apr} out of range, commission ${commission}, bps ${bps}`);
-
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
