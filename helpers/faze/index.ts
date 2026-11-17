@@ -3,9 +3,9 @@ import { getPositionedLogArgs } from '../logs';
 import { ABI, CURVE, FAZE, HOOK, NATIVE, START_BLOCK } from './constants';
 
 
-// SDK fromApi is the opening boundary; include blocks strictly after it through toApi.
+// getLogs starts at the first block in the window by default.
 async function windowLogs(options: FetchOptions, target: string, eventAbi: string) {
-  return options.getLogs({ target, eventAbi, fromBlock: (await options.getFromBlock()) + 1 });
+  return options.getLogs({ target, eventAbi });
 }
 
 // Only configuration/discovery events are cached; trades and fee settlements use the requested window.
@@ -51,8 +51,7 @@ async function collectFees(options: FetchOptions) {
   const { buys, sells, quoteOf } = await trades(options);
   for (const t of [...buys, ...sells]) addQuote(dailyFees, quoteOf(t.token), BigInt(t.fee), 'Curve Trading Fees');
 
-  const fromBlock = await options.getFromBlock();
-  const created = await getPositionedLogArgs(options, { target: CURVE, eventAbi: ABI.Launched, fromBlock: fromBlock + 1 });
+  const created = await getPositionedLogArgs(options, { target: CURVE, eventAbi: ABI.Launched });
   const graduations = await windowLogs(options, CURVE, ABI.Graduated);
   const graduatedCoins = graduations.length ? await options.toApi.multiCall({ target: CURVE, abi: ABI.getCoin, calls: graduations.map(g => g.token) }) : [];
   graduations.forEach((g, i) => addQuote(dailyFees, graduatedCoins[i].quoteToken, BigInt(g.migrationFee), 'Graduation Fees'));
@@ -109,7 +108,6 @@ export async function fetchFees(options: FetchOptions) {
   const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
-  const fromBlock = await options.getFromBlock();
   const byId = new Map(pools.map(p => [String(p.poolId).toLowerCase(), p]));
   const allocated = new Map<string, { creator: bigint, compound: bigint }>();
   for (const p of pools) allocated.set(String(p.poolId).toLowerCase(), { creator: 0n, compound: 0n });
