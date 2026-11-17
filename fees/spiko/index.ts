@@ -255,6 +255,11 @@ function getSolanaSupplyChange(mint: string, signature: string) {
 }
 
 async function getSolanaSupply(mint: string, toTimestamp: number): Promise<number> {
+  // The history must add up to the current supply, so a node that pruned early signatures fails instead of undercounting.
+  const current = await solanaRpc("getTokenSupply", [mint]);
+  const currentSlot = current?.context?.slot;
+  if (typeof currentSlot !== "number" || current?.value?.amount === undefined)
+    throw new Error(`Spiko: solana rpc returned no supply for ${mint}`);
   const signatures: string[] = [];
   let before: string | undefined;
   while (true) {
@@ -262,14 +267,17 @@ async function getSolanaSupply(mint: string, toTimestamp: number): Promise<numbe
     const page = await solanaRpc("getSignaturesForAddress", [mint, before ? { limit: 1000, before } : { limit: 1000 }]);
     if (!Array.isArray(page)) throw new Error(`Spiko: solana rpc returned no signatures for ${mint}`);
     for (const entry of page) {
-      if (entry.err || (typeof entry.blockTime === "number" && entry.blockTime >= toTimestamp)) continue;
+      if (entry.err || entry.slot > currentSlot) continue;
       signatures.push(entry.signature);
     }
     if (page.length < 1000) break;
     before = page[page.length - 1].signature;
   }
   const changes = await Promise.all(signatures.map((signature) => getSolanaSupplyChange(mint, signature)));
-  const supply = changes.reduce((total, { blockTime, change }) => (blockTime < toTimestamp ? total + change : total), 0n);
+  const total = changes.reduce((sum, { change }) => sum + change, 0n);
+  if (total !== BigInt(current.value.amount)) throw new Error(`Spiko: incomplete solana history for ${mint}`);
+  // toTimestamp is the window's last second, so a transaction in that second counts.
+  const supply = changes.reduce((sum, { blockTime, change }) => (blockTime <= toTimestamp ? sum + change : sum), 0n);
   return Number(supply) / 10 ** TOKEN_DECIMALS;
 }
 
