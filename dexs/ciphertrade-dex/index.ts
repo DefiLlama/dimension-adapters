@@ -7,8 +7,10 @@ const MODE0_FACTORY = "0x1909751000de0d15f81394b47eca1931184d51e0";
 const MODE3_FACTORY = "0x418df4557ffc1d8f568b3583936a6cfaec543a91";
 const PUBLIC_BOOK = "0xff3372d73131d56f4bc7ad2fc8545b0316d0a1ce";
 const HYBRID_ROUTER = "0x85c6e8ff5b718c233f04f870cba1917411a180ea";
-const FROM_MODE0 = 9437576; // Source manifest checkpoint; older factory pool enumeration remains on chain.
-const FROM_MODE3 = 9886358;
+// Inclusive factory deployment blocks, not later discovery checkpoints.
+// Neither factory can have emitted pool-creation events before its deployment.
+const FROM_MODE0 = 9437576; // Mode 0 factory: tx 0x0d42118c...f026134b
+const FROM_MODE3 = 9886358; // Mode 3 factory: tx 0xb2d9f82e...da78a15
 const FROM_BOOK = 9884872;
 
 // Map only exact mainnet token identities from the CipherTrade Registry.
