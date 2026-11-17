@@ -4,6 +4,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { processPoolLoans, getLegacyPools } from "./legacyUtils";
 import { request, gql } from "graphql-request";
 import { METRICS } from "./metrics";
+import { ChainApi } from "@defillama/sdk";
 
 // Loan Router Subgraph API
 const LOAN_ROUTER_SUBGRAPH_API = 'https://api.goldsky.com/api/public/project_clzibgddg2epg01ze4lq55scx/subgraphs/loan_router_arbitrum/0.0.3/gn';
@@ -14,15 +15,24 @@ const LOAN_ROUTER_V2_SUBGRAPH_API = 'https://api.goldsky.com/api/public/project_
 const WRAPPED_M = '0x437cc33344a0B27A429f795ff6B469C72698B291';
 const CLAIMED_EVENT_ABI = 'event Claimed(address indexed account, address indexed recipient, uint240 yield)';
 
-// PYUSD
-const PYUSD = '0x46850aD61C2B7d64d08c9C754F45254596696984';
-
 // USDai
 const USDAI = '0x0A1a1A107E45b7Ced86833863f482BC5f4ed82EF';
 const HARVEST_EVENT_ABI = 'event Harvested(uint256 usdaiAmount)';
+const BASE_YIELD_ACCRUED_ABI = 'uint256:baseYieldAccrued';
+// USDai v1.4 introduced on-chain PYUSD yield accrual at block 427942520.
+// https://arbiscan.io/tx/0xf0e6608ef53be933406ced52516378a8334063f0aa20ccbc3b0c6cb1a3f9610f
+const BASE_YIELD_ACCRUAL_START_BLOCK = 427942520;
 
 // Staked USDai
 const SUSDAI = '0x0B2b2B2076d95dda7817e785989fE353fe955ef9';
+const LEGACY_LOAN_ROUTER_BALANCES_ABI = 'function loanRouterBalances() view returns (uint256 repaymentLoanBalance, uint256 pendingLoanBalance, uint256 accruedLoanInterestBalance)';
+const LOAN_ROUTER_BALANCES_ABI = 'function loanRouterBalances() view returns (uint256 pendingLoanBalance, uint256 accruedLoanInterestBalance)';
+// The first loan managed by sUSDai originated at block 407590965.
+// https://arbiscan.io/tx/0xe48d23442e64a191e0ae7e68f44b0623b48f4dd1d8a145cc9e396eb9765a53ac
+const LOAN_ACCRUAL_START_BLOCK = 407590965;
+// StakedUSDai v1.11 changed loanRouterBalances from three values to two at block 488651542.
+// https://arbiscan.io/tx/0xd686ef5aa34de0aac637c22560cdaeca1b6c42a8c4127fd1270d7230d3f23632
+const LOAN_ROUTER_BALANCES_V2_BLOCK = 488651542;
 
 // Loan Router
 const LOAN_ROUTER = '0x0C2ED170F2bB1DF1a44292Ad621B577b3C9597D1';
@@ -31,6 +41,14 @@ const LOAN_ROUTER_V2 = '0x1C2ED170de32846316784c4fd58A5e3C7563E12f';
 const LOAN_ORIGINATED_EVENT_ABI = 'event LoanOriginated(bytes32 indexed loanTermsHash, address indexed borrower, address indexed currencyToken, uint256 principal, uint256 originationFee)';
 const LENDER_REPAID_EVENT_ABI = 'event LenderRepaid(bytes32 indexed loanTermsHash,address indexed lender,uint8 indexed trancheIndex,uint256 principal,uint256 interest,uint256 prepay)';
 const LOAN_REPAID_EVENT_ABI = 'event LoanRepaid(bytes32 indexed loanTermsHash, address indexed borrower, uint256 principal, uint256 interest, uint256 prepayment, uint256 exitFee, bool isRepaid)';
+const HOOK_FAILED_EVENT_ABI = 'event HookFailed(string reason)';
+// HookFailed(string) comes from the published loan-router source. The deployed routers are ERC-1967
+// proxies, so this signature is not taken from their implementation bytecode. An archive scan found
+// no HookFailed on either router through this block. The guard below fails only the fetch window that
+// contains the event. It does not protect later windows when a failed hook leaves loanRouterBalances() stale.
+// https://github.com/usdai-foundation/usdai-loan-router-contracts/blob/main/src/LoanLogicV2.sol
+// https://arbiscan.io/address/0x1C2ED170de32846316784c4fd58A5e3C7563E12f#events
+const HOOK_FAILED_CLEAR_THROUGH_BLOCK = 525_095_470;
 
 // Loan router v2 emits all fees through a generic FeePaid event (kind: 0 origination, 1 repayment, 2 exit, 3 liquidation)
 const FEE_PAID_EVENT_ABI = 'event FeePaid(bytes32 indexed loanTermsHash, uint8 indexed kind, address indexed recipient, address feeModel, uint256 amount)';
@@ -54,6 +72,9 @@ const ESCROW_INTEREST_LOAN_TERMS_HASHES = new Set([
 const ESCROW_TIMELOCK = '0x1E710CC0b64E1D7572d35E43AD261587789B6438';
 const ESCROW_WITHDRAWN_EVENT_ABI = 'event Withdrawn(address indexed withdrawer, bytes32 indexed context, uint256 depositAmount, uint256 withdrawAmount, uint256 interest)';
 const ESCROW_CANCELED_EVENT_ABI = 'event Canceled(address indexed target, bytes32 indexed context, uint256 amount, uint256 interest)';
+const ESCROW_ACCRUED_ABI = 'uint256:accrued';
+// The escrow timelock was deployed at block 477566857.
+const ESCROW_ACCRUAL_START_BLOCK = 477566857;
 
 const loanOriginatedByHashQuery = gql`
   query GetLoanOriginationByHash($loanTermsHash: Bytes!) {
@@ -79,13 +100,15 @@ const BASE_YIELD_ADMIN_FEE_RATE = 1_000n;
 const GPU_YIELD_ADMIN_FEE_RATE = 1_000n;
 // 10% of escrow timelock interest goes to the protocol, matching the base and GPU yield admin rates
 const ESCROW_YIELD_ADMIN_FEE_RATE = 1_000n;
+const normalizeUsdai = (token: string) =>
+  token.toLowerCase() === USDAI.toLowerCase() ? USDAI : token;
 
 // Methodology
 const methodology = {
-  Fees: "Total interest and admin fees collected from USDai's base token yield, GPU-financing yield, and escrow timelock yield",
-  Revenue: "Admin fees going to protocol treasury",
-  ProtocolRevenue: "Admin fees going to protocol treasury",
-  SupplySideRevenue: "Interest paid to Staked USDai holders"
+  Fees: "Total interest accrued from USDai's base token yield, GPU-financing yield, and escrow timelock yield, plus loan fees",
+  Revenue: "Admin fees accrued to the protocol treasury plus loan fees paid to the protocol",
+  ProtocolRevenue: "Admin fees accrued to the protocol treasury plus loan fees paid to the protocol",
+  SupplySideRevenue: "Interest accrued to Staked USDai holders"
 };
 
 const breakdownMethodology = {
@@ -126,11 +149,71 @@ const breakdownMethodology = {
   },
 }
 
+async function getAccruedValue(api: any, startBlock: number, target: string, abi: string): Promise<bigint> {
+  if (api.block < startBlock) return 0n;
+  return BigInt(await api.call({ target, abi }));
+}
+
+async function getLoanInterestAccrued(api: any): Promise<bigint> {
+  if (api.block < LOAN_ACCRUAL_START_BLOCK) return 0n;
+
+  if (api.block < LOAN_ROUTER_BALANCES_V2_BLOCK) {
+    const balances = await api.call({ target: SUSDAI, abi: LEGACY_LOAN_ROUTER_BALANCES_ABI });
+    return BigInt(balances[2]);
+  }
+
+  const balances = await api.call({ target: SUSDAI, abi: LOAN_ROUTER_BALANCES_ABI });
+  return BigInt(balances[1]);
+}
+
 // Fetch function
 const fetch: any = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const openingBlock = await options.getFromBlock() - 1;
+  const openingApi = new ChainApi({ chain: options.chain, block: openingBlock });
+  const loanInterestAtBlock = new Map<number, Promise<bigint>>();
+  const getLoanInterestAtBlock = (block: number): Promise<bigint> => {
+    let value = loanInterestAtBlock.get(block);
+    if (!value) {
+      value = getLoanInterestAccrued(new ChainApi({ chain: options.chain, block }));
+      loanInterestAtBlock.set(block, value);
+    }
+    return value;
+  };
+  const getLoanInterestRemovedAtBlock = async (block: number): Promise<{
+    interest: bigint,
+    protocolFee: bigint,
+  }> => {
+    const [before, after] = await Promise.all([
+      getLoanInterestAtBlock(block - 1),
+      getLoanInterestAtBlock(block),
+    ]);
+    if (before <= after) return { interest: 0n, protocolFee: 0n };
+    return {
+      interest: before - after,
+      protocolFee:
+        before * GPU_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE
+        - after * GPU_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE,
+    };
+  };
+
+  const [
+    baseYieldAccruedBefore,
+    baseYieldAccruedAfter,
+    loanInterestAccruedBefore,
+    loanInterestAccruedAfter,
+    escrowInterestAccruedBefore,
+    escrowInterestAccruedAfter,
+  ] = await Promise.all([
+    getAccruedValue(openingApi, BASE_YIELD_ACCRUAL_START_BLOCK, USDAI, BASE_YIELD_ACCRUED_ABI),
+    getAccruedValue(options.toApi, BASE_YIELD_ACCRUAL_START_BLOCK, USDAI, BASE_YIELD_ACCRUED_ABI),
+    getLoanInterestAtBlock(openingBlock),
+    getLoanInterestAtBlock(options.toApi.block),
+    getAccruedValue(openingApi, ESCROW_ACCRUAL_START_BLOCK, ESCROW_TIMELOCK, ESCROW_ACCRUED_ABI),
+    getAccruedValue(options.toApi, ESCROW_ACCRUAL_START_BLOCK, ESCROW_TIMELOCK, ESCROW_ACCRUED_ABI),
+  ]);
 
   // Look up the currency token for a v2 loan, caching by loan terms hash so repeated lookups across
   // the repayment, fee, and liquidation loops hit the subgraph only once per loan.
@@ -143,37 +226,46 @@ const fetch: any = async (options: FetchOptions) => {
           if (!response.loan?.currencyToken) {
             throw new Error(`No v2 loan found for loan terms hash ${loanTermsHash}`);
           }
-          return response.loan.currencyToken;
+          return normalizeUsdai(response.loan.currencyToken);
         });
       v2CurrencyTokenCache.set(loanTermsHash, cached);
     }
     return cached;
   };
 
-  // Base yield from wrapped M (base token)
+  // Wrapped M Claimed yield paid to sUSDai runs in parallel with baseYieldAccrued(). Claims continued
+  // after block 427942520 (2026-02-02) through block 436315837 (2026-02-26). The getter does not
+  // include those claims, so both streams are counted.
   const wrappedMBaseYieldLogs = await options.getLogs({
     target: WRAPPED_M,
     eventAbi: CLAIMED_EVENT_ABI
   });
   wrappedMBaseYieldLogs.filter((log: any) => log.recipient === SUSDAI).forEach((log: any) => {
+    const protocolFee = log.yield * BASE_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE;
     dailyFees.add(WRAPPED_M, log.yield, METRICS.ASSET_YIELDS_WRAPPED_M);
-    dailyRevenue.add(WRAPPED_M, log.yield * BASE_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE, METRICS.ASSET_YIELDS_WRAPPED_M_TO_PROTOCOL);
-    dailySupplySideRevenue.add(WRAPPED_M, log.yield * (BASIS_POINTS_SCALE - BASE_YIELD_ADMIN_FEE_RATE) / BASIS_POINTS_SCALE, METRICS.ASSET_YIELDS_WRAPPED_M_TO_SUSDAI);
+    dailyRevenue.add(WRAPPED_M, protocolFee, METRICS.ASSET_YIELDS_WRAPPED_M_TO_PROTOCOL);
+    dailySupplySideRevenue.add(WRAPPED_M, log.yield - protocolFee, METRICS.ASSET_YIELDS_WRAPPED_M_TO_SUSDAI);
   });
 
-  // Base yield from PYUSD (base token)
+  // PYUSD base yield accrues continuously. Harvesting clears baseYieldAccrued, so add harvested
+  // amounts back to the snapshot delta to keep the metric on an accrual basis.
   const pyusdBaseYieldLogs = await options.getLogs({
     target: USDAI,
     eventAbi: HARVEST_EVENT_ABI
   });
-  pyusdBaseYieldLogs.forEach((log: any) => {
-    // Unscale USDai amount from 18 decimals to 6 decimals for PYUSD
-    const amount = BigInt(log.usdaiAmount) / BigInt(10 ** 12);
-
-    dailyFees.add(PYUSD, amount, METRICS.ASSET_YIELDS_PYUSD);
-    dailyRevenue.add(PYUSD, amount * BASE_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE, METRICS.ASSET_YIELDS_PYUSD_TO_PROTOCOL);
-    dailySupplySideRevenue.add(PYUSD, amount * (BASIS_POINTS_SCALE - BASE_YIELD_ADMIN_FEE_RATE) / BASIS_POINTS_SCALE, METRICS.ASSET_YIELDS_PYUSD_TO_SUSDAI);
-  });
+  const harvestedBaseYield = pyusdBaseYieldLogs.reduce((sum: bigint, log: any) => sum + BigInt(log.usdaiAmount), 0n);
+  const harvestedBaseYieldProtocolFee = pyusdBaseYieldLogs.reduce(
+    (sum: bigint, log: any) => sum + BigInt(log.usdaiAmount) * BASE_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE,
+    0n,
+  );
+  const accruedBaseYield = baseYieldAccruedAfter - baseYieldAccruedBefore + harvestedBaseYield;
+  const baseYieldProtocolFee =
+    baseYieldAccruedAfter * BASE_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE
+    - baseYieldAccruedBefore * BASE_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE
+    + harvestedBaseYieldProtocolFee;
+  dailyFees.add(USDAI, accruedBaseYield, METRICS.ASSET_YIELDS_PYUSD);
+  dailyRevenue.add(USDAI, baseYieldProtocolFee, METRICS.ASSET_YIELDS_PYUSD_TO_PROTOCOL);
+  dailySupplySideRevenue.add(USDAI, accruedBaseYield - baseYieldProtocolFee, METRICS.ASSET_YIELDS_PYUSD_TO_SUSDAI);
 
   // Legacy pools for GPU-financing
   const pools = getLegacyPools();
@@ -181,19 +273,69 @@ const fetch: any = async (options: FetchOptions) => {
     pools.map(pool => processPoolLoans(pool, dailyFees, dailyRevenue, dailySupplySideRevenue, options))
   );
 
+  // HookFailed does not name the hook, so this throws for the window that contains the event.
+  // It does not fail later windows whose aggregate getter was left stale.
+  if (options.toApi.block > HOOK_FAILED_CLEAR_THROUGH_BLOCK) {
+    const hookFailedLogs = await options.getLogs({
+      targets: [LOAN_ROUTER, LOAN_ROUTER_V2],
+      eventAbi: HOOK_FAILED_EVENT_ABI,
+      fromBlock: Math.max(openingBlock + 1, HOOK_FAILED_CLEAR_THROUGH_BLOCK + 1),
+      toBlock: options.toApi.block,
+      onlyArgs: false,
+    });
+    if (hookFailedLogs.length > 0) {
+      throw new Error(`USDai loan router hook failed in transaction ${hookFailedLogs[0].transactionHash}`);
+    }
+  }
+
+  const usdaiSettlementsByBlock = new Map<number, {
+    interest: bigint,
+    liquidationLoanTermsHash?: string,
+    hasLiquidation: boolean,
+  }>();
+  const addUsdaiSettlement = (rawLog: any, hasLiquidation: boolean) => {
+    const block = Number(rawLog.blockNumber);
+    const existing = usdaiSettlementsByBlock.get(block);
+    const loanTermsHash = rawLog.args.loanTermsHash.toLowerCase();
+    if (
+      hasLiquidation
+      && existing?.liquidationLoanTermsHash
+      && existing.liquidationLoanTermsHash !== loanTermsHash
+    ) {
+      throw new Error(`Cannot attribute multiple USDai liquidations in block ${block}`);
+    }
+    usdaiSettlementsByBlock.set(block, {
+      interest: (existing?.interest ?? 0n) + BigInt(rawLog.args.interest),
+      liquidationLoanTermsHash:
+        hasLiquidation ? loanTermsHash : existing?.liquidationLoanTermsHash,
+      hasLiquidation: hasLiquidation || (existing?.hasLiquidation ?? false),
+    });
+  };
+
   // GPU-financing repayment yield from loan router
   const gpuLenderRepaidLogs = await options.getLogs({
     target: LOAN_ROUTER,
-    eventAbi: LENDER_REPAID_EVENT_ABI
+    eventAbi: LENDER_REPAID_EVENT_ABI,
+    onlyArgs: false,
   });
-  for (const log of gpuLenderRepaidLogs) {
+  for (const rawLog of gpuLenderRepaidLogs) {
+    const log = rawLog.args;
     // Get loan origination entity using loan terms hash to get currency token
     const response = await request(LOAN_ROUTER_SUBGRAPH_API, loanOriginatedByHashQuery, {
       loanTermsHash: log.loanTermsHash
     });
-    dailyFees.add(response.loanOriginateds[0].currencyToken.id, log.interest, METRICS.ASSET_YIELDS_GPU_FINANCING);
-    dailyRevenue.add(response.loanOriginateds[0].currencyToken.id, log.interest * GPU_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL);
-    dailySupplySideRevenue.add(response.loanOriginateds[0].currencyToken.id, log.interest * (BASIS_POINTS_SCALE - GPU_YIELD_ADMIN_FEE_RATE) / BASIS_POINTS_SCALE, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_SUSDAI);
+    const currencyToken = normalizeUsdai(response.loanOriginateds[0].currencyToken.id);
+    if (
+      currencyToken.toLowerCase() === USDAI.toLowerCase()
+      && log.lender.toLowerCase() === SUSDAI.toLowerCase()
+    ) {
+      addUsdaiSettlement(rawLog, false);
+      continue;
+    }
+    const protocolFee = log.interest * GPU_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE;
+    dailyFees.add(currencyToken, log.interest, METRICS.ASSET_YIELDS_GPU_FINANCING);
+    dailyRevenue.add(currencyToken, protocolFee, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL);
+    dailySupplySideRevenue.add(currencyToken, log.interest - protocolFee, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_SUSDAI);
   }
 
   // GPU-financing origination fee
@@ -206,8 +348,9 @@ const fetch: any = async (options: FetchOptions) => {
     const response = await request(LOAN_ROUTER_SUBGRAPH_API, loanOriginatedByHashQuery, {
       loanTermsHash: log.loanTermsHash
     });
-    dailyFees.add(response.loanOriginateds[0].currencyToken.id, log.originationFee, METRICS.GPU_FINANCING_ORIGINATION_FEE);
-    dailyRevenue.add(response.loanOriginateds[0].currencyToken.id, log.originationFee, METRICS.GPU_FINANCING_ORIGINATION_FEE_TO_PROTOCOL);
+    const currencyToken = normalizeUsdai(response.loanOriginateds[0].currencyToken.id);
+    dailyFees.add(currencyToken, log.originationFee, METRICS.GPU_FINANCING_ORIGINATION_FEE);
+    dailyRevenue.add(currencyToken, log.originationFee, METRICS.GPU_FINANCING_ORIGINATION_FEE_TO_PROTOCOL);
   }
 
   // GPU-financing exit fee
@@ -220,28 +363,52 @@ const fetch: any = async (options: FetchOptions) => {
     const response = await request(LOAN_ROUTER_SUBGRAPH_API, loanOriginatedByHashQuery, {
       loanTermsHash: log.loanTermsHash
     });
-    dailyFees.add(response.loanOriginateds[0].currencyToken.id, log.exitFee, METRICS.GPU_FINANCING_EXIT_FEE);
-    dailyRevenue.add(response.loanOriginateds[0].currencyToken.id, log.exitFee, METRICS.GPU_FINANCING_EXIT_FEE_TO_PROTOCOL);
+    const currencyToken = normalizeUsdai(response.loanOriginateds[0].currencyToken.id);
+    dailyFees.add(currencyToken, log.exitFee, METRICS.GPU_FINANCING_EXIT_FEE);
+    dailyRevenue.add(currencyToken, log.exitFee, METRICS.GPU_FINANCING_EXIT_FEE_TO_PROTOCOL);
   }
 
   // GPU-financing repayment yield from loan router v2
   const gpuLenderRepaidV2Logs = await options.getLogs({
     target: LOAN_ROUTER_V2,
-    eventAbi: LENDER_REPAID_EVENT_ABI
+    eventAbi: LENDER_REPAID_EVENT_ABI,
+    onlyArgs: false,
   });
-  for (const log of gpuLenderRepaidV2Logs) {
+  for (const rawLog of gpuLenderRepaidV2Logs) {
+    const log = rawLog.args;
     const currencyToken = await getV2CurrencyToken(log.loanTermsHash);
+    const clearsUsdaiAccrual = currencyToken.toLowerCase() === USDAI.toLowerCase()
+      && log.lender.toLowerCase() === SUSDAI.toLowerCase();
+    if (clearsUsdaiAccrual) {
+      addUsdaiSettlement(rawLog, false);
+      continue;
+    }
+    const protocolFee = log.interest * GPU_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE;
     dailyFees.add(currencyToken, log.interest, METRICS.ASSET_YIELDS_GPU_FINANCING);
-    dailyRevenue.add(currencyToken, log.interest * GPU_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL);
-    dailySupplySideRevenue.add(currencyToken, log.interest * (BASIS_POINTS_SCALE - GPU_YIELD_ADMIN_FEE_RATE) / BASIS_POINTS_SCALE, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_SUSDAI);
+    dailyRevenue.add(currencyToken, protocolFee, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL);
+    dailySupplySideRevenue.add(currencyToken, log.interest - protocolFee, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_SUSDAI);
   }
+
+  // Successful settlements clear accrued interest from loanRouterBalances. Reconcile every
+  // settlement block below, while this delta adds interest earned but not yet settled.
+  let accruedLoanInterest = loanInterestAccruedAfter - loanInterestAccruedBefore;
+  let accruedLoanProtocolFee =
+    loanInterestAccruedAfter * GPU_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE
+    - loanInterestAccruedBefore * GPU_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE;
 
   // Loan router v2 origination and exit fees, both emitted through the generic FeePaid event
   const v2FeePaidLogs = await options.getLogs({
     target: LOAN_ROUTER_V2,
-    eventAbi: FEE_PAID_EVENT_ABI
+    eventAbi: FEE_PAID_EVENT_ABI,
+    onlyArgs: false,
   });
-  for (const log of v2FeePaidLogs) {
+  let migratedEscrowInterest = 0n;
+  let migratedEscrowProtocolFee = 0n;
+  let migratedLoanInterest = 0n;
+  let migratedLoanProtocolFee = 0n;
+  const migrationBlocks = new Set<number>();
+  for (const rawLog of v2FeePaidLogs) {
+    const log = rawLog.args;
     const amount = BigInt(log.amount);
 
     const kind = Number(log.kind);
@@ -252,9 +419,20 @@ const fetch: any = async (options: FetchOptions) => {
     // Only origination events carry this meaning, so repayments and exits fall through to normal handling.
     if (kind === FEE_KIND_ORIGINATION && ESCROW_INTEREST_LOAN_TERMS_HASHES.has(log.loanTermsHash.toLowerCase())) {
       const protocolFee = amount / 9n;
-      dailyFees.add(USDAI, amount + protocolFee, METRICS.ESCROW_TIMELOCK_YIELDS);
-      dailyRevenue.add(USDAI, protocolFee, METRICS.ESCROW_TIMELOCK_YIELDS_TO_PROTOCOL);
-      dailySupplySideRevenue.add(USDAI, amount, METRICS.ESCROW_TIMELOCK_YIELDS_TO_SUSDAI);
+      const grossInterest = amount + protocolFee;
+      const block = Number(rawLog.blockNumber);
+      if (migrationBlocks.has(block)) {
+        throw new Error(`Cannot attribute multiple USDai migrations in block ${block}`);
+      }
+      migrationBlocks.add(block);
+      const removedLoan = await getLoanInterestRemovedAtBlock(block);
+      if (removedLoan.interest > grossInterest) {
+        throw new Error(`USDai loan interest removed at migration block ${rawLog.blockNumber} exceeds its escrow receipt`);
+      }
+      migratedEscrowInterest += grossInterest;
+      migratedEscrowProtocolFee += protocolFee;
+      migratedLoanInterest += removedLoan.interest;
+      migratedLoanProtocolFee += removedLoan.protocolFee;
       continue;
     }
 
@@ -282,15 +460,25 @@ const fetch: any = async (options: FetchOptions) => {
   // GPU-financing lender liquidation repaid from loan router v2
   const gpuLenderLiquidationRepaidV2Logs = await options.getLogs({
     target: LOAN_ROUTER_V2,
-    eventAbi: LENDER_LIQUIDATION_REPAID_EVENT_ABI
+    eventAbi: LENDER_LIQUIDATION_REPAID_EVENT_ABI,
+    onlyArgs: false,
   });
-  for (const log of gpuLenderLiquidationRepaidV2Logs) {
+  for (const rawLog of gpuLenderLiquidationRepaidV2Logs) {
+    const log = rawLog.args;
     const currencyToken = await getV2CurrencyToken(log.loanTermsHash);
+    const clearsUsdaiAccrual = currencyToken.toLowerCase() === USDAI.toLowerCase()
+      && log.lender.toLowerCase() === SUSDAI.toLowerCase();
+    if (clearsUsdaiAccrual) {
+      addUsdaiSettlement(rawLog, true);
+      continue;
+    }
+
     dailyFees.add(currencyToken, log.interest, METRICS.GPU_FINANCING_LENDER_LIQUIDATION_REPAID);
     dailySupplySideRevenue.add(currencyToken, log.interest, METRICS.GPU_FINANCING_LENDER_LIQUIDATION_REPAID_TO_SUSDAI);
   }
 
-  // Escrow timelock interest from withdrawals and cancellations, going to staked USDai with a 10% admin clip
+  // Escrow interest accrues continuously. Withdrawals and cancellations clear accrued(), so add
+  // their settled interest back to the snapshot delta.
   const escrowWithdrawnLogs = await options.getLogs({
     target: ESCROW_TIMELOCK,
     eventAbi: ESCROW_WITHDRAWN_EVENT_ABI
@@ -299,15 +487,56 @@ const fetch: any = async (options: FetchOptions) => {
     target: ESCROW_TIMELOCK,
     eventAbi: ESCROW_CANCELED_EVENT_ABI
   });
-  for (const log of [...escrowWithdrawnLogs, ...escrowCanceledLogs]) {
-    const interest = BigInt(log.interest);
-    const protocolFee = interest * ESCROW_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE;
-    dailyFees.add(USDAI, interest, METRICS.ESCROW_TIMELOCK_YIELDS);
-    dailyRevenue.add(USDAI, protocolFee, METRICS.ESCROW_TIMELOCK_YIELDS_TO_PROTOCOL);
-    dailySupplySideRevenue.add(USDAI, interest - protocolFee, METRICS.ESCROW_TIMELOCK_YIELDS_TO_SUSDAI);
+  const settledEscrowInterest = [...escrowWithdrawnLogs, ...escrowCanceledLogs]
+    .reduce((sum: bigint, log: any) => sum + BigInt(log.interest), 0n);
+  const settledEscrowProtocolFee = [...escrowWithdrawnLogs, ...escrowCanceledLogs]
+    .reduce(
+      (sum: bigint, log: any) => sum + BigInt(log.interest) * ESCROW_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE,
+      0n,
+    );
+  const accruedEscrowInterest = escrowInterestAccruedAfter - escrowInterestAccruedBefore
+    + settledEscrowInterest + migratedEscrowInterest - migratedLoanInterest;
+  const escrowProtocolFee =
+    escrowInterestAccruedAfter * ESCROW_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE
+    - escrowInterestAccruedBefore * ESCROW_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE
+    + settledEscrowProtocolFee + migratedEscrowProtocolFee - migratedLoanProtocolFee;
+
+  // Migration receipts move previously-accrued interest from the loan getter to escrow. Reclassify
+  // the fixed block-local removal so hourly pulls and daily refills produce the same breakdown.
+  accruedLoanInterest += migratedLoanInterest;
+  accruedLoanProtocolFee += migratedLoanProtocolFee;
+
+  let hasUsdaiLiquidation = false;
+  for (const [block, settlement] of usdaiSettlementsByBlock) {
+    if (migrationBlocks.has(block)) {
+      throw new Error(`Cannot attribute USDai migration and settlement in block ${block}`);
+    }
+    const removedLoan = await getLoanInterestRemovedAtBlock(block);
+    // Neutralize the exact aggregate getter drop once per block. Settlement interest above that
+    // drop is newly earned in the block; unrecovered liquidation interest remains unrecognized.
+    const additionalRecognizedInterest = settlement.interest > removedLoan.interest
+      ? settlement.interest - removedLoan.interest
+      : 0n;
+    accruedLoanInterest += removedLoan.interest + additionalRecognizedInterest;
+    accruedLoanProtocolFee +=
+      removedLoan.protocolFee
+      + additionalRecognizedInterest * GPU_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE;
+    hasUsdaiLiquidation ||= settlement.hasLiquidation;
+  }
+  if (hasUsdaiLiquidation && accruedLoanInterest < 0n) {
+    accruedLoanInterest = 0n;
+    accruedLoanProtocolFee = 0n;
   }
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+  dailyFees.add(USDAI, accruedLoanInterest, METRICS.ASSET_YIELDS_GPU_FINANCING);
+  dailyRevenue.add(USDAI, accruedLoanProtocolFee, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL);
+  dailySupplySideRevenue.add(USDAI, accruedLoanInterest - accruedLoanProtocolFee, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_SUSDAI);
+
+  dailyFees.add(USDAI, accruedEscrowInterest, METRICS.ESCROW_TIMELOCK_YIELDS);
+  dailyRevenue.add(USDAI, escrowProtocolFee, METRICS.ESCROW_TIMELOCK_YIELDS_TO_PROTOCOL);
+  dailySupplySideRevenue.add(USDAI, accruedEscrowInterest - escrowProtocolFee, METRICS.ESCROW_TIMELOCK_YIELDS_TO_SUSDAI);
+
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
 };
 
 // Adapter
