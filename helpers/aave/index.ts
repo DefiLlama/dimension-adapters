@@ -21,6 +21,8 @@ export interface AaveLendingPoolConfig {
   // of past transaction hashes, so any day replays the same way. Drops LiquidationCall and
   // FlashLoan from the listed transactions, and takes the supplier share of those flashloan
   // premiums back out of the liquidity-index interest, which is where Aave credits it.
+  // Requires identifiable positive LP index jumps after an earlier same-transaction update;
+  // exclusions with a zero LP share or custom repayment callbacks need separate handling.
   excludeTxHashes?: Array<string>;
 
   // GHO on aave
@@ -41,13 +43,6 @@ const PercentageMathDecimals = 1e4;
 
 // https://etherscan.io/address/0x02d84abd89ee9db409572f19b6e1596c301f3c81#code#F16#L16
 const LiquidityIndexDecimals = BigInt(1e27);
-
-// PercentageMath.percentMul rounds half up: (value * percentage + 5_000) / 10_000.
-// https://github.com/aave/aave-v3-core/blob/master/contracts/protocol/libraries/math/PercentageMath.sol
-function percentMul(value: bigint, percentage: bigint): bigint {
-  if (percentage === 0n) return 0n
-  return (value * percentage + 5000n) / 10000n
-}
 
 function excludedTxSet(pool: AaveLendingPoolConfig): Set<string> | null {
   if (!pool.excludeTxHashes?.length) return null
@@ -150,9 +145,8 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
   }
 
   const excludedTxHashes = excludedTxSet(pool)
-  // lowercase asset => supplier share of flashloan premiums on excluded transactions.
-  // Aave adds that share to the liquidity index, so it is inside the interest below.
-  const excludedSupplierPremium = new Map<string, bigint>()
+  // Remove premium index jumps on the same opening-supply basis as the interest below.
+  const excludedLiquidityIndexGrowth = new Map<string, bigint>()
   let includedFlashloanEvents: Array<any> | null = null
   if (excludedTxHashes && !pool.ignoreFlashloan) {
     const flashloanLogs: Array<any> = await options.getLogs({
@@ -160,24 +154,40 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       eventAbi: AaveAbis.FlashloanEvent,
       onlyArgs: false,
     })
-    includedFlashloanEvents = []
-    if (flashloanLogs.length > 0) {
-      const protocolBps = BigInt(await options.fromApi.call({
+    let excludedFlashloans = flashloanLogs.filter(log => excludedTxHashes.has(String(log.transactionHash).toLowerCase()) && BigInt(log.args.premium) > 0n)
+    includedFlashloanEvents = flashloanLogs.filter(log => !excludedTxHashes.has(String(log.transactionHash).toLowerCase())).map(log => log.args)
+    if (excludedFlashloans.length) {
+      // fromApi reads post-state at the opening block, whose premiums are already in its index.
+      const openingBlock = await options.getFromBlock()
+      excludedFlashloans = excludedFlashloans.filter(log => Number(log.blockNumber) > openingBlock)
+    }
+    if (excludedFlashloans.length) {
+      const reserveUpdates: Array<any> = await options.getLogs({
         target: pool.lendingPoolProxy,
-        abi: AaveAbis.FLASHLOAN_PREMIUM_TO_PROTOCOL,
-      }))
-      for (const log of flashloanLogs) {
-        if (!excludedTxHashes.has(String(log.transactionHash).toLowerCase())) {
-          includedFlashloanEvents.push(log.args)
+        eventAbi: 'event ReserveDataUpdated(address indexed reserve,uint256 liquidityRate,uint256 stableBorrowRate,uint256 variableBorrowRate,uint256 liquidityIndex,uint256 variableBorrowIndex)',
+        onlyArgs: false,
+      })
+      const updates = new Map<string, { previous?: any, current: any, used: boolean }>()
+      const events = [...reserveUpdates, ...excludedFlashloans]
+        .sort((a, b) => Number(a.blockNumber) - Number(b.blockNumber) || Number(a.logIndex ?? a.index) - Number(b.logIndex ?? b.index))
+      for (const event of events) {
+        if (event.args.reserve) {
+          const asset = String(event.args.reserve).toLowerCase()
+          updates.set(asset, { previous: updates.get(asset)?.current, current: event, used: false })
           continue
         }
-        const premium = BigInt(log.args.premium)
-        // premiumToLP = premium - percentMul(premium, FLASHLOAN_PREMIUM_TO_PROTOCOL),
-        // then cumulateToLiquidityIndex adds premiumToLP to suppliers.
-        const supplierPremium = premium - percentMul(premium, protocolBps)
-        if (supplierPremium <= 0n) continue
-        const asset = String(log.args.asset).toLowerCase()
-        excludedSupplierPremium.set(asset, (excludedSupplierPremium.get(asset) ?? 0n) + supplierPremium)
+        const asset = String(event.args.asset).toLowerCase()
+        const pair = updates.get(asset)
+        // FlashLoanLogic updates the reserve before emitting FlashLoan. An earlier update in
+        // the same transaction has already accrued ordinary interest; no time elapses between
+        // those updates, so their index difference is only the repayment premium.
+        // Require that evidence rather than guessing when a configured incident differs.
+        if (!pair || pair.used || pair.previous?.transactionHash !== event.transactionHash || pair.current.transactionHash !== event.transactionHash)
+          throw new Error(`aave: cannot isolate excluded flashloan index growth for ${event.transactionHash} ${asset}`)
+        const growth = BigInt(pair.current.args.liquidityIndex) - BigInt(pair.previous.args.liquidityIndex)
+        if (growth <= 0n) throw new Error(`aave: cannot isolate positive excluded flashloan index growth for ${event.transactionHash} ${asset}`)
+        excludedLiquidityIndexGrowth.set(asset, (excludedLiquidityIndexGrowth.get(asset) ?? 0n) + growth)
+        pair.used = true
       }
     }
   }
@@ -244,7 +254,8 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       // normal reserves
       const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
       const reserveLiquidityIndexAfter = BigInt(reserveDataAfter[reserveIndex].liquidityIndex)
-      const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore
+      const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore - (excludedLiquidityIndexGrowth.get(token) ?? 0n)
+      if (excludedLiquidityIndexGrowth.has(token) && growthLiquidityIndex < 0n) throw new Error(`aave: excluded index growth exceeds window growth for ${token}`)
 
       const windowSeconds = options.toTimestamp - options.fromTimestamp
 
@@ -259,17 +270,7 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       const annualizedSupplyRate = annualizeSeconds > 0 ? periodSupplyRate * SECONDS_PER_YEAR / annualizeSeconds : periodSupplyRate
       if (annualizedSupplyRate > MAX_REASONABLE_SUPPLY_APR) continue
 
-      let supplySideInterestAccrued = totalLiquidity * growthLiquidityIndex / reserveLiquidityIndexBefore
-      const excludedPremium = excludedSupplierPremium.get(token)
-      if (excludedPremium) {
-        // cumulateToLiquidityIndex shares this premium with every aToken outstanding at that
-        // moment, including aTokens minted earlier in the same transaction. The line above
-        // multiplies the index growth by the window-start supply only, so the premium can
-        // exceed the interest booked here. Floor at zero rather than publish that gap as a negative.
-        supplySideInterestAccrued = supplySideInterestAccrued > excludedPremium
-          ? supplySideInterestAccrued - excludedPremium
-          : 0n
-      }
+      const supplySideInterestAccrued = totalLiquidity * growthLiquidityIndex / reserveLiquidityIndexBefore
       const interestAccrued = Number(supplySideInterestAccrued) / Number(1 - reserveFactor)
       const revenueAccrued = interestAccrued - Number(supplySideInterestAccrued)
 

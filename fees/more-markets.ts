@@ -15,7 +15,7 @@ import { METRIC } from '../helpers/metrics'
 // (154 single-use accounts, one liquidation each), so the 6% bonus the adapter books as a fee is
 // collateral the attacker moved from its own position to its own wallet. The ankrFLOW flashloan premiums
 // from the same transactions (5 bps, of which 4/10000 is the protocol's and the rest is cumulated into
-// the liquidity index) are the whole of that day's ankrFLOW index growth. AGENTS.md: exploit fees are
+// the liquidity index) are almost all of that day's ankrFLOW index growth. AGENTS.md: exploit fees are
 // excluded, not whitelisted, so the liquidations, the flashloan premiums and the supplier interest those
 // premiums added are all dropped. The 155th liquidation of the day (a real third-party USDF liquidation
 // at block 85328088) still counts.
