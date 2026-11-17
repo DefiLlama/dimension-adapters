@@ -260,8 +260,13 @@ async function getSolanaSupply(mint: string, toTimestamp: number): Promise<numbe
   const currentSlot = current?.context?.slot;
   if (typeof currentSlot !== "number" || current?.value?.amount === undefined)
     throw new Error(`Spiko: solana rpc returned no supply for ${mint}`);
+  // A snapshot taken before the window end would let the history total match while missing later mints.
+  const snapshotTime = await solanaRpc("getBlockTime", [currentSlot]);
+  if (typeof snapshotTime !== "number" || snapshotTime < toTimestamp)
+    throw new Error(`Spiko: solana supply snapshot for ${mint} precedes the window end`);
   const signatures: string[] = [];
   let before: string | undefined;
+  let oldest: string | undefined;
   while (true) {
     // Raw RPC call so a null result fails below instead of reading as an empty history; 1000 is the RPC's max page size.
     const page = await solanaRpc("getSignaturesForAddress", [mint, before ? { limit: 1000, before } : { limit: 1000 }]);
@@ -270,9 +275,17 @@ async function getSolanaSupply(mint: string, toTimestamp: number): Promise<numbe
       if (entry.err || entry.slot > currentSlot) continue;
       signatures.push(entry.signature);
     }
+    if (page.length) oldest = page[page.length - 1].signature;
     if (page.length < 1000) break;
     before = page[page.length - 1].signature;
   }
+  // The oldest signature must be the transaction that created the mint account, so no earlier
+  // mint or burn was pruned (a pruned mint and burn pair would net to zero and pass the check below).
+  if (!oldest) throw new Error(`Spiko: incomplete solana history for ${mint}`);
+  const first = await getTransaction({ signature: oldest, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 });
+  const mintIndex = first?.transaction?.message?.accountKeys?.findIndex((key: any) => key.pubkey === mint) ?? -1;
+  if (mintIndex < 0 || !first?.meta || first.meta.err !== null || first.meta.preBalances?.[mintIndex] !== 0 || !(first.meta.postBalances?.[mintIndex] > 0))
+    throw new Error(`Spiko: incomplete solana history for ${mint}`);
   const changes = await Promise.all(signatures.map((signature) => getSolanaSupplyChange(mint, signature)));
   const total = changes.reduce((sum, { change }) => sum + change, 0n);
   if (total !== BigInt(current.value.amount)) throw new Error(`Spiko: incomplete solana history for ${mint}`);
