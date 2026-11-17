@@ -14,8 +14,15 @@ const DZAP_SWAP_INFO =
 const DZAP_SWAPPED = `event DZapTokenSwapped(bytes32 indexed transactionId, address indexed sender, address indexed integrator, ${DZAP_SWAP_INFO} swapInfo)`;
 const DZAP_BATCH_SWAPPED = `event DZapBatchTokenSwapped(bytes32 indexed transactionId, address indexed sender, address indexed integrator, ${DZAP_SWAP_INFO}[] swapInfo)`;
 
-const isByzanlink = (clientData: string) =>
-  Buffer.from(clientData.slice(2), "hex").toString().includes(`"Source":"${BYZANLINK_SOURCE}"`);
+// KyberSwap writes the partner Source in lowercase, so compare the top-level Source field case-insensitively.
+const isByzanlink = (clientData: string) => {
+  try {
+    const { Source } = JSON.parse(Buffer.from(clientData.slice(2), "hex").toString());
+    return typeof Source === "string" && Source.toLowerCase() === BYZANLINK_SOURCE.toLowerCase();
+  } catch {
+    return false;
+  }
+};
 
 const addKyberVolume = async (options: FetchOptions, dailyVolume: any) => {
   const swaps = await options.getLogs({
