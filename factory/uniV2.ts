@@ -1214,6 +1214,14 @@ const configs: Record<string, Record<string, any>> = {
     // fetch is overridden below to read feeTo at run time, so revenue drops to zero if it is ever unset.
     [CHAIN.BSC]: { factory: '0x65b3cc7a7cb167221266fc93884717de2dbd074e', start: '2022-04-26', fees: 0.0025, userFeesRatio: 1, revenueRatio: 8 / 25, protocolRevenueRatio: 8 / 25, allowReadPairs: true },
   },
+  "justmoney": {
+    // useSyncReserves: the public BitTorrent RPC is not archival, so pool balances at a past block cannot be read
+    [CHAIN.BITTORRENT]: { factory: '0x4dEb2f0976DC3Bf351555524B3A24A4feA4e137E', fees: 0.003, useSyncReserves: true, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+    [CHAIN.BSC]: { factory: '0xF2Fb1b5Be475E7E1b3C31082C958e781f73a1712', start: '2021-09-21', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+    [CHAIN.ETHEREUM]: { factory: '0xd36Aba9Ec96523b0A89886c76065852aDFE2Eb39', start: '2021-10-07', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+    [CHAIN.POLYGON]: { factory: '0xD36ABA9EC96523B0A89886C76065852ADFE2EB39', start: '2021-12-02', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+    // Tron (factory TBfTeNjh7k8PbkTad8z6WS2vqh7SQZUfQ8) is not tracked: Tron RPCs only serve eth_call at the latest block, so the log helper cannot read pairs for a past window
+  },
 }
 
 const optionsMap: Record<string, any> = {
@@ -1222,6 +1230,14 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "justmoney": {
+    Volume: "Swap volume on JustMoney pairs on BitTorrent, BNB Smart Chain, Ethereum and Polygon. Excludes the Tron deployment.",
+    Fees: "Traders pay a 0.3% fee on every swap.",
+    UserFees: "Traders pay a 0.3% fee on every swap.",
+    Revenue: "One sixth of the 0.3% swap fee (0.05% of volume) goes to the JustMoney fee address.",
+    ProtocolRevenue: "One sixth of the 0.3% swap fee (0.05% of volume) goes to the JustMoney fee address.",
+    SupplySideRevenue: "Five sixths of the 0.3% swap fee (0.25% of volume) stay with liquidity providers.",
+  },
   "fstswap": {
     Volume: "Swap volume from all FstSwap V2 pairs deployed by the FstSwap factory on BNB Smart Chain.",
   },
