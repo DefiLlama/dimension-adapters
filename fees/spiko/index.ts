@@ -6,6 +6,7 @@ import { getBlock } from "../../helpers/getBlock";
 import { METRIC } from "../../helpers/metrics";
 import { getEnv } from "../../helpers/env";
 import { httpPost } from "../../utils/fetchURL";
+import { getSignaturesForAddress, getTransaction } from "../../helpers/solana";
 
 const ORACLE_PRICE_ABI =
   "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)";
@@ -131,6 +132,20 @@ const STARKNET_TOKENS: Record<string, string> = {
   chfSAFO: "0x06723dcb428eddb160c5adfc2d0a5e5adc184bf6a7298780c3cbf3fa764f709b",
 };
 
+// Solana Token-2022 mints, from the "Solana contracts" section of
+// https://docs.spiko.io/documentation/tokenization/addresses (all 5 decimals).
+const SOLANA_TOKENS: Record<string, string> = {
+  USTBL: "3E2qphMMBQtH3HZH2ZSg7CkbF8gSLePuoy7yVpkDxHGn",
+  EUTBL: "6rS8E5CQHLHmLenNNevUdJ9APzKNairr1kfWAM3EhDX3",
+  UKTBL: "DEtiguzuMC72hRkMHETcsXeKrJ6Djb6tMebQqjZoBSgt",
+  SPKCC: "14Rg7TaptSo1Ndkz1ngBw2rE4EuFhQd2PzCrkyjGdsL1",
+  eurSPKCC: "H99pu9fKt15asYk3Mcs8rajaRX3aYx3kDwXy6pY3n6My",
+  SAFO: "BYwEFWHUQp7Biqye6TvcjSF1ZYbL1StE5BuFRkKejexo",
+  eurSAFO: "6ALgseJyDVHbXVep9hcqEB92xNUZJFLQ66PWoHbGu4P7",
+  gbpSAFO: "7fnYygJyxQ2RsFJymjnRRa4wptPhUkfo6RT2j4BU4qhP",
+  chfSAFO: "6Gst8o3L5uNtkUvhEg23HpDLpYRdNQTgdn1Bc7jnCM5c",
+};
+
 const STELLAR_RPC = "https://soroban-rpc.creit.tech/";
 const STARKNET_TOTAL_SUPPLY_SELECTOR =
   "0x01557182e4359a1f0c6301278e8f5b35a776ab58d39892581e357578fb287836";
@@ -214,6 +229,46 @@ async function getStarknetSupply(contract: string): Promise<number> {
   return Number(supply) / 10 ** TOKEN_DECIMALS;
 }
 
+// Solana RPC serves no historical account state, so a mint's supply at the period end is rebuilt
+// from its transaction history: every mint or burn writes the mint account, and the change in the
+// summed token balances of that mint across a transaction is what it minted or burned (transfers
+// net to zero). Transactions are immutable, so each one's change is cached across days.
+const solanaSupplyChanges: Record<string, Promise<{ blockTime: number; change: bigint }>> = {};
+
+function getSolanaSupplyChange(mint: string, signature: string) {
+  const key = `${mint}:${signature}`;
+  if (!solanaSupplyChanges[key]) {
+    solanaSupplyChanges[key] = (async () => {
+      const tx = await getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 });
+      if (!tx?.meta || typeof tx.blockTime !== "number")
+        throw new Error(`Spiko: solana rpc returned no transaction for ${signature}`);
+      if (tx.meta.err) return { blockTime: tx.blockTime, change: 0n };
+      const sum = (balances: any[] = []): bigint =>
+        balances.filter((b) => b.mint === mint).reduce((total: bigint, b) => total + BigInt(b.uiTokenAmount.amount), 0n);
+      return { blockTime: tx.blockTime, change: sum(tx.meta.postTokenBalances) - sum(tx.meta.preTokenBalances) };
+    })();
+  }
+  return solanaSupplyChanges[key];
+}
+
+async function getSolanaSupply(mint: string, toTimestamp: number): Promise<number> {
+  const signatures: string[] = [];
+  let before: string | undefined;
+  while (true) {
+    const page = await getSignaturesForAddress({ address: mint, limit: 1000, before });
+    if (!Array.isArray(page)) throw new Error(`Spiko: solana rpc returned no signatures for ${mint}`);
+    for (const entry of page) {
+      if (entry.err || (typeof entry.blockTime === "number" && entry.blockTime >= toTimestamp)) continue;
+      signatures.push(entry.signature);
+    }
+    if (page.length < 1000) break;
+    before = page[page.length - 1].signature;
+  }
+  const changes = await Promise.all(signatures.map((signature) => getSolanaSupplyChange(mint, signature)));
+  const supply = changes.reduce((total, { blockTime, change }) => (blockTime < toTimestamp ? total + change : total), 0n);
+  return Number(supply) / 10 ** TOKEN_DECIMALS;
+}
+
 // Resolve each fund's token supply (in whole shares) for the given chain.
 async function getSupplies(options: FetchOptions): Promise<Record<string, number>> {
   const { chain } = options;
@@ -229,6 +284,11 @@ async function getSupplies(options: FetchOptions): Promise<Record<string, number
       });
       if (supply !== undefined) out[fund] = supply;
     }
+    return out;
+  }
+
+  if (chain === CHAIN.SOLANA) {
+    for (const [fund, mint] of Object.entries(SOLANA_TOKENS)) out[fund] = await getSolanaSupply(mint, options.toTimestamp);
     return out;
   }
 
@@ -401,6 +461,9 @@ const adapter: Adapter = {
     [CHAIN.ETHERLINK]: { start: '2025-02-12' },
     [CHAIN.STARKNET]: { start: '2024-11-26', runAtCurrTime: true },
     [CHAIN.STELLAR]: { start: '2025-10-01', runAtCurrTime: true },
+    // First supply on Solana: SAFO InitiateMint through Spiko's Minter program, 2026-07-23 17:22 UTC
+    // (tx bDvzgDkzDnUxY17Q81vUFLkJfTmjoP5Jez9H5MjavRe3MCh4jhTS2UacTDgj1oybCbnu3awF9BZmu9RGLoRkUm7).
+    [CHAIN.SOLANA]: { start: '2026-07-23' },
   },
 };
 
