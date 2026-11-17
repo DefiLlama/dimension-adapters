@@ -1551,7 +1551,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
-  "truemarkets-perps": {
+  "truemarketsco-perps": {
     // True Markets (https://truemarkets.co), a non-custodial trading venue whose app routes
     // Hyperliquid orders (crypto perps, HIP-3 stock perps and spot) with this builder code on top of Hyperliquid's own fees.
     // Sampled fills show 0.05% on perps (incl. HIP-3) and 0.20% on spot.
@@ -1821,7 +1821,7 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "sushi-spot": { builder: "sushi-perps", market: "spot", start: "2025-03-30" },
   "tradoor-outcome": { builder: "tradoor-perps", market: "outcome", start: "2026-05-02" },
   "tria-spot": { builder: "tria-perps", market: "spot", start: "2026-01-27" },
-  "truemarkets-spot": { builder: "truemarkets-perps", market: "spot", start: "2026-07-13" },
+  "truemarketsco-spot": { builder: "truemarketsco-perps", market: "spot", start: "2026-07-13" },
   "truenorth-outcome": { builder: "truenorth-perps", market: "outcome", start: "2026-08-29" },
   "truenorth-spot": { builder: "truenorth-perps", market: "spot", start: "2026-06-02" },
   "unigox-spot": { builder: "unigox-perps", market: "spot", start: "2025-09-01" },
