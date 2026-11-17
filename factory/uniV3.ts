@@ -43,6 +43,15 @@ const enosysRevenueRatio = ({ protocolFeeRatioToken0, protocolFeeRatioToken1 }: 
   return { _revenueRatio: rate, _protocolRevenueRatio: rate }
 }
 
+// Fluxion: per-pool slot0().feeProtocol (1/N of the swap fee per token, collectable by the factory owner). Pools are set to 4
+// (25% of the swap fee) one by one, e.g. USDT0/WETH on 2026-02-27 13:03 UTC (Mantle block 92,033,550) while some pools read 4 in
+// Dec 2025; a pool whose feeProtocol cannot be read fails the run
+const fluxionRevenueRatio = ({ protocolFeeRatioToken0, protocolFeeRatioToken1 }: UniGetRevenueRatioProps) => {
+  if (protocolFeeRatioToken0 === undefined || protocolFeeRatioToken1 === undefined) throw new Error('fluxion-network: slot0().feeProtocol unreadable')
+  const rate = (protocolFeeRatioToken0 + protocolFeeRatioToken1) / 2
+  return { _revenueRatio: rate, _protocolRevenueRatio: rate }
+}
+
 // https://docs.roninchain.com/apps/katana/swap-tokens
 const katanaV3RevenueRatio = ({ poolFeeTier }: UniGetRevenueRatioProps) => {
   if (poolFeeTier === 0.0001) return { _revenueRatio: 0.5, _protocolRevenueRatio: 0.5 } // 20% of fees
@@ -326,7 +335,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.HYPERLIQUID]: { factory: '0x1Cd8363DfAdA19911f745BA984fce02b42c943bF', userFeesRatio: 1, revenueRatio: 0.143, protocolRevenueRatio: 0.143 },
   },
   "fluxion-network": {
-    [CHAIN.MANTLE]: { factory: '0xF883162Ed9c7E8EF604214c964c678E40c9B737C', start: '2025-11-17', userFeesRatio: 1, revenueRatio: 0 },
+    [CHAIN.MANTLE]: { factory: '0xF883162Ed9c7E8EF604214c964c678E40c9B737C', start: '2025-11-17', userFeesRatio: 1, protocolRevenueRatio: 0, dynamicProtocolFees: true, getRevenueRatio: fluxionRevenueRatio },
   },
   "fusionx-v3": {
     [CHAIN.MANTLE]: { factory: '0x530d2766D1988CC1c000C8b7d00334c14B69AD71', start: '2023-07-13', userFeesRatio: 1, revenueRatio: 0.334, protocolRevenueRatio: 0.167, holdersRevenueRatio: 0.167 },
@@ -808,8 +817,9 @@ const methodologyMap: Record<string, any> = {
   "fluxion-network": {
     Fees: 'Users pay fees on every swap.',
     UserFees: 'Users pay fees on every swap.',
-    Revenue: 'No revenue.',
-    SupplySideRevenue: 'All swap fees are distributed to LPs.',
+    Revenue: 'The protocol share of the swap fees, set per pool by slot0().feeProtocol (feeProtocol 4, i.e. 25%, on the active pools; 0 on pools not switched on yet).',
+    ProtocolRevenue: 'The protocol share of the swap fees, set per pool by slot0().feeProtocol and collectable by the factory owner.',
+    SupplySideRevenue: 'The rest of the swap fees, earned by liquidity providers.',
   },
   "fusionx-v3": {
     Fees: "Swap fees paid by users on each FusionX V3 pool.",
@@ -1204,6 +1214,14 @@ protocols['stockiumswap'].breakdownMethodology = {
 protocols['enosys'].breakdownMethodology = {
   Fees: { 'Token Swap Fees': 'Swap fees paid by traders in Enosys V3 pools, at the pool fee tier.' },
   UserFees: { 'Trading fees': 'Swap fees paid by traders in Enosys V3 pools, at the pool fee tier.' },
+  Revenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner.' },
+  ProtocolRevenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner.' },
+  SupplySideRevenue: { 'LP fees': 'The part of swap fees earned by liquidity providers.' },
+}
+
+protocols['fluxion-network'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': 'Swap fees paid by traders in Fluxion pools, at the pool fee tier.' },
+  UserFees: { 'Trading fees': 'Swap fees paid by traders in Fluxion pools, at the pool fee tier.' },
   Revenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner.' },
   ProtocolRevenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner.' },
   SupplySideRevenue: { 'LP fees': 'The part of swap fees earned by liquidity providers.' },
