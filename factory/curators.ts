@@ -316,6 +316,9 @@ const configs: Record<string, CuratorConfig> = {
           '0xC56EA16EA06B0a6A7b3B03B2f48751e549bE40fD',
           '0x9B97783B747c51b39c3d320050dc9C512868dAa8',
         ],
+        // deployer of the Hyperithm aHyperBTC / mHyperBTC Euler markets. Its 9 vaults are governed by
+        // 0xdE9014cE / 0x75178137 (Hyperithm in euler-labels 143/entities.json) or by the deployer itself
+        eulerVaultOwners: ['0x594c5eE5a326295FF6212C31BB3311747D3bD562'],
         start: '2025-12-23', // hyperAUSDd creation, earliest of the four
       },
       [CHAIN.HYPERLIQUID]: {
