@@ -579,6 +579,11 @@ export const LifiFeeCollectors: IContract = {
   [CHAIN.HYPERLIQUID]: {
     id: '0x7CaC679Cc2dF9c602590eA4965091F54EC32F2Fc',
     start: '2025-05-19'
+  },
+  // deployments/arc.json; start matches the Arc LifiDiamonds entry (public launch)
+  [CHAIN.ARC]: {
+    id: '0x0604811F11863AA7904CF07c27875c80134744c7',
+    start: '2026-09-16'
   }
 }
 

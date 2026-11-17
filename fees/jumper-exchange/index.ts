@@ -92,7 +92,11 @@ export const createJumperFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapt
   version: 2,
   pullHourly: true,
   fetch: fetch(category),
-  adapter: Object.fromEntries([...OnchainChains, ...ApiChains].map((chain) => [chain, { start: JumperFeeStart }])),
+  // chains launched after JumperFeeStart (Arc) start at their own fee collector start
+  adapter: Object.fromEntries([...OnchainChains, ...ApiChains].map((chain) => {
+    const chainStart = LifiFeeCollectors[chain]?.start;
+    return [chain, { start: chainStart && chainStart > JumperFeeStart ? chainStart : JumperFeeStart }];
+  })),
   methodology: {
     Fees: `Jumper platform fees (0-5 bps depending on the assets) paid by users on ${product}.`,
     Revenue: 'All platform fees are kept by Jumper.',
