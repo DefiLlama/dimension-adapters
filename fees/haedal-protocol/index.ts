@@ -8,9 +8,13 @@ import { getCheckpointBeforeWindow, graphqlCall, queryEventsInWindow } from "../
 // https://docs.haedal.xyz
 const HASUI_PACKAGE = "0xbde4ba4c2e274a60ce15c1cfff9e5c42e41654ac8b6d906a57efa4bd3c29f47d";
 const HAWAL_PACKAGE = "0x8b4d553839b219c3fd47608a0cc3d5fcc572cb25d41b7df3833208586a8d2470";
+// haSUI staking object: https://suiscan.xyz/mainnet/object/0x47b224762220393057ebf4f70501b6e657c3e56684737568439a04f80849b2ca/fields
 const HASUI_STAKING = "0x47b224762220393057ebf4f70501b6e657c3e56684737568439a04f80849b2ca";
+// Sui GraphQL object(address, atCheckpoint): absent at 11272351, present at 11272352 (2023-08-25T15:01:47.201Z).
 const HASUI_STAKING_CREATED_CHECKPOINT = 11272352;
+// haWAL staking object: https://suiscan.xyz/mainnet/object/0x9e5f6537be1a5b658ec7eed23160df0b28c799563f6c41e9becc9ad633cb592b/fields
 const HAWAL_STAKING = "0x9e5f6537be1a5b658ec7eed23160df0b28c799563f6c41e9becc9ad633cb592b";
+// Sui GraphQL object(address, atCheckpoint): absent at 126926754, present at 126926755 (2025-03-26T14:37:41.074Z).
 const HAWAL_STAKING_CREATED_CHECKPOINT = 126926755;
 // ProtocolFeeCollected was added in the 2025-10-13 upgrade, so its type lives on that package id. Before it, the haWAL
 // collect emitted RewardsFeeCollected, but no haWAL fee has been collected yet under either event.
