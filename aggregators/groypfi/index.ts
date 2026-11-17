@@ -29,6 +29,7 @@ const FEE_COMMENTS = new Set(["GroypFi Fee", "Gbot Fee", "GroypFi Bot Fee"]);
 const OTHER_FEE_COMMENTS = new Set(["Gifted Fees", "Gifted Marketplace Fees", "walletless fee"]);
 // Uranus ClaimPartnerFee: https://github.com/ton-blockchain/abis/blob/master/data/dedust/uranus/meme/types/dedust_uranus_meme_v3.types.tolk
 const CLAIM_PARTNER_FEE = "0x7f4bcbf4";
+// Uranus callback: https://github.com/ton-blockchain/abis/blob/master/data/dedust/uranus/meme/types/dedust_uranus_meme_v3.types.tolk
 const URANUS_PAYOUT = "0x66c8ad72";
 
 const fetch = async (options: FetchOptions) => {
@@ -111,6 +112,11 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.TON],
   start: "2025-01-04",
   methodology,
+  breakdownMethodology: {
+    Fees: "GroypFi trading fees, Gifted and walletless fees, and Uranus partner-fee claims are combined in one unlabeled TON balance.",
+    Revenue: "GroypFi trading fees, Gifted and walletless fees, and Uranus partner-fee claims are combined in one unlabeled TON balance.",
+    ProtocolRevenue: "GroypFi trading fees, Gifted and walletless fees, and Uranus partner-fee claims are combined in one unlabeled TON balance.",
+  },
   pullHourly: true,
 };
 
