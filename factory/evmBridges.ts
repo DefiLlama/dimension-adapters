@@ -196,7 +196,8 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean | R
     [CHAIN.MODE]: symbiosisBridge({ portal: "0x292fC50e4eB66C3f6514b9E402dBc25961824D62" }, "2024-03-26"),
     [CHAIN.ROOTSTOCK]: symbiosisBridge({ portal: "0x5aa5f7f84ed0e5db0a4a85c3947ea16b53352fd4", synthesis: "0xf8504d2ca2f0bbad9d36927e3d32e278abadada0" }, "2024-03-26"),
     [CHAIN.MERLIN]: symbiosisBridge({ portal: "0x292fC50e4eB66C3f6514b9E402dBc25961824D62" }, "2024-05-20"),
-    [CHAIN.ZKLINK]: symbiosisBridge({ portal: "0x8Dc71561414CDcA6DcA7C1dED1ABd04AF474D189" }, "2024-05-20"),
+    // zklink nova halted: its last block is 2026-10-29 08:21 UTC and rpc.zklink.io answers 502
+    [CHAIN.ZKLINK]: { ...symbiosisBridge({ portal: "0x8Dc71561414CDcA6DcA7C1dED1ABd04AF474D189" }, "2024-05-20"), deadFrom: "2026-10-30" },
     [CHAIN.TAIKO]: symbiosisBridge({ portal: "0x5Aa5f7f84eD0E5db0a4a85C3947eA16B53352FD4" }, "2024-07-23"),
     [CHAIN.CRONOS]: symbiosisBridge({ portal: "0xE75C7E85FE6ADd07077467064aD15847E6ba9877" }, "2024-12-11"),
     [CHAIN.FRAXTAL]: symbiosisBridge({ portal: "0x292fC50e4eB66C3f6514b9E402dBc25961824D62" }, "2024-12-11"),
