@@ -169,6 +169,8 @@ const configs: Record<string, CuratorConfig> = {
       // creation receipt, not the current owner() (every one of these vaults is owned today by
       // 0xb3CF59A5, a Clearstar address in Morpho's curators registry on chains 1, 143 and 8453).
       // 0x829A1385 is already registered as a Clearstar V2 owner on katana below.
+      // 0x6539519E deployed Clearstar's Euler vaults on ethereum, base and monad. Each one is governed
+      // by 0xb3CF59A5 / 0x30988479 (Clearstar in euler-labels entities.json) or by the deployer itself.
       [CHAIN.BASE]: {
         morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'],
         // 0x829A1385 created "Clearstar cbAssets Vault" (0x91C0...3a3c), "Clearstar Core ETH"
@@ -176,6 +178,7 @@ const configs: Record<string, CuratorConfig> = {
         // "Clearstar Reactor EURC" (0x4C7b...C55C) and "Clearstar Boring USDC" (0x0282...0681).
         // https://base.blockscout.com/tx/0xebe8310f28cb502a87403f501db7fce667c7fafd95d65c56d5e913bd7139e6f2
         morphoVaultV2Owners: ['0x829A13850b684A575C0580a83322890e19c5eFaa', '0x30988479C2E6a03E7fB65138b94762D41a733458'],
+        eulerVaultOwners: ['0x6539519E69343535a2aF6583D9BAE3AD74c6A293'],
       },
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'],
@@ -184,11 +187,13 @@ const configs: Record<string, CuratorConfig> = {
         // "Clearstar Boring USDC" (0xF3Cc...Db49).
         // https://etherscan.io/tx/0x54939debbe1cf29d026262333b63b209613f4a84ef32739d07658d47a9287335
         morphoVaultV2Owners: ['0x30988479C2E6a03E7fB65138b94762D41a733458', '0x829A13850b684A575C0580a83322890e19c5eFaa'],
+        eulerVaultOwners: ['0x6539519E69343535a2aF6583D9BAE3AD74c6A293'],
       },
       [CHAIN.MONAD]: {
         // 0x829A1385 created "Clearstar Accountable AUSD" (0xbe3E...E9a1, the start date below is
         // its creation) and "Clearstar Yield AUSD" (0x8192...ad06).
         morphoVaultV2Owners: ['0x829A13850b684A575C0580a83322890e19c5eFaa'],
+        eulerVaultOwners: ['0x6539519E69343535a2aF6583D9BAE3AD74c6A293'],
         start: '2026-05-28',
       },
       [CHAIN.POLYGON]: { morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'] },
@@ -311,6 +316,9 @@ const configs: Record<string, CuratorConfig> = {
           '0xC56EA16EA06B0a6A7b3B03B2f48751e549bE40fD',
           '0x9B97783B747c51b39c3d320050dc9C512868dAa8',
         ],
+        // deployer of the Hyperithm aHyperBTC / mHyperBTC Euler markets. Its 9 vaults are governed by
+        // 0xdE9014cE / 0x75178137 (Hyperithm in euler-labels 143/entities.json) or by the deployer itself
+        eulerVaultOwners: ['0x594c5eE5a326295FF6212C31BB3311747D3bD562'],
         start: '2025-12-23', // hyperAUSDd creation, earliest of the four
       },
       [CHAIN.HYPERLIQUID]: {
@@ -459,7 +467,14 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0x46BA7bCD764a692208781B0Fdc642E272ee597bC', '0xE86399fE6d7007FdEcb08A2ee1434Ee677a04433'],
         eulerVaultOwners: ['0xa563FEEA4028FADa193f1c1F454d446eEaa6cfD7', '0x46BA7bCD764a692208781B0Fdc642E272ee597bC'],
+        // created by 0xE7Fb2921 (block 25754849), curator 0xa58f41dd is RE7 Labs on api.morpho.org
+        morphoV2: ['0x5E2339BCb89B42782CEE454B46C7C6f88c0E4f83'], // Aerie x Plume USDC Core
         start: '2024-09-25',
+      },
+      [CHAIN.OPTIMISM]: {
+        // no VaultV2 factory is configured for optimism, so the vault is listed directly
+        morphoV2: ['0x3d63934715b6D4c4DFbBC1a00Fe2A2145079DD76'], // Re7 WETH, created 2026-04-21
+        start: '2026-04-21',
       },
       [CHAIN.BASE]: {
         morphoVaultOwners: ['0xD8B0F4e54a8dac04E0A57392f5A630cEdb99C940'],
