@@ -37,12 +37,17 @@ const BAD_DEBT_VAULTS: Record<string, Array<{ vault: string; from: string }>> = 
     { vault: "0x3799251bD81925cfcCF2992F10Af27A4e62Bf3F7", from: STREAM_COLLAPSE }, // eUSDT0-22, Frontier Elixir
     { vault: "0xF90Cf999dE728A582e154F926876b70e93a747B7", from: STREAM_COLLAPSE }, // emsUSD-3, TelosC Stream
   ],
-  // deprecated without a stated reason; all four ran out of cash between 2025-11-04 and 11-17
+  // K3 Avalanche vaults affected by impaired collateral following the Stream Finance incident.
   [CHAIN.AVAX]: [
     { vault: "0xa446938b0204Aa4055cdFEd68Ddf0E0d1BAB3E9E", from: STREAM_COLLAPSE }, // eUSDt-3, K3
     { vault: "0x2137568666f12fc5A026f5430Ae7194F1C1362aB", from: STREAM_COLLAPSE }, // eAUSD-2, Re7
     { vault: "0x8f23Da78e3F31Ab5DEb75dC3282198bed630ffde", from: STREAM_COLLAPSE }, // eUSDC-15, Keyring
     { vault: "0xABA9d2D4b6B93C3dc8976D8eb0690CCA56431FE4", from: STREAM_COLLAPSE }, // eUSDt-2, Re7
+    { vault: "0x6072A6d18446278bB5a43eb747de8F61e34cB77f", from: "2025-11-05" }, // eBTC.b-5, K3
+    { vault: "0xa4284e26Ae6469aeE8eC38Aa9Db96fc62d6315A1", from: STREAM_COLLAPSE }, // eEURC-1, K3
+    { vault: "0x6fC9b3a52944A577cd8971Fd8fDE0819001bC595", from: "2025-11-17" }, // eUSDC-5, K3
+    { vault: "0xe91841F707936faf515ff6d478624A325A4f9199", from: STREAM_COLLAPSE }, // eWAVAX-5, K3
+    { vault: "0x03ef14425CF0d7Af62Cdb8D6E0Acb0b0512aE35C", from: STREAM_COLLAPSE }, // eWETH.e-5, K3
   ],
   [CHAIN.BASE]: [
     { vault: "0xC063C3b3625DF5F362F60f35B0bcd98e0fa650fb", from: RESOLV_INCIDENT }, // eUSDC-3, Apostro Resolv
