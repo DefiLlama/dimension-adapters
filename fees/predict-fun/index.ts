@@ -70,24 +70,30 @@ const fetch = async (options: FetchOptions) => {
   })
 
   const tokensToLatestPriceMap = new Map<string, number>();
+  const orderPriceMap = new Map<string, number>();
 
   for (const log of orderFilledLogs) {
     const token = isUSDT(log.takerAssetId) ? log.makerAssetId : log.takerAssetId;
     const tokenPriceInUsd = isUSDT(log.takerAssetId) ? (Number(log.takerAmountFilled) / Number(log.makerAmountFilled)) : (Number(log.makerAmountFilled) / Number(log.takerAmountFilled));
 
     tokensToLatestPriceMap.set(`${token}`, tokenPriceInUsd);
+    orderPriceMap.set(`${log.orderHash}`, tokenPriceInUsd);
 
     const feeInUsd = isUSDT(log.takerAssetId) ? log.fee : Number(log.fee) * tokenPriceInUsd;
     dailyFees.add(USDT_BSC, feeInUsd, METRIC.TRADING_FEES);
   }
 
+  // the fee module charges the fee signed in the order and refunds the unused part to the same order's maker in the
+  // same transaction (makers pay no fee, so their fee comes back in full): a refund was never paid and is netted from
+  // the fee of the fill it belongs to, priced at that order's fill price (the last one in the hour if it filled at several)
   for (const log of [...feeRefundedLogsOld, ...feeRefundedLogsNew]) {
+    const orderPrice = orderPriceMap.get(`${log.orderHash}`);
+    if (orderPrice === undefined) continue; // the fill's fee was not counted either
     if (isUSDT(log.id)) {
-      dailySupplySideRevenue.add(USDT_BSC, log.refund, "Trading Fee Refund");
+      dailyFees.subtractToken(USDT_BSC, log.refund, METRIC.TRADING_FEES);
     }
     else {
-      const tokenPrice = tokensToLatestPriceMap.get(`${log.id}`) ?? 0;
-      dailySupplySideRevenue.add(USDT_BSC, Number(log.refund) * tokenPrice, "Trading Fee Refund");
+      dailyFees.subtractToken(USDT_BSC, Number(log.refund) * orderPrice, METRIC.TRADING_FEES);
     }
   }
 
@@ -126,24 +132,23 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Trading fees charged on prediction market trades. Fees are collected in the taker token; non-USDT tokens are converted to USD using the trade price at the relevant hour.",
-  Revenue: "Trading fees retained by the protocol after refunds, maker rebates, and referral fees are distributed to the supply side.",
-  ProtocolRevenue: "Trading fees retained by the protocol after refunds, maker rebates, and referral fees are distributed to the supply side.",
-  SupplySideRevenue: "Trading fees distributed as refunds, maker rebates, and referral fees."
+  Fees: "Trading fees paid on prediction market trades: the fee charged on each filled order minus the part the fee module refunds to the same order in the same transaction. Fees are collected in the taker token; non-USDT tokens are converted to USD using the trade price at the relevant hour.",
+  Revenue: "Trading fees retained by the protocol after maker rebates and referral fees are distributed to the supply side.",
+  ProtocolRevenue: "Trading fees retained by the protocol after maker rebates and referral fees are distributed to the supply side.",
+  SupplySideRevenue: "Trading fees distributed as maker rebates and referral fees."
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.TRADING_FEES]: "Trading fees charged on prediction market trades. Fees are collected in the taker token; non-USDT tokens are converted to USD using the trade price at the relevant hour.",
+    [METRIC.TRADING_FEES]: "Trading fees paid on prediction market trades, net of the fee refunded to the same order in the same transaction. Fees are collected in the taker token; non-USDT tokens are converted to USD using the trade price at the relevant hour.",
   },
   Revenue: {
-    "Trading Fees to Protocol": "Trading fees retained by the protocol after refunds, maker rebates, and referral fees are distributed to the supply side.",
+    "Trading Fees to Protocol": "Trading fees retained by the protocol after maker rebates and referral fees are distributed to the supply side.",
   },
   ProtocolRevenue: {
-    "Trading Fees to Protocol": "Trading fees retained by the protocol after refunds, maker rebates, and referral fees are distributed to the supply side.",
+    "Trading Fees to Protocol": "Trading fees retained by the protocol after maker rebates and referral fees are distributed to the supply side.",
   },
   SupplySideRevenue: {
-    "Trading Fee Refund": "Trading fees distributed as refunds",
     "Maker Rebate": "Maker rebates distributed to makers",
     "Referral Fee": "Referral fees distributed to referrers",
   }
