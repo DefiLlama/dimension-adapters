@@ -17,7 +17,9 @@ async function fetchHyperliquid(options: FetchOptions) {
 async function fetchNado(options: FetchOptions) {
   const logs = await options.getLogs({
     target: nado.offchainExchange,
-    eventAbi: "event BuilderFeePayment(bytes32 indexed subaccount, uint32 indexed builder, uint32 indexed productId, bytes32 digest, int128 feeAmount, int128 feeRate, int128 quoteAmount)",
+    // field names describe the values: builderFee is the builder fee and fee is Nado's own fee of the fill, both in quote
+    // (on 1.5 bp builder fills builderFee = 1.5 bp and fee = 1 bp of the gross amount)
+    eventAbi: "event BuilderFeePayment(bytes32 indexed subaccount, uint32 indexed builder, uint32 indexed productId, bytes32 digest, int128 builderFee, int128 fee, int128 quoteAmount)",
     topics: [null as any, null, "0x" + nado.builderId.toString(16).padStart(64, "0")],
   });
 
@@ -25,8 +27,13 @@ async function fetchNado(options: FetchOptions) {
   let fees = 0;
   for (const log of logs) {
     // x18 fixed point, quote is USDT0
-    volume += Math.abs(Number(log.quoteAmount)) / 1e18;
-    fees += Math.abs(Number(log.feeAmount)) / 1e18;
+    const quote = Number(log.quoteAmount) / 1e18;
+    const builderFee = Math.abs(Number(log.builderFee)) / 1e18;
+    const nadoFee = Math.abs(Number(log.fee)) / 1e18;
+    // quoteAmount is emitted after applyFee took both fees, so volume adds them back to get the gross trade value:
+    // a sell (positive quote) received gross minus fees, a buy (negative quote) paid gross plus fees
+    volume += quote >= 0 ? quote + builderFee + nadoFee : -quote - builderFee - nadoFee;
+    fees += builderFee;
   }
   
   const dailyVolume = options.createBalances();
