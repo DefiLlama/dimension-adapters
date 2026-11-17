@@ -35,6 +35,11 @@ const transactionEvents = [
     abi: `event ProcessWithdraw(address sender, address receiver, uint256 assets, uint256 shares, uint256 actualAssets, uint256 actualShare, uint256 oeFee, int256 pFee, uint256 totalFee, bytes32 prevId, address oplTreasury)`,
     feeIndex: 8,
   },
+  {
+    // V3 used an unsigned partnership fee, which gives the event a different topic.
+    abi: `event ProcessWithdraw(address sender, address receiver, uint256 assets, uint256 shares, uint256 actualAssets, uint256 actualShare, uint256 oeFee, uint256 pFee, uint256 totalFee, bytes32 prevId, address oplTreasury)`,
+    feeIndex: 8,
+  },
 ];
 
 type TBillChainConfig = {
