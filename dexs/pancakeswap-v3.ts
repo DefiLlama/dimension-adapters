@@ -270,21 +270,20 @@ const buildEvmFetcher = (factory: string) => async (options: FetchOptions) => {
     blacklistTokens: await getDexTokensBlacklisted(options),
     userFeesRatio: 1,
     // Each pool's slot0.feeProtocol sets the protocol cut. Off BSC it went from the docs table (32-34%) to 12%
-    // on 2026-11-12 (e.g. base tx 0xc30bf15fbe5d3b9286eefb7841742333bdf939bfefab7068e2f7bdd624aafd58), so read it per pool.
+    // on 2026-11-12 (e.g. base tx 0xc30bf15fbe5d3b9286eefb7841742333bdf939bfefab7068e2f7bdd624aafd58); replay it per swap/input token.
     dynamicProtocolFees: 'pancakeV3',
-    getRevenueRatio: ({ poolFeeTier, protocolFeeRatioToken0, protocolFeeRatioToken1 }: UniGetRevenueRatioProps) => {
-      if (protocolFeeRatioToken0 === undefined || protocolFeeRatioToken1 === undefined) throw new Error('pancakeswap-v3: slot0 unreadable, protocol fee unknown');
-      // average the two sides (exact when they match, as on every pool sampled): a pool can set a protocol fee on one token only
-      const _revenueRatio = (protocolFeeRatioToken0 + protocolFeeRatioToken1) / 2;
-      // the docs publish the treasury/CAKE burn split only for the tier's default cut; any other cut (the 12% set
-      // on 2026-11-12) has no published split, so book it all to the treasury rather than guess a burn share
+    getRevenueRatio: ({ poolFeeTier, protocolFeeRatio }: UniGetRevenueRatioProps) => {
+      if (protocolFeeRatio === undefined) throw new Error('pancakeswap-v3: input protocol fee unknown');
+      // Keep the documented holder allocation only at the input side's default cut; other cuts remain treasury revenue.
+      // The Flip explicitly sends the new 12% cut to treasury; zero holder attribution does not imply buybacks cease.
+      // https://forum.pancakeswap.finance/t/proposal-discussion-the-flip-liquidity-should-get-paid-more/1658
       const documentedRatio = getProtocolRevenueRatio(poolFeeTier) + getHolderRevenueRatio(poolFeeTier);
-      const isDocumentedCut = documentedRatio > 0 && Math.abs(_revenueRatio - documentedRatio) < 1e-9;
-      const holdersShare = isDocumentedCut ? getHolderRevenueRatio(poolFeeTier) / documentedRatio : 0;
+      const isDocumentedCut = documentedRatio > 0 && Math.abs(protocolFeeRatio - documentedRatio) < 1e-9;
+      const holdersRatio = isDocumentedCut ? getHolderRevenueRatio(poolFeeTier) : 0;
       return {
-        _revenueRatio,
-        _protocolRevenueRatio: _revenueRatio * (1 - holdersShare),
-        _holdersRevenueRatio: _revenueRatio * holdersShare,
+        _revenueRatio: protocolFeeRatio,
+        _protocolRevenueRatio: protocolFeeRatio - holdersRatio,
+        _holdersRevenueRatio: holdersRatio,
       };
     },
   })
@@ -410,13 +409,15 @@ async function fetch(options: FetchOptions) {
   }
 }
 
+// Current Solana distribution: https://docs.pancakeswap.finance/earn/pancakeswap-pools
+// Keep the legacy calculation until its historical transition can be verified.
 const methodology = {
   Fees: "Total trading fees - sum of LP fees and protocol fees. LP fees vary by pool type (0.25% for most pools, with some special pools having different rates). Protocol fees are 0.05% for most pools.",
   UserFees: "All trading fees paid by users",
-  Revenue: "Pancakeswap collects amount of swap fees for Treasury and buy back CAKE. On BSC and Solana the documented per-tier cut (32-34%) is applied; on the other chains it is the cut set on each pool (slot0 feeProtocol). PancakeSwap has not published a treasury/burn split for a non-default cut, so that cut is booked as protocol revenue.",
+  Revenue: "Swap fees allocated to treasury and CAKE buybacks: BSC uses the legacy 32-34% tier table, while other EVM chains use each swap's effective input-token protocol cut; Solana retains the legacy tier calculation pending historical verification, rather than the currently published 16% (8% treasury, 8% burn).",
   SupplySideRevenue: "Fees distributed to LPs",
-  ProtocolRevenue: "Swap fees collected by Pancakeswap - distribute to Treasury",
-  HoldersRevenue: "Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools at the documented cut; on other chains only while a pool uses that default cut. A different cut (12% off BSC since 2026-11-12) has no published split and is booked to the treasury",
+  ProtocolRevenue: "Swap fees attributed to treasury: BSC uses 18%, 19%, 9%, 9% for the 0.01%, 0.05%, 0.25%, 1% tiers; other EVM chains use each swap's input-token cut less its default holder allocation, booking non-default cuts entirely to treasury; Solana retains the legacy tier calculation pending historical verification rather than the currently published 8% treasury share.",
+  HoldersRevenue: "Swap fees attributed to CAKE buybacks and burns: BSC uses 15% for the 0.01% and 0.05% tiers and 23% for the 0.25% and 1% tiers; other EVM swaps retain these allocations only when the input-token cut matches the tier's documented total, with no separate holder attribution for other cuts (not proof that buybacks cease); Solana retains the legacy tier calculation pending historical verification rather than the currently published 8% burn share.",
 }
 
 const breakdownMethodology = {
@@ -424,17 +425,17 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: 'Total trading fees - sum of LP fees and protocol fees. LP fees vary by pool type (0.25% for most pools, with some special pools having different rates). Protocol fees are 0.05% for most pools',
   },
   Revenue: {
-    [METRIC.PROTOCOL_REVENUE]: 'Swap fees collected by Pancakeswap - distribute to Treasury',
-    [METRIC.HOLDERS_REVENUE]: "Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools at the documented cut; on other chains only while a pool uses that default cut. A different cut (12% off BSC since 2026-11-12) has no published split and is booked to the treasury",
+    [METRIC.PROTOCOL_REVENUE]: methodology.ProtocolRevenue,
+    [METRIC.HOLDERS_REVENUE]: methodology.HoldersRevenue,
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_REVENUE]: 'Swap fees collected by Pancakeswap - distribute to Treasury',
+    [METRIC.PROTOCOL_REVENUE]: methodology.ProtocolRevenue,
   },
   SupplySideRevenue: {
     [METRIC.LP_REVENUE]: 'Fees distributed to LPs',
   },
   HoldersRevenue: {
-    [METRIC.BUY_BACK_AND_BURN]: "Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools at the documented cut; on other chains only while a pool uses that default cut. A different cut (12% off BSC since 2026-11-12) has no published split and is booked to the treasury",
+    [METRIC.BUY_BACK_AND_BURN]: methodology.HoldersRevenue,
   },
 }
 
