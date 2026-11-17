@@ -65,6 +65,9 @@ const DEFAULTS: any = {
   DOMA_ARCHIVAL_RPC: 'https://rpc.doma.xyz',
   DOMA_RPC_GET_LOGS_CONCURRENCY_LIMIT: '2',
   WEMIX_ARCHIVAL_RPC: 'https://api.wemix.com',
+  // eth_getLogs without a contract address (topic-only scans): nodies caps ranges at 50 blocks, publicnode requires an address,
+  // drpc answers 400 and onfinality/thirdweb/swiftnodes 429. The chain's own RPC serves them over 100,000+ block ranges.
+  METIS_ARCHIVAL_RPC: 'https://andromeda.metis.io/?owner=1088',
   ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
   // Order matters. eth_call at the latest block is served well by all three, but an eth_call at a
   // PAST block is served only by drpc: blockdaemon answers "state at block N is pruned" and
