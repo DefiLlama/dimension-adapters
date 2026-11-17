@@ -44,6 +44,9 @@ const OndoContracts: any = {
   [CHAIN.MANTLE]: {
     USDY: '0x5bE26527e817998A7206475496fDE1E68957c5A6',
   },
+  [CHAIN.BSC]: {
+    USDY: '0x608593d17A2decBbc4399e4185bE4922F97eD32E',
+  },
   [CHAIN.APTOS]: {
     USDY: ADDRESSES.aptos.USDY,
   },
@@ -217,6 +220,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.MANTLE]: {
       fetch,
       start: '2023-10-25',
+    },
+    [CHAIN.BSC]: {
+      fetch,
+      start: '2026-08-04', // https://ondo.finance/blog/usdy-is-live-on-bnb-chain
     },
     // [CHAIN.APTOS]: {
     //   fetch: fetch,
