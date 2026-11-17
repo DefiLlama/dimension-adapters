@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { pageToncenterTxs, toBigInt } from "../../helpers/ton";
+import { chains } from "@defillama/sdk";
 
 /**
  * GroypFi — DEX Aggregator on TON
@@ -14,8 +15,8 @@ import { pageToncenterTxs, toBigInt } from "../../helpers/ton";
  *   - Launchpad token trading (web app)
  *   - @groypfi_bot (Telegram trading bot)
  *
- * All swaps carry a 1% platform fee sent to the house fee wallet.
- * Daily volume is reverse-calculated: volume = fee_inflow / 0.01
+ * Volume uses the existing 1% estimate on labeled trading fees only.
+ * Uranus partner fee claims are included in fees and revenue, not inferred volume.
  *
  * Fee wallet (user-friendly): UQDu4AiT__JKuqT0Znje0RoXIQMPcj4uIGYZme3UK4hFlE_Q
  * Fee wallet (raw):           0:eee00893fff24abaa4f46678ded11a1721030f723e2e20661999edd42b884594
@@ -24,6 +25,11 @@ import { pageToncenterTxs, toBigInt } from "../../helpers/ton";
  */
 
 const FEE_RECIPIENT = "0:eee00893fff24abaa4f46678ded11a1721030f723e2e20661999edd42b884594";
+const FEE_COMMENTS = new Set(["GroypFi Fee", "Gbot Fee", "GroypFi Bot Fee"]);
+const OTHER_FEE_COMMENTS = new Set(["Gifted Fees", "Gifted Marketplace Fees", "walletless fee"]);
+// Uranus ClaimPartnerFee: https://github.com/ton-blockchain/abis/blob/master/data/dedust/uranus/meme/types/dedust_uranus_meme_v3.types.tolk
+const CLAIM_PARTNER_FEE = "0x7f4bcbf4";
+const URANUS_PAYOUT = "0x66c8ad72";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -32,21 +38,57 @@ const fetch = async (options: FetchOptions) => {
   const end = options.endTimestamp;
 
   let total = 0n;
+  let otherFees = 0n;
 
   // deduped by hash and restricted to [start, end) by the helper
   const txs = await pageToncenterTxs({ account: FEE_RECIPIENT, startTimestamp: start, endTimestamp: end });
+  const walletTxsByTrace = new Map<string, any[]>();
+  const traceCache = new Map<string, any[]>();
+  for (const tx of txs) {
+    if (!tx.trace_id) continue;
+    const group = walletTxsByTrace.get(tx.trace_id) ?? [];
+    group.push(tx);
+    walletTxsByTrace.set(tx.trace_id, group);
+  }
   for (const tx of txs) {
     if (tx.description?.action?.success === false) continue;
 
     const inMsg = tx.in_msg;
     if (!inMsg || inMsg.bounced) continue;
     if (inMsg.destination?.toLowerCase() !== FEE_RECIPIENT.toLowerCase()) continue;
-
-    total += toBigInt(inMsg.value);
+    const comment = inMsg.message_content?.decoded?.comment;
+    if (FEE_COMMENTS.has(comment)) {
+      total += toBigInt(inMsg.value);
+    } else if (OTHER_FEE_COMMENTS.has(comment) || comment?.startsWith("walletless fee ")) {
+      otherFees += toBigInt(inMsg.value);
+    } else if (inMsg.opcode === URANUS_PAYOUT) {
+      // The callback opcode is shared with other operations, including creator claims.
+      const requests = (walletTxsByTrace.get(tx.trace_id) ?? []).flatMap(t => t.out_msgs ?? [])
+        .filter(m => m.destination?.toLowerCase() === inMsg.source?.toLowerCase());
+      if (requests.length === 1) {
+        if (requests[0].opcode === CLAIM_PARTNER_FEE) otherFees += toBigInt(inMsg.value);
+        continue;
+      }
+      // Resolve the actual sender transaction when the request is outside this window
+      // or multiple operations target the same contract in one trace.
+      if (!tx.trace_id) throw new Error("Missing Uranus payout trace ID");
+      if (!traceCache.has(tx.trace_id)) {
+        const response = await chains.ton.toncenterGet({ path: "traces", params: { trace_id: tx.trace_id } });
+        const trace = response.traces?.[0];
+        if (!trace || trace.is_incomplete || trace.trace_info?.trace_state !== "complete")
+          throw new Error(`Incomplete Uranus payout trace: ${tx.trace_id}`);
+        traceCache.set(tx.trace_id, Object.values(trace.transactions ?? {}));
+      }
+      const sender = traceCache.get(tx.trace_id)!.find(t =>
+        t.out_msgs?.some((m: any) => m.hash === inMsg.hash));
+      if (!sender) throw new Error(`Missing Uranus payout sender: ${tx.hash}`);
+      if (sender.in_msg?.opcode === CLAIM_PARTNER_FEE) otherFees += toBigInt(inMsg.value);
+    }
   }
 
   dailyFees.addGasToken(total.toString());
   const dailyVolume = dailyFees.clone(100);
+  dailyFees.addGasToken(otherFees.toString());
 
   return {
     dailyVolume,
@@ -57,11 +99,10 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "DEX aggregation volume reverse-calculated from the 1% platform fee collected at the house fee wallet."+
-  "Sources: Swap Widget (web app), Terminal Quick Buy (web app), Launchpad token trading (web app), @groypfi_bot (Telegram trading bot)",
-  Fees: "All the inflows to protcol wallet is considered as fees",
-  Revenue: "All the inflows to protcol wallet is considered as revenue",
-  ProtocolRevenue: "All the inflows to protcol wallet is considered as protocol revenue",
+  Volume: "DEX aggregation volume estimated from labeled GroypFi trading fees using the existing 1% assumption, excluding Uranus partner fee claims.",
+  Fees: "Labeled GroypFi trading, Gifted marketplace and walletless fees, plus claimed Uranus partner fees, excluding creator fee claims and gas refunds.",
+  Revenue: "Labeled GroypFi trading, Gifted marketplace and walletless fees, plus claimed Uranus partner fees received by the protocol, excluding creator fee claims and gas refunds.",
+  ProtocolRevenue: "Labeled GroypFi trading, Gifted marketplace and walletless fees, plus claimed Uranus partner fees received by the protocol, excluding creator fee claims and gas refunds.",
 };
 
 const adapter: SimpleAdapter = {
