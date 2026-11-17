@@ -224,4 +224,8 @@ const adapter: SimpleAdapter = {
   },
 };
 
+// Shared with fees/pheasant-network.ts.
+export { chainConfig as pheasantBridgeChainConfig, CANCELLED, CURRENT_START, GET_TRADE, LEGACY_NEW_TRADE, MORPH_WETH, NEW_TRADE, PERIOD, toTimestamp };
+export type { Kind };
+
 export default adapter;
