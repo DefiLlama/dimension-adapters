@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { pageToncenterTxs, toBigInt } from "../../helpers/ton";
 import { chains } from "@defillama/sdk";
+import { PromisePool } from "@supercharge/promise-pool";
 
 /**
  * GroypFi — DEX Aggregator on TON
@@ -45,6 +46,7 @@ const fetch = async (options: FetchOptions) => {
   const txs = await pageToncenterTxs({ account: FEE_RECIPIENT, startTimestamp: start, endTimestamp: end });
   const walletTxsByTrace = new Map<string, any[]>();
   const traceCache = new Map<string, any[]>();
+  const unresolvedPayouts: any[] = [];
   for (const tx of txs) {
     if (!tx.trace_id) continue;
     const group = walletTxsByTrace.get(tx.trace_id) ?? [];
@@ -73,18 +75,25 @@ const fetch = async (options: FetchOptions) => {
       // Resolve the actual sender transaction when the request is outside this window
       // or multiple operations target the same contract in one trace.
       if (!tx.trace_id) throw new Error("Missing Uranus payout trace ID");
-      if (!traceCache.has(tx.trace_id)) {
-        const response = await chains.ton.toncenterGet({ path: "traces", params: { trace_id: tx.trace_id } });
-        const trace = response.traces?.[0];
-        if (!trace || trace.is_incomplete || trace.trace_info?.trace_state !== "complete")
-          throw new Error(`Incomplete Uranus payout trace: ${tx.trace_id}`);
-        traceCache.set(tx.trace_id, Object.values(trace.transactions ?? {}));
-      }
-      const sender = traceCache.get(tx.trace_id)!.find(t =>
-        t.out_msgs?.some((m: any) => m.hash === inMsg.hash));
-      if (!sender) throw new Error(`Missing Uranus payout sender: ${tx.hash}`);
-      if (sender.in_msg?.opcode === CLAIM_PARTNER_FEE) otherFees += toBigInt(inMsg.value);
+      unresolvedPayouts.push(tx);
     }
+  }
+
+  await PromisePool.for([...new Set<string>(unresolvedPayouts.map(tx => tx.trace_id))])
+    .withConcurrency(1) // Preserve sequential requests to avoid Toncenter rate limits.
+    .handleError(error => { throw error; })
+    .process(async traceId => {
+      const response = await chains.ton.toncenterGet({ path: "traces", params: { trace_id: traceId } });
+      const trace = response.traces?.[0];
+      if (!trace || trace.is_incomplete || trace.trace_info?.trace_state !== "complete")
+        throw new Error(`Incomplete Uranus payout trace: ${traceId}`);
+      traceCache.set(traceId, Object.values(trace.transactions ?? {}));
+    });
+  for (const tx of unresolvedPayouts) {
+    const sender = traceCache.get(tx.trace_id)!.find(t =>
+      t.out_msgs?.some((m: any) => m.hash === tx.in_msg.hash));
+    if (!sender) throw new Error(`Missing Uranus payout sender: ${tx.hash}`);
+    if (sender.in_msg?.opcode === CLAIM_PARTNER_FEE) otherFees += toBigInt(tx.in_msg.value);
   }
 
   dailyFees.addGasToken(total.toString());
