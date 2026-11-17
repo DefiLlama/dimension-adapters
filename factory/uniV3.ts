@@ -613,6 +613,10 @@ const configs: Record<string, Record<string, any>> = {
   'sheriff-v3': { 
     [CHAIN.ROBINHOOD]: { factory: '0x21Fd9aB06cc927E66013e89b045c26b3eDE7bB20', start: "2026-07-06", isAlgebraV3: true, userFeesRatio: 1, revenueRatio: 0.2, protocolRevenueRatio: 0.2 },
   },
+  "abyss-dex": {
+    // Uniswap V3 pool logic with a per-pool protocol fee denominator stored in slot0.feeProtocol (factory default 6, owner can change it per pool); the share goes to the factory's FeeVault
+    [CHAIN.ROBINHOOD]: { factory: '0xe7feF2BC860B25bbdEB6F6AB96d88bAAa77ddad7', start: '2026-08-30', userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
+  },
   "betterswap-v3": {
     [CHAIN.VECHAIN]: { factory: '0xf9f1722f95d036efbd1352d84e3a3755f8027b39', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, start: "2026-07-20", },
   },
@@ -725,6 +729,14 @@ const configs: Record<string, Record<string, any>> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "abyss-dex": {
+    Volume: "Swap volume on Abyss pools on Robinhood Chain.",
+    Fees: "Swap fees paid by traders, at each pool's fee tier.",
+    UserFees: "Swap fees paid by traders, at each pool's fee tier.",
+    Revenue: "The protocol's share of swap fees, read from each pool (one sixth by default), sent to the Abyss fee vault.",
+    ProtocolRevenue: "The protocol's share of swap fees, read from each pool (one sixth by default), sent to the Abyss fee vault.",
+    SupplySideRevenue: "Swap fees left to liquidity providers after the protocol's share (five sixths by default).",
+  },
   "enosys": {
     Fees: "Swap fees paid by traders in Enosys V3 pools, at the pool fee tier.",
     UserFees: "Swap fees paid by traders in Enosys V3 pools, at the pool fee tier.",
