@@ -22,6 +22,7 @@ import { eventTopic, kalosReferralExclusion } from "../../helpers/kalos";
 // to the Kalos revenue splitter 0xcA105395094Ceb27e6AfdA492c6379cBF468CDb8. Creator pools (a launchpad token that names
 // its creator, paired with any token) pay a fixed 1% in the paired token, 60% to the token's creator (creatorAmount)
 // and 40% to Kalos, nothing to LPs. A pool with no fee asset is a plain v4 pool: the whole fee is its LP fee.
+// Creator pools are launchpad trading (no LP fees), so their swaps are not counted as volume; their fees are.
 // Hook v1 (2026-11-14 to 2026-11-16, replaced by v2) took Kalos's part the same way and left the LPs' part to v4's own LP
 // fee on every swap; it has no fee book.
 const POOL_MANAGER = "0xE2e105d3F7209A9DA11f83cCf3E7398a753823F1"; // Uniswap v4 PoolManager on Elysium
@@ -36,6 +37,8 @@ const START = "2026-11-15"; // hook v1's first pools were created on 2026-11-15 
 // PoolRegistered.feeSide
 const FEE_CURRENCY0 = 1;
 const FEE_CURRENCY1 = 2;
+// PoolRegistered.kind: 0 = standard, 1 = creator (the Kalos app's KIND_STANDARD / KIND_CREATOR, kalos-dex-v4-create.min.js)
+const KIND_CREATOR = 1;
 // Priced majors on Elysium: a pool without a fee asset is valued on this leg, so a thin token can't set its value.
 const MAJORS = new Set(
   [ADDRESSES.null, ADDRESSES.elysium.WHYPE, ADDRESSES.elysium.USDC, ADDRESSES.elysium.USDT0].map((a) => a.toLowerCase()),
@@ -58,23 +61,23 @@ const LABELS = {
 const FEE_UNITS = 1_000_000n; // v4 fees are in hundredths of a bip
 const abs = (v: bigint) => (v < 0n ? -v : v);
 
-type Pool = { currency0: string; currency1: string; countToken0: boolean };
+type Pool = { currency0: string; currency1: string; countToken0: boolean; creator: boolean };
 
-/** Every pool a Kalos hook registered up to the window's end (lowercase ids), from each hook's own PoolRegistered logs */
+/** Every pool a Kalos hook registered up to the window's end (lowercase ids), from the hooks' own PoolRegistered logs */
 async function getKalosPools(options: FetchOptions): Promise<Map<string, Pool>> {
   const toBlock = await options.getToBlock();
   const pools = new Map<string, Pool>();
-  for (const { hook, fromBlock } of KALOS_HOOKS) {
-    if (toBlock < fromBlock) continue;
-    const logs = await options.getLogs({ target: hook, eventAbi: POOL_REGISTERED, fromBlock, toBlock, cacheInCloud: true });
-    for (const log of logs) {
-      const currency0 = String(log.currency0).toLowerCase();
-      const currency1 = String(log.currency1).toLowerCase();
-      const feeSide = Number(log.feeSide);
-      // count each swap in the pool's fee asset (a creator pool's: the token paired with the launchpad token)
-      const countToken0 = feeSide === FEE_CURRENCY0 || (feeSide !== FEE_CURRENCY1 && (MAJORS.has(currency0) || !MAJORS.has(currency1)));
-      pools.set(String(log.id).toLowerCase(), { currency0, currency1, countToken0 });
-    }
+  // one scan of every hook from the first hook's deployment (a later hook has no logs before its own)
+  const fromBlock = Math.min(...KALOS_HOOKS.map((h) => h.fromBlock));
+  if (toBlock < fromBlock) return pools;
+  const logs = await options.getLogs({ targets: KALOS_HOOKS.map(({ hook }) => hook), eventAbi: POOL_REGISTERED, fromBlock, toBlock, cacheInCloud: true });
+  for (const log of logs) {
+    const currency0 = String(log.currency0).toLowerCase();
+    const currency1 = String(log.currency1).toLowerCase();
+    const feeSide = Number(log.feeSide);
+    // count each swap in the pool's fee asset
+    const countToken0 = feeSide === FEE_CURRENCY0 || (feeSide !== FEE_CURRENCY1 && (MAJORS.has(currency0) || !MAJORS.has(currency1)));
+    pools.set(String(log.id).toLowerCase(), { currency0, currency1, countToken0, creator: Number(log.kind) === KIND_CREATOR });
   }
   return pools;
 }
@@ -100,12 +103,15 @@ const fetch = async (options: FetchOptions) => {
       const counted = BigInt(pool.countToken0 ? swap.amount0 : swap.amount1);
       if (counted === 0n) continue;
       const lpFee = BigInt(swap.fee);
-      const token = pool.countToken0 ? pool.currency0 : pool.currency1;
-      // v4's LP fee is taken from the input: an input amount includes it, an output amount is what is left after it,
-      // so the fee is added back to get the swap's gross amount on the counted side.
-      const countedIn = counted < 0n;
-      const gross = countedIn || lpFee >= FEE_UNITS ? abs(counted) : (abs(counted) * FEE_UNITS) / (FEE_UNITS - lpFee);
-      dailyVolume.add(token, gross);
+      // creator pools are launchpad trading: no volume (their LP fee, if any, is still counted below)
+      if (!pool.creator) {
+        const token = pool.countToken0 ? pool.currency0 : pool.currency1;
+        // v4's LP fee is taken from the input: an input amount includes it, an output amount is what is left after it,
+        // so the fee is added back to get the swap's gross amount on the counted side.
+        const countedIn = counted < 0n;
+        const gross = countedIn || lpFee >= FEE_UNITS ? abs(counted) : (abs(counted) * FEE_UNITS) / (FEE_UNITS - lpFee);
+        dailyVolume.add(token, gross);
+      }
       // the v4 LP fee itself is in the swap's input currency (the leg paid in): input × fee
       const amount0 = BigInt(swap.amount0);
       const amount1 = BigInt(swap.amount1);
@@ -160,7 +166,7 @@ const fetch = async (options: FetchOptions) => {
 const REFERRAL_EXCLUSION = kalosReferralExclusion("Kalos V4");
 
 const methodology = {
-  Volume: "Swap volume in Kalos V4 pools (the Uniswap v4 pools on Elysium that carry the Kalos fee hook), from the PoolManager's Swap events, counted once per swap in the pool's fee asset (USDC on HYPE/USDC, HYPE on HYPE/KNTQ).",
+  Volume: "Swap volume in Kalos V4 pools (the Uniswap v4 pools on Elysium that carry the Kalos fee hook), from the PoolManager's Swap events, counted once per swap in the pool's fee asset (USDC on HYPE/USDC, HYPE on HYPE/KNTQ). Excludes creator pools, where launchpad tokens trade and liquidity providers earn no fees: their trading counts as fees only.",
   Fees: "Swap fees paid by traders in Kalos V4 pools: the dynamic fee the Kalos hook sets per swap, all of it in the pool's fee asset. The liquidity providers' 85% (the pool's v4 LP fee on swaps paid in the fee asset, the hook's fee book on sales of it) plus Kalos's 15% (the hook's FeeCharged events). On creator pools, a 1% fee split between the token's creator and Kalos.",
   UserFees: "Swap fees paid by traders in Kalos V4 pools: the dynamic fee the Kalos hook sets per swap, all of it in the pool's fee asset.",
   Revenue: `Kalos's 15% of every swap fee (40% on creator pools), taken by the hook and collected to the Kalos revenue splitter. ${REFERRAL_EXCLUSION}`,
