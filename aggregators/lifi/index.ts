@@ -34,6 +34,8 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
       && !blacklistedTokens.includes(formatAddress(log.fromAssetId))
       && !blacklistedTokens.includes(formatAddress(log.toAssetId))
     )
+  } else if (blacklistedTokens.length > 0) {
+    logs = logs.filter(log => !blacklistedTokens.includes(formatAddress(log.fromAssetId)) && !blacklistedTokens.includes(formatAddress(log.toAssetId)))
   }
 
   logs.forEach((log: any) => {
