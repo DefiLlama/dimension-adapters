@@ -16,6 +16,13 @@ export interface AaveLendingPoolConfig {
   ignoreLiquidation?: boolean;
   ignoreFlashloan?: boolean;
 
+  // Events from these transactions are not fees. Only for an incident whose logs are not
+  // fees someone paid (AGENTS.md: exploit fees are excluded, not whitelisted). A fixed list
+  // of past transaction hashes, so any day replays the same way. Drops LiquidationCall and
+  // FlashLoan from the listed transactions, and takes the supplier share of those flashloan
+  // premiums back out of the liquidity-index interest, which is where Aave credits it.
+  excludeTxHashes?: Array<string>;
+
   // GHO on aave
   selfLoanAssets?: {
     // address => symbol
@@ -34,6 +41,18 @@ const PercentageMathDecimals = 1e4;
 
 // https://etherscan.io/address/0x02d84abd89ee9db409572f19b6e1596c301f3c81#code#F16#L16
 const LiquidityIndexDecimals = BigInt(1e27);
+
+// PercentageMath.percentMul rounds half up: (value * percentage + 5_000) / 10_000.
+// https://github.com/aave/aave-v3-core/blob/master/contracts/protocol/libraries/math/PercentageMath.sol
+function percentMul(value: bigint, percentage: bigint): bigint {
+  if (percentage === 0n) return 0n
+  return (value * percentage + 5000n) / 10000n
+}
+
+function excludedTxSet(pool: AaveLendingPoolConfig): Set<string> | null {
+  if (!pool.excludeTxHashes?.length) return null
+  return new Set(pool.excludeTxHashes.map((txHash) => txHash.toLowerCase()))
+}
 
 const SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
 const MAX_REASONABLE_SUPPLY_APR = 10; // 1000% APR
@@ -130,6 +149,39 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
     })
   }
 
+  const excludedTxHashes = excludedTxSet(pool)
+  // lowercase asset => supplier share of flashloan premiums on excluded transactions.
+  // Aave adds that share to the liquidity index, so it is inside the interest below.
+  const excludedSupplierPremium = new Map<string, bigint>()
+  let includedFlashloanEvents: Array<any> | null = null
+  if (excludedTxHashes && !pool.ignoreFlashloan) {
+    const flashloanLogs: Array<any> = await options.getLogs({
+      target: pool.lendingPoolProxy,
+      eventAbi: AaveAbis.FlashloanEvent,
+      onlyArgs: false,
+    })
+    includedFlashloanEvents = []
+    if (flashloanLogs.length > 0) {
+      const protocolBps = BigInt(await options.fromApi.call({
+        target: pool.lendingPoolProxy,
+        abi: AaveAbis.FLASHLOAN_PREMIUM_TO_PROTOCOL,
+      }))
+      for (const log of flashloanLogs) {
+        if (!excludedTxHashes.has(String(log.transactionHash).toLowerCase())) {
+          includedFlashloanEvents.push(log.args)
+          continue
+        }
+        const premium = BigInt(log.args.premium)
+        // premiumToLP = premium - percentMul(premium, FLASHLOAN_PREMIUM_TO_PROTOCOL),
+        // then cumulateToLiquidityIndex adds premiumToLP to suppliers.
+        const supplierPremium = premium - percentMul(premium, protocolBps)
+        if (supplierPremium <= 0n) continue
+        const asset = String(log.args.asset).toLowerCase()
+        excludedSupplierPremium.set(asset, (excludedSupplierPremium.get(asset) ?? 0n) + supplierPremium)
+      }
+    }
+  }
+
   // all calculations use BigInt because aave math has 27 decimals
   for (let reserveIndex = 0; reserveIndex < reservesList.length; reserveIndex++) {
     if (skipReserveIndexes.has(reserveIndex)) continue
@@ -207,7 +259,17 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       const annualizedSupplyRate = annualizeSeconds > 0 ? periodSupplyRate * SECONDS_PER_YEAR / annualizeSeconds : periodSupplyRate
       if (annualizedSupplyRate > MAX_REASONABLE_SUPPLY_APR) continue
 
-      const supplySideInterestAccrued = totalLiquidity * growthLiquidityIndex / reserveLiquidityIndexBefore
+      let supplySideInterestAccrued = totalLiquidity * growthLiquidityIndex / reserveLiquidityIndexBefore
+      const excludedPremium = excludedSupplierPremium.get(token)
+      if (excludedPremium) {
+        // cumulateToLiquidityIndex shares this premium with every aToken outstanding at that
+        // moment, including aTokens minted earlier in the same transaction. The line above
+        // multiplies the index growth by the window-start supply only, so the premium can
+        // exceed the interest booked here. Floor at zero rather than publish that gap as a negative.
+        supplySideInterestAccrued = supplySideInterestAccrued > excludedPremium
+          ? supplySideInterestAccrued - excludedPremium
+          : 0n
+      }
       const interestAccrued = Number(supplySideInterestAccrued) / Number(1 - reserveFactor)
       const revenueAccrued = interestAccrued - Number(supplySideInterestAccrued)
 
@@ -218,8 +280,8 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
   }
 
   if (!pool.ignoreFlashloan) {
-    // get flashloan fees
-    const flashloanEvents = await options.getLogs({
+    // get flashloan fees. A pool that excludes transactions already split these logs above.
+    const flashloanEvents = includedFlashloanEvents ?? await options.getLogs({
       target: pool.lendingPoolProxy,
       eventAbi: AaveAbis.FlashloanEvent,
     })
@@ -251,10 +313,15 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
   if (!pool.ignoreLiquidation) {
     // aave v3 has liquidation protocol fees which is a partition from liquidation bonus
     if (pool.version === 3) {
-      const liquidationEvents: Array<any> = await options.getLogs({
+      const liquidationLogs: Array<any> = await options.getLogs({
         target: pool.lendingPoolProxy,
         eventAbi: AaveAbis.LiquidationEvent,
+        // the transaction hash only comes with the raw log, every other pool just needs the args
+        onlyArgs: !excludedTxHashes,
       })
+      const liquidationEvents: Array<any> = !excludedTxHashes
+        ? liquidationLogs
+        : liquidationLogs.filter(log => !excludedTxHashes.has(String(log.transactionHash).toLowerCase())).map(log => log.args)
       if (liquidationEvents.length > 0) {
         const liquidationProtocolFees = (await options.api.multiCall({
           abi: AaveAbis.getConfiguration,
@@ -1171,20 +1238,7 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
       },
     },
   },
-  'more-markets': {
-    config: {
-      [CHAIN.FLOW]: {
-        start: '2025-01-14',
-        pools: [
-          {
-            version: 3,
-            lendingPoolProxy: '0xbC92aaC2DBBF42215248B5688eB3D3d2b32F2c8d',
-            dataProvider: '0x79e71e3c0EDF2B88b0aB38E9A1eF0F6a230e56bf',
-          },
-        ],
-      },
-    },
-  },
+  // "more-markets": moved to fees/more-markets.ts: it excludes the 2026-11-16 exploit
   'pac-finance': {
     config: {
       [CHAIN.BLAST]: {
