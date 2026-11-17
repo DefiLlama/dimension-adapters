@@ -44,15 +44,8 @@ const fetch = async (options: FetchOptions) => {
 
   // deduped by hash and restricted to [start, end) by the helper
   const txs = await pageToncenterTxs({ account: FEE_RECIPIENT, startTimestamp: start, endTimestamp: end });
-  const walletTxsByTrace = new Map<string, any[]>();
   const traceCache = new Map<string, any[]>();
   const unresolvedPayouts: any[] = [];
-  for (const tx of txs) {
-    if (!tx.trace_id) continue;
-    const group = walletTxsByTrace.get(tx.trace_id) ?? [];
-    group.push(tx);
-    walletTxsByTrace.set(tx.trace_id, group);
-  }
   for (const tx of txs) {
     if (tx.description?.action?.success === false) continue;
 
@@ -66,14 +59,7 @@ const fetch = async (options: FetchOptions) => {
       otherFees += toBigInt(inMsg.value);
     } else if (inMsg.opcode === URANUS_PAYOUT) {
       // The callback opcode is shared with other operations, including creator claims.
-      const requests = (walletTxsByTrace.get(tx.trace_id) ?? []).flatMap(t => t.out_msgs ?? [])
-        .filter(m => m.destination?.toLowerCase() === inMsg.source?.toLowerCase());
-      if (requests.length === 1) {
-        if (requests[0].opcode === CLAIM_PARTNER_FEE) otherFees += toBigInt(inMsg.value);
-        continue;
-      }
-      // Resolve the actual sender transaction when the request is outside this window
-      // or multiple operations target the same contract in one trace.
+      // Match the actual sender in the full trace; the window may omit related requests.
       if (!tx.trace_id) throw new Error("Missing Uranus payout trace ID");
       unresolvedPayouts.push(tx);
     }
