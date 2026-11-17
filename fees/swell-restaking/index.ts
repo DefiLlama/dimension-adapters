@@ -11,7 +11,7 @@ const REWARDS_CALCULATED_EVENT = 'event RewardsCalculatedV3(uint256 indexed bloc
 // so from that day fees come from the rewards the oracle reports, which match the rate-based figure on normal days
 const ORACLE_REWARDS_FROM = Date.UTC(2026, 9, 21) / 1000
 
-async function getRateBasedRewards(options: FetchOptions): Promise<number> {
+async function getRateBasedRewards(options: FetchOptions, feeShare: number): Promise<number> {
   const exchangeRateBefore = await options.fromApi.call({
     target: rswETH,
     abi: 'uint256:getRate',
@@ -24,7 +24,8 @@ async function getRateBasedRewards(options: FetchOptions): Promise<number> {
     target: rswETH,
     abi: 'uint256:totalSupply',
   })
-  return Number(totalSupply) * (exchangeRateAfter - exchangeRateBefore) / 0.9 / 1e18
+  // the rate only reflects the stakers' share, so gross it up by the fee taken at reprice
+  return Number(totalSupply) * (exchangeRateAfter - exchangeRateBefore) / (1 - feeShare) / 1e18
 }
 
 async function getOracleRewards(options: FetchOptions): Promise<number> {
@@ -32,14 +33,27 @@ async function getOracleRewards(options: FetchOptions): Promise<number> {
   return Number(logs.reduce((sum: bigint, log: any) => sum + BigInt(log.rewardsPayableForFees), 0n))
 }
 
+// treasury and node operator fees are set on the rswETH contract (1e18 = 100%): both 0 until block 19329325 (2024-02-28 23:32 UTC), 5% each since
+// read at the period start: no reprice has shared an hour with a fee change so far
+async function getFeePercentages(options: FetchOptions) {
+  const [treasury, nodeOperators] = await options.fromApi.batchCall([
+    { target: rswETH, abi: 'uint256:swellTreasuryRewardPercentage' },
+    { target: rswETH, abi: 'uint256:nodeOperatorRewardPercentage' },
+  ])
+  const fees = { treasury: Number(treasury) / 1e18, nodeOperators: Number(nodeOperators) / 1e18 }
+  if (fees.treasury + fees.nodeOperators >= 1) throw new Error('swell-restaking: fee percentages add up to 100% or more')
+  return fees
+}
+
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
   const dailySupplySideRevenue = options.createBalances()
 
-  const df = options.endTimestamp > ORACLE_REWARDS_FROM ? await getOracleRewards(options) : await getRateBasedRewards(options)
+  const fees = await getFeePercentages(options)
+  const df = options.endTimestamp > ORACLE_REWARDS_FROM ? await getOracleRewards(options) : await getRateBasedRewards(options, fees.treasury + fees.nodeOperators)
 
-  const swellTreasuryRewards = df * 0.05
+  const swellTreasuryRewards = df * fees.treasury
   const supplySideRewards = df - swellTreasuryRewards
   
   dailyFees.addGasToken(df, METRIC.STAKING_REWARDS)
@@ -66,9 +80,9 @@ const adapter: Adapter = {
   },
   methodology: {
     Fees: 'Total validators fees and rewards from staked ETH.',
-    Revenue: '5% staking rewards are charged by Swell Protocol Treasury.',
-    SupplySideRevenue: '90% staking rewards are distributed to ETH stakers and 5% to node operators.',
-    ProtocolRevenue: '5% staking rewards are charged by Swell Protocol Treasury.',
+    Revenue: 'Treasury share of staking rewards, read from the rswETH contract: 0% until 2024-02-28 (block 19329325), 5% since.',
+    SupplySideRevenue: 'Staking rewards to ETH stakers and node operators. The node operator share is read from the rswETH contract: 0% until 2024-02-28 (block 19329325), 5% since.',
+    ProtocolRevenue: 'Treasury share of staking rewards, read from the rswETH contract: 0% until 2024-02-28 (block 19329325), 5% since.',
     HoldersRevenue: 'No revenue share to SWELL token holders.',
   },
   breakdownMethodology: {
@@ -76,10 +90,10 @@ const adapter: Adapter = {
       [METRIC.STAKING_REWARDS]: 'Total validators fees and rewards from staked ETH.',
     },
     Revenue: {
-      [METRIC.STAKING_REWARDS]: '5% staking rewards are charged by Swell Protocol Treasury.',
+      [METRIC.STAKING_REWARDS]: 'Treasury share of staking rewards, read from the rswETH contract: 0% until 2024-02-28 (block 19329325), 5% since.',
     },
     SupplySideRevenue: {
-      [METRIC.STAKING_REWARDS]: '90% staking rewards are distributed to ETH stakers and 5% to node operators.',
+      [METRIC.STAKING_REWARDS]: 'Staking rewards to ETH stakers and node operators. The node operator share is read from the rswETH contract: 0% until 2024-02-28 (block 19329325), 5% since.',
     },
   },
 };
