@@ -63,7 +63,6 @@ const protocolChainMap: Record<string, string> = {
   "adventure-layer": CHAIN.ADVENTURE_LAYER,
   "deri-chain": CHAIN.DERI_CHAIN,
   "earnm": CHAIN.EARNM,
-  "edu-chain": CHAIN.EDU_CHAIN,
   "ethereal": CHAIN.ETHEREAL,
   "eventum": CHAIN.EVENTUM,
   "everclear": CHAIN.EVERCLEAR,
@@ -133,7 +132,6 @@ const protocolChainMap: Record<string, string> = {
 const deadFromMap: Record<string, string> = {
   "kroma": "2025-06-30",
   "bitcichain": "2025-09-29", // v3.bitciexplorer.com no longer resolves; last nonzero fees 2025-09-28 ($1)
-  "edu-chain": "2026-08-03", // educhain.blockscout.com now redirects to the Open Campus docs; the chain never reported nonzero fees
 }
 
 const methodologyMap: Record<string, any> = {
