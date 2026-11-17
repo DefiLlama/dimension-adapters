@@ -52,6 +52,7 @@ const HOOK_FAILED_CLEAR_THROUGH_BLOCK = 525_095_470;
 
 // Loan router v2 emits all fees through a generic FeePaid event (kind: 0 origination, 1 repayment, 2 exit, 3 liquidation, 4 refinance)
 const FEE_PAID_EVENT_ABI = 'event FeePaid(bytes32 indexed loanTermsHash, uint8 indexed kind, address indexed recipient, address feeModel, uint256 amount)';
+const TRANSFER_FAILED_EVENT_ABI = 'event TransferFailed(address indexed token, address indexed recipient, address indexed intendedRecipient, uint256 amount)';
 // FeePaid kind enum on the v2 loan router: 0 origination, 1 repayment, 2 exit, 3 liquidation, 4 refinance
 const FEE_KIND_ORIGINATION = 0;
 const FEE_KIND_EXIT = 2;
@@ -109,7 +110,7 @@ const methodology = {
   Fees: "Total interest accrued from USDai's base token yield, GPU-financing yield, and escrow timelock yield, plus loan fees, net of settlement reversals",
   Revenue: "Admin fees accrued to the protocol treasury plus loan fees paid to the protocol, net of settlement reversals",
   ProtocolRevenue: "Admin fees accrued to the protocol treasury plus loan fees paid to the protocol, net of settlement reversals",
-  SupplySideRevenue: "Interest accrued to Staked USDai holders, net of settlement reversals"
+  SupplySideRevenue: "Interest accrued to Staked USDai holders, net of settlement reversals, plus refinance fees paid to staked USDai"
 };
 
 const breakdownMethodology = {
@@ -118,7 +119,7 @@ const breakdownMethodology = {
     [METRICS.ASSET_YIELDS_PYUSD]: 'Asset yields from PYUSD',
     [METRICS.ASSET_YIELDS_GPU_FINANCING]: 'Asset yields generated from GPU-financing, net of settlement reversals',
     [METRICS.GPU_FINANCING_ORIGINATION_FEE]: 'GPU-financing origination fee',
-    [METRICS.GPU_FINANCING_REFINANCE_FEE]: 'Refinance fees paid directly to staked USDai, with no admin fee',
+    [METRICS.GPU_FINANCING_REFINANCE_FEE]: 'Refinance fees paid to staked USDai with no admin fee; unknown recipients or ambiguous transfer redirects make the window unavailable',
     [METRICS.GPU_FINANCING_EXIT_FEE]: 'GPU-financing exit fee',
     [METRICS.GPU_FINANCING_LIQUIDATION_FEE]: 'GPU-financing liquidation fee',
     [METRICS.GPU_FINANCING_LENDER_LIQUIDATION_REPAID]: 'GPU-financing lender liquidation repaid',
@@ -146,7 +147,7 @@ const breakdownMethodology = {
     [METRICS.ASSET_YIELDS_WRAPPED_M_TO_SUSDAI]: 'Asset yields from wrapped M to staked USDai',
     [METRICS.ASSET_YIELDS_PYUSD_TO_SUSDAI]: 'Asset yields from PYUSD to staked USDai',
     [METRICS.ASSET_YIELDS_GPU_FINANCING_TO_SUSDAI]: 'Asset yields from GPU-financing to staked USDai, net of settlement reversals',
-    [METRICS.GPU_FINANCING_REFINANCE_FEE_TO_SUSDAI]: 'Refinance fees paid directly to staked USDai, with no admin fee',
+    [METRICS.GPU_FINANCING_REFINANCE_FEE_TO_SUSDAI]: 'Refinance fees paid to staked USDai with no admin fee; unknown recipients or ambiguous transfer redirects make the window unavailable',
     [METRICS.GPU_FINANCING_LENDER_LIQUIDATION_REPAID_TO_SUSDAI]: 'GPU-financing lender liquidation repaid to staked USDai',
     [METRICS.ESCROW_TIMELOCK_YIELDS_TO_SUSDAI]: 'Escrow timelock yields to staked USDai',
   },
@@ -411,19 +412,38 @@ const fetch: any = async (options: FetchOptions) => {
   let migratedLoanInterest = 0n;
   let migratedLoanProtocolFee = 0n;
   const migrationBlocks = new Set<number>();
+  let transferFailedLogs: Awaited<ReturnType<typeof options.getLogs>> | undefined;
   for (const rawLog of v2FeePaidLogs) {
     const log = rawLog.args;
     const amount = BigInt(log.amount);
 
     const kind = Number(log.kind);
     if (kind === FEE_KIND_REFINANCE) {
-      // The sUSDai fee hook credits the entire receipt to deposits, without an admin clip.
-      // Other recipients are not necessarily the protocol treasury.
-      if (log.recipient.toLowerCase() === SUSDAI.toLowerCase()) {
-        const currencyToken = await getV2CurrencyToken(log.loanTermsHash);
-        dailyFees.add(currencyToken, amount, METRICS.GPU_FINANCING_REFINANCE_FEE);
-        dailySupplySideRevenue.add(currencyToken, amount, METRICS.GPU_FINANCING_REFINANCE_FEE_TO_SUSDAI);
+      if (amount === 0n) continue;
+      if (log.recipient.toLowerCase() !== SUSDAI.toLowerCase()) {
+        throw new Error(`Cannot attribute USDai refinance recipient ${log.recipient}`);
       }
+      if (!rawLog.transactionHash) throw new Error('USDai refinance fee is missing its transaction hash');
+      const currencyToken = await getV2CurrencyToken(log.loanTermsHash);
+      transferFailedLogs ??= await options.getLogs({
+        target: LOAN_ROUTER_V2,
+        eventAbi: TRANSFER_FAILED_EVENT_ABI,
+        onlyArgs: false,
+      });
+      // FeePaid retains the intended recipient after _transferOrRedirect. TransferFailed has no
+      // loan hash, so any matching transaction/token/recipient failure makes attribution ambiguous.
+      for (const failure of transferFailedLogs) {
+        const args = failure.args;
+        if (BigInt(args.amount) === 0n || args.token.toLowerCase() !== currencyToken.toLowerCase()
+          || args.intendedRecipient.toLowerCase() !== SUSDAI.toLowerCase()) continue;
+        if (!failure.transactionHash) throw new Error('USDai refinance transfer failure is missing its transaction hash');
+        if (failure.transactionHash.toLowerCase() === rawLog.transactionHash.toLowerCase()) {
+          throw new Error(`Cannot attribute redirected USDai refinance transfer in ${rawLog.transactionHash}`);
+        }
+      }
+      // The sUSDai fee hook credits the entire receipt to deposits, without an admin clip.
+      dailyFees.add(currencyToken, amount, METRICS.GPU_FINANCING_REFINANCE_FEE);
+      dailySupplySideRevenue.add(currencyToken, amount, METRICS.GPU_FINANCING_REFINANCE_FEE_TO_SUSDAI);
       continue;
     }
     if (kind !== FEE_KIND_ORIGINATION && kind !== FEE_KIND_EXIT) continue;
