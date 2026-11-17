@@ -312,7 +312,7 @@ export const getDailyFees = async (options: FetchOptions): Promise<Balances> => 
     target: LIQUIDITY,
     onlyArgs: true,
     eventAbi: EVENT_ABI.logOperate,
-    fromBlock: Number(options.fromApi.block),
+    fromBlock: Number(await options.getFromBlock()),
     toBlock: Number(options.api.block),
     skipCacheRead: true,
     skipIndexer: true

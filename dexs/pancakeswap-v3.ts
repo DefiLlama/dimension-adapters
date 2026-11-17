@@ -201,7 +201,7 @@ const fetchBsc = async (options: FetchOptions) => {
     buildBscV3DataSql(
       Number(options.api.chainId),
       factories[options.chain].address.toLowerCase(),
-      Number(options.fromApi.block),
+      Number(await options.getFromBlock()),
       Number(options.toApi.block),
     ),
   );

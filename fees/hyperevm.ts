@@ -32,7 +32,7 @@ type FeesRow = Row & {
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  const fromBlock = Number(options.fromApi.block);
+  const fromBlock = Number(await options.getFromBlock());
   const safeBlock = Number(options.toApi.block) - 50;
   if (safeBlock <= fromBlock) {
     return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees };

@@ -72,7 +72,7 @@ const DENCUN_ACTIVATION_TIMESTAMP = 1710288000;
 
 export const fetch = async (options: FetchOptions) => {
   const chainId = options.api.chainId
-  const fromBlock = Number(options.fromApi.block)
+  const fromBlock = Number(await options.getFromBlock())
 
   // delay 50 blocks is acceptable on ethereum from the indexer
   const safeBlock = Number(options.toApi.block) - 50

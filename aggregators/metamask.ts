@@ -149,7 +149,7 @@ export const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const blacklistTokens: Array<string> = getDefaultDexTokensBlacklisted(options.chain)
   
   const limit = configs[options.chain].getTrasnactionLimit
-  let blockNumber = Number(options.fromApi.block);
+  let blockNumber = Number(await options.getFromBlock());
 
   for (blockNumber; blockNumber <= Number(options.toApi.block); blockNumber += limit + 1) {
     const toBlock = blockNumber + limit > Number(options.toApi.block) ? Number(options.toApi.block) : blockNumber + limit;

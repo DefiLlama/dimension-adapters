@@ -250,7 +250,7 @@ async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig
 
   // Step 2: aggregate per-pair Swap event amount-out for the day
   const swapRows = await queryClickhouse<SwapAggRow>(
-    buildSwapAggSql(chainId, shortAddresses, pairAddresses, Number(options.fromApi.block), Number(options.toApi.block)),
+    buildSwapAggSql(chainId, shortAddresses, pairAddresses, Number(await options.getFromBlock()), Number(options.toApi.block)),
     undefined,
     chSettings,
   );

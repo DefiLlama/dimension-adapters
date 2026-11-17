@@ -42,7 +42,7 @@ const fetch = async (options: FetchOptions) => {
   // fees sealed at the opening shares, and at the closing shares when the window holds the burn start
   let dailyFees, openFees;
   const closeFees = options.createBalances();
-  const fromBlock = Number(options.fromApi.block), toBlock = Number(options.toApi.block);
+  const fromBlock = Number(await options.getFromBlock()), toBlock = Number(options.toApi.block);
   if (fromBlock < BURN_FROM_BLOCK && toBlock >= BURN_FROM_BLOCK) {
     const [res] = await queryAllium(`
       SELECT

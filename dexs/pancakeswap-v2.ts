@@ -269,7 +269,7 @@ async function getBscV2Data(options: FetchOptions): Promise<FetchResultV2> {
       Number(options.api.chainId),
       shortAddresses,
       pairAddresses,
-      Number(options.fromApi.block),
+      Number(await options.getFromBlock()),
       Number(options.toApi.block),
     ),
     undefined,
