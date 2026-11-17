@@ -1,11 +1,17 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { test, mock } from 'node:test';
+import * as cache from './cache';
 import { getEulerExcludedVaults } from './eulerExclusions';
 import { CHAIN } from './chains';
 import type { FetchOptions } from '../adapters/types';
 
 // Run with:
 // node --test -r ts-node/register/transpile-only helpers/eulerExclusions.test.ts
+
+// Stub getConfig to return a controlled response, preventing live network requests to v3.euler.finance
+// and preventing writes to the shared S3 cache during test execution.
+let mockFlaggedVaults: string[] = [];
+mock.method(cache, 'getConfig', async () => ({ vaults: mockFlaggedVaults }));
 
 function createMockOptions(chain: string, dateString: string): FetchOptions {
   return {
@@ -126,4 +132,31 @@ test('other chains are completely unaffected by Avalanche additions', async () =
   assert.ok(ethSet.has('0x01864aE3c7d5f507cC4c24cA67B4CABbDdA37EcD'.toLowerCase()), 'ETH Stream vault excluded');
   assert.ok(bscSet.has('0xC41f2Ba7102e9F9F2d603eb951F955aE205ed272'.toLowerCase()), 'BSC Stream vault excluded');
   assert.ok(baseSet.has('0xC063C3b3625DF5F362F60f35B0bcd98e0fa650fb'.toLowerCase()), 'Base Resolv vault excluded');
+});
+
+test('dated exclusions take precedence over live bad-debt feed flags', async () => {
+  const flaggedDatedVault = '0x6072A6d18446278bB5a43eb747de8F61e34cB77f'.toLowerCase(); // eBTC.b-5 (dated 2025-11-05)
+  const flaggedUndatedVault = '0x1111111111111111111111111111111111111111'.toLowerCase(); // un-dated fixture
+
+  mockFlaggedVaults = [flaggedDatedVault, flaggedUndatedVault];
+
+  try {
+    // Before configured date: dated vault is NOT excluded despite being flagged in feed; undated fixture IS excluded
+    const beforeSet = await getEulerExcludedVaults(createMockOptions(CHAIN.AVAX, '2025-11-04'));
+    assert.ok(
+      !beforeSet.has(flaggedDatedVault),
+      'Dated vault must NOT be excluded before its configured date, even if flagged in feed'
+    );
+    assert.ok(
+      beforeSet.has(flaggedUndatedVault),
+      'Undated vault flagged in feed must be excluded on every date'
+    );
+
+    // On configured date: both are excluded
+    const onDateSet = await getEulerExcludedVaults(createMockOptions(CHAIN.AVAX, '2025-11-05'));
+    assert.ok(onDateSet.has(flaggedDatedVault), 'Dated vault must be excluded on its configured date');
+    assert.ok(onDateSet.has(flaggedUndatedVault), 'Undated vault flagged in feed remains excluded');
+  } finally {
+    mockFlaggedVaults = [];
+  }
 });
