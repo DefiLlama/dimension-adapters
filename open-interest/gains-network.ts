@@ -78,6 +78,8 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // OI is end-of-window state; hourly snapshots must not be summed.
+  pullHourly: false,
   fetch,
   adapter: chainConfigs,
 };
