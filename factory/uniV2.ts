@@ -1217,6 +1217,12 @@ const configs: Record<string, Record<string, any>> = {
   "convergence": {
     [CHAIN.ETHEREUM]: { factory: '0x4eef5746ED22A2fD368629C1852365bf5dcb79f1', start: '2021-05-07', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
   },
+  "burgerswap": {
+    // DemaxFactory (BurgerSwap v1)
+    // volume only: the swap fee is not in the pair invariant, the platform contract pulls it out per swap (pair SwapFee event) at a
+    // governance-configured rate, and its split between LPs and the protocol is not documented.
+    [CHAIN.BSC]: { factory: '0x8a1E9d3aEbBBd5bA2A64d3355A48dD5E9b511256', start: '2020-09-19', customLogic: volumeOnly },
+  },
   "justmoney": {
     // useSyncReserves: the public BitTorrent RPC is not archival, so pool balances at a past block cannot be read
     [CHAIN.BITTORRENT]: { factory: '0x4dEb2f0976DC3Bf351555524B3A24A4feA4e137E', fees: 0.003, useSyncReserves: true, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
@@ -1233,6 +1239,9 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "burgerswap": {
+    Volume: "Swap volume on BurgerSwap pairs on BNB Smart Chain.",
+  },
   "convergence": {
     Volume: "Swap volume on Convergence pairs on Ethereum. Excludes the Moonbeam deployment.",
     Fees: "Traders pay a 0.3% fee on every swap.",
