@@ -1,4 +1,5 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import ADDRESSES from "../helpers/coreAssets.json";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
 import { addOneToken } from "../helpers/prices";
@@ -11,7 +12,6 @@ import { addOneToken } from "../helpers/prices";
 
 const FEE_NOTIFIED = "event FeeNotified(address indexed from, address indexed token, uint256 amount, address indexed referrer, uint256 toReferrer)";
 const ROUTED = "event Routed(address indexed sender, address indexed to, address indexed referrer, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, address mid, address venue1, address venue2)";
-const NATIVE = "0x0000000000000000000000000000000000000000";
 
 const LABELS = {
   swapFees: METRIC.SWAP_FEES,
@@ -27,7 +27,7 @@ const chainConfig: Record<string, { router: string; feeDistributor: string; wrap
   [CHAIN.ROBINHOOD]: {
     router: "0x2F2804fad735a38015650f32f95Ad5E08D6B3eE5",
     feeDistributor: "0x76c30317bB8C0bC47E2aC5D83b329FE9F386F4e7",
-    wrapped: "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73", // WETH
+    wrapped: ADDRESSES.robinhood.WETH,
     start: "2026-11-14",
     // timelock execute that handed the FeeDistributor to StoaBuyback (block 116063184, 16 Nov 2026 21:10:55 UTC):
     // https://robinhoodchain.blockscout.com/tx/0xef3052b0a8b03974ca69ea098181a3863fdbaa9b924498c5e3ec55eeddf5859c
@@ -36,7 +36,7 @@ const chainConfig: Record<string, { router: string; feeDistributor: string; wrap
   [CHAIN.ELYSIUM]: {
     router: "0x104752D50ef893da579Ad813918269e09Ea17dbA",
     feeDistributor: "0x19C1C6b5924C3257a03D29b2DB0Acd9d4492aD1e",
-    wrapped: "0xbA876237B0F021A6c6D852d6c26E107997cC5E81", // WHYPE
+    wrapped: ADDRESSES.elysium.WHYPE,
     start: "2026-11-12",
   },
 };
@@ -62,7 +62,7 @@ const fetch = async (options: FetchOptions) => {
   const routed = await getLogs({ target: router, eventAbi: ROUTED, onlyArgs: false });
   const swapOf: Record<string, any> = {};
   for (const l of routed) swapOf[l.transactionHash.toLowerCase()] = l.args;
-  const asWrapped = (t: string) => (t.toLowerCase() === NATIVE ? wrapped : t.toLowerCase());
+  const asWrapped = (t: string) => (t.toLowerCase() === ADDRESSES.null ? wrapped : t.toLowerCase());
 
   const add = (balances: any, token: string, part: bigint, total: bigint, swap: any, label: string) => {
     if (part === 0n) return;
