@@ -11,12 +11,15 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import acrossBridge from "../bridges/across";
+import coreAssets from "../helpers/coreAssets.json";
 
 interface IAcrossDeposit {
   id: number;
+  originChainId?: number;
   destinationChainId: number | null;
   status: string;
   bridgeFeeUsd?: string | number | null;
+  inputToken?: string;
   inputAmount?: string;
   outputToken?: string;
   outputAmount?: string;
@@ -68,22 +71,32 @@ const parseBridgeFeeUsd = (deposit: IAcrossDeposit, chain: string): number | nul
   return parsed;
 };
 
-// The indexer leaves bridgeFeeUsd null on fills it cannot price (seen on USDT0 and USDG routes, where the fee is
-// a flat spread or none). Its priced rows are exactly inputUsd - outputUsd, so the fee is then the input minus
-// output amount, booked in the output token. Equal amounts mean no fee. A spread over half the input means the
-// legs do not share decimals: that one fill is skipped and logged, since it cannot be priced and the indexer
-// never backfills it.
+// Only these directional pairs have verified same-underlying, 6-decimal legs for raw subtraction.
+const unpricedFeePairs = [
+  // USDG issuer deployments: https://docs.paxos.com/guides/stablecoin/usdg/mainnet
+  // 6 decimals: https://github.com/paxosglobal/usdg-contract/blob/master/contracts/USDG.sol
+  { originChainId: 1, inputToken: coreAssets.ethereum.USDG, destinationChainId: 4663, outputToken: coreAssets.robinhood.USDG },
+  // USDT0 deployments: https://docs.usdt0.to/technical-documentation/deployments
+  // Both use 6 decimals; USDT0 is redeemable 1:1 for Ethereum USDT: https://docs.usdt0.to/
+  { originChainId: 10, inputToken: "0x01bFF41798a0BcF287b996046Ca68b395DbC1071", destinationChainId: 9745, outputToken: coreAssets.plasma.USDT0 },
+  // Optimism USDT0 above -> bridged USDT: https://docs.soneium.org/docs/builders/contracts
+  // Soneium USDT decimals() = 6 and remoteToken() = Ethereum USDT at sample fill block 30745714.
+  { originChainId: 10, inputToken: "0x01bFF41798a0BcF287b996046Ca68b395DbC1071", destinationChainId: 1868, outputToken: coreAssets.soneium.USDT },
+];
+
+// A null USD fee needs verified token identity before even equal raw amounts can establish a zero fee.
 const getUnpricedFee = (deposit: IAcrossDeposit, chain: string): bigint => {
-  if (!deposit.inputAmount || !deposit.outputAmount || !deposit.outputToken)
-    throw new Error(`across: unpriced fill ${deposit.id} on ${chain} has no amounts`);
-  const input = BigInt(deposit.inputAmount);
-  const spread = input - BigInt(deposit.outputAmount);
-  const absSpread = spread < 0n ? -spread : spread;
-  if (absSpread * 2n > input) {
-    console.log(`across: skipping unpriced fill ${deposit.id} on ${chain}, input ${deposit.inputAmount} vs output ${deposit.outputAmount}`);
-    return 0n;
-  }
-  return spread;
+  const context = `across: unpriced fill ${deposit.id} on ${chain} (${deposit.originChainId}:${deposit.inputToken} -> ${deposit.destinationChainId}:${deposit.outputToken})`;
+  const verifiedPair = unpricedFeePairs.some(pair =>
+    deposit.originChainId === pair.originChainId && deposit.destinationChainId === pair.destinationChainId &&
+    typeof deposit.inputToken === "string" && deposit.inputToken.toLowerCase() === pair.inputToken.toLowerCase() &&
+    typeof deposit.outputToken === "string" && deposit.outputToken.toLowerCase() === pair.outputToken.toLowerCase()
+  );
+  if (!verifiedPair) throw new Error(`${context} has an unverified token pair`);
+  if (typeof deposit.inputAmount !== "string" || !/^[0-9]+$/.test(deposit.inputAmount) ||
+      typeof deposit.outputAmount !== "string" || !/^[0-9]+$/.test(deposit.outputAmount))
+    throw new Error(`${context} has invalid amounts (expected unsigned base-10 integer strings)`);
+  return BigInt(deposit.inputAmount) - BigInt(deposit.outputAmount);
 };
 
 const fetch = async (options: FetchOptions) => {
