@@ -18,67 +18,39 @@ const PAGE = 1000;
 const SPLIT_THRESHOLD = 900; // a page this full may be truncated, split the range instead of trusting it
 const MAX_DEPTH = 16;
 
-// SpokePool chain ids. Every chain is scanned as an origin and sliced for incoming fills.
-const chainIds: Record<string, number> = {
-  [CHAIN.ETHEREUM]: 1,
-  [CHAIN.OPTIMISM]: 10,
-  [CHAIN.BSC]: 56,
-  [CHAIN.UNICHAIN]: 130,
-  [CHAIN.POLYGON]: 137,
-  [CHAIN.LENS]: 232,
-  [CHAIN.ERA]: 324,
-  [CHAIN.WC]: 480,
-  // [CHAIN.REDSTONE]: 690, // no working public RPC for the block lookup; last Across deposit from Redstone was 2025-12-09
-  [CHAIN.LISK]: 1135,
-  [CHAIN.SONEIUM]: 1868,
-  [CHAIN.BASE]: 8453,
-  [CHAIN.MODE]: 34443,
-  [CHAIN.ARBITRUM]: 42161,
-  [CHAIN.INK]: 57073,
-  [CHAIN.LINEA]: 59144,
-  [CHAIN.BLAST]: 81457,
-  [CHAIN.SCROLL]: 534352,
-  [CHAIN.ZORA]: 7777777,
-  [CHAIN.MONAD]: 143,
-  [CHAIN.HYPERLIQUID]: 999,
-  [CHAIN.PLASMA]: 9745,
-  [CHAIN.TEMPO]: 4217,
-  [CHAIN.ROBINHOOD]: 4663,
-  [CHAIN.MEGAETH]: 4326,
-  [CHAIN.ARC]: 5042,
-  [CHAIN.TRON]: 728126428,
-  [CHAIN.SOLANA]: 34268394551451,
-};
-
-// Origin chains Across no longer serves. The runner skips them from deadFrom on, and prefetch skips them too.
-const deadChains: Record<string, string> = {
-  [CHAIN.LISK]: "2026-08-18", // last Across deposit from or to Lisk was 2026-08-17
-  [CHAIN.BLAST]: "2026-08-01", // last Across deposit from or to Blast was 2026-07-31
-};
-
-// Two days after block 1, for origin chains younger than the oldest Across history. No deposit can predate its
-// chain, and around genesis getBlock cannot resolve a range, which failed the whole prefetch for every chain.
-const chainLaunch: Record<string, string> = {
-  [CHAIN.ERA]: "2023-02-16",
-  [CHAIN.ZORA]: "2023-06-15",
-  [CHAIN.BASE]: "2023-06-17",
-  [CHAIN.LINEA]: "2023-07-08",
-  [CHAIN.SCROLL]: "2023-10-12",
-  [CHAIN.MODE]: "2023-11-18",
-  [CHAIN.BLAST]: "2024-02-26",
-  [CHAIN.LISK]: "2024-05-05",
-  [CHAIN.WC]: "2024-06-27",
-  [CHAIN.UNICHAIN]: "2024-11-06",
-  [CHAIN.SONEIUM]: "2024-12-04",
-  [CHAIN.INK]: "2024-12-08",
-  [CHAIN.HYPERLIQUID]: "2025-02-20",
-  [CHAIN.LENS]: "2025-02-23",
-  [CHAIN.MONAD]: "2025-05-16",
-  [CHAIN.PLASMA]: "2025-09-05",
-  [CHAIN.MEGAETH]: "2025-11-12",
-  [CHAIN.TEMPO]: "2026-01-18",
-  [CHAIN.ROBINHOOD]: "2026-05-02",
-  [CHAIN.ARC]: "2026-05-17",
+// SpokePool chains. Every chain is scanned as an origin and sliced for incoming fills.
+// start: two days after block 1, for chains younger than the oldest Across history. No deposit can predate its chain,
+// and around genesis getBlock cannot resolve a range, which failed the whole prefetch for every chain.
+// deadFrom: Across no longer serves the chain; the runner and prefetch both skip it from then on.
+const chains: Record<string, { chainId: number; start?: string; deadFrom?: string }> = {
+  [CHAIN.ETHEREUM]: { chainId: 1 },
+  [CHAIN.OPTIMISM]: { chainId: 10 },
+  [CHAIN.BSC]: { chainId: 56 },
+  [CHAIN.UNICHAIN]: { chainId: 130, start: "2024-11-06" },
+  [CHAIN.POLYGON]: { chainId: 137 },
+  [CHAIN.LENS]: { chainId: 232, start: "2025-02-23" },
+  [CHAIN.ERA]: { chainId: 324, start: "2023-02-16" },
+  [CHAIN.WC]: { chainId: 480, start: "2024-06-27" },
+  [CHAIN.REDSTONE]: { chainId: 690, start: "2024-04-05", deadFrom: "2025-12-10" }, // last Across deposit from Redstone was 2025-12-09
+  [CHAIN.LISK]: { chainId: 1135, start: "2024-05-05", deadFrom: "2026-08-18" }, // last Across deposit from or to Lisk was 2026-08-17
+  [CHAIN.SONEIUM]: { chainId: 1868, start: "2024-12-04" },
+  [CHAIN.BASE]: { chainId: 8453, start: "2023-06-17" },
+  [CHAIN.MODE]: { chainId: 34443, start: "2023-11-18" },
+  [CHAIN.ARBITRUM]: { chainId: 42161 },
+  [CHAIN.INK]: { chainId: 57073, start: "2024-12-08" },
+  [CHAIN.LINEA]: { chainId: 59144, start: "2023-07-08" },
+  [CHAIN.BLAST]: { chainId: 81457, start: "2024-02-26", deadFrom: "2026-08-01" }, // last Across deposit from or to Blast was 2026-07-31
+  [CHAIN.SCROLL]: { chainId: 534352, start: "2023-10-12" },
+  [CHAIN.ZORA]: { chainId: 7777777, start: "2023-06-15" },
+  [CHAIN.MONAD]: { chainId: 143, start: "2025-05-16" },
+  [CHAIN.HYPERLIQUID]: { chainId: 999, start: "2025-02-20" },
+  [CHAIN.PLASMA]: { chainId: 9745, start: "2025-09-05" },
+  [CHAIN.TEMPO]: { chainId: 4217, start: "2026-01-18" },
+  [CHAIN.ROBINHOOD]: { chainId: 4663, start: "2026-05-02" },
+  [CHAIN.MEGAETH]: { chainId: 4326, start: "2025-11-12" },
+  [CHAIN.ARC]: { chainId: 5042, start: "2026-05-17" },
+  [CHAIN.TRON]: { chainId: 728126428 },
+  [CHAIN.SOLANA]: { chainId: 34268394551451 },
 };
 
 type AcrossDeposit = {
@@ -110,7 +82,7 @@ async function getPage(url: string, attempt = 0): Promise<AcrossDeposit[]> {
 }
 
 async function fetchBlockRange(chain: string, fromBlock: number, toBlock: number, depth = 0): Promise<AcrossDeposit[]> {
-  const rows = await getPage(`${API}?originChainId=${chainIds[chain]}&startBlock=${fromBlock}&endBlock=${toBlock}&limit=${PAGE}`);
+  const rows = await getPage(`${API}?originChainId=${chains[chain].chainId}&startBlock=${fromBlock}&endBlock=${toBlock}&limit=${PAGE}`);
   if (!Array.isArray(rows)) throw new Error(`across: unexpected response for ${chain}: ${JSON.stringify(rows).slice(0, 200)}`);
   if (rows.length < SPLIT_THRESHOLD) return rows;
 
@@ -151,7 +123,13 @@ async function getSolanaSlot(timestamp: number): Promise<number> {
   throw new Error(`across: could not resolve a Solana slot for ${timestamp}`);
 }
 
+// Redstone's public RPC is gone. It is an OP Stack chain with exact 2s blocks, so block = (time - genesis) / 2;
+// every Across deposit from Redstone checked (2024-10 to 2025-12) satisfies this with genesis 1712185091.
+const REDSTONE_GENESIS = 1712185091;
+
 async function getBlockRange(chain: string, options: FetchOptions): Promise<[number | null, number | null]> {
+  if (chain === CHAIN.REDSTONE)
+    return [Math.floor((options.fromTimestamp - REDSTONE_GENESIS) / 2), Math.ceil((options.toTimestamp - REDSTONE_GENESIS) / 2)];
   if (chain === CHAIN.SOLANA) {
     const fromSlot = await getSolanaSlot(options.fromTimestamp);
     const toSlot = await getSolanaSlot(options.toTimestamp);
@@ -175,9 +153,9 @@ async function fetchOriginDeposits(chain: string, options: FetchOptions): Promis
 
 // a few origins at a time; the block range splits within one origin stay sequential
 const prefetch = async (options: FetchOptions) => {
-  const activeChains = Object.keys(chainIds).filter((chain) =>
-    (!deadChains[chain] || options.dateString < deadChains[chain]) && (!chainLaunch[chain] || options.dateString >= chainLaunch[chain])
-  );
+  const activeChains = Object.entries(chains)
+    .filter(([_, { start, deadFrom }]) => (!start || options.dateString >= start) && (!deadFrom || options.dateString < deadFrom))
+    .map(([chain]) => chain);
   const { results, errors } = await PromisePool.withConcurrency(3)
     .for(activeChains)
     .process((chain) => fetchOriginDeposits(chain, options));
@@ -189,7 +167,7 @@ const REVERTED_STATUSES = new Set(["expired", "refunded"]);
 
 const fetch = async (options: FetchOptions) => {
   const deposits = options.preFetchedResults as AcrossDeposit[];
-  const chainId = chainIds[options.chain];
+  const { chainId } = chains[options.chain];
   const dailyOutgoingVolume = options.createBalances();
   const dailyIncomingVolume = options.createBalances();
   let dailyOutgoingTxCount = 0;
@@ -215,7 +193,7 @@ const adapter: SimpleAdapter = {
   fetch,
   prefetch: prefetch as any,
   adapter: Object.fromEntries(
-    Object.keys(chainIds).map((chain) => [chain, deadChains[chain] ? { deadFrom: deadChains[chain] } : {}])
+    Object.entries(chains).map(([chain, { start, deadFrom }]) => [chain, { ...(start && { start }), ...(deadFrom && { deadFrom }) }])
   ),
   methodology: {
     OutgoingVolume: "USD value of deposits into the Across SpokePool on each chain, from the Across indexer API.",
