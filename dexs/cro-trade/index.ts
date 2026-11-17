@@ -87,11 +87,12 @@ const RH_ROUTERS = [
   '0xbc6a1cc638da0273199f5fe5852845364ddb9373', // CroTradeRouterRH3, 2026-11-10 (sales paid out in ETH)
 ]
 const RH_NATIVE = ADDRESSES.null
+// lowercased: the Traded event's token addresses are compared lowercased below
 const RH_BASES = new Set([
   RH_NATIVE,
   ADDRESSES.robinhood.WETH,
   ADDRESSES.robinhood.USDG,
-])
+].map((a) => a.toLowerCase()))
 const RH_TRADED = 'event Traded(address indexed trader, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, uint256 fee)'
 
 const toTs = (date: string) => Math.floor(Date.parse(`${date}T00:00:00Z`) / 1000)
