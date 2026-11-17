@@ -224,8 +224,8 @@ const fetch = async (options: FetchOptions) => {
   // replay in-window lp rate changes by (blockNumber, logIndex) on top of the opening rate
   const lpChanges: Record<string, { position: number, rate: bigint }[]> = {}
   if (swapPools.length) {
-    // one topic query like DODOSwap above, not targets: without the indexer (e.g. CI) targets is one eth_getLogs per pool,
-    // ~4.5 min per hour on bsc vs ~2.5 min per day by topic (2026-11-13). AGENTS.md: hundreds of targets is the exception
+    // Busy hours can involve hundreds of pools; the SDK's RPC fallback queries each target separately.
+    // Use the hundreds-of-targets exception and filter to pools that swapped in this window.
     const changeLogs = await options.getLogs({ eventAbi: LP_FEE_RATE_CHANGE, noTarget: true, entireLog: true, parseLog: true })
     for (const log of changeLogs) {
       if (!poolRates[poolOf(log)]) continue
