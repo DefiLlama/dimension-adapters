@@ -45,12 +45,10 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
+  // Pool venue: every position is its own contract against the pool (longs and shorts are not
+  // matched against each other), so long + short counts each open position exactly once.
   const openInterestAtEnd = longOpenInterestAtEnd.clone();
   openInterestAtEnd.add(shortOpenInterestAtEnd);
-  // pool venue with no single-sided field: average the two sides instead of summing them
-  openInterestAtEnd.resizeBy(0.5);
-  longOpenInterestAtEnd.resizeBy(0.5);
-  shortOpenInterestAtEnd.resizeBy(0.5);
 
   return {
     longOpenInterestAtEnd,
