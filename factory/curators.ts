@@ -459,7 +459,14 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0x46BA7bCD764a692208781B0Fdc642E272ee597bC', '0xE86399fE6d7007FdEcb08A2ee1434Ee677a04433'],
         eulerVaultOwners: ['0xa563FEEA4028FADa193f1c1F454d446eEaa6cfD7', '0x46BA7bCD764a692208781B0Fdc642E272ee597bC'],
+        // created by 0xE7Fb2921 (block 25754849), curator 0xa58f41dd is RE7 Labs on api.morpho.org
+        morphoV2: ['0x5E2339BCb89B42782CEE454B46C7C6f88c0E4f83'], // Aerie x Plume USDC Core
         start: '2024-09-25',
+      },
+      [CHAIN.OPTIMISM]: {
+        // no VaultV2 factory is configured for optimism, so the vault is listed directly
+        morphoV2: ['0x3d63934715b6D4c4DFbBC1a00Fe2A2145079DD76'], // Re7 WETH, created 2026-04-21
+        start: '2026-04-21',
       },
       [CHAIN.BASE]: {
         morphoVaultOwners: ['0xD8B0F4e54a8dac04E0A57392f5A630cEdb99C940'],
