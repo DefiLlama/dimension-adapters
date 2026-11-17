@@ -6,7 +6,7 @@ import { getBlock } from "../../helpers/getBlock";
 import { METRIC } from "../../helpers/metrics";
 import { getEnv } from "../../helpers/env";
 import { httpPost } from "../../utils/fetchURL";
-import { getSignaturesForAddress, getTransaction } from "../../helpers/solana";
+import { getTransaction, solanaRpc } from "../../helpers/solana";
 
 const ORACLE_PRICE_ABI =
   "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)";
@@ -246,7 +246,10 @@ function getSolanaSupplyChange(mint: string, signature: string) {
       const sum = (balances: any[] = []): bigint =>
         balances.filter((b) => b.mint === mint).reduce((total: bigint, b) => total + BigInt(b.uiTokenAmount.amount), 0n);
       return { blockTime: tx.blockTime, change: sum(tx.meta.postTokenBalances) - sum(tx.meta.preTokenBalances) };
-    })();
+    })().catch((e) => {
+      delete solanaSupplyChanges[key];
+      throw e;
+    });
   }
   return solanaSupplyChanges[key];
 }
@@ -255,7 +258,8 @@ async function getSolanaSupply(mint: string, toTimestamp: number): Promise<numbe
   const signatures: string[] = [];
   let before: string | undefined;
   while (true) {
-    const page = await getSignaturesForAddress({ address: mint, limit: 1000, before });
+    // Raw RPC call so a null result fails below instead of reading as an empty history; 1000 is the RPC's max page size.
+    const page = await solanaRpc("getSignaturesForAddress", [mint, before ? { limit: 1000, before } : { limit: 1000 }]);
     if (!Array.isArray(page)) throw new Error(`Spiko: solana rpc returned no signatures for ${mint}`);
     for (const entry of page) {
       if (entry.err || (typeof entry.blockTime === "number" && entry.blockTime >= toTimestamp)) continue;
