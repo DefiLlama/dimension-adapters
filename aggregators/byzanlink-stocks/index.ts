@@ -15,7 +15,10 @@ const DZAP_SWAPPED = `event DZapTokenSwapped(bytes32 indexed transactionId, addr
 const DZAP_BATCH_SWAPPED = `event DZapBatchTokenSwapped(bytes32 indexed transactionId, address indexed sender, address indexed integrator, ${DZAP_SWAP_INFO}[] swapInfo)`;
 
 const isByzanlink = (clientData: string) =>
-  Buffer.from(clientData.slice(2), "hex").toString().includes(`"Source":"${BYZANLINK_SOURCE}"`);
+  Buffer.from(clientData.slice(2), "hex")
+    .toString()
+    .toLowerCase()
+    .includes(`"source":"${BYZANLINK_SOURCE.toLowerCase()}"`);
 
 const addKyberVolume = async (options: FetchOptions, dailyVolume: any) => {
   const swaps = await options.getLogs({
