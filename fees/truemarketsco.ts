@@ -8,7 +8,7 @@ import { addTokensReceived, getSolanaReceived } from "../helpers/token";
 // tokenized stocks and crypto. Swaps are routed through 0x / KyberSwap on Base and Robinhood Chain and Jupiter on
 // Solana; the True Markets fee is taken in the trade's stablecoin inside the same user operation / transaction and
 // sent to the fee collector wallets below (confirmed by True Markets).
-// Hyperliquid builder-code fees are tracked separately in factory/hyperliquid.ts (truemarkets-perps / -spot).
+// Hyperliquid builder-code fees are tracked separately in factory/hyperliquid.ts (truemarketsco-perps / -spot).
 
 // Same fee collector on Base and Robinhood Chain.
 // https://base.blockscout.com/address/0x62f00D95FFE2071F0EbdCf898Caa384DDCEC71C5
