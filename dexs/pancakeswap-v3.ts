@@ -423,7 +423,7 @@ const breakdownMethodology = {
   },
   Revenue: {
     [METRIC.PROTOCOL_REVENUE]: 'Swap fees collected by Pancakeswap - distribute to Treasury',
-    [METRIC.HOLDERS_REVENUE]: 'Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools at the documented cut; on other chains the pool's own cut, split between treasury and burn in the same per-tier proportion',
+    [METRIC.HOLDERS_REVENUE]: "Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools at the documented cut; on other chains the pool's own cut, split between treasury and burn in the same per-tier proportion",
   },
   ProtocolRevenue: {
     [METRIC.PROTOCOL_REVENUE]: 'Swap fees collected by Pancakeswap - distribute to Treasury',
@@ -432,7 +432,7 @@ const breakdownMethodology = {
     [METRIC.LP_REVENUE]: 'Fees distributed to LPs',
   },
   HoldersRevenue: {
-    [METRIC.BUY_BACK_AND_BURN]: 'Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools at the documented cut; on other chains the pool's own cut, split between treasury and burn in the same per-tier proportion',
+    [METRIC.BUY_BACK_AND_BURN]: "Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools at the documented cut; on other chains the pool's own cut, split between treasury and burn in the same per-tier proportion",
   },
 }
 
