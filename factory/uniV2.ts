@@ -1214,6 +1214,9 @@ const configs: Record<string, Record<string, any>> = {
     // fetch is overridden below to read feeTo at run time, so revenue drops to zero if it is ever unset.
     [CHAIN.BSC]: { factory: '0x65b3cc7a7cb167221266fc93884717de2dbd074e', start: '2022-04-26', fees: 0.0025, userFeesRatio: 1, revenueRatio: 8 / 25, protocolRevenueRatio: 8 / 25, allowReadPairs: true },
   },
+  "convergence": {
+    [CHAIN.ETHEREUM]: { factory: '0x4eef5746ED22A2fD368629C1852365bf5dcb79f1', start: '2021-05-07', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+  },
   "justmoney": {
     // useSyncReserves: the public BitTorrent RPC is not archival, so pool balances at a past block cannot be read
     [CHAIN.BITTORRENT]: { factory: '0x4dEb2f0976DC3Bf351555524B3A24A4feA4e137E', fees: 0.003, useSyncReserves: true, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
@@ -1230,6 +1233,14 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "convergence": {
+    Volume: "Swap volume on Convergence pairs on Ethereum. Excludes the Moonbeam deployment.",
+    Fees: "Traders pay a 0.3% fee on every swap.",
+    UserFees: "Traders pay a 0.3% fee on every swap.",
+    Revenue: "One sixth of the 0.3% swap fee (0.05% of volume) goes to the Convergence fee address.",
+    ProtocolRevenue: "One sixth of the 0.3% swap fee (0.05% of volume) goes to the Convergence fee address.",
+    SupplySideRevenue: "Five sixths of the 0.3% swap fee (0.25% of volume) stay with liquidity providers.",
+  },
   "justmoney": {
     Volume: "Swap volume on JustMoney pairs on BitTorrent, BNB Smart Chain, Ethereum and Polygon. Excludes the Tron deployment.",
     Fees: "Traders pay a 0.3% fee on every swap.",
