@@ -342,18 +342,21 @@ const builderConfigs: Record<string, BuilderConfig> = {
   "kokoah-perps": {
     // Kokoah (kokoah.com) builder code, attached to every Hyperliquid order placed through the app. The app's API
     // publishes the address and fee: https://api.kokoah.com/v1/public-config (`builder`).
-    // 2.5 bps on perps since launch; a launch offer sets it to 0 from 2026-10-09 until 2026-12-01 00:00 UTC
-    // (`builder.promo`), during which orders keep the builder code with a zero fee, then 2.5 bps again.
+    // 0.025% of notional on perps from launch, 0.045% since 2026-11-11 (resting orders keep the fee they were placed with).
+    // Kokoah spends all of its builder-code revenue on buying back and burning the token of its Bittensor subnet
+    // (subnet 39); every burn is published with its transaction at https://kokoah.com/subnet/buybacks.
     addresses: ["0x43ccc0618e4358494f87a4b8699230203dc4ab67"],
     // first day with fills in the builder_fills archive for this address
     start: "2026-10-06",
     methodology: {
       Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through Kokoah, counted from its builder code.",
       Fees: "Hyperliquid builder code fees paid by users on perpetual trades placed through Kokoah; excludes Hyperliquid's own trading fees.",
-      Revenue: "Builder code fees collected by Kokoah. Referral rewards Kokoah later pays out off-chain from these fees are not deducted.",
-      ProtocolRevenue: "Builder code fees collected by Kokoah. Referral rewards Kokoah later pays out off-chain from these fees are not deducted.",
+      Revenue: "All builder code fees collected by Kokoah.",
+      ProtocolRevenue: "None, all builder code fees go to buying back and burning the Kokoah subnet token.",
+      HoldersRevenue: "All builder code fees go to buying back and burning the token of Kokoah's Bittensor subnet (subnet 39); each burn is published with its transaction at kokoah.com/subnet/buybacks.",
     },
     breakdownFees: true,
+    revenueToHolders: true,
   },
   "hypercall": {
     // Hypercall's production builder address. Hyperliquid
