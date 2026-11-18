@@ -10,6 +10,8 @@ export const METRICS = {
   ASSET_YIELDS_GPU_FINANCING_TO_SUSDAI : 'Asset yields - GPU-financing to staked USDai',
   GPU_FINANCING_ORIGINATION_FEE : 'GPU-financing origination fee',
   GPU_FINANCING_ORIGINATION_FEE_TO_PROTOCOL : 'GPU-financing origination fee to protocol',
+  GPU_FINANCING_REFINANCE_FEE : 'GPU-financing refinance fee',
+  GPU_FINANCING_REFINANCE_FEE_TO_SUSDAI : 'GPU-financing refinance fee to staked USDai',
   GPU_FINANCING_EXIT_FEE : 'GPU-financing exit fee',
   GPU_FINANCING_EXIT_FEE_TO_PROTOCOL : 'GPU-financing exit fee to protocol',
   GPU_FINANCING_LIQUIDATION_FEE : 'GPU-financing liquidation fee',
