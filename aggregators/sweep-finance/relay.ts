@@ -13,9 +13,13 @@ import { RELAY_HISTORY } from "./relayHistory";
 // The list holds the requests made before this day (UTC).
 export const RELAY_LISTED_UNTIL = "2026-11-18";
 
-// Whether a window ends within the list. A chain with Relay legs alone has no data past the list's end, and reports
-// nothing there rather than zero: its deadFrom is RELAY_LISTED_UNTIL, but the runner still runs a chain for a day past
-// its deadFrom (adapters/utils/runAdapter.ts, setChainValidStart), so its fetch checks the window too.
+// A chain with Relay legs alone has no data past the end of the list, so it must not run there. The runner skips a chain
+// only once its deadFrom is more than a day behind the window's end (adapters/utils/runAdapter.ts, setChainValidStart),
+// so such a chain's deadFrom is the list's last day: the runner then skips it for every window that ends after the list.
+export const RELAY_LAST_DAY = new Date(Date.parse(`${RELAY_LISTED_UNTIL}T00:00:00Z`) - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+// Whether a window ends within the list. Where it does not, a chain with Relay legs alone throws (a guard the runner's
+// deadFrom keeps from being reached), rather than report the window as zero.
 export const relayListCovers = (options: FetchOptions) => options.endTimestamp <= Date.parse(`${RELAY_LISTED_UNTIL}T00:00:00Z`) / 1000;
 
 // Dollars by DefiLlama chain, the chain paid from.
