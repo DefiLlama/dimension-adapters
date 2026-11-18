@@ -13,7 +13,7 @@ Open code: https://github.com/kaspador/kusdt-open
 
 const VAULT = "0xfa9869982542FB20baD929789B252b7b06EeE10e";
 const DEPOSIT_FEES = "Deposit Fees";
-const PAYOUT_FEES = "Payout Fees";
+const WITHDRAWAL_FEES = "Withdrawal Fees";
 
 const EVENT_DEPOSIT =
   "event Deposit(uint64 indexed nonce, address indexed sender, uint8 ownerScheme, bytes32 owner, uint256 units, uint256 fee, uint256 minted)";
@@ -28,33 +28,33 @@ const chainConfig: Record<string, { start: string; usdt: string; scale: bigint }
 const fetch = async (options: FetchOptions) => {
   const { usdt, scale } = chainConfig[options.chain];
   const dailyFees = options.createBalances();
-  const [deposits, payouts] = await Promise.all([
+  const [deposits, withdrawals] = await Promise.all([
     options.getLogs({ target: VAULT, eventAbi: EVENT_DEPOSIT }),
     options.getLogs({ target: VAULT, eventAbi: EVENT_RELEASED }),
   ]);
   deposits.forEach((log: any) => dailyFees.add(usdt, BigInt(log.fee) * scale, DEPOSIT_FEES));
-  payouts.forEach((log: any) => dailyFees.add(usdt, BigInt(log.fee) * scale, PAYOUT_FEES));
-  return { dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  withdrawals.forEach((log: any) => dailyFees.add(usdt, BigInt(log.fee) * scale, WITHDRAWAL_FEES));
+  return { dailyFees, dailyRevenue: dailyFees.clone(), dailyProtocolRevenue: dailyFees.clone() };
 };
 
 const methodology = {
-  Fees: "The fee the Trestly vault charges on each deposit (USDT bridged to Kaspa) and each payout (kUSDT bridged back to USDT), from its Deposit and Released events on Ethereum and BNB Chain.",
-  Revenue: "All fees go to the protocol.",
-  ProtocolRevenue: "All fees go to the protocol.",
+  Fees: "Fees users pay to bridge USDT between Ethereum or BNB Chain and Kaspa: a percentage of each deposit (USDT in, kUSDT out on Kaspa) and of each withdrawal (kUSDT back to USDT), with a minimum per transfer. The USDT locked to back kUSDT is not counted.",
+  Revenue: "All fees users pay on Trestly bridge deposits and withdrawals, kept by the protocol.",
+  ProtocolRevenue: "All fees users pay on Trestly bridge deposits and withdrawals, held in the vault for the protocol to withdraw.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [DEPOSIT_FEES]: "Fee on each USDT deposit into the vault (the Deposit event's fee).",
-    [PAYOUT_FEES]: "Fee on each USDT payout from the vault (the Released event's fee).",
+    [DEPOSIT_FEES]: "Fee on each USDT deposit bridged to Kaspa as kUSDT: a percentage of the amount with a minimum, rising on days of heavy deposits. Kept even if the deposit is later refunded.",
+    [WITHDRAWAL_FEES]: "Fee on each kUSDT withdrawal paid out as USDT on Ethereum or BNB Chain: a percentage of the amount with a minimum, counted when the USDT is paid out.",
   },
   Revenue: {
-    [DEPOSIT_FEES]: "Fee on each USDT deposit, kept by the protocol.",
-    [PAYOUT_FEES]: "Fee on each USDT payout, kept by the protocol.",
+    [DEPOSIT_FEES]: "All deposit fees, kept by the protocol.",
+    [WITHDRAWAL_FEES]: "All withdrawal fees, kept by the protocol.",
   },
   ProtocolRevenue: {
-    [DEPOSIT_FEES]: "Fee on each USDT deposit, kept by the protocol.",
-    [PAYOUT_FEES]: "Fee on each USDT payout, kept by the protocol.",
+    [DEPOSIT_FEES]: "All deposit fees, held in the vault for the protocol to withdraw.",
+    [WITHDRAWAL_FEES]: "All withdrawal fees, held in the vault for the protocol to withdraw.",
   },
 };
 
