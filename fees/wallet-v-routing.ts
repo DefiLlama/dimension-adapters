@@ -1,6 +1,5 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types';
-import { CHAIN } from '../helpers/chains';
-import { swapChains } from '../helpers/aggregators/wallet-v/config';
+import { chainConfig } from '../helpers/aggregators/wallet-v/config';
 import { addAmount } from '../helpers/aggregators/wallet-v/evm-data';
 import { readEvmSwaps } from '../helpers/aggregators/wallet-v/evm-swaps';
 import { readSolanaSwaps } from '../helpers/aggregators/wallet-v/solana-swaps';
@@ -12,7 +11,8 @@ const swapRevenue = 'Swap Fees To Wallet V';
 const bridgeRevenue = 'Bridge Affiliate Fees To Wallet V';
 
 async function fetch(options: FetchOptions) {
-  const swaps = options.chain === CHAIN.SOLANA ? await readSolanaSwaps(options) : await readEvmSwaps(options);
+  const config = chainConfig[options.chain];
+  const swaps = 'classic' in config ? await readEvmSwaps(options, config) : await readSolanaSwaps(options, config);
   const bridgePayments = await readRangoBridge(options, 'fees');
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -36,7 +36,7 @@ const revenueBreakdown = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: swapChains,
+  adapter: chainConfig,
   dependencies: [Dependencies.ALLIUM],
   doublecounted: true, // Some underlying aggregators include affiliate payments in their own gross fees.
   fetch,
