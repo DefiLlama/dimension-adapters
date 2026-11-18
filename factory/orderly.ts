@@ -54,9 +54,10 @@ const feesConfigs: Record<string, Config> = {
     broker_id: "raydium",
     start: "2024-12-11",
     methodology: {
-      Fees: "Raydium charges no fee at the moment, there is 3 bps taker fees on orderly",
-      Revenue: "No fee, so no revenue",
-      ProtocolRevenue: "n/a",
+      Volume: "Maker/taker volume of the traders on Raydium's Orderly broker.",
+      Fees: "Builder fees Raydium charges on top of Orderly's trading fees.",
+      Revenue: "All builder fees collected by Raydium.",
+      ProtocolRevenue: "All the revenue goes to the protocol.",
     },
   },
   "toro-perp": {
