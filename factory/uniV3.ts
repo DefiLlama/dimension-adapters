@@ -631,6 +631,9 @@ const configs: Record<string, Record<string, any>> = {
   "wemix-v3": {
     [CHAIN.WEMIX]: { factory: '0x8EFf28B531B731814e4E4fFfa0F7Bd0FC50f370F', start: '2024-09-26', swapEvent: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, int24 tickBefore)', userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
   },
+  "comet-swap-v3": {
+    [CHAIN.ASTAR]: { factory: '0x2C1EEf5f87F4F3194FdAAfa20aE536b1bA49863b', start: '2026-02-05', userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
+  },
   "betterswap-v3": {
     [CHAIN.VECHAIN]: { factory: '0xf9f1722f95d036efbd1352d84e3a3755f8027b39', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, start: "2026-07-20", },
   },
@@ -743,6 +746,14 @@ const configs: Record<string, Record<string, any>> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "comet-swap-v3": {
+    Volume: "Swap volume on CometSwap V3 pools on Astar.",
+    Fees: "Swap fees paid by traders, at each pool's fee tier.",
+    UserFees: "Swap fees paid by traders, at each pool's fee tier.",
+    Revenue: "The protocol's share of swap fees, read from each pool; zero while no pool has a protocol fee switched on.",
+    ProtocolRevenue: "The protocol's share of swap fees, read from each pool; zero while no pool has a protocol fee switched on.",
+    SupplySideRevenue: "Swap fees left to liquidity providers after the protocol's share.",
+  },
   "wemix-v3": {
     Volume: "Swap volume on WEMIX.FI V3 pools on WEMIX.",
     Fees: "Swap fees paid by traders, at each pool's fee tier.",
