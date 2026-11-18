@@ -269,21 +269,20 @@ const buildEvmFetcher = (factory: string) => async (options: FetchOptions) => {
     swapEvent: poolSwapEvent,
     blacklistTokens: await getDexTokensBlacklisted(options),
     userFeesRatio: 1,
-    // Each pool's slot0.feeProtocol sets the protocol cut. Off BSC it went from the docs table (32-34%) to 12%
-    // on 2026-11-12 (e.g. base tx 0xc30bf15fbe5d3b9286eefb7841742333bdf939bfefab7068e2f7bdd624aafd58); replay it per swap/input token.
-    dynamicProtocolFees: 'pancakeV3',
+    // the protocol cut is set per pool (32-34% by tier, 12% since The Flip, rolled out from 2026-11-05), so read it from each Swap log
+    protocolFeesInSwapEvent: true,
     getRevenueRatio: ({ poolFeeTier, protocolFeeRatio }: UniGetRevenueRatioProps) => {
-      if (protocolFeeRatio === undefined) throw new Error('pancakeswap-v3: input protocol fee unknown');
-      // Keep the documented holder allocation only at the input side's default cut; other cuts remain treasury revenue.
-      // The Flip explicitly sends the new 12% cut to treasury; zero holder attribution does not imply buybacks cease.
+      if (protocolFeeRatio === undefined) throw new Error('pancakeswap-v3: protocol fee ratio missing');
+      // the CAKE buyback share applies only while a pool runs its default cut; The Flip sends the 12% cut to the treasury
       // https://forum.pancakeswap.finance/t/proposal-discussion-the-flip-liquidity-should-get-paid-more/1658
-      const documentedRatio = getProtocolRevenueRatio(poolFeeTier) + getHolderRevenueRatio(poolFeeTier);
-      const isDocumentedCut = documentedRatio > 0 && Math.abs(protocolFeeRatio - documentedRatio) < 1e-9;
-      const holdersRatio = isDocumentedCut ? getHolderRevenueRatio(poolFeeTier) : 0;
+      // the pool floors the protocol fee per swap step, so small swaps measure a few points below their cut; every
+      // non-default cut set on-chain so far (10-20%) sits 12+ points below the 32-34% defaults
+      const isDefaultCut = Math.abs(protocolFeeRatio - (getProtocolRevenueRatio(poolFeeTier) + getHolderRevenueRatio(poolFeeTier))) < 0.05;
+      const _holdersRevenueRatio = isDefaultCut ? getHolderRevenueRatio(poolFeeTier) : 0;
       return {
         _revenueRatio: protocolFeeRatio,
-        _protocolRevenueRatio: protocolFeeRatio - holdersRatio,
-        _holdersRevenueRatio: holdersRatio,
+        _protocolRevenueRatio: protocolFeeRatio - _holdersRevenueRatio,
+        _holdersRevenueRatio,
       };
     },
   })
@@ -409,15 +408,13 @@ async function fetch(options: FetchOptions) {
   }
 }
 
-// Current Solana distribution: https://docs.pancakeswap.finance/earn/pancakeswap-pools
-// Keep the legacy calculation until its historical transition can be verified.
 const methodology = {
   Fees: "Total trading fees - sum of LP fees and protocol fees. LP fees vary by pool type (0.25% for most pools, with some special pools having different rates). Protocol fees are 0.05% for most pools.",
   UserFees: "All trading fees paid by users",
-  Revenue: "Swap fees allocated to treasury and CAKE buybacks: BSC uses the legacy 32-34% tier table, while other EVM chains use each swap's effective input-token protocol cut; Solana retains the legacy tier calculation pending historical verification, rather than the currently published 16% (8% treasury, 8% burn).",
+  Revenue: "Pancakeswap collects amount of swap fees for Treasury and buy back CAKE.",
   SupplySideRevenue: "Fees distributed to LPs",
-  ProtocolRevenue: "Swap fees attributed to treasury: BSC uses 18%, 19%, 9%, 9% for the 0.01%, 0.05%, 0.25%, 1% tiers; other EVM chains use each swap's input-token cut less its default holder allocation, booking non-default cuts entirely to treasury; Solana retains the legacy tier calculation pending historical verification rather than the currently published 8% treasury share.",
-  HoldersRevenue: "Swap fees attributed to CAKE buybacks and burns: BSC uses 15% for the 0.01% and 0.05% tiers and 23% for the 0.25% and 1% tiers; other EVM swaps retain these allocations only when the input-token cut matches the tier's documented total, with no separate holder attribution for other cuts (not proof that buybacks cease); Solana retains the legacy tier calculation pending historical verification rather than the currently published 8% burn share.",
+  ProtocolRevenue: "Swap fees collected by Pancakeswap - distribute to Treasury",
+  HoldersRevenue: "Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools while a pool runs its default protocol fee; pools moved to the 12% protocol fee by The Flip (from November 2026) send it all to Treasury",
 }
 
 const breakdownMethodology = {
@@ -425,17 +422,17 @@ const breakdownMethodology = {
     [METRIC.SWAP_FEES]: 'Total trading fees - sum of LP fees and protocol fees. LP fees vary by pool type (0.25% for most pools, with some special pools having different rates). Protocol fees are 0.05% for most pools',
   },
   Revenue: {
-    [METRIC.PROTOCOL_REVENUE]: methodology.ProtocolRevenue,
-    [METRIC.HOLDERS_REVENUE]: methodology.HoldersRevenue,
+    [METRIC.PROTOCOL_REVENUE]: 'Swap fees collected by Pancakeswap - distribute to Treasury',
+    [METRIC.HOLDERS_REVENUE]: 'Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools while a pool runs its default protocol fee; pools moved to the 12% protocol fee by The Flip (from November 2026) send it all to Treasury',
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_REVENUE]: methodology.ProtocolRevenue,
+    [METRIC.PROTOCOL_REVENUE]: 'Swap fees collected by Pancakeswap - distribute to Treasury',
   },
   SupplySideRevenue: {
     [METRIC.LP_REVENUE]: 'Fees distributed to LPs',
   },
   HoldersRevenue: {
-    [METRIC.BUY_BACK_AND_BURN]: methodology.HoldersRevenue,
+    [METRIC.BUY_BACK_AND_BURN]: 'Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools while a pool runs its default protocol fee; pools moved to the 12% protocol fee by The Flip (from November 2026) send it all to Treasury',
   },
 }
 

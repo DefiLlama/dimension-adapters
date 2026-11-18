@@ -8,7 +8,7 @@ import { BaseAdapter, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../ada
 import { addOneToken, isCoreAsset } from "./prices";
 import { queryDune } from "./dune";
 import { ethers } from "ethers";
-import { PositionedLogArgs, toPositionedLogArgs } from "./logs";
+import { toPositionedLogArgs } from "./logs";
 
 const ZERO_ADDRESS = ADDRESSES.null;
 
@@ -427,106 +427,7 @@ const defaultFeeChangeEvent = 'event SetFee(uint24 feeOld, uint24 feeNew)'
 // Algebra Constants.COMMUNITY_FEE_DENOMINATOR, same on V1.9 and Integral
 const COMMUNITY_FEE_DENOMINATOR = 1e3
 
-type LogPosition = Pick<PositionedLogArgs, 'blockNumber' | 'logIndex'>
-type PancakeProtocolCut = { token0: number, token1: number }
-const comparePosition = (a: LogPosition, b: LogPosition) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex
-
-async function readSlotsWithRetry(api: ChainApi, abi: string, pairs: string[]) {
-  const slots = await api.multiCall({ abi, calls: pairs, permitFailure: true })
-  const missing = pairs.map((_, i) => i).filter(i => slots[i] == null)
-  if (missing.length) {
-    const retries = await api.multiCall({ abi, calls: missing.map(i => pairs[i]), permitFailure: true })
-    missing.forEach((i, j) => { slots[i] = retries[j] })
-  }
-  return slots
-}
-
-function orderedPancakeLogs(logs: any[], pair: string, fromBlock: number, toBlock: number) {
-  if (!Array.isArray(logs)) throw new Error(`pancakeV3: missing logs for ${pair}`)
-  const positions = new Map<string, string>()
-  return logs.map(log => {
-    // ethers Results expose named fields through a proxy; materialize them before the canonical normalizer.
-    const args = log.args?.toObject ? log.args.toObject() : log.args
-    const positioned = toPositionedLogArgs({ ...log, args })
-    if (log.removed || (log.address && log.address.toLowerCase() !== pair.toLowerCase()) ||
-      !Number.isSafeInteger(positioned.blockNumber) || !Number.isSafeInteger(positioned.logIndex) ||
-      positioned.logIndex < 0 || positioned.blockNumber < fromBlock || positioned.blockNumber > toBlock)
-      throw new Error(`pancakeV3: invalid log position or emitter on ${pair}`)
-    return positioned
-  }).filter(log => {
-    const position = `${log.blockNumber}:${log.logIndex}`
-    const payload = JSON.stringify(log, (_, value) => typeof value === 'bigint' ? value.toString() : value)
-    if (positions.has(position)) {
-      if (positions.get(position) !== payload) throw new Error(`pancakeV3: conflicting logs on ${pair} at ${position}`)
-      return false
-    }
-    positions.set(position, payload)
-    return true
-  }).sort(comparePosition)
-}
-
-function pancakeCut(token0: any, token1: any): PancakeProtocolCut {
-  if ([token0, token1].some(value => value == null || !Number.isInteger(Number(value)) || Number(value) < 0 || Number(value) > 10000))
-    throw new Error('pancakeV3: invalid protocol fee cut')
-  return { token0: Number(token0), token1: Number(token1) }
-}
-
-async function pancakeProtocolTimelines(options: FetchOptions, pairs: string[]) {
-  // PancakeV3Pool packs two uint16 cuts in 1/10000ths; SetFeeProtocol has four uint32 fields.
-  // initialize() sets the tier's initial cut without emitting SetFeeProtocol.
-  // https://github.com/pancakeswap/pancake-v3-contracts/blob/main/projects/v3-core/contracts/PancakeV3Pool.sol
-  const slot0Abi = 'function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint32 feeProtocol, bool unlocked)'
-  const fromBlock = await options.getFromBlock()
-  const toBlock = await options.getToBlock()
-  const closing = await readSlotsWithRetry(options.api, slot0Abi, pairs)
-  const opening = await readSlotsWithRetry(new ChainApi({ chain: options.chain, block: fromBlock - 1 }), slot0Abi, pairs)
-  const initialized = (slot: any) => slot != null && BigInt(slot.sqrtPriceX96) > 0n
-  const decode = (slot: any) => {
-    const packed = Number(slot.feeProtocol)
-    if (slot.feeProtocol == null || !Number.isInteger(packed) || packed < 0 || packed > 0xffffffff)
-      throw new Error('pancakeV3: invalid slot0 feeProtocol')
-    return pancakeCut(packed % 65536, Math.floor(packed / 65536))
-  }
-  const changes = await options.getLogs({ targets: pairs, fromBlock, toBlock, flatten: false, onlyArgs: false,
-    eventAbi: 'event SetFeeProtocol(uint32 feeProtocol0Old, uint32 feeProtocol1Old, uint32 feeProtocol0New, uint32 feeProtocol1New)' })
-  const needsInit = pairs.filter((_, i) => !initialized(opening[i]))
-  const initializations: IJSON<PositionedLogArgs[]> = {}
-  if (needsInit.length) {
-    const logs = await options.getLogs({ targets: needsInit, fromBlock, toBlock, flatten: false, onlyArgs: false,
-      eventAbi: 'event Initialize(uint160 sqrtPriceX96, int24 tick)' })
-    needsInit.forEach((pair, i) => { initializations[pair] = orderedPancakeLogs(logs[i], pair, fromBlock, toBlock) })
-  }
-  const timelines: IJSON<(LogPosition & PancakeProtocolCut)[]> = {}
-  pairs.forEach((pair, i) => {
-    if (!initialized(closing[i])) throw new Error(`pancakeV3: closing slot0 unreadable or uninitialized on ${pair}`)
-    const closingCut = decode(closing[i])
-    const logs = orderedPancakeLogs(changes[i], pair, fromBlock, toBlock)
-    const updates = logs.map(log => ({ ...log, old: pancakeCut(log.feeProtocol0Old, log.feeProtocol1Old), next: pancakeCut(log.feeProtocol0New, log.feeProtocol1New) }))
-    let position: LogPosition = { blockNumber: -1, logIndex: -1 }
-    let cut: PancakeProtocolCut
-    if (initialized(opening[i])) cut = decode(opening[i])
-    else {
-      const init = initializations[pair]
-      if (init.length !== 1 || BigInt(init[0].sqrtPriceX96) <= 0n || (updates.length && comparePosition(init[0], updates[0]) >= 0))
-        throw new Error(`pancakeV3: opening slot0 unknown without preceding Initialize on ${pair}`)
-      position = init[0]
-      cut = updates[0]?.old ?? closingCut
-    }
-    timelines[pair] = [{ ...position, ...cut }]
-    for (const update of updates) {
-      if (cut.token0 !== update.old.token0 || cut.token1 !== update.old.token1)
-        throw new Error(`pancakeV3: protocol fee logs do not link opening/previous cut on ${pair}`)
-      cut = update.next
-      timelines[pair].push({ blockNumber: update.blockNumber, logIndex: update.logIndex, ...cut })
-    }
-    if (cut.token0 !== closingCut.token0 || cut.token1 !== closingCut.token1)
-      throw new Error(`pancakeV3: protocol fee logs do not match closing slot0 on ${pair}`)
-    // Endpoint validation cannot detect an RPC silently omitting a complete A -> B -> A round trip.
-  })
-  return { timelines, fromBlock, toBlock }
-}
-
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, feeFromSlot0 = false, feeChangeEvent = defaultFeeChangeEvent, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, blacklistedAddresses, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false, noStateReads = false }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, feeFromSlot0 = false, feeChangeEvent = defaultFeeChangeEvent, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, blacklistedAddresses, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false, noStateReads = false, protocolFeesInSwapEvent = false }: UniV3Config): FetchV2 => {
   const blacklistedAddressesSet = blacklistedAddresses ? new Set(blacklistedAddresses.map(i => i.toLowerCase())) : null
   if (noStateReads && (!factory || isAlgebraV3 || isAlgebraV2 || algebraCommunityFee || dynamicProtocolFees || feeFromSlot0))
     throw new Error('noStateReads needs factory pools whose fee tier is in the PoolCreated log, every other option reads pool state')
@@ -642,10 +543,12 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
     const pairs = Object.keys(filteredPairs)
     const protocolFeeRatios: IJSON<{ token0: number, token1: number }> = {}
 
-    const pancakeState = dynamicProtocolFees === 'pancakeV3' ? await pancakeProtocolTimelines(fetchOptions, pairs) : undefined
-    if (dynamicProtocolFees && !pancakeState) {
-      const slot0Abi = 'function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)'
-      const slot0Results = await readSlotsWithRetry(api, slot0Abi, pairs)
+    if (dynamicProtocolFees) {
+      const slot0Results = await api.multiCall({
+        abi: "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)",
+        calls: pairs,
+        permitFailure: true,
+      })
 
       slot0Results.forEach((slot0: any, i: number) => {
         // a failed read leaves the ratio undefined, so getRevenueRatio can reject it instead of seeing feeProtocol = 0
@@ -716,15 +619,13 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       return fee
     }
 
-    const allLogs = poolSwapLogs ? pairs.map(pair => poolSwapLogs![pair]) : await getLogs({ targets: pairs, eventAbi: swapEvent, flatten: false, ...(hasFeeTimelines || pancakeState ? { onlyArgs: false } : {}) })
-    if (pancakeState && (allLogs.length !== pairs.length || allLogs.some(logs => !Array.isArray(logs))))
-      throw new Error('pancakeV3: missing grouped swap logs')
+    const allLogs = poolSwapLogs ? pairs.map(pair => poolSwapLogs![pair]) : await getLogs({ targets: pairs, eventAbi: swapEvent, flatten: false, ...(hasFeeTimelines ? { onlyArgs: false } : {}) })
 
     allLogs.map((rawLogs: any, index) => {
       if (!rawLogs.length) return;
       const pair = pairs[index]
       if (blacklistPoolsSet && blacklistPoolsSet.has(pair.toLowerCase())) return;
-      const logs = pancakeState ? orderedPancakeLogs(rawLogs, pair, pancakeState.fromBlock, pancakeState.toBlock) : hasFeeTimelines ? rawLogs.map(toPositionedLogArgs) : rawLogs
+      const logs = hasFeeTimelines ? rawLogs.map(toPositionedLogArgs) : rawLogs
       const [token0, token1] = pairObject[pair]
       const feeTier = fees[pair]
       const feeTimeline = feeTimelines[pair]
@@ -734,7 +635,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       let pairHoldersRevenueRatio = holdersRevenueRatio;
 
       // only use custom revenue ratio when revenueRatio is not set
-      if (!pancakeState && revenueRatio === undefined && getRevenueRatio) {
+      if (revenueRatio === undefined && getRevenueRatio && !protocolFeesInSwapEvent) {
         const { _revenueRatio, _protocolRevenueRatio, _holdersRevenueRatio } = getRevenueRatio({
           options: fetchOptions,
           poolFeeTier: feeTier,
@@ -754,31 +655,16 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
           if (blacklistedAddressesSet.has(log.sender.toLowerCase()) || blacklistedAddressesSet.has(log.recipient.toLowerCase())) return
         }
         const swapFeeTier = feeTimeline ? feeAt(feeTimeline, log.blockNumber, log.logIndex) : feeTier
-        if (pancakeState) {
-          const timeline = pancakeState.timelines[pair]
-          if (comparePosition(timeline[0], log) >= 0) throw new Error(`pancakeV3: swap before Initialize on ${pair}`)
-          let cut = timeline[0]
-          for (const change of timeline.slice(1)) {
-            if (comparePosition(change, log) === 0) throw new Error(`pancakeV3: swap conflicts with fee change on ${pair}`)
-            if (comparePosition(change, log) > 0) break
-            cut = change
-          }
-          const amount0 = BigInt(log.amount0), amount1 = BigInt(log.amount1)
-          if (amount0 === 0n && amount1 === 0n) return
-          if (!(amount0 > 0n && amount1 <= 0n) && !(amount1 > 0n && amount0 <= 0n))
-            throw new Error(`pancakeV3: invalid swap direction on ${pair}`)
-          // Reset every swap; explicit zero allocations and static config take precedence.
-          pairRevenueRatio = revenueRatio
-          pairProtocolRevenueRatio = protocolRevenueRatio
-          pairHoldersRevenueRatio = holdersRevenueRatio
-          if (revenueRatio === undefined && getRevenueRatio) {
-            const ratios = getRevenueRatio({ options: fetchOptions, poolFeeTier: swapFeeTier,
-              protocolFeeRatio: (amount0 > 0n ? cut.token0 : cut.token1) / 10000,
-              protocolFeeRatioToken0: cut.token0 / 10000, protocolFeeRatioToken1: cut.token1 / 10000 })
-            pairRevenueRatio = ratios._revenueRatio
-            pairProtocolRevenueRatio ??= ratios._protocolRevenueRatio
-            pairHoldersRevenueRatio ??= ratios._holdersRevenueRatio
-          }
+        if (protocolFeesInSwapEvent && revenueRatio === undefined && getRevenueRatio) {
+          // the Swap log carries the protocol fee taken from the input token, so the cut in force at this swap is read from it
+          const isInput0 = BigInt(log.amount0) > 0n
+          const protocolFee = isInput0 ? log.protocolFeesToken0 : log.protocolFeesToken1
+          if (protocolFee === undefined) throw new Error('protocolFeesInSwapEvent needs a swap event with protocolFeesToken0/1 fields')
+          const inputFee = Number(isInput0 ? log.amount0 : log.amount1) * swapFeeTier
+          const ratios = getRevenueRatio({ options: fetchOptions, poolFeeTier: swapFeeTier, protocolFeeRatio: inputFee > 0 ? Number(protocolFee) / inputFee : 0 })
+          pairRevenueRatio = ratios._revenueRatio
+          pairProtocolRevenueRatio = ratios._protocolRevenueRatio
+          pairHoldersRevenueRatio = ratios._holdersRevenueRatio
         }
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
         const { token: _token, amount: _feeAmount } = addOneToken({ chain, balances: swapFees, token0, token1, amount0: log.amount0.toString() * swapFeeTier, amount1: log.amount1.toString() * swapFeeTier })
@@ -846,7 +732,8 @@ type UniV2Config = {
 export interface UniGetRevenueRatioProps {
   options: FetchOptions;
   poolFeeTier: number;
-  protocolFeeRatio?: number; // PancakeV3: input token's protocol cut effective at this swap.
+  // protocolFeesInSwapEvent: share of this swap's fee the protocol took, read from the Swap log
+  protocolFeeRatio?: number;
   protocolFeeRatioToken0?: number;
   protocolFeeRatioToken1?: number;
   // Algebra community fee, as a share of the pool's swap fees
@@ -872,13 +759,14 @@ type UniV3Config = {
   blacklistTokens?: Array<string>, // pools holding any of these tokens are skipped
   blacklistedAddresses?: string[], // swaps whose sender or recipient is listed are skipped (volume and fees)
   pools?: string[], // alternative to providing factory
-  // read each pool's slot0.feeProtocol; 'pancakeV3' replays uint32 cuts and calls getRevenueRatio per swap/input token
-  dynamicProtocolFees?: boolean | 'pancakeV3',
+  dynamicProtocolFees?: boolean,
   // read each Algebra pool's community fee and pass it to getRevenueRatio
   algebraCommunityFee?: boolean,
   // for chains whose public RPCs keep no historical state, so no eth_call at the window block works: skips the pooled-balance
   // filter and counts the core-asset leg of swaps in every factory pool holding a core asset (pool list + swap logs only)
   noStateReads?: boolean,
+  // PancakeV3: the Swap event logs the protocol fee taken per swap; getRevenueRatio is called per swap with protocolFeeRatio
+  protocolFeesInSwapEvent?: boolean,
 
   // support to get custom revenue ratio from given pool fee tier
   getRevenueRatio?: (props: UniGetRevenueRatioProps) => { _revenueRatio: number, _protocolRevenueRatio?: number, _holdersRevenueRatio?: number };
