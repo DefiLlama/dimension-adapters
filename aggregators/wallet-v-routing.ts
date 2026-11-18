@@ -1,12 +1,12 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types';
-import { CHAIN } from '../helpers/chains';
-import { swapChains } from '../helpers/aggregators/wallet-v/config';
+import { chainConfig } from '../helpers/aggregators/wallet-v/config';
 import { addAmount } from '../helpers/aggregators/wallet-v/evm-data';
 import { readEvmSwaps } from '../helpers/aggregators/wallet-v/evm-swaps';
 import { readSolanaSwaps } from '../helpers/aggregators/wallet-v/solana-swaps';
 
 async function fetch(options: FetchOptions) {
-  const swaps = options.chain === CHAIN.SOLANA ? await readSolanaSwaps(options) : await readEvmSwaps(options);
+  const config = chainConfig[options.chain];
+  const swaps = 'classic' in config ? await readEvmSwaps(options, config) : await readSolanaSwaps(options, config);
   const dailyVolume = options.createBalances();
   for (const { volume } of swaps) {
     if (volume) addAmount(dailyVolume, volume);
@@ -17,7 +17,7 @@ async function fetch(options: FetchOptions) {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: swapChains,
+  adapter: chainConfig,
   dependencies: [Dependencies.ALLIUM],
   doublecounted: true, // Routed trades are also reported by the underlying venues.
   fetch,
