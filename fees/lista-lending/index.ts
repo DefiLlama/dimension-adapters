@@ -3,6 +3,7 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { getConfig } from "../../helpers/cache";
 import { addTokensReceived } from "../../helpers/token";
+import { ChainApi } from "@defillama/sdk";
 import { ethers } from "ethers";
 
 /**
@@ -29,16 +30,31 @@ const WAD = 10n ** 18n;
 const MOOLAH: Record<string, string> = {
   [CHAIN.BSC]: "0x8F73b65B4caAf64FBA2aF91cC5D4a2A1318E5D8C",
   [CHAIN.ETHEREUM]: "0xf820fB4680712CD7263a0D3D024D5b5aEA82Fd70",
+  [CHAIN.ROBINHOOD]: "0xE4153Eb04417bE05b8d6B2222E4Cdd8AE674ee76",
 };
 // Lista's LendingFeeRecipient — the fee recipient set on self-operated MoolahVaults. Used to keep
 // only Lista's own vaults (third-party curators route their fee elsewhere).
 const LENDING_FEE_RECIPIENT: Record<string, string> = {
   [CHAIN.BSC]: "0x2E2Eed557FAb1d2E11fEA1E1a23FF8f1b23551f3",
   [CHAIN.ETHEREUM]: "0xd10a024602E042dcb9C19e21682c3b896c8B0d30",
+  // Robinhood has no MoolahVault yet; set from Moolah.feeRecipient() so the vault layer is
+  // already keyed when the first one is deployed rather than throwing on undefined.
+  [CHAIN.ROBINHOOD]: "0xa45625B4F49bd1b6BB706302525E5e54F55dacBa",
 };
+// Chains whose archive coverage is too patchy to pin an eth_call to a past window's block.
+// Robinhood mints ~860k blocks a day and no public RPC keeps a full state history: a given block
+// either answers or comes back "historical state ... is not available" / "missing trie node",
+// and which blocks fall in the gaps differs per host and moves over time, so a window that
+// fetched yesterday can fail on a refill today. Both reads this gates survive being taken at the
+// head instead: a market's loanToken is immutable, and its fee only moves when governance calls
+// setFee, so the only cost is mispricing a window that sits between a setFee and its refill.
+// Drop the chain from this set once it has a dependable archive RPC.
+const PRUNED_STATE_CHAINS = new Set<string>([CHAIN.ROBINHOOD]);
+
 const API_CHAIN: Record<string, string> = {
   [CHAIN.BSC]: "bsc",
   [CHAIN.ETHEREUM]: "ethereum",
+  [CHAIN.ROBINHOOD]: "robinhood",
 };
 
 // DAO lending-position yield reclassification (BSC only, live 2026-08-24, moolah#229).
@@ -171,6 +187,7 @@ const getFixedTermRelayers = async (chain: string, api: FetchOptions["api"]): Pr
 
 const fetch = async (options: FetchOptions) => {
   const { chain, api } = options;
+  const stateApi = PRUNED_STATE_CHAINS.has(chain) ? new ChainApi({ chain }) : api;
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -183,8 +200,8 @@ const fetch = async (options: FetchOptions) => {
   const marketFeeRate: Record<string, bigint> = {};
   if (marketIds.length) {
     const [params, markets] = await Promise.all([
-      api.multiCall({ abi: abis.idToMarketParams, calls: marketIds.map((id) => ({ target: MOOLAH[chain], params: [id] })) }),
-      api.multiCall({ abi: abis.market, calls: marketIds.map((id) => ({ target: MOOLAH[chain], params: [id] })) }),
+      stateApi.multiCall({ abi: abis.idToMarketParams, calls: marketIds.map((id) => ({ target: MOOLAH[chain], params: [id] })) }),
+      stateApi.multiCall({ abi: abis.market, calls: marketIds.map((id) => ({ target: MOOLAH[chain], params: [id] })) }),
     ]);
     marketIds.forEach((id, i) => {
       loanToken[id] = params[i].loanToken;
@@ -348,6 +365,8 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: { fetch, start: "2025-04-16" },
     // Lista Lending launched on Ethereum later.
     [CHAIN.ETHEREUM]: { fetch, start: "2025-10-02" },
+    // Robinhood Chain: Moolah's first four markets were created 2026-11-04.
+    [CHAIN.ROBINHOOD]: { fetch, start: "2026-11-04" },
   },
 };
 
