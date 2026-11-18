@@ -30,7 +30,7 @@ type RelayRequest = {
 type FeeTotals = { platform: Record<string, number>; app: Record<string, number>; swap: Record<string, number> };
 
 const add = (totals: Record<string, number>, chainId: number | undefined, usd: number) => {
-  // superseed and lighter have no CHAIN key; their fees were ~$0 when checked
+  // superseed and robinhood-lighter are not mapped in helpers/relay.ts, their fees are dropped
   const chain = RELAY_CHAINS[chainId as number];
   if (chain) totals[chain] = (totals[chain] ?? 0) + usd;
 };
