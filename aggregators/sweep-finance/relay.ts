@@ -13,6 +13,11 @@ import { RELAY_HISTORY } from "./relayHistory";
 // The list holds the requests made before this day (UTC).
 export const RELAY_LISTED_UNTIL = "2026-11-18";
 
+// Whether a window ends within the list. A chain with Relay legs alone has no data past the list's end, and reports
+// nothing there rather than zero: its deadFrom is RELAY_LISTED_UNTIL, but the runner still runs a chain for a day past
+// its deadFrom (adapters/utils/runAdapter.ts, setChainValidStart), so its fetch checks the window too.
+export const relayListCovers = (options: FetchOptions) => options.endTimestamp <= Date.parse(`${RELAY_LISTED_UNTIL}T00:00:00Z`) / 1000;
+
 // Dollars by DefiLlama chain, the chain paid from.
 export type RelayTotals = { crossChain: Record<string, number>; sameChain: Record<string, number> };
 
