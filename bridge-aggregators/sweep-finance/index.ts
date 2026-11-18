@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { RELAY_LISTED_UNTIL, relayListCovers, relayTotals } from "../../aggregators/sweep-finance/relay";
+import { RELAY_LAST_DAY, RELAY_LISTED_UNTIL, relayListCovers, relayTotals } from "../../aggregators/sweep-finance/relay";
 import { CHAIN } from "../../helpers/chains";
 
 // Sweep (https://trysweep.finance) - turns many token balances across chains into one or two tokens in one go, sending
@@ -102,7 +102,7 @@ const MAYAN_REFERRER = ethers.zeroPadValue(FEE_WALLET, 32);
 // SpokePool (deployed-addresses.json, above) where Sweep's Across legs leave it, and whether Sweep's Mayan orders leave
 // it too (Mayan's Forwarder is not deployed on zkSync Era and Robinhood Chain). Relay's are counted on every chain
 // listed. A chain with neither Across nor Mayan has Sweep's Relay legs alone, which are known only up to the end of the
-// Relay list, so it stops there (deadFrom) rather than report the days after it as zero.
+// Relay list, so the runner stops it there (deadFrom, aggregators/sweep-finance/relay.ts).
 type ChainConfig = { start: string; acrossSpokePool?: string; mayan?: boolean; deadFrom?: string };
 const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.ETHEREUM]: { start: "2026-03-14", acrossSpokePool: "0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5", mayan: true },
@@ -118,22 +118,22 @@ const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.INK]: { start: "2026-08-11", acrossSpokePool: "0xeF684C38F94F48775959ECf2012D7E864ffb9dd4" },
   [CHAIN.MODE]: { start: "2026-03-15", acrossSpokePool: "0x3baD7AD0728f9917d1Bf08af5782dCbD516cDd96" },
   [CHAIN.SCROLL]: { start: "2026-04-11", acrossSpokePool: "0x3baD7AD0728f9917d1Bf08af5782dCbD516cDd96" },
-  [CHAIN.ABSTRACT]: { start: "2026-08-07", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.BOB]: { start: "2026-08-20", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.BERACHAIN]: { start: "2026-10-11", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.CELO]: { start: "2026-08-07", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.HYPERLIQUID]: { start: "2026-10-16", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.KATANA]: { start: "2026-10-24", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.MANTA]: { start: "2026-08-07", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.MANTLE]: { start: "2026-08-07", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.METIS]: { start: "2026-10-16", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.MORPH]: { start: "2026-11-11", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.PLUME]: { start: "2026-10-13", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.SONEIUM]: { start: "2026-08-07", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.SONIC]: { start: "2026-10-16", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.XDAI]: { start: "2026-08-07", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.ZIRCUIT]: { start: "2026-08-20", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.ZORA]: { start: "2026-08-07", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.ABSTRACT]: { start: "2026-08-07", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.BOB]: { start: "2026-08-20", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.BERACHAIN]: { start: "2026-10-11", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.CELO]: { start: "2026-08-07", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.HYPERLIQUID]: { start: "2026-10-16", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.KATANA]: { start: "2026-10-24", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.MANTA]: { start: "2026-08-07", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.MANTLE]: { start: "2026-08-07", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.METIS]: { start: "2026-10-16", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.MORPH]: { start: "2026-11-11", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.PLUME]: { start: "2026-10-13", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.SONEIUM]: { start: "2026-08-07", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.SONIC]: { start: "2026-10-16", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.XDAI]: { start: "2026-08-07", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.ZIRCUIT]: { start: "2026-08-20", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.ZORA]: { start: "2026-08-07", deadFrom: RELAY_LAST_DAY },
 };
 
 // Where the logs indexer does not serve a call, logs are read 10,000 blocks per eth_getLogs, as bridge-aggregators/lifi
@@ -196,8 +196,8 @@ function namesSweepReferrer(orderCall: string): boolean {
 
 const fetch = async (options: FetchOptions) => {
   const { acrossSpokePool, mayan } = chainConfig[options.chain];
-  // A chain with Relay legs alone reports nothing past the end of the Relay list, rather than zero.
-  if (!acrossSpokePool && !mayan && !relayListCovers(options)) return {};
+  // A chain with Relay legs alone has no data past the end of the Relay list.
+  if (!acrossSpokePool && !mayan && !relayListCovers(options)) throw new Error(`sweep-finance: Sweep's Relay legs from ${options.chain} are listed up to ${RELAY_LISTED_UNTIL} only`);
   const dailyBridgeVolume = options.createBalances();
 
   if (acrossSpokePool) {
