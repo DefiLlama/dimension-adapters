@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
 import { formatAddress } from "../../utils/utils";
-import { RELAY_LISTED_UNTIL, relayTotals } from "./relay";
+import { RELAY_LISTED_UNTIL, relayListCovers, relayTotals } from "./relay";
 
 // Sweep (https://trysweep.finance) - turns many token balances across chains into one or two tokens in one go, sending
 // each balance over the route it finds best. Swaps on one chain are counted here; legs that cross chains are in
@@ -49,9 +49,12 @@ const chainConfig: Record<string, ChainConfig> = {
 };
 
 const fetch = async (options: FetchOptions) => {
+  const { fly } = chainConfig[options.chain];
+  // A chain with Relay swaps alone reports nothing past the end of the Relay list, rather than zero.
+  if (!fly && !relayListCovers(options)) return {};
   const dailyVolume = options.createBalances();
 
-  if (chainConfig[options.chain].fly) {
+  if (fly) {
     const blacklisted = new Set(getDefaultDexTokensBlacklisted(options.chain));
     const swaps = await options.getLogs({ target: FLY_ROUTER, eventAbi: FLY_SWAP, maxBlockRange: LOGS_BLOCK_RANGE });
     for (const log of swaps) {
