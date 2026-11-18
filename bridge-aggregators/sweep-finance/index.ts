@@ -100,9 +100,10 @@ const MAYAN_REFERRER = ethers.zeroPadValue(FEE_WALLET, 32);
 
 // Each chain Sweep's legs are sent from: the day the first leg counted here was sent from it, the chain's Across
 // SpokePool (deployed-addresses.json, above) where Sweep's Across legs leave it, and whether Sweep's Mayan orders leave
-// it too (Mayan's Forwarder is not deployed on zkSync Era and Robinhood Chain). A chain with neither has Sweep's Relay
-// legs alone; Relay's are counted on every chain listed.
-type ChainConfig = { start: string; acrossSpokePool?: string; mayan?: boolean };
+// it too (Mayan's Forwarder is not deployed on zkSync Era and Robinhood Chain). Relay's are counted on every chain
+// listed. A chain with neither Across nor Mayan has Sweep's Relay legs alone, which are known only up to the end of the
+// Relay list, so it stops there (deadFrom) rather than report the days after it as zero.
+type ChainConfig = { start: string; acrossSpokePool?: string; mayan?: boolean; deadFrom?: string };
 const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.ETHEREUM]: { start: "2026-03-14", acrossSpokePool: "0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5", mayan: true },
   [CHAIN.ARBITRUM]: { start: "2026-03-10", acrossSpokePool: "0xe35e9842fceaCA96570B734083f4a58e8F7C5f2A", mayan: true },
@@ -117,22 +118,22 @@ const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.INK]: { start: "2026-08-11", acrossSpokePool: "0xeF684C38F94F48775959ECf2012D7E864ffb9dd4" },
   [CHAIN.MODE]: { start: "2026-03-15", acrossSpokePool: "0x3baD7AD0728f9917d1Bf08af5782dCbD516cDd96" },
   [CHAIN.SCROLL]: { start: "2026-04-11", acrossSpokePool: "0x3baD7AD0728f9917d1Bf08af5782dCbD516cDd96" },
-  [CHAIN.ABSTRACT]: { start: "2026-08-07" },
-  [CHAIN.BOB]: { start: "2026-08-20" },
-  [CHAIN.BERACHAIN]: { start: "2026-10-11" },
-  [CHAIN.CELO]: { start: "2026-08-07" },
-  [CHAIN.HYPERLIQUID]: { start: "2026-10-16" },
-  [CHAIN.KATANA]: { start: "2026-10-24" },
-  [CHAIN.MANTA]: { start: "2026-08-07" },
-  [CHAIN.MANTLE]: { start: "2026-08-07" },
-  [CHAIN.METIS]: { start: "2026-10-16" },
-  [CHAIN.MORPH]: { start: "2026-11-11" },
-  [CHAIN.PLUME]: { start: "2026-10-13" },
-  [CHAIN.SONEIUM]: { start: "2026-08-07" },
-  [CHAIN.SONIC]: { start: "2026-10-16" },
-  [CHAIN.XDAI]: { start: "2026-08-07" },
-  [CHAIN.ZIRCUIT]: { start: "2026-08-20" },
-  [CHAIN.ZORA]: { start: "2026-08-07" },
+  [CHAIN.ABSTRACT]: { start: "2026-08-07", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.BOB]: { start: "2026-08-20", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.BERACHAIN]: { start: "2026-10-11", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.CELO]: { start: "2026-08-07", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.HYPERLIQUID]: { start: "2026-10-16", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.KATANA]: { start: "2026-10-24", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.MANTA]: { start: "2026-08-07", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.MANTLE]: { start: "2026-08-07", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.METIS]: { start: "2026-10-16", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.MORPH]: { start: "2026-11-11", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.PLUME]: { start: "2026-10-13", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.SONEIUM]: { start: "2026-08-07", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.SONIC]: { start: "2026-10-16", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.XDAI]: { start: "2026-08-07", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.ZIRCUIT]: { start: "2026-08-20", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.ZORA]: { start: "2026-08-07", deadFrom: RELAY_LISTED_UNTIL },
 };
 
 // Where the logs indexer does not serve a call, logs are read 10,000 blocks per eth_getLogs, as bridge-aggregators/lifi
