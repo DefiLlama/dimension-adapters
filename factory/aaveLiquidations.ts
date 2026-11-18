@@ -1,6 +1,7 @@
 import { aaveProtocolConfigs } from "../helpers/aave";
 import { aaveLiquidationsExport } from "../helpers/aave/liquidations";
 import { chainConfig as aaveV3ChainConfig } from "../fees/aave-v3";
+import { chainConfig as moreMarketsChainConfig } from "../fees/more-markets";
 import { chainConfig as sparkChainConfig } from "../fees/spark";
 import { createFactoryExports } from "./registry";
 
@@ -31,6 +32,12 @@ for (const [name, { config }] of Object.entries(aaveProtocolConfigs)) {
   if (liquidationConfig) {
     configs[name] = liquidationConfig;
   }
+}
+
+// more-markets keeps its fee config in fees/more-markets.ts, pick it up from there
+const moreMarketsLiquidationConfig = toLiquidationConfig(moreMarketsChainConfig as any);
+if (moreMarketsLiquidationConfig) {
+  configs["more-markets"] = moreMarketsLiquidationConfig;
 }
 
 // get aave-v3 fee config
