@@ -15,6 +15,18 @@ const eventAbis = {
     "event BridgeFeePaid(address indexed receiver, address indexed token, uint256 tokenFee, uint256 nativeFee, uint256 blockTimestamp)",
 };
 
+// Order book (perpOB) fill settled through OrdersGateway, live since 2026-09-28; the old
+// PassivePerpMatchOrder stopped the same day. The PassivePerp router is unverified and Reya
+// publishes no ABI, so the log is decoded by word position. Layout checked fill by fill against
+// GET /v2/market/{symbol}/perpExecutions (2026-11-10: 20,253 fills, $9,434,084 volume and
+// $2,024.90 fees on both sides). Sample tx 0xeb7da9691747587b8ec1ce4c2e4abb3bce4d842ba95be65ef5c542acf473a4aa
+// topics: [sig, marketId, takerAccountId, sequenceNumber]
+// data words: 0 exchangeId, 1 makerAccountId, 2 timestamp, 3 offset, 4 base qty (int, 18 dec),
+// 5 protocolFeeCredit, 6 referrerFeeCredit, 7 takerRebateCredit, 8 poolFeeCredit (rUSD, 6 dec),
+// 9 price (18 dec). takerFee = words 5..8 (docs.reya.xyz/developers/reference/fees).
+const PERP_OB_FILL_TOPIC = '0x3241b27e0f195bcdee369c35b4949b4dc7357380ca69e20b51e4b17d00b6fabe';
+const LIQUIDATION_EXCHANGE_ID = 0n; // liquidation/ADL/market-close executions, not order matches (no fees)
+
 const CONFIG = {
   priceDecimals: 18,
   baseDecimals: 18,
@@ -90,6 +102,20 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     }
   };
 
+  const processPerpObFill = (log: any) => {
+    const word = (i: number) => BigInt.asIntN(256, BigInt('0x' + log.data.slice(2 + i * 64, 2 + (i + 1) * 64)));
+    if (word(0) === LIQUIDATION_EXCHANGE_ID) return;
+    const base = word(4);
+    const protocolFee = word(5), referrerFee = word(6), takerRebate = word(7), poolFee = word(8);
+    // |base| (18 dec) * price (18 dec) -> rUSD (6 dec)
+    dailyVolume.addToken(ADDRESSES.reya.RUSD, ((base < 0n ? -base : base) * word(9) / 10n ** 30n).toString());
+    dailyFees.addToken(ADDRESSES.reya.RUSD, (protocolFee + referrerFee + takerRebate + poolFee).toString(), 'Trading Fees');
+    dailyRevenue.addToken(ADDRESSES.reya.RUSD, protocolFee.toString(), 'Trading Fees To Treasury');
+    dailySupplySideRevenue.addToken(ADDRESSES.reya.RUSD, poolFee.toString(), 'Trading Fees To Stakers');
+    dailySupplySideRevenue.addToken(ADDRESSES.reya.RUSD, referrerFee.toString(), 'Trading Fees To Referrers');
+    dailySupplySideRevenue.addToken(ADDRESSES.reya.RUSD, takerRebate.toString(), 'Taker Rebates');
+  };
+
   // Get block range and split into batches to avoid memory issues
   const [fromBlock, toBlock] = await Promise.all([
     options.getFromBlock(),
@@ -110,7 +136,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   }
 
   for (const batch of batches) {
-    const [older_logs, newer_logs, oracle_logs, bridge_fee_logs] = await Promise.all([
+    const [older_logs, newer_logs, oracle_logs, bridge_fee_logs, perp_ob_logs] = await Promise.all([
       options.getLogs({
         target: CONFIG.perpContract,
         eventAbi: eventAbis.event_old_order,
@@ -147,12 +173,22 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
         skipCacheRead: true,
         onlyArgs: false,
       }),
+      options.getLogs({
+        target: CONFIG.perpContract,
+        topic: PERP_OB_FILL_TOPIC,
+        fromBlock: batch.fromBlock,
+        toBlock: batch.toBlock,
+        skipCache: true,
+        skipCacheRead: true,
+        entireLog: true,
+      }),
     ]);
     // Oracle logs first so the map is populated before match logs look it up.
     oracle_logs.forEach(processOracleLog);
     older_logs.forEach(processLog);
     newer_logs.forEach(processLog);
     bridge_fee_logs.forEach(processBridgeFeeLog);
+    perp_ob_logs.forEach(processPerpObFill);
   }
 
   // LM token APY accruing to the pool: balance × (price_end - price_start) per token,
@@ -214,24 +250,31 @@ const adapters: SimpleAdapter = {
   start: "2024-08-11",
   fetch,
   methodology: {
-    Volume: "Notional volume of trades.",
-    Fees: "All fees paid by traders, including the APY earned by stakers.",
-    Revenue: "Portion of fees distributed to the DAO Treasury.",
-    SupplySideRevenue: "Portion of fees distributed to vaults stakers.",
+    Volume: "Value of perp trades, excluding liquidations.",
+    Fees: "Trading and bridge fees paid by users, plus yield earned by the liquidity pool.",
+    Revenue: "Trading and bridge fees kept by the Reya treasury.",
+    ProtocolRevenue: "Trading and bridge fees kept by the Reya treasury.",
+    SupplySideRevenue: "Trading fees and yield paid to liquidity pool stakers, referrers and takers as rebates.",
   },
   breakdownMethodology: {
     Fees: {
-      'Trading Fees': 'Trading fees paid by users',
-      'Bridge Fees': 'Deposit and withdraw fees paid by users while bridge assest to Reya chain.',
-      'Liquidity Fees': 'Total liquidity manager revenue',
+      'Trading Fees': 'Fees paid by traders on each trade.',
+      'Bridge Fees': 'Fees paid by users to deposit to or withdraw from Reya.',
+      'Liquidity Fees': 'Yield earned by the liquidity pool on its assets and trade spread.',
     },
     Revenue: {
-      'Trading Fees To Treasury': 'A portion of trading fees paid by users collected by protocol treasury',
-      'Bridge Fees To Treasury': 'All bridge fees are collected by protocol treasury',
+      'Trading Fees To Treasury': 'Share of trading fees kept by the treasury.',
+      'Bridge Fees To Treasury': 'All bridge fees, kept by the treasury.',
+    },
+    ProtocolRevenue: {
+      'Trading Fees To Treasury': 'Share of trading fees kept by the treasury.',
+      'Bridge Fees To Treasury': 'All bridge fees, kept by the treasury.',
     },
     SupplySideRevenue: {
-      'Trading Fees To Stakers': 'A portion of trading fees paid by users distributed to vault stakers',
-      'Liquidity Fees To Stakers': 'All liquidity fees are distributed to vault stakers',
+      'Trading Fees To Stakers': 'Share of trading fees paid to liquidity pool stakers.',
+      'Liquidity Fees To Stakers': 'All liquidity pool yield, paid to its stakers.',
+      'Trading Fees To Referrers': 'Share of trading fees paid to the referrer of the trader.',
+      'Taker Rebates': 'Share of trading fees paid back to the trader as a rebate.',
     },
   }
 };
