@@ -248,7 +248,7 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Fees: 'Jupiter platform fees on swaps routed through Jupiter, including Jupiter Mobile and its share of positive slippage. Excludes limit order and DCA fills, counted on the Jupiter Limit and Jupiter DCA listings.',
+  Fees: 'Jupiter platform fees on swaps routed through Jupiter, including Jupiter Mobile and its share of positive slippage.',
   Revenue: 'All Jupiter platform fees on swaps, kept by Jupiter.',
   HoldersRevenue: 'JUP bought back into the Jupiter Litterbox wallet since 2025-02-17, funded with 50% of Aggregator, JupiterZ, Limit, DCA and Perps revenue and reported once, on this listing.',
   ProtocolRevenue: 'Half of platform fees, kept by the treasury. The other half buys back JUP, counted here as holders revenue.',
@@ -256,7 +256,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [JUPITER_METRICS.AggSwapFees]: "Platform fees on swaps routed through Jupiter, including Jupiter Mobile and its share of positive slippage, excluding limit order and DCA fills.",
+    [JUPITER_METRICS.AggSwapFees]: "Platform fees on swaps routed through Jupiter, including Jupiter Mobile and its share of positive slippage.",
   },
   Revenue: {
     [JUPITER_METRICS.AggSwapFees]: "All platform fees on swaps, kept by Jupiter.",
