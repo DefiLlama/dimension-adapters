@@ -13,7 +13,7 @@ const fetch = async (options: FetchOptions) => {
   if (options.startOfDay > 1793664000) {
     data = await queryDuneSql(options, sql);
     // JLP Loans interest comes from the USDC custody's 15-minute withdrawFees2 events: a day without them is missing data, not zero interest
-    if (data.some((row: any) => !row.usdc_fee_withdrawals)) {
+    if (!data.some((row: any) => row.usdc_fee_withdrawals)) {
       throw new Error(`No USDC custody withdrawFees2 events found for date ${options.dateString}`)
     }
   } else {
