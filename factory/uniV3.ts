@@ -213,9 +213,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.SEI]: { factory: '0xd0c54c480fD00DDa4DF1BbE041A6881f2F09111e', deadFrom: "2026-01-15" },
   },
   "kayen-v3": {
-    // Stock Uniswap V3 pools: the protocol share is slot0().feeProtocol, set per pool by the factory owner. Every pool read 0 until
-    // 2026-09-08 (Chiliz block 37,361,442), when the first pools were set to 8 (1/8 of the swap fee), then 6 (1/6) from 2026-09-21
-    // (block 37,736,458); newer pools are switched on one by one. Collected to 0xB8eb63f4DDDa86BD61Ce6EBCFa05f1474012bB01, read at the window block
+    // protocol share is slot0().feeProtocol, set per pool: 0 until 2026-09-08 (block 37361442), then 1/8, and 1/6 from 2026-09-21 (block 37736458)
     [CHAIN.CHILIZ]: { factory: '0x4bC8BDF50843Cc503E196Be4A9560134d358bb3C', userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
   },
   "equalizer-cl": {
@@ -387,10 +385,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.HYPERLIQUID]: { factory: '0xD883a0B7889475d362CEA8fDf588266a3da554A1', blacklistedAddresses: ['0xbA0735019FA88C8e564d44df22A09818432EB43f'], swapEvent: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)', poolCreatedEvent: 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)', start: '2025-08-10', revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0, userFeesRatio: 1 },
   },
   "xswap-v3": {
-    // XSwap V3 pools send the protocol share of each swap fee straight to the factory's treasury() (0x61b7b0009fced05695ee811b7f8f78ba37c38344)
-    // during the swap, instead of accruing protocolFees. The share is slot0().feeProtocol, read per pool: 1/10 on every pool with swaps
-    // (e.g. tx 0xff19ef071aa5031ff495e0847c24cc9dffd94e4d0e326dbf9bb2c1290b7ea56e sends 482 of a 4821.66 fee), and already 1/10 on the
-    // first swaps after launch (tx 0xfe62202fa0c70da0b11b2bd010d44f6fb909aeb7fb7bfc4c02b098d41eea03fc, block 59804888)
+    // pools send the slot0().feeProtocol share (1/10) of each swap fee to factory.treasury() during the swap, instead of accruing protocolFees
     [CHAIN.XDC]: { factory: '0x30F317A9EC0f0D06d5de0f8D248Ec3506b7E4a8A', userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
   },
   "summitx-fi": {
