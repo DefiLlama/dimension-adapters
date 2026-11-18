@@ -1550,7 +1550,23 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder code fees collected by Limits from Hyperliquid perps trades.",
     },
     breakdownFees: true,
-  }
+  },
+  "truemarketsco-perps": {
+    // True Markets (https://truemarkets.co), a non-custodial trading venue whose app routes
+    // Hyperliquid orders (crypto perps, HIP-3 stock perps and spot) with this builder code on top of Hyperliquid's own fees.
+    // Sampled fills show 0.05% on perps (incl. HIP-3) and 0.20% on spot.
+    // Verifiable: builder field of True Markets orders; the address's Hyperliquid `referral` state (builderRewards).
+    addresses: ["0x7bc2baaf2c79d9be1f5c327b5fb5325583604734"],
+    // Earliest positive public archive: https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/0x7bc2baaf2c79d9be1f5c327b5fb5325583604734/20260713.csv.lz4
+    start: "2026-07-13",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through True Markets with its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through True Markets; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
+      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through True Markets, all kept by True Markets.",
+      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through True Markets, all kept by True Markets.",
+    },
+    breakdownFees: true,
+  },
 };
 
 
@@ -1805,6 +1821,7 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "sushi-spot": { builder: "sushi-perps", market: "spot", start: "2025-03-30" },
   "tradoor-outcome": { builder: "tradoor-perps", market: "outcome", start: "2026-05-02" },
   "tria-spot": { builder: "tria-perps", market: "spot", start: "2026-01-27" },
+  "truemarketsco-spot": { builder: "truemarketsco-perps", market: "spot", start: "2026-07-13" },
   "truenorth-outcome": { builder: "truenorth-perps", market: "outcome", start: "2026-08-29" },
   "truenorth-spot": { builder: "truenorth-perps", market: "spot", start: "2026-06-02" },
   "unigox-spot": { builder: "unigox-perps", market: "spot", start: "2025-09-01" },
