@@ -3,7 +3,6 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { getConfig } from "../../helpers/cache";
 import { addTokensReceived } from "../../helpers/token";
-import { ChainApi } from "@defillama/sdk";
 import { ethers } from "ethers";
 
 /**
@@ -30,19 +29,13 @@ const WAD = 10n ** 18n;
 // moolah: the Moolah core. feeRecipient: Lista's LendingFeeRecipient, the fee recipient set on
 // self-operated MoolahVaults, used to keep only Lista's own vaults (third-party curators route their
 // fee elsewhere). The chain key doubles as the Lista API's `chain` value.
-// prunedState: archive coverage too patchy to rely on a pinned eth_call. Robinhood mints ~860k blocks
-// a day and no public RPC keeps a full state history: a given block either answers or comes back
-// "historical state ... is not available" / "missing trie node", and which blocks fall in the gaps
-// differs per host and moves over time. Market state is still read at the window's block first and
-// only falls back to the head when that read fails. Drop the flag once the chain has a dependable
-// archive RPC.
-const chainConfig: Record<string, { moolah: string; feeRecipient: string; start: string; prunedState?: boolean; moolahVaultAccount?: string }> = {
+const chainConfig: Record<string, { moolah: string; feeRecipient: string; start: string; moolahVaultAccount?: string }> = {
   [CHAIN.BSC]: { moolah: "0x8F73b65B4caAf64FBA2aF91cC5D4a2A1318E5D8C", feeRecipient: "0x2E2Eed557FAb1d2E11fEA1E1a23FF8f1b23551f3", start: "2025-04-16", moolahVaultAccount: "0xA0b8b78208Cfe45dDC7AC7B51B108B2742B32652" },
   // Lista Lending launched on Ethereum later.
   [CHAIN.ETHEREUM]: { moolah: "0xf820fB4680712CD7263a0D3D024D5b5aEA82Fd70", feeRecipient: "0xd10a024602E042dcb9C19e21682c3b896c8B0d30", start: "2025-10-02" },
   // Moolah's first four markets were created 2026-11-04. No MoolahVault yet; feeRecipient is
   // Moolah.feeRecipient() so the vault layer is keyed when the first one is deployed.
-  [CHAIN.ROBINHOOD]: { moolah: "0xE4153Eb04417bE05b8d6B2222E4Cdd8AE674ee76", feeRecipient: "0xa45625B4F49bd1b6BB706302525E5e54F55dacBa", start: "2026-11-04", prunedState: true },
+  [CHAIN.ROBINHOOD]: { moolah: "0xE4153Eb04417bE05b8d6B2222E4Cdd8AE674ee76", feeRecipient: "0xa45625B4F49bd1b6BB706302525E5e54F55dacBa", start: "2026-11-04" },
 };
 
 // DAO lending-position yield reclassification (BSC only, live 2026-08-24, moolah#229).
@@ -172,7 +165,7 @@ const getFixedTermRelayers = async (chain: string, api: FetchOptions["api"]): Pr
 
 const fetch = async (options: FetchOptions) => {
   const { chain, api } = options;
-  const { moolah, feeRecipient, prunedState, moolahVaultAccount } = chainConfig[chain];
+  const { moolah, feeRecipient, moolahVaultAccount } = chainConfig[chain];
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -185,17 +178,10 @@ const fetch = async (options: FetchOptions) => {
   const marketFeeRate: Record<string, bigint> = {};
   if (marketIds.length) {
     const calls = marketIds.map((id) => ({ target: moolah, params: [id] }));
-    const readMarkets = (a: FetchOptions["api"] | ChainApi) =>
-      Promise.all([a.multiCall({ abi: abis.idToMarketParams, calls }), a.multiCall({ abi: abis.market, calls })]);
-    let params: any[], markets: any[];
-    try {
-      [params, markets] = await readMarkets(api);
-    } catch (e) {
-      // ponytail: head fallback misprices a window that sits between a setFee and its refill
-      // (loanToken is immutable). Exact fix is replaying SetFee logs if that ever matters.
-      if (!prunedState) throw e;
-      [params, markets] = await readMarkets(new ChainApi({ chain }));
-    }
+    const [params, markets] = await Promise.all([
+      api.multiCall({ abi: abis.idToMarketParams, calls }),
+      api.multiCall({ abi: abis.market, calls }),
+    ]);
     marketIds.forEach((id, i) => {
       loanToken[id] = params[i].loanToken;
       marketFeeRate[id] = BigInt(markets[i].fee);
