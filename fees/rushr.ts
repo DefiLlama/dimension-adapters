@@ -16,8 +16,15 @@
 // https://rushr.trade/transparency.
 //
 // dailyFees = dailyRevenue = dailyProtocolRevenue: the whole platform fee is kept by the protocol (there is
-// no LP or creator share). Buybacks of the RUSHR token from these fees are not reported as holders revenue
-// here because they run weekly and in batches, not per trade.
+// no LP or creator share).
+//   - Referrals: a referred trader pays a 10% lower rate on-chain, and the full (discounted) fee still goes
+//     to the Safe. A referrer share is only recorded off-chain for a possible later payout; no referral
+//     payouts have been made, so none is reported as supply-side revenue. If payouts start, they will leave
+//     the Safe as on-chain transfers and this adapter will report them as dailySupplySideRevenue.
+//   - Buybacks: no RUSHR buyback has been paid from platform fees yet. When the weekly buyback-and-burn
+//     starts, the burned share will be reported as dailyHoldersRevenue.
+//   - The RUSHR token's own creator tax (PONS launchpad) is paid to the token's creator wallet, not to the
+//     Safe, and is not a platform fee, so it is out of scope here.
 //
 // Before 2026-11-16 01:20 UTC fees were paid to a plain wallet (0x447a590b70cd55Cc6B62CEaf79D4c6c09A955E40),
 // mostly through internal transfers that leave no logs; that first day (~0.0007 ETH) is not covered.
