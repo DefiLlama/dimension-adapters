@@ -551,7 +551,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.SOPHON]: { factory: '0x0f6e27007e257e74c86522387bd071d561ba3c97', isAlgebraV3: true, start: '2024-12-16', poolCreatedEvent: 'event PoolCreated(address indexed token0, address indexed token1, int24 indexed tickSpacing, address pool)', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
   },
   'doma-dex-v3': {
-    // stock uniV3 pools with the fee switch on: slot0().feeProtocol reads 170 (1/10 of each token's fee) on the top pools, and
+    // stock uniV3 pools with the fee switch on since block 18009797 (2026-11-06): slot0().feeProtocol reads 170 (1/10 of each token's fee) on the top pools, and
     // protocolFees() accrues, so the protocol share is read per pool
     [CHAIN.DOMA]: { factory: '0x2e50b586d5bcD04cb6125E028A6a669f7f3cF1C2', start: '2025-10-19', userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
   },
@@ -868,14 +868,14 @@ const methodologyMap: Record<string, any> = {
   "doma-dex-v3": {
     Fees: "Swap fees paid by traders at each pool's fee tier.",
     UserFees: "Swap fees paid by traders at each pool's fee tier.",
-    Revenue: "The protocol share of swap fees, set per pool by slot0().feeProtocol.",
+    Revenue: "The protocol share of swap fees, set per pool by slot0().feeProtocol: 10% on the main pools since 2026-11-06 (block 18009797), 0 before.",
     ProtocolRevenue: "The protocol share of swap fees, collectable by the factory owner.",
     SupplySideRevenue: "The rest of the swap fees, earned by liquidity providers.",
   },
   "tradegpt": {
     Fees: "Swap fees paid by traders at each pool's fee tier.",
     UserFees: "Swap fees paid by traders at each pool's fee tier.",
-    Revenue: "The protocol share of swap fees, set per pool by slot0().feeProtocol.",
+    Revenue: "The protocol share of swap fees, set per pool by slot0().feeProtocol: 25% on the main pools.",
     ProtocolRevenue: "The protocol share of swap fees, collectable by the factory owner.",
     SupplySideRevenue: "The rest of the swap fees, earned by liquidity providers.",
   },
