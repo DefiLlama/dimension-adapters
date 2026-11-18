@@ -29,22 +29,23 @@ const FLY_SWAP = "event Swap(address fromAddress, address toAddress, address fro
 const LOGS_BLOCK_RANGE = 10000;
 
 // Each chain with Sweep's swaps, from the day the first of them was made, and whether Sweep's swaps there go through
-// Fly's router.
-type ChainConfig = { start: string; fly?: boolean };
+// Fly's router. A chain without Fly has Sweep's Relay swaps alone, which are known only up to the end of the Relay
+// list, so it stops there (deadFrom) rather than report the days after it as zero.
+type ChainConfig = { start: string; fly?: boolean; deadFrom?: string };
 const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.ETHEREUM]: { start: "2026-08-13", fly: true },
   [CHAIN.ARBITRUM]: { start: "2026-07-28", fly: true },
   [CHAIN.OPTIMISM]: { start: "2026-11-05", fly: true },
   [CHAIN.BASE]: { start: "2026-08-03", fly: true },
   [CHAIN.BSC]: { start: "2026-07-27", fly: true },
-  [CHAIN.ERA]: { start: "2026-10-01" },
-  [CHAIN.ROBINHOOD]: { start: "2026-09-13" },
-  [CHAIN.INK]: { start: "2026-09-27" },
-  [CHAIN.MONAD]: { start: "2026-10-11" },
-  [CHAIN.CELO]: { start: "2026-11-05" },
-  [CHAIN.MANTLE]: { start: "2026-11-11" },
-  [CHAIN.SCROLL]: { start: "2026-11-11" },
-  [CHAIN.SONEIUM]: { start: "2026-11-11" },
+  [CHAIN.ERA]: { start: "2026-10-01", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.ROBINHOOD]: { start: "2026-09-13", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.INK]: { start: "2026-09-27", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.MONAD]: { start: "2026-10-11", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.CELO]: { start: "2026-11-05", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.MANTLE]: { start: "2026-11-11", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.SCROLL]: { start: "2026-11-11", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.SONEIUM]: { start: "2026-11-11", deadFrom: RELAY_LISTED_UNTIL },
 };
 
 const fetch = async (options: FetchOptions) => {
