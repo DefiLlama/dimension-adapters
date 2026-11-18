@@ -36,8 +36,8 @@ const WAD = 10n ** 18n;
 // differs per host and moves over time. Market state is still read at the window's block first and
 // only falls back to the head when that read fails. Drop the flag once the chain has a dependable
 // archive RPC.
-const chainConfig: Record<string, { moolah: string; feeRecipient: string; start: string; prunedState?: boolean }> = {
-  [CHAIN.BSC]: { moolah: "0x8F73b65B4caAf64FBA2aF91cC5D4a2A1318E5D8C", feeRecipient: "0x2E2Eed557FAb1d2E11fEA1E1a23FF8f1b23551f3", start: "2025-04-16" },
+const chainConfig: Record<string, { moolah: string; feeRecipient: string; start: string; prunedState?: boolean; moolahVaultAccount?: string }> = {
+  [CHAIN.BSC]: { moolah: "0x8F73b65B4caAf64FBA2aF91cC5D4a2A1318E5D8C", feeRecipient: "0x2E2Eed557FAb1d2E11fEA1E1a23FF8f1b23551f3", start: "2025-04-16", moolahVaultAccount: "0xA0b8b78208Cfe45dDC7AC7B51B108B2742B32652" },
   // Lista Lending launched on Ethereum later.
   [CHAIN.ETHEREUM]: { moolah: "0xf820fB4680712CD7263a0D3D024D5b5aEA82Fd70", feeRecipient: "0xd10a024602E042dcb9C19e21682c3b896c8B0d30", start: "2025-10-02" },
   // Moolah's first four markets were created 2026-11-04. No MoolahVault yet; feeRecipient is
@@ -59,9 +59,6 @@ const chainConfig: Record<string, { moolah: string; feeRecipient: string; start:
 // That savings interest is already deducted from revenue as "sLisUSD Savings Cost" in lista-lisusd
 // (totalSupply * ΔgetRate), so leaving the pool leg on the supply side here would deduct it a second
 // time. Lumpy per day (a claim realises yield accrued over many prior days) but conserved cumulatively.
-const MOOLAH_VAULT_ACCOUNT: Record<string, string> = {
-  [CHAIN.BSC]: "0xA0b8b78208Cfe45dDC7AC7B51B108B2742B32652",
-};
 const LISUSD_BSC = "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5";
 const DAO_YIELD_RECIPIENT_BSC = "0x3b99A4177E3f430590A8473f353dD87a5a2e1BfC"; // DAO position-yield recipient -> swapped to USDT, forwarded to treasury (NOT a LISTA buy-back)
 const LISUSD_POOL_SET_BSC = "0x37DB1AE9B24055D1F9fE973Aea40B7EB2995D0Bf"; // sLisUSD savings pool, funded from the same claim
@@ -175,7 +172,7 @@ const getFixedTermRelayers = async (chain: string, api: FetchOptions["api"]): Pr
 
 const fetch = async (options: FetchOptions) => {
   const { chain, api } = options;
-  const { moolah, feeRecipient, prunedState } = chainConfig[chain];
+  const { moolah, feeRecipient, prunedState, moolahVaultAccount } = chainConfig[chain];
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -299,7 +296,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = dailyRevenue.clone();
 
   // ---- DAO lending-position yield: reclassify from supply-side to protocol revenue ----
-  const moolahVaultAccount = MOOLAH_VAULT_ACCOUNT[chain];
   if (moolahVaultAccount) {
     const daoYield = options.createBalances();
     await addTokensReceived({
