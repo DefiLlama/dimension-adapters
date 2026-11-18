@@ -2353,6 +2353,38 @@ protocols['daoaas-swap'].adapter[CHAIN.ENI].fetch = async (options: FetchOptions
     },
   })
 
+// This contract's same-transaction round trips through this pool produce no net DAI trade.
+protocols['rocketswap-anubis'].adapter[CHAIN.ANUBI].fetch = async (options: FetchOptions) =>
+  getUniV2LogAdapter(configs['rocketswap-anubis'][CHAIN.ANUBI])({
+    ...options,
+    getLogs: async ({ targets, flatten = true, ...params }: any) => {
+      const grouped = await options.getLogs({ ...params, targets, flatten: false, onlyArgs: false })
+      const pair = '0x32a4586797e3f561f41c0f47ca57ed08d64f3dc0'
+      const account = '0x92b53785090f6fe0717ca3cf5db8f8040d3b070b'
+      const cleaned = grouped.map((logs: any[], index: number) => {
+        if (targets[index].toLowerCase() !== pair) return logs.map(log => log.args)
+        const byTx = new Map<string, any[]>()
+        logs.forEach(log => {
+          if (log.args.to.toLowerCase() !== account) return
+          const entries = byTx.get(log.transactionHash) || []
+          entries.push(log)
+          byTx.set(log.transactionHash, entries)
+        })
+        const excluded = new Set<any>()
+        byTx.forEach(entries => {
+          if (entries.length !== 2) return
+          const [a, b] = entries.map(log => log.args)
+          if (BigInt(a.amount0In) > BigInt(b.amount0Out) && BigInt(a.amount1Out) > 0n &&
+              BigInt(a.amount1Out) === BigInt(b.amount1In) && BigInt(a.amount0Out) === 0n &&
+              BigInt(a.amount1In) === 0n && BigInt(b.amount0In) === 0n && BigInt(b.amount1Out) === 0n)
+            entries.forEach(log => excluded.add(log))
+        })
+        return logs.filter(log => !excluded.has(log)).map(log => log.args)
+      })
+      return flatten ? cleaned.flat() : cleaned
+    },
+  })
+
 protocols['tealswap'].breakdownMethodology = {
   Fees: { 'Token Swap Fees': methodologyMap['tealswap'].Fees },
 }
