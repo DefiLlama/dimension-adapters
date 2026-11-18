@@ -19,7 +19,9 @@ interface VolumeResponse {
 
 const fetch = async (options: FetchOptions) => {
   const startTimestamp = Math.floor((options.startTimestamp + 1) / HOUR_SECONDS) * HOUR_SECONDS;
-  const endTimestamp = Math.floor(options.endTimestamp / HOUR_SECONDS) * HOUR_SECONDS;
+  // The API includes the bucket beginning at endTs; exclude the next window's bucket.
+  const endTimestamp = Math.floor(options.endTimestamp / HOUR_SECONDS) * HOUR_SECONDS - HOUR_SECONDS;
+  if (endTimestamp <= startTimestamp) throw new Error("Velocity volume API requires at least two hourly buckets");
   const response: VolumeResponse = await fetchURL(`${API_URL}?startTs=${startTimestamp}&endTs=${endTimestamp}`);
 
   if (!response.success || response.startTs !== startTimestamp || response.endTs !== endTimestamp || !Array.isArray(response.markets)) {
