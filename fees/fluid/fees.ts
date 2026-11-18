@@ -322,8 +322,6 @@ export const getDailyFees = async (options: FetchOptions): Promise<Balances> => 
     // can likely fix the issue naturally if it retries fetching all the logs
   })
 
-  if (!liquidityOperateLogs?.length) return dailyFees;
-
   const [vaultFees, dexFees] = await Promise.all([
     getFluidVaultsDailyBorrowFees(options, liquidityOperateLogs),
     getFluidDexesDailyBorrowFees(options, liquidityOperateLogs),
