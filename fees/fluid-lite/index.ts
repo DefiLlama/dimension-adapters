@@ -16,6 +16,7 @@ const USD_LITE_START = 1773014400; // 2026-03-09 00:00 UTC
 const fUSDC = '0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33';
 
 const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const [currentRevenueValue, startRevenueValue] = await Promise.all([
@@ -73,8 +74,9 @@ const fetch = async (options: FetchOptions) => {
     ]);
     // Fluid Lending interest on the vault's idle fUSDC is left out: fees/fluid already books it, and both listings sit under parent#fluid
     const fUSDCInterest = (BigInt(endFTokenAssets) - BigInt(startFTokenAssets)) * BigInt(idleFTokenShares) / BigInt(1e12);
-    const usdLiteDepositorYield = BigInt(endUsdLiteAssets) - BigInt(startUsdLiteAssets) - fUSDCInterest;
-    dailySupplySideRevenue.add(USDC, usdLiteDepositorYield.toString(), 'USD Lite Vault Yield To Depositors');
+    const usdLiteDepositorYield = (BigInt(endUsdLiteAssets) - BigInt(startUsdLiteAssets) - fUSDCInterest).toString();
+    dailyFees.add(USDC, usdLiteDepositorYield, 'USD Lite Vault Yield');
+    dailySupplySideRevenue.add(USDC, usdLiteDepositorYield, 'USD Lite Vault Yield To Depositors');
   }
 
   // Add revenue delta to daily revenue
@@ -108,11 +110,12 @@ const fetch = async (options: FetchOptions) => {
     options.api.call({ abi: 'function exchangePrice() view returns (uint256)', target: iETHv2_VAULT }),
     options.fromApi.call({ abi: 'erc20:totalSupply', target: iETHv2_VAULT }),
   ]);
-  const iETHv2DepositorYield = (BigInt(endExchangePrice) - BigInt(startExchangePrice)) * BigInt(iETHv2Shares) / BigInt(1e18);
-  dailySupplySideRevenue.add(stETHAddress, iETHv2DepositorYield.toString(), 'ETH Lite Vault Yield To Depositors');
+  const iETHv2DepositorYield = ((BigInt(endExchangePrice) - BigInt(startExchangePrice)) * BigInt(iETHv2Shares) / BigInt(1e18)).toString();
+  dailyFees.add(stETHAddress, iETHv2DepositorYield, 'ETH Lite Vault Yield');
+  dailySupplySideRevenue.add(stETHAddress, iETHv2DepositorYield, 'ETH Lite Vault Yield To Depositors');
 
-  const dailyFees = dailyRevenue.clone();
-  dailyFees.add(dailySupplySideRevenue);
+  // Protocol fees count in full on both statements, under the same labels
+  dailyFees.add(dailyRevenue);
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue }
 };
@@ -130,8 +133,8 @@ const adapter: Adapter = {
       'ETH Lite Vaults Fees': 'ETH Lite Vault (iETHv2) charges a 20% performance fee on vault yields and an additional 0.05% exit fee.',
       'USD Lite Vaults Fees': 'USD Lite Vault (fLiteUSD) vault reserves which increases when vault yield exceeds the fixed rate paid to depositors.',
       'USD Lite Vault Withdraw Fees': 'USD Lite Vault (fLiteUSD) charges a 0.05% withdrawal fee on withdrawals and redemptions and recognized during reconciliation.',
-      'ETH Lite Vault Yield To Depositors': 'Yield passed to ETH Lite Vault (iETHv2) depositors after the performance fee, from the growth of the vault exchange price on its share supply.',
-      'USD Lite Vault Yield To Depositors': 'Yield passed to USD Lite Vault (fLiteUSD) depositors, from the growth of the vault share price on its share supply, less the interest the vault earns on its idle USDC in Fluid Lending, which the Fluid Lending listing already counts.',
+      'ETH Lite Vault Yield': 'Yield earned by ETH Lite Vault (iETHv2) deposits beyond the performance fee, measured by the growth of the vault exchange price on its share supply.',
+      'USD Lite Vault Yield': 'Yield earned by USD Lite Vault (fLiteUSD) deposits, measured by the growth of the vault share price on its share supply, less the interest the vault earns on its idle USDC in Fluid Lending, which the Fluid Lending listing already counts.',
     },
     Revenue: {
       'ETH Lite Vaults Fees': 'ETH Lite Vault performance and exit fees are collected as revenue and transferred to the Instadapp treasury.',
