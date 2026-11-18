@@ -1,12 +1,12 @@
 // https://docs.spiko.xyz/spiko-mmfs/fees
 import * as sdk from "@defillama/sdk";
-import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getBlock } from "../../helpers/getBlock";
 import { METRIC } from "../../helpers/metrics";
 import { getEnv } from "../../helpers/env";
 import { httpPost } from "../../utils/fetchURL";
-import { getTransaction, solanaRpc } from "../../helpers/solana";
+import { queryAllium } from "../../helpers/allium";
 
 const ORACLE_PRICE_ABI =
   "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)";
@@ -146,6 +146,8 @@ const SOLANA_TOKENS: Record<string, string> = {
   chfSAFO: "6Gst8o3L5uNtkUvhEg23HpDLpYRdNQTgdn1Bc7jnCM5c",
 };
 
+const SOLANA_MINTS_CREATED = "2026-06-25";
+
 const STELLAR_RPC = "https://soroban-rpc.creit.tech/";
 const STARKNET_TOTAL_SUPPLY_SELECTOR =
   "0x01557182e4359a1f0c6301278e8f5b35a776ab58d39892581e357578fb287836";
@@ -229,69 +231,36 @@ async function getStarknetSupply(contract: string): Promise<number> {
   return Number(supply) / 10 ** TOKEN_DECIMALS;
 }
 
-// Solana RPC serves no historical account state, so a mint's supply at the period end is rebuilt
-// from its transaction history: every mint or burn writes the mint account, and the change in the
-// summed token balances of that mint across a transaction is what it minted or burned (transfers
-// net to zero). Transactions are immutable, so each one's change is cached across days.
-const solanaSupplyChanges: Record<string, Promise<{ blockTime: number; change: bigint }>> = {};
-
-function getSolanaSupplyChange(mint: string, signature: string) {
-  const key = `${mint}:${signature}`;
-  if (!solanaSupplyChanges[key]) {
-    solanaSupplyChanges[key] = (async () => {
-      const tx = await getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 });
-      if (!tx?.meta || typeof tx.blockTime !== "number")
-        throw new Error(`Spiko: solana rpc returned no transaction for ${signature}`);
-      if (tx.meta.err) return { blockTime: tx.blockTime, change: 0n };
-      const sum = (balances: any[] = []): bigint =>
-        balances.filter((b) => b.mint === mint).reduce((total: bigint, b) => total + BigInt(b.uiTokenAmount.amount), 0n);
-      return { blockTime: tx.blockTime, change: sum(tx.meta.postTokenBalances) - sum(tx.meta.preTokenBalances) };
-    })().catch((e) => {
-      delete solanaSupplyChanges[key];
-      throw e;
-    });
-  }
-  return solanaSupplyChanges[key];
-}
-
-async function getSolanaSupply(mint: string, toTimestamp: number): Promise<number> {
-  // The history must add up to the current supply, so a node that pruned early signatures fails instead of undercounting.
-  const current = await solanaRpc("getTokenSupply", [mint]);
-  const currentSlot = current?.context?.slot;
-  if (typeof currentSlot !== "number" || current?.value?.amount === undefined)
-    throw new Error(`Spiko: solana rpc returned no supply for ${mint}`);
-  // A snapshot taken before the window end would let the history total match while missing later mints.
-  const snapshotTime = await solanaRpc("getBlockTime", [currentSlot]);
-  if (typeof snapshotTime !== "number" || snapshotTime < toTimestamp)
-    throw new Error(`Spiko: solana supply snapshot for ${mint} precedes the window end`);
-  const signatures: string[] = [];
-  let before: string | undefined;
-  let oldest: string | undefined;
-  while (true) {
-    // Raw RPC call so a null result fails below instead of reading as an empty history; 1000 is the RPC's max page size.
-    const page = await solanaRpc("getSignaturesForAddress", [mint, before ? { limit: 1000, before } : { limit: 1000 }]);
-    if (!Array.isArray(page)) throw new Error(`Spiko: solana rpc returned no signatures for ${mint}`);
-    for (const entry of page) {
-      if (entry.err || entry.slot > currentSlot) continue;
-      signatures.push(entry.signature);
-    }
-    if (page.length) oldest = page[page.length - 1].signature;
-    if (page.length < 1000) break;
-    before = page[page.length - 1].signature;
-  }
-  // The oldest signature must be the transaction that created the mint account, so no earlier
-  // mint or burn was pruned (a pruned mint and burn pair would net to zero and pass the check below).
-  if (!oldest) throw new Error(`Spiko: incomplete solana history for ${mint}`);
-  const first = await getTransaction({ signature: oldest, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 });
-  const mintIndex = first?.transaction?.message?.accountKeys?.findIndex((key: any) => key.pubkey === mint) ?? -1;
-  if (mintIndex < 0 || !first?.meta || first.meta.err !== null || first.meta.preBalances?.[mintIndex] !== 0 || !(first.meta.postBalances?.[mintIndex] > 0))
-    throw new Error(`Spiko: incomplete solana history for ${mint}`);
-  const changes = await Promise.all(signatures.map((signature) => getSolanaSupplyChange(mint, signature)));
-  const total = changes.reduce((sum, { change }) => sum + change, 0n);
-  if (total !== BigInt(current.value.amount)) throw new Error(`Spiko: incomplete solana history for ${mint}`);
-  // toTimestamp is the window's last second, so a transaction in that second counts.
-  const supply = changes.reduce((sum, { blockTime, change }) => (blockTime <= toTimestamp ? sum + change : sum), 0n);
-  return Number(supply) / 10 ** TOKEN_DECIMALS;
+async function getSolanaSupplies(endTimestamp: number): Promise<Record<string, number>> {
+  const mints = Object.values(SOLANA_TOKENS).map((mint) => `'${mint}'`).join(", ");
+  const rows = await queryAllium(`
+    WITH checks AS (
+      SELECT EXISTS (SELECT 1 FROM solana.assets.balances
+        WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${endTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${endTimestamp + 900})) AS indexed
+    ),
+    latest AS (
+      SELECT mint, raw_balance_str
+      FROM solana.assets.balances
+      WHERE mint IN (${mints})
+        AND block_timestamp >= '${SOLANA_MINTS_CREATED}'
+        AND block_timestamp < TO_TIMESTAMP_NTZ(${endTimestamp})
+      QUALIFY ROW_NUMBER() OVER (PARTITION BY token_account ORDER BY block_slot DESC, txn_index DESC) = 1
+    ),
+    supplies AS (
+      SELECT mint, SUM(raw_balance_str::NUMBER(38, 0))::VARCHAR AS supply_raw FROM latest GROUP BY mint
+    )
+    SELECT c.indexed, s.mint, s.supply_raw
+    FROM checks c
+    LEFT JOIN supplies s ON TRUE
+  `);
+  if (!rows[0]?.indexed)
+    throw new Error(`Spiko: Allium has not indexed Solana balances past ${new Date(endTimestamp * 1e3).toISOString()} yet`);
+  const rawByMint: Record<string, string> = {};
+  for (const row of rows) if (row.mint) rawByMint[row.mint] = row.supply_raw;
+  const out: Record<string, number> = {};
+  for (const [fund, mint] of Object.entries(SOLANA_TOKENS)) out[fund] = Number(rawByMint[mint] ?? 0) / 10 ** TOKEN_DECIMALS;
+  return out;
 }
 
 // Resolve each fund's token supply (in whole shares) for the given chain.
@@ -312,10 +281,7 @@ async function getSupplies(options: FetchOptions): Promise<Record<string, number
     return out;
   }
 
-  if (chain === CHAIN.SOLANA) {
-    for (const [fund, mint] of Object.entries(SOLANA_TOKENS)) out[fund] = await getSolanaSupply(mint, options.toTimestamp);
-    return out;
-  }
+  if (chain === CHAIN.SOLANA) return getSolanaSupplies(options.endTimestamp);
 
   const tokenMap = TOKENS[chain];
   const fundKeys = Object.keys(tokenMap);
@@ -478,6 +444,7 @@ const adapter: Adapter = {
   // NAV oracles publish once per day, so hourly granularity adds no signal.
   pullHourly: false,
   fetch,
+  dependencies: [Dependencies.ALLIUM],
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2024-05-01' },
     [CHAIN.POLYGON]: { start: '2024-04-20' },
@@ -486,8 +453,6 @@ const adapter: Adapter = {
     [CHAIN.ETHERLINK]: { start: '2025-02-12' },
     [CHAIN.STARKNET]: { start: '2024-11-26', runAtCurrTime: true },
     [CHAIN.STELLAR]: { start: '2025-10-01', runAtCurrTime: true },
-    // First supply on Solana: SAFO InitiateMint through Spiko's Minter program, 2026-07-23 17:22 UTC
-    // (tx bDvzgDkzDnUxY17Q81vUFLkJfTmjoP5Jez9H5MjavRe3MCh4jhTS2UacTDgj1oybCbnu3awF9BZmu9RGLoRkUm7).
     [CHAIN.SOLANA]: { start: '2026-07-23' },
   },
 };
