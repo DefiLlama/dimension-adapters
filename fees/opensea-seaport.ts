@@ -10,6 +10,9 @@ const defaltFeeCollectors = ['0x0000a26b00c1f0df003000390027140000faa719']
 
 const isFungible = (i: any) => +i.itemType.toString() < 2 // NATIVE or ERC20
 
+const OTHER_FEES = 'Royalties And Third-Party Fees'
+const OTHER_FEES_TO_RECIPIENTS = 'Royalties And Third-Party Fees To Creators And Marketplaces'
+
 const event_order_fulfilled = "event OrderFulfilled(bytes32 orderHash, address indexed offerer, address indexed zone, address recipient, (uint8 itemType, address token, uint256 identifier, uint256 amount)[] offer, (uint8 itemType, address token, uint256 identifier, uint256 amount, address recipient)[] consideration)"
 
 const config: any = {
@@ -54,8 +57,8 @@ const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) => {
         dailyRevenue.add(consideration.token, consideration.amount, 'Trading Fees To OpenSea')
       }
       else {
-        dailyFees.add(consideration.token, consideration.amount, METRIC.CREATOR_FEES)
-        dailySupplySideRevenue.add(consideration.token, consideration.amount, 'Creator Fees To Creators')
+        dailyFees.add(consideration.token, consideration.amount, OTHER_FEES)
+        dailySupplySideRevenue.add(consideration.token, consideration.amount, OTHER_FEES_TO_RECIPIENTS)
       }
     })
   })
@@ -68,16 +71,16 @@ const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) => {
 const seaportConfig = { fetch, start: '2022-06-12', }
 
 const methodology = {
-  Fees: 'Marketplace fees and creator royalties paid in ETH/ERC20 on NFT trades filled through Seaport, on listings and on accepted offers.',
+  Fees: 'Marketplace fees, creator royalties and third-party fees paid in the native token or ERC20s on NFT trades filled through Seaport, on listings and on accepted offers.',
   Revenue: 'Marketplace fees paid to OpenSea fee collectors.',
   ProtocolRevenue: 'Marketplace fees paid to OpenSea fee collectors.',
-  SupplySideRevenue: 'Fees paid to other recipients: creator royalties, and fees of other marketplaces that use Seaport.',
+  SupplySideRevenue: 'Fees paid to other recipients on the order: creator royalties, and fees of other marketplaces that use Seaport.',
 }
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.TRADING_FEES]: 'Marketplace fees paid to OpenSea fee collectors.',
-    [METRIC.CREATOR_FEES]: 'Fees paid to other recipients on the order: creator royalties, and fees of other marketplaces that use Seaport.',
+    [OTHER_FEES]: 'Fees paid to other recipients on the order: creator royalties, and fees of other marketplaces that use Seaport.',
   },
   Revenue: {
     'Trading Fees To OpenSea': 'Marketplace fees paid to OpenSea fee collectors.',
@@ -86,7 +89,7 @@ const breakdownMethodology = {
     'Trading Fees To OpenSea': 'Marketplace fees paid to OpenSea fee collectors.',
   },
   SupplySideRevenue: {
-    'Creator Fees To Creators': 'Fees paid to other recipients on the order: creator royalties, and fees of other marketplaces that use Seaport.',
+    [OTHER_FEES_TO_RECIPIENTS]: 'Creator royalties paid to creators, and fees of other marketplaces that use Seaport paid to those marketplaces.',
   },
 }
 
