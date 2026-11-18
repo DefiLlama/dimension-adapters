@@ -37,6 +37,11 @@ const configs: Record<string, Config> = {
     },
     options: { holdersRevenueRatio: 1 },
   },
+  "basic": {
+    // Comptroller from the basic TVL adapter (DefiLlama-Adapters registries/compound.js)
+    // No revenue ratios: the split of reserves between treasury and token holders is not documented.
+    chains: { [CHAIN.IOTEX]: { comptroller: "0x47D7B83947Aa12fEb95f5f55527Dc9B32E4ec009" } },
+  },
   "reactorfusion": {
     // Comptrollers from the reactorfusion TVL adapter (DefiLlama-Adapters registries/compound.js)
     // Era deployed 2023-04-21: https://explorer.zksync.io/tx/0x9064096e0af5a5d99cd267161a2c3f93a0bf27e0f6ab93d432874c2b85a43073

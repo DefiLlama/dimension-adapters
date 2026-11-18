@@ -497,6 +497,36 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
       },
     },
   },
+  // Data providers from the dtrinity-dlend TVL adapter (DefiLlama-Adapters registries/aave.js);
+  // pools read from each data provider's ADDRESSES_PROVIDER().getPool(); start = pool creation date
+  'dtrinity-dlend': {
+    config: {
+      [CHAIN.FRAXTAL]: {
+        start: '2024-11-25',
+        pools: [{
+          version: 3,
+          lendingPoolProxy: '0xd76c827ee2ce1e37c37fc2ce91376812d3c9bce2',
+          dataProvider: '0xFB3adf4c845fD6352D24F3F0981eb7954401829c',
+        }],
+      },
+      [CHAIN.SONIC]: {
+        start: '2025-04-17',
+        pools: [{
+          version: 3,
+          lendingPoolProxy: '0xedc3cfb1aa36c570cc1d374876268bdda2d460cc',
+          dataProvider: '0xB245F8321E7A4938DEf8bDb2D5E2E16481268c42',
+        }],
+      },
+      [CHAIN.ETHEREUM]: {
+        start: '2025-12-10',
+        pools: [{
+          version: 3,
+          lendingPoolProxy: '0x6598dad18bda89a0e58a1f427c8cebc0de90f153',
+          dataProvider: '0x7BC6d94344392ac7898Ce197Ae382e21c71347f2',
+        }],
+      },
+    },
+  },
   'aave-v1': {
     config: {
       [CHAIN.ETHEREUM]: {

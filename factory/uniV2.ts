@@ -1224,6 +1224,18 @@ const configs: Record<string, Record<string, any>> = {
     // governance-configured rate, and its split between LPs and the protocol is not documented.
     [CHAIN.BSC]: { factory: '0x8a1E9d3aEbBBd5bA2A64d3355A48dD5E9b511256', start: '2020-09-19', customLogic: volumeOnly },
   },
+  "sumswap": {
+    // 3/1000 pair invariant; 1/3 of fees minted to feeTo (rootK.mul(2) denominator), feeTo is set
+    [CHAIN.ETHEREUM]: { factory: '0x96FF042f8c6757fCE515d171F194b5816CAFEe11', start: '2021-03-15', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 3, protocolRevenueRatio: 1 / 3 },
+  },
+  "mm-finance": {
+    // MeerkatPair: swapFee 17/10000 by default (settable per pair), 2/5 of fees minted to feeTo, feeTo is set
+    [CHAIN.CRONOS]: { factory: '0xd590cC180601AEcD6eeADD9B7f2B7611519544f4', start: '2021-12-06', fees: 0.0017, userFeesRatio: 1, revenueRatio: 2 / 5, protocolRevenueRatio: 2 / 5 },
+  },
+  "binaryswap": {
+    // volume only: pair source is not verified, so the swap fee and its split are unknown
+    [CHAIN.OP_BNB]: { factory: '0xd50aaE6C73E2486B0Da718D23F35Dcf5aad25911', customLogic: volumeOnly },
+  },
   "justmoney": {
     // useSyncReserves: the public BitTorrent RPC is not archival, so pool balances at a past block cannot be read
     [CHAIN.BITTORRENT]: { factory: '0x4dEb2f0976DC3Bf351555524B3A24A4feA4e137E', fees: 0.003, useSyncReserves: true, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
@@ -1240,6 +1252,25 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "sumswap": {
+    Volume: "Swap volume on Sumswap pairs on Ethereum.",
+    Fees: "Traders pay a 0.3% fee on every swap.",
+    UserFees: "Traders pay a 0.3% fee on every swap.",
+    Revenue: "One third of the 0.3% swap fee (0.1% of volume) goes to the Sumswap fee address.",
+    ProtocolRevenue: "One third of the 0.3% swap fee (0.1% of volume) goes to the Sumswap fee address.",
+    SupplySideRevenue: "Two thirds of the 0.3% swap fee (0.2% of volume) stay with liquidity providers.",
+  },
+  "mm-finance": {
+    Volume: "Swap volume on MM Finance pairs on Cronos.",
+    Fees: "Traders pay a 0.17% fee on every swap.",
+    UserFees: "Traders pay a 0.17% fee on every swap.",
+    Revenue: "Two fifths of the 0.17% swap fee (0.068% of volume) go to the MM Finance fee address.",
+    ProtocolRevenue: "Two fifths of the 0.17% swap fee (0.068% of volume) go to the MM Finance fee address.",
+    SupplySideRevenue: "Three fifths of the 0.17% swap fee (0.102% of volume) stay with liquidity providers.",
+  },
+  "binaryswap": {
+    Volume: "Swap volume on BinarySwap pairs on opBNB.",
+  },
   "burgerswap": {
     Volume: "Swap volume on BurgerSwap pairs on BNB Smart Chain.",
   },
