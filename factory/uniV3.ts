@@ -52,6 +52,14 @@ const fluxionRevenueRatio = ({ protocolFeeRatioToken0, protocolFeeRatioToken1 }:
   return { _revenueRatio: rate, _protocolRevenueRatio: rate }
 }
 
+// Fluxion: wallets whose swaps are wash and incentive-farming volume, see the fluxion-network config below
+const fluxionWashTraders = [
+  '0x0f2b2d4f9ff742f7848a7294c48c0a205ee8b520', '0x51b4bcd5d56ad50e65d596e76dc198ef154cbe24', '0x557f7b7261fdd292d860fe17b8621c88a39c74e9',
+  '0x982826ef9fd08ece818ea3b4136a57e5868a54ac', '0xadb74ac098e134629faf252dcacabc787286270e', '0xb64b42883df5fdc857db53413375a774089fb409',
+  '0xbb94992da15920ae8d7a028e142308617b490485', '0xca100f5b7425eb3f2448b57c4b6aaa9a3185ab34', '0xde588a6f38c92d0b2dcea7ea4daa720415a7321a',
+  '0xe733f8a1b67401dd7c0ca4e95f81b9a0e765c88f', '0xf4fa88b20e2adc5e25fe57865f229424f27216fc',
+]
+
 // https://docs.roninchain.com/apps/katana/swap-tokens
 const katanaV3RevenueRatio = ({ poolFeeTier }: UniGetRevenueRatioProps) => {
   if (poolFeeTier === 0.0001) return { _revenueRatio: 0.5, _protocolRevenueRatio: 0.5 } // 20% of fees
@@ -335,7 +343,10 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.HYPERLIQUID]: { factory: '0x1Cd8363DfAdA19911f745BA984fce02b42c943bF', userFeesRatio: 1, revenueRatio: 0.143, protocolRevenueRatio: 0.143 },
   },
   "fluxion-network": {
-    [CHAIN.MANTLE]: { factory: '0xF883162Ed9c7E8EF604214c964c678E40c9B737C', start: '2025-11-17', userFeesRatio: 1, protocolRevenueRatio: 0, dynamicProtocolFees: true, getRevenueRatio: fluxionRevenueRatio },
+    // blacklistedAddresses: EOAs funded by Bybit wallets that swap Bybit Alpha tokens through the Fluxion router (0x5628a59df0ecac3f3171f877a94beb26ba6dfaa0)
+    // from 2026-03-04, mostly buy-and-sell loops during trading campaigns (e.g. KII/USDT0 in Oct 2026, KOR/USDT0 on 2026-11-04) at many times
+    // the pools' liquidity; wash and incentive-farming volume, not organic
+    [CHAIN.MANTLE]: { factory: '0xF883162Ed9c7E8EF604214c964c678E40c9B737C', start: '2025-11-17', userFeesRatio: 1, protocolRevenueRatio: 0, dynamicProtocolFees: true, getRevenueRatio: fluxionRevenueRatio, blacklistedAddresses: fluxionWashTraders },
   },
   "fusionx-v3": {
     [CHAIN.MANTLE]: { factory: '0x530d2766D1988CC1c000C8b7d00334c14B69AD71', start: '2023-07-13', userFeesRatio: 1, revenueRatio: 0.334, protocolRevenueRatio: 0.167, holdersRevenueRatio: 0.167 },
@@ -838,11 +849,12 @@ const methodologyMap: Record<string, any> = {
     SupplySideRevenue: "Liquidity providers get 85.7% of trade fees.",
   },
   "fluxion-network": {
-    Fees: 'Users pay fees on every swap.',
-    UserFees: 'Users pay fees on every swap.',
-    Revenue: 'The protocol share of the swap fees, set per pool by slot0().feeProtocol (feeProtocol 4, i.e. 25%, on the active pools; 0 on pools not switched on yet).',
-    ProtocolRevenue: 'The protocol share of the swap fees, set per pool by slot0().feeProtocol and collectable by the factory owner.',
-    SupplySideRevenue: 'The rest of the swap fees, earned by liquidity providers.',
+    Volume: 'Swap volume in Fluxion pools, excluding swaps by a listed set of wallets whose volume is wash or incentive-farming trading.',
+    Fees: 'Users pay fees on every swap. Swaps by a listed set of wallets whose volume is wash or incentive-farming trading are excluded.',
+    UserFees: 'Users pay fees on every swap. Swaps by a listed set of wallets whose volume is wash or incentive-farming trading are excluded.',
+    Revenue: 'The protocol share of the swap fees, set per pool by slot0().feeProtocol (feeProtocol 4, i.e. 25%, on the active pools; 0 on pools not switched on yet). Swaps by a listed set of wallets whose volume is wash or incentive-farming trading are excluded.',
+    ProtocolRevenue: 'The protocol share of the swap fees, set per pool by slot0().feeProtocol and collectable by the factory owner. Swaps by a listed set of wallets whose volume is wash or incentive-farming trading are excluded.',
+    SupplySideRevenue: 'The rest of the swap fees, earned by liquidity providers. Swaps by a listed set of wallets whose volume is wash or incentive-farming trading are excluded.',
   },
   "fusionx-v3": {
     Fees: "Swap fees paid by users on each FusionX V3 pool.",
@@ -1243,11 +1255,11 @@ protocols['enosys'].breakdownMethodology = {
 }
 
 protocols['fluxion-network'].breakdownMethodology = {
-  Fees: { 'Token Swap Fees': 'Swap fees paid by traders in Fluxion pools, at the pool fee tier.' },
-  UserFees: { 'Trading fees': 'Swap fees paid by traders in Fluxion pools, at the pool fee tier.' },
-  Revenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner.' },
-  ProtocolRevenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner.' },
-  SupplySideRevenue: { 'LP fees': 'The part of swap fees earned by liquidity providers.' },
+  Fees: { 'Token Swap Fees': 'Swap fees paid by traders in Fluxion pools, at the pool fee tier, excluding swaps by the listed wash and incentive-farming wallets.' },
+  UserFees: { 'Trading fees': 'Swap fees paid by traders in Fluxion pools, at the pool fee tier, excluding swaps by the listed wash and incentive-farming wallets.' },
+  Revenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner, excluding swaps by the listed wash and incentive-farming wallets.' },
+  ProtocolRevenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner, excluding swaps by the listed wash and incentive-farming wallets.' },
+  SupplySideRevenue: { 'LP fees': 'The part of swap fees earned by liquidity providers, excluding swaps by the listed wash and incentive-farming wallets.' },
 }
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols)
