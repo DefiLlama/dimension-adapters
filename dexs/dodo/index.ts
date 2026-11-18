@@ -1,4 +1,3 @@
-import { ChainApi } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -42,27 +41,15 @@ const V1_LP_RATE_UPDATE = 'event UpdateLiquidityProviderFeeRate(uint256 oldLiqui
 const V1_MT_RATE_UPDATE = 'event UpdateMaintainerFeeRate(uint256 oldMaintainerFeeRate, uint256 newMaintainerFeeRate)'
 const E18 = 10n ** 18n
 
-// rates are read just before the window's first block. A pool created inside the window has no state there yet, so it is
-// read just before its first swap, or at the end of that block if it was created in it (or at the closing block without
-// a first swap); that last read throws if it fails too. A DPP that is created, swaps and is retuned all in one block keeps
-// the retuned rate on those first swaps: DPP init emits no rate event to replay from
-const getRates = async (options: FetchOptions, abi: string, targets: string[], params: any[] = [], firstBlock: Record<string, number> = {}) => {
-  const read = (block: number, idx: number[], permitFailure: boolean) =>
-    new ChainApi({ chain: options.chain, block }).multiCall({ abi, calls: idx.map((i) => ({ target: targets[i], params })), permitFailure })
-  const openingBlock = (await options.getFromBlock()) - 1
-  const toBlock = await options.getToBlock()
-  const rates = await read(openingBlock, targets.map((_, i) => i), true)
-  for (const [offset, permitFailure] of [[1, true], [0, false]] as const) {
-    const byBlock: Record<number, number[]> = {}
-    rates.forEach((rate: any, i: number) => {
-      if (rate !== null) return
-      const block = firstBlock[targets[i]] ? firstBlock[targets[i]] - offset : (offset ? 0 : toBlock)
-      if (block > openingBlock) (byBlock[block] ??= []).push(i)
-    })
-    for (const [block, idx] of Object.entries(byBlock)) {
-      const res = await read(Number(block), idx, permitFailure)
-      idx.forEach((i, j) => { rates[i] = res[j] })
-    }
+// rates are read at the window's opening block; a pool created inside the window has no state there yet,
+// so it falls back to the closing read, which throws if it fails too
+const getRates = async (options: FetchOptions, abi: string, targets: string[], params: any[] = []) => {
+  const calls = targets.map((target) => ({ target, params }))
+  const rates = await options.fromApi.multiCall({ abi, calls, permitFailure: true })
+  const missing = targets.map((_, i) => i).filter((i) => rates[i] === null)
+  if (missing.length) {
+    const closing = await options.toApi.multiCall({ abi, calls: missing.map((i) => calls[i]) })
+    missing.forEach((i, j) => { rates[i] = closing[j] })
   }
   return rates
 }
@@ -224,9 +211,7 @@ const fetch = async (options: FetchOptions) => {
   // V2 pools charge both fees on the output leg: toAmount = gross * (1 - lp - mt).
   // The mt rate is keyed on tx.origin, but only crowdpooling pools (not tracked here) make it user dependent.
   const swapPools = [...new Set(swapLogs.map(poolOf))] as string[]
-  const firstSwapBlock: Record<string, number> = {}
-  for (const log of swapLogs) firstSwapBlock[poolOf(log)] = Math.min(firstSwapBlock[poolOf(log)] ?? Infinity, Number(log.blockNumber))
-  const rates = await getRates(options, GET_USER_FEE_RATE, swapPools, [ADDRESSES.null], firstSwapBlock)
+  const rates = await getRates(options, GET_USER_FEE_RATE, swapPools, [ADDRESSES.null])
   const poolRates = Object.fromEntries(swapPools.map((pool, i) => [pool, rates[i]]))
   // replay in-window lp rate changes by (blockNumber, logIndex) on top of the opening rate
   const lpChanges: Record<string, { position: number, rate: bigint }[]> = {}
