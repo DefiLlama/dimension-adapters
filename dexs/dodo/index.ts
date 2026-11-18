@@ -1,6 +1,7 @@
 import { ChainApi } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
 import { METRIC } from "../../helpers/metrics";
 import { addOneToken } from "../../helpers/prices";
 
@@ -22,6 +23,9 @@ const NEW_POOL_EVENTS = {
 
 // V2 pools (DVM, DPP, DSP, GSP) all emit DODOSwap
 const DODO_SWAP = 'event DODOSwap(address fromToken, address toToken, uint256 fromAmount, uint256 toAmount, address trader, address receiver)'
+// factory pools on 2026-11-18: boba 15, aurora 122, optimism 130, avax 146 are read by targets; linea 361, base 1068,
+// arbitrum 1839, scroll 1870, ethereum 4303, polygon 10353, bsc 25064 are hundreds+ of targets, so they scan the topic
+const MAX_SWAP_TARGETS = 200
 
 // V1 pairs are registered by DODOZoo and emit their own events
 const DODO_BIRTH = 'event DODOBirth(address newBorn, address baseToken, address quoteToken)'
@@ -36,7 +40,6 @@ const LP_FEE_RATE_CHANGE = 'event LpFeeRateChange(uint256 newLpFeeRate)'
 // V1 rate updates carry the old and the new rate, so they are replayed exactly
 const V1_LP_RATE_UPDATE = 'event UpdateLiquidityProviderFeeRate(uint256 oldLiquidityProviderFeeRate, uint256 newLiquidityProviderFeeRate)'
 const V1_MT_RATE_UPDATE = 'event UpdateMaintainerFeeRate(uint256 oldMaintainerFeeRate, uint256 newMaintainerFeeRate)'
-const ZERO = '0x0000000000000000000000000000000000000000'
 const E18 = 10n ** 18n
 
 // rates are read just before the window's first block. A pool created inside the window has no state there yet, so it is
@@ -205,7 +208,6 @@ const fetch = async (options: FetchOptions) => {
     logs.forEach((log: any) => pools.add(log.pool.toLowerCase()))
   }
 
-  // tens of thousands of V2 pools: pull the event by topic and keep only DODO's own pools
   const poolOf = (log: any) => (log.address ?? log.source).toLowerCase()
   const position = (log: any) => {
     const blockNumber = Number(log.blockNumber), logIndex = Number(log.logIndex ?? log.log_index ?? log.index)
@@ -213,26 +215,24 @@ const fetch = async (options: FetchOptions) => {
     // Reserve six decimal places for within-block order; assumes logIndex is below 1e6.
     return blockNumber * 1e6 + logIndex
   }
-  const swapLogs = (await options.getLogs({ eventAbi: DODO_SWAP, noTarget: true, entireLog: true, parseLog: true }))
-    .filter((log: any) => pools.has(poolOf(log)))
+  // the topic scan returns every DODOSwap on the chain, so keep only DODO's own pools
+  const poolList = [...pools]
+  const swapLogs = !poolList.length ? [] : (await options.getLogs({
+    ...(poolList.length < MAX_SWAP_TARGETS ? { targets: poolList } : { noTarget: true }),
+    eventAbi: DODO_SWAP, entireLog: true, parseLog: true,
+  })).filter((log: any) => pools.has(poolOf(log)))
   // V2 pools charge both fees on the output leg: toAmount = gross * (1 - lp - mt).
   // The mt rate is keyed on tx.origin, but only crowdpooling pools (not tracked here) make it user dependent.
   const swapPools = [...new Set(swapLogs.map(poolOf))] as string[]
   const firstSwapBlock: Record<string, number> = {}
   for (const log of swapLogs) firstSwapBlock[poolOf(log)] = Math.min(firstSwapBlock[poolOf(log)] ?? Infinity, Number(log.blockNumber))
-  const rates = await getRates(options, GET_USER_FEE_RATE, swapPools, [ZERO], firstSwapBlock)
+  const rates = await getRates(options, GET_USER_FEE_RATE, swapPools, [ADDRESSES.null], firstSwapBlock)
   const poolRates = Object.fromEntries(swapPools.map((pool, i) => [pool, rates[i]]))
   // replay in-window lp rate changes by (blockNumber, logIndex) on top of the opening rate
   const lpChanges: Record<string, { position: number, rate: bigint }[]> = {}
   if (swapPools.length) {
-    // Apply the repository's hundreds-of-targets exception from 200 pools, not an SDK or measured performance cutoff.
-    // Cached BSC logs for 2026-11-14 16:00-17:00 UTC contain 243 factory-recognized pools with swaps.
-    const changeLogs = await options.getLogs({
-      ...(swapPools.length >= 200 ? { noTarget: true } : { targets: swapPools }),
-      eventAbi: LP_FEE_RATE_CHANGE, entireLog: true, parseLog: true,
-    })
+    const changeLogs = await options.getLogs({ targets: swapPools, eventAbi: LP_FEE_RATE_CHANGE, entireLog: true, parseLog: true })
     for (const log of changeLogs) {
-      if (!poolRates[poolOf(log)]) continue
       lpChanges[poolOf(log)] ??= []
       lpChanges[poolOf(log)].push({ position: position(log), rate: BigInt(log.args.newLpFeeRate) })
     }
