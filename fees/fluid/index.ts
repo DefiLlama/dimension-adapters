@@ -3,7 +3,7 @@ import { CONFIG_FLUID, FLUID_METRICS } from "./config";
 import { getDailyFees } from "./fees";
 import { getDailyRevenue, getDailyHoldersRevenue } from "./revenue";
 import { CHAIN } from "../../helpers/chains";
-import { queryJupLendRows } from "../jupiter-lend";
+import { getJupLendRevenueSplit, queryJupLendRows } from "../jupiter-lend";
 
 const fetch: FetchV2 = async (options: FetchOptions) => {
   const [dailyFees, dailyRevenue, dailyHoldersRevenue] = await Promise.all([
@@ -33,8 +33,9 @@ const fetchSolana: FetchV2 = async (options: FetchOptions) => {
 
   // get JupLend revenue, same rows as fees/jupiter-lend. It throws until Jupiter's MV has the whole day.
   const data = await queryJupLendRows(options);
-  const jupiterRevenue = data.reduce((sum, row) => sum + (row.daily_revenue_usd || 0), 0);
-  dailyFees.addUSDValue(jupiterRevenue * 0.5, FLUID_METRICS.RevenueShareFromJupLend);
+  // Fluid's share of the reserve cut: 50%, 45% in the Bitwise x Ethena market
+  const fluidShare = data.reduce((sum, row) => sum + (row.daily_revenue_usd || 0) * getJupLendRevenueSplit(row).fluid, 0);
+  dailyFees.addUSDValue(fluidShare, FLUID_METRICS.RevenueShareFromJupLend);
   
   return {
     dailyFees,
