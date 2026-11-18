@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getDefaultDexTokensBlacklisted } from "../../helpers/lists";
 import { formatAddress } from "../../utils/utils";
-import { RELAY_LISTED_UNTIL, relayListCovers, relayTotals } from "./relay";
+import { RELAY_LAST_DAY, RELAY_LISTED_UNTIL, relayListCovers, relayTotals } from "./relay";
 
 // Sweep (https://trysweep.finance) - turns many token balances across chains into one or two tokens in one go, sending
 // each balance over the route it finds best. Swaps on one chain are counted here; legs that cross chains are in
@@ -30,7 +30,7 @@ const LOGS_BLOCK_RANGE = 10000;
 
 // Each chain with Sweep's swaps, from the day the first of them was made, and whether Sweep's swaps there go through
 // Fly's router. A chain without Fly has Sweep's Relay swaps alone, which are known only up to the end of the Relay
-// list, so it stops there (deadFrom) rather than report the days after it as zero.
+// list, so the runner stops it there (deadFrom, ./relay.ts).
 type ChainConfig = { start: string; fly?: boolean; deadFrom?: string };
 const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.ETHEREUM]: { start: "2026-08-13", fly: true },
@@ -38,20 +38,20 @@ const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.OPTIMISM]: { start: "2026-11-05", fly: true },
   [CHAIN.BASE]: { start: "2026-08-03", fly: true },
   [CHAIN.BSC]: { start: "2026-07-27", fly: true },
-  [CHAIN.ERA]: { start: "2026-10-01", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.ROBINHOOD]: { start: "2026-09-13", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.INK]: { start: "2026-09-27", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.MONAD]: { start: "2026-10-11", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.CELO]: { start: "2026-11-05", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.MANTLE]: { start: "2026-11-11", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.SCROLL]: { start: "2026-11-11", deadFrom: RELAY_LISTED_UNTIL },
-  [CHAIN.SONEIUM]: { start: "2026-11-11", deadFrom: RELAY_LISTED_UNTIL },
+  [CHAIN.ERA]: { start: "2026-10-01", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.ROBINHOOD]: { start: "2026-09-13", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.INK]: { start: "2026-09-27", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.MONAD]: { start: "2026-10-11", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.CELO]: { start: "2026-11-05", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.MANTLE]: { start: "2026-11-11", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.SCROLL]: { start: "2026-11-11", deadFrom: RELAY_LAST_DAY },
+  [CHAIN.SONEIUM]: { start: "2026-11-11", deadFrom: RELAY_LAST_DAY },
 };
 
 const fetch = async (options: FetchOptions) => {
   const { fly } = chainConfig[options.chain];
-  // A chain with Relay swaps alone reports nothing past the end of the Relay list, rather than zero.
-  if (!fly && !relayListCovers(options)) return {};
+  // A chain with Relay swaps alone has no data past the end of the Relay list.
+  if (!fly && !relayListCovers(options)) throw new Error(`sweep-finance: Sweep's Relay swaps on ${options.chain} are listed up to ${RELAY_LISTED_UNTIL} only`);
   const dailyVolume = options.createBalances();
 
   if (fly) {
