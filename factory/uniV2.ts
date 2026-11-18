@@ -103,7 +103,8 @@ const configs: Record<string, Record<string, any>> = {
     // https://sourcify.dev/server/v2/contract/56/0x3e708fdbe3ada63fc94f8f61811196f1302137ad?fields=all
     // https://sourcify.dev/server/v2/contract/137/0x5ede3f4e7203bf1f12d57af1810448e5db20f46c?fields=all
     // volume only: historical fee split not documented; feeTo is mutable.
-    [CHAIN.BSC]: { factory: '0x3e708fdbe3ada63fc94f8f61811196f1302137ad', fees: 0.002, customLogic: volumeOnly },
+    // PACOCA/WBNB pair excluded: wash volume.
+    [CHAIN.BSC]: { factory: '0x3e708fdbe3ada63fc94f8f61811196f1302137ad', fees: 0.002, customLogic: volumeOnly, blacklistPools: ['0xb9c7049cb298035640e7b6db219e68c348b976b7'] },
     [CHAIN.POLYGON]: { factory: '0x5ede3f4e7203bf1f12d57af1810448e5db20f46c', fees: 0.002, customLogic: volumeOnly },
   },
   "narwhalswap": {
