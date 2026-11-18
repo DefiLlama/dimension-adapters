@@ -5,10 +5,13 @@ import { queryDuneSql } from "../../helpers/dune";
 import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex";
 
 // Jupiter Lend runs on Fluid infra as two instances tagged by `instance_name`
-// in the Dune MV: the main Jupiter markets and the isolated Ethena (USDe) market
-// curated by Bitwise. Both share the same on-chain fee model (a reserve cut on
-// borrower interest) and the same 50/50 Jupiter/Fluid revenue share, so we apply
-// identical logic to each instance and only relabel for the breakdown.
+// in the Dune MV: the main Jupiter markets and the isolated Ethena (USDe) instance.
+// Both share the same on-chain fee model (a reserve cut on borrower interest), so we
+// apply identical logic to each instance and only relabel for the breakdown.
+// The reserve cut is split 50/50 between Jupiter and Fluid, except in the Bitwise x Ethena
+// market (USDG debt, live since 2026-05-02), where Bitwise, its co-curator, takes 10% and
+// Jupiter and Fluid 45% each, per the Jupiter team. The Sentora market (PYUSD debt, from
+// 2026-05-27) in the same instance is 50/50. https://docs.jup.ag/user-docs/earn/lend/markets
 //
 // Interest accrues in the liquidity program jupeiUmn818Jg1ekPURTpr4mFo29p46vygyykFJ3wZC and the lending program
 // jup3YeL8QhtSx1e253b2FDvsMNC87fDrgQZivbrndc9.
@@ -18,10 +21,17 @@ const ETHENA_METRICS = {
   InterestToLenders: 'JupLend Ethena Isolated Market Borrow Interests To Lenders',
   InterestToFluid: 'JupLend Ethena Isolated Market Borrow Interests To Fluid',
   InterestToJupiter: 'JupLend Ethena Isolated Market Borrow Interests To Jupiter',
+  InterestToBitwise: 'JupLend Ethena Isolated Market Borrow Interests To Bitwise',
 };
 
+const PYUSD_MINT = '2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo'; // Sentora market debt
+
+// share of the reserve cut (revenue before the Fluid split) per party, for one row of queryJupLendRows
+export const getJupLendRevenueSplit = (row: any) => row.bitwise_market
+  ? { jupiter: 0.45, fluid: 0.45, bitwise: 0.1 }
+  : { jupiter: 0.5, fluid: 0.5, bitwise: 0 };
+
 const isEthenaInstance = (row: any) => String(row.instance_name || '').toLowerCase().includes('ethena');
-const sumUsd = (rows: any[], key: string) => rows.reduce((sum, row) => sum + (row[key] || 0), 0);
 
 export const queryJupLendRows = async (options: FetchOptions): Promise<any[]> => {
   assertDuneSolanaIndexed(options);
@@ -30,13 +40,14 @@ export const queryJupLendRows = async (options: FetchOptions): Promise<any[]> =>
     select
         day >= FROM_UNIXTIME(${options.endTimestamp}) as after_window
       , instance_name
+      , instance_name = 'ethena' and mint != '${PYUSD_MINT}' as bitwise_market
       , sum(borrow_fees_usd) as daily_fees_usd
       , sum(supply_side_fees_usd) as daily_supply_side_revenue_usd
       , sum(day_revenue_usd) as daily_revenue_usd
     from dune."jupiter".result_juplend_historical_tvl_by_token_mv
     where day >= FROM_UNIXTIME(${options.startTimestamp})
         and day < FROM_UNIXTIME(${options.endTimestamp + 86400})
-    group by 1, 2
+    group by 1, 2, 3
   `
   const rows: any[] = await queryDuneSql(options, sql);
   const dayRows = rows.filter((row) => !row.after_window);
@@ -55,23 +66,23 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const dailyRevenue = options.createBalances();
 
   const addInstance = (rows: any[], metrics: typeof JUPITER_METRICS | typeof ETHENA_METRICS) => {
-    const df = sumUsd(rows, 'daily_fees_usd');
-    const dssrToLenders = sumUsd(rows, 'daily_supply_side_revenue_usd');
-    const drBeforeFluidShare = sumUsd(rows, 'daily_revenue_usd');
-    const drFluidShare = drBeforeFluidShare * 0.5;
-    const dr = drBeforeFluidShare - drFluidShare;
+    for (const row of rows) {
+      const reserveCut = row.daily_revenue_usd || 0;
+      const split = getJupLendRevenueSplit(row);
 
-    // all borrow interest from this instance's markets
-    dailyFees.addUSDValue(df, metrics.BorrowInterest);
+      // all borrow interest from this instance's markets
+      dailyFees.addUSDValue(row.daily_fees_usd || 0, metrics.BorrowInterest);
 
-    // share of interest to lenders
-    dailySupplySideRevenue.addUSDValue(dssrToLenders, metrics.InterestToLenders);
+      // share of interest to lenders
+      dailySupplySideRevenue.addUSDValue(row.daily_supply_side_revenue_usd || 0, metrics.InterestToLenders);
 
-    // share of interest to Fluid
-    dailySupplySideRevenue.addUSDValue(drFluidShare, metrics.InterestToFluid);
+      // shares of the reserve cut to Fluid and, in the Bitwise x Ethena market, to Bitwise
+      dailySupplySideRevenue.addUSDValue(reserveCut * split.fluid, metrics.InterestToFluid);
+      if (split.bitwise) dailySupplySideRevenue.addUSDValue(reserveCut * split.bitwise, ETHENA_METRICS.InterestToBitwise);
 
-    // share of interest to Jupiter, all kept by Jupiter
-    dailyRevenue.addUSDValue(dr, metrics.InterestToJupiter);
+      // share of interest to Jupiter, all kept by Jupiter
+      dailyRevenue.addUSDValue(reserveCut * split.jupiter, metrics.InterestToJupiter);
+    }
   };
 
   // main Jupiter markets keep the existing labels; the isolated Ethena market
@@ -95,9 +106,9 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   methodology: {
     Fees: 'All interest paid by borrowers from all markets.',
-    Revenue: "Jupiter's share of borrow interest, half of the reserve cut (the other half goes to Fluid).",
+    Revenue: "Jupiter's share of borrow interest: half of the reserve cut (the other half goes to Fluid), 45% in the Bitwise x Ethena market.",
     ProtocolRevenue: "All of Jupiter's share, kept by Jupiter. Not used for JUP buybacks.",
-    SupplySideRevenue: 'Amount of interest distributed to lenders and Fluid from all market.',
+    SupplySideRevenue: 'Interest paid to lenders, Fluid, and Bitwise in the Bitwise x Ethena market.',
   },
   breakdownMethodology: {
     Fees: {
@@ -106,13 +117,14 @@ const adapter: SimpleAdapter = {
     },
     Revenue: {
       [JUPITER_METRICS.InterestToJupiter]: 'Amount of interest cut collected by Jupiter, (50% goes to jupiter, other 50% to Fluid).',
-      [ETHENA_METRICS.InterestToJupiter]: 'Jupiter interest cut from the isolated Ethena (USDe) market (50% to Jupiter, 50% to Fluid).',
+      [ETHENA_METRICS.InterestToJupiter]: 'Jupiter interest cut from the isolated Ethena (USDe) markets: 45% in the Bitwise x Ethena market, 50% in the Sentora market.',
     },
     SupplySideRevenue: {
       [JUPITER_METRICS.InterestToLenders]: 'Interest distributed to lenders from all markets.',
       [JUPITER_METRICS.InterestToFluid]: 'Interest distributed to Fluid from all markets.',
       [ETHENA_METRICS.InterestToLenders]: 'Interest distributed to lenders in the isolated Ethena (USDe) market.',
-      [ETHENA_METRICS.InterestToFluid]: 'Interest distributed to Fluid from the isolated Ethena (USDe) market.',
+      [ETHENA_METRICS.InterestToFluid]: 'Interest distributed to Fluid from the isolated Ethena (USDe) markets: 45% of the interest cut in the Bitwise x Ethena market, 50% in the Sentora market.',
+      [ETHENA_METRICS.InterestToBitwise]: 'Interest distributed to Bitwise, co-curator of the Bitwise x Ethena market: 10% of the interest cut.',
     },
     ProtocolRevenue: {
       [JUPITER_METRICS.InterestToJupiter]: "All of Jupiter's interest cut, kept by Jupiter.",
