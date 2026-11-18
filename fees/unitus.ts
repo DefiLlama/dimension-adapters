@@ -1,4 +1,3 @@
-import ADDRESSES from "../helpers/coreAssets.json";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -20,14 +19,15 @@ const LABEL = {
 }
 
 // Controller per chain, from the unitus TVL adapter (DefiLlama-Adapters registries/compound.js)
-const chainConfig: Record<string, { comptroller: string }> = {
-  [CHAIN.ETHEREUM]: { comptroller: "0x8B53Ab2c0Df3230EA327017C91Eb909f815Ad113" },
-  [CHAIN.BSC]: { comptroller: "0x0b53E608bD058Bb54748C35148484fD627E6dc0A" },
-  [CHAIN.ARBITRUM]: { comptroller: "0x8E7e9eA9023B81457Ae7E6D2a51b003D421E5408" },
-  [CHAIN.OPTIMISM]: { comptroller: "0xA300A84D8970718Dac32f54F61Bd568142d8BCF4" },
-  [CHAIN.POLYGON]: { comptroller: "0x52eaCd19E38D501D006D2023C813d7E37F025f37" },
-  [CHAIN.CONFLUX]: { comptroller: "0xA377eCF53253275125D0a150aF195186271f6a56" },
-  [CHAIN.BASE]: { comptroller: "0xBae8d153331129EB40E390A7Dd485363135fcE22" },
+// start = the day the Controller was deployed (BSC: the day of its markets' first UpdateInterest event)
+const chainConfig: Record<string, { comptroller: string; start: string }> = {
+  [CHAIN.ETHEREUM]: { comptroller: "0x8B53Ab2c0Df3230EA327017C91Eb909f815Ad113", start: '2021-02-25' },
+  [CHAIN.BSC]: { comptroller: "0x0b53E608bD058Bb54748C35148484fD627E6dc0A", start: '2021-03-23' },
+  [CHAIN.ARBITRUM]: { comptroller: "0x8E7e9eA9023B81457Ae7E6D2a51b003D421E5408", start: '2021-09-01' },
+  [CHAIN.OPTIMISM]: { comptroller: "0xA300A84D8970718Dac32f54F61Bd568142d8BCF4", start: '2021-11-26' },
+  [CHAIN.POLYGON]: { comptroller: "0x52eaCd19E38D501D006D2023C813d7E37F025f37", start: '2022-03-15' },
+  [CHAIN.CONFLUX]: { comptroller: "0xA377eCF53253275125D0a150aF195186271f6a56", start: '2023-04-23' },
+  [CHAIN.BASE]: { comptroller: "0xBae8d153331129EB40E390A7Dd485363135fcE22", start: '2024-03-15' },
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -37,14 +37,14 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances()
 
   const markets: string[] = await options.api.call({ target: comptroller, abi: ABI.getAllMarkets })
-  // markets on the chain's gas token have no underlying
-  const underlyings = await options.api.multiCall({ calls: markets, abi: ABI.underlying, permitFailure: true })
+  // the gas token market returns the zero address here, it does not revert; a failed read throws instead of being priced as the gas token
+  const underlyings = await options.api.multiCall({ calls: markets, abi: ABI.underlying })
   // governance-set and rarely changed, read at the window end
   const reserveFactors = await options.api.multiCall({ calls: markets, abi: ABI.reserveFactor })
   const marketLogs = await options.getLogs({ targets: markets, eventAbi: ABI.accrueInterest, flatten: false })
 
   marketLogs.forEach((logs: any[], i: number) => {
-    const token = underlyings[i] ?? ADDRESSES.null
+    const token = underlyings[i] // zero address = gas token, same as ADDRESSES.null
     const reserveFactor = BigInt(reserveFactors[i]) // 1e18 = 100%
     logs.forEach((log: any) => {
       const interest = BigInt(log.interestAccumulated)
@@ -62,7 +62,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: Object.keys(chainConfig),
+  adapter: chainConfig,
   methodology: {
     Fees: "Interest paid by borrowers on Unitus lending markets.",
     Revenue: "The share of borrow interest each Unitus market sets aside as protocol reserves.",

@@ -1,4 +1,3 @@
-import ADDRESSES from "../helpers/coreAssets.json";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -20,11 +19,12 @@ const LABEL = {
 }
 
 // Supervisor (comptroller) per chain, from the minterest TVL adapter (DefiLlama-Adapters registries/compound.js)
-const chainConfig: Record<string, { comptroller: string }> = {
-  [CHAIN.ETHEREUM]: { comptroller: "0xD13f50274a68ABF2384C79248ADc259b3777c081" },
-  [CHAIN.MANTLE]: { comptroller: "0xe53a90EFd263363993A3B41Aa29f7DaBde1a932D" },
-  [CHAIN.TAIKO]: { comptroller: "0xe56c0d4d6A08C05ec42E923EFd06497F115D4799" },
-  [CHAIN.MORPH]: { comptroller: "0x121D54E653a63D90569813E7c6a4C5E6084ff7DE" },
+// start = the day the Supervisor was deployed
+const chainConfig: Record<string, { comptroller: string; start: string }> = {
+  [CHAIN.ETHEREUM]: { comptroller: "0xD13f50274a68ABF2384C79248ADc259b3777c081", start: '2023-02-23' },
+  [CHAIN.MANTLE]: { comptroller: "0xe53a90EFd263363993A3B41Aa29f7DaBde1a932D", start: '2023-12-22' },
+  [CHAIN.TAIKO]: { comptroller: "0xe56c0d4d6A08C05ec42E923EFd06497F115D4799", start: '2024-05-31' },
+  [CHAIN.MORPH]: { comptroller: "0x121D54E653a63D90569813E7c6a4C5E6084ff7DE", start: '2025-02-19' },
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -34,14 +34,14 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances()
 
   const markets: string[] = await options.api.call({ target: comptroller, abi: ABI.getAllMarkets })
-  // markets on the chain's gas token have no underlying
-  const underlyings = await options.api.multiCall({ calls: markets, abi: ABI.underlying, permitFailure: true })
+  // every market has an ERC-20 underlying; a failed read throws instead of being priced as another token
+  const underlyings = await options.api.multiCall({ calls: markets, abi: ABI.underlying })
   // governance-set and rarely changed, read at the window end
   const reserveFactors = await options.api.multiCall({ calls: markets, abi: ABI.reserveFactor })
   const marketLogs = await options.getLogs({ targets: markets, eventAbi: ABI.accrueInterest, flatten: false })
 
   marketLogs.forEach((logs: any[], i: number) => {
-    const token = underlyings[i] ?? ADDRESSES.null
+    const token = underlyings[i]
     const reserveFactor = BigInt(reserveFactors[i]) // 1e18 = 100%
     logs.forEach((log: any) => {
       const interest = BigInt(log.interestAccumulated)
@@ -59,7 +59,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: Object.keys(chainConfig),
+  adapter: chainConfig,
   methodology: {
     Fees: "Interest paid by borrowers on Minterest lending markets.",
     Revenue: "The share of borrow interest each Minterest market sets aside as protocol reserves.",

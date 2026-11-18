@@ -13,7 +13,9 @@ const algebraV2SwapEvent = 'event Swap(address indexed sender, address indexed r
 const volumeOnly = ({ dailyVolume }: any) => ({ dailyVolume })
 
 // stock uniV3 slot0.feeProtocol read per pool, all of the protocol share to the treasury
-const slot0AverageRevenueRatio = ({ protocolFeeRatioToken0 = 0, protocolFeeRatioToken1 = 0 }: UniGetRevenueRatioProps) => {
+const slot0AverageRevenueRatio = ({ protocolFeeRatioToken0, protocolFeeRatioToken1 }: UniGetRevenueRatioProps) => {
+  // a failed slot0 read leaves the ratio undefined; throw rather than report it as a 0% protocol share
+  if (protocolFeeRatioToken0 === undefined || protocolFeeRatioToken1 === undefined) throw new Error('slot0().feeProtocol unreadable')
   const rate = (protocolFeeRatioToken0 + protocolFeeRatioToken1) / 2
   return { _revenueRatio: rate, _protocolRevenueRatio: rate }
 }
