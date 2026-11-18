@@ -207,7 +207,7 @@ const buildSwapAggSql = (
     AND address IN (${hexListSql(addresses, 40)})
     AND topic0 = '${SWAP_TOPIC0}'
     AND block_number >= ${fromBlock}
-    AND block_number <  ${toBlock}
+    AND block_number <= ${toBlock}
   GROUP BY address
 `;
 
