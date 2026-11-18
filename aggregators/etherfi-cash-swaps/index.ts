@@ -1,4 +1,3 @@
-import * as sdk from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -16,7 +15,8 @@ const SWAP_ON_OPENOCEAN = "event SwapOnOpenOcean(address indexed safe, address i
 // src/across/AcrossSwapModule.sol emits the same SwapRequested/SwapExecuted signatures, so Enso modules are told apart by getEnsoRouter.
 const ENSO_SWAP_REQUESTED = "event SwapRequested(address indexed safe, bytes32 indexed swapId, address srcToken, uint256 srcAmount, uint256 dstChainId, address dstToken, address recipient, uint256 minOut, uint256 deadline)";
 const ENSO_SWAP_EXECUTED = "event SwapExecuted(address indexed safe, bytes32 indexed swapId, uint256 dstChainId, address indexed dstToken, uint256 minOut)";
-const ENSO_GET_SWAP = "function getSwap(address safe) view returns (((address srcToken, uint256 srcAmount, uint256 dstChainId, address dstToken, address recipient, uint256 minOut, uint256 deadline) order, bytes swapData, bytes32 swapId, address target, uint256 nativeFee, bool hasWithdrawalHold))";
+
+const ENSO_REQUEST_LOOKBACK = 3600;
 
 type Config = {
   start: string;
@@ -65,32 +65,22 @@ const fetch = async (options: FetchOptions) => {
   if (!ensoModules.length) return { dailyVolume };
   const ensoExecutions = sameChain.filter((execution: any) => ensoModules.includes(execution.address.toLowerCase()));
 
-  // requests made during the window
-  const requests = await options.getLogs({ targets: ensoModules, eventAbi: ENSO_SWAP_REQUESTED, onlyArgs: false });
+  const requests = await options.getLogs({
+    targets: ensoModules,
+    eventAbi: ENSO_SWAP_REQUESTED,
+    fromBlock: await options.getBlock(options.fromTimestamp - ENSO_REQUEST_LOOKBACK, options.chain, {}),
+    onlyArgs: false,
+  });
   const swapKey = (module: string, safe: string, swapId: string) => `${module.toLowerCase()}-${safe.toLowerCase()}-${swapId}`;
   const requestByKey: Record<string, any> = {};
   requests.forEach((request: any) => { requestByKey[swapKey(request.address, request.args.safe, request.args.swapId)] = request.args; });
 
-  const olderExecutions: any[] = [];
   ensoExecutions.forEach((execution: any) => {
-    const request = requestByKey[swapKey(execution.address, execution.args.safe, execution.args.swapId)];
-    if (request) dailyVolume.add(request.srcToken, request.srcAmount);
-    else olderExecutions.push(execution);
+    const { safe, swapId } = execution.args;
+    const request = requestByKey[swapKey(execution.address, safe, swapId)];
+    if (!request) throw new Error(`No SwapRequested within ${ENSO_REQUEST_LOOKBACK}s before the window for Enso swap ${swapId} of safe ${safe}`);
+    dailyVolume.add(request.srcToken, request.srcAmount);
   });
-
-  if (olderExecutions.length) {
-    const swaps = await sdk.api2.abi.multiCall({
-      chain: options.chain,
-      block: (await options.getFromBlock()) - 1,
-      abi: ENSO_GET_SWAP,
-      calls: olderExecutions.map((execution: any) => ({ target: execution.address, params: [execution.args.safe] })),
-    });
-    swaps.forEach((swap: any, i: number) => {
-      const { safe, swapId } = olderExecutions[i].args;
-      if (swap.swapId !== swapId) throw new Error(`No request found for Enso swap ${swapId} of safe ${safe}`);
-      dailyVolume.add(swap.order.srcToken, swap.order.srcAmount);
-    });
-  }
 
   return { dailyVolume };
 };
