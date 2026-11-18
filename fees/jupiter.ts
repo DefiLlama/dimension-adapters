@@ -1,7 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryAllium } from "../helpers/allium"
-import { queryDuneResult } from "../helpers/dune"
+import { queryDuneResult, queryDuneSql } from "../helpers/dune"
 import { METRIC } from "../helpers/metrics"
 import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../helpers/jupiter-stats"
 
@@ -22,11 +22,11 @@ const JUP_BUY_BACK_START_TIME = 1739750400; // 2025-02-17, first JUP into the Li
 // when the other half started buying back JUP (counted once, on this listing, as holders revenue).
 export const jupTreasuryShare = (timestamp: number) => timestamp >= JUP_BUY_BACK_START_TIME ? 0.5 : 1;
 
-// Saved Dune query running helpers/queries/jupiter-aggregator.sql: fees and Litterbox buybacks per day since 2025-02-17,
-// so refills skip the Allium queries below. Rerun it on Dune to extend the history; days not in its result use Allium.
+// Saved Dune query running helpers/queries/jupiter-aggregator.sql: Litterbox buybacks per day since 2025-02-17,
+// so refills skip the Allium query below. Rerun it on Dune to extend the history; days not in its result use Allium.
 const DUNE_HISTORY_QUERY_ID = '9087823'
 
-type CachedDay = { fees_usd: number, buyback_jup: string }
+type CachedDay = { buyback_jup: string }
 async function getCachedDay(options: FetchOptions): Promise<CachedDay | undefined> {
   if (options.startOfDay < JUP_BUY_BACK_START_TIME) return
   const [row] = await queryDuneResult(options, DUNE_HISTORY_QUERY_ID, `day = '${options.dateString}'`)
@@ -150,75 +150,105 @@ export const JUPITER_METRICS = {
   TokenBuyBack: METRIC.TOKEN_BUY_BACK,
 }
 
-const fetchOnchain = async (options: FetchOptions) => {
-  const cached = await getCachedDay(options)
-  if (cached) {
-    const dailyFees = options.createBalances()
-    dailyFees.addUSDValue(cached.fees_usd, JUPITER_METRICS.AggSwapFees)
-    return {
-      dailyFees,
-      dailyRevenue: dailyFees,
-      dailyProtocolRevenue: dailyFees.clone(jupTreasuryShare(options.startOfDay)),
-      dailyHoldersRevenue: await getLitterboxBuybacks(options, cached),
-    }
-  }
-  const feeAuthorityRows = JUPITER_FEE_AUTHORITIES.map((address) => `('${address}')`).join(',\n        ')
+// Before 2025-02-17 platform fees were paid straight into 9hdBK7FUzv4NjZbtYfm39F5utJyFsmCwbF9Mow5Pr1sN.
+async function getLegacyFeesUsd(options: FetchOptions) {
   const data: { amount_usd: number }[] = await queryAllium(`
-    WITH addr_list AS (
-      SELECT addr
-      FROM (VALUES
-        ${feeAuthorityRows}
-      ) AS v(addr)
-    )
-    
     SELECT COALESCE(t.usd_amount, 0) AS amount_usd
     FROM solana.assets.transfers t
     WHERE t.to_address = '9hdBK7FUzv4NjZbtYfm39F5utJyFsmCwbF9Mow5Pr1sN'
-      AND t.block_timestamp <= TIMESTAMP '2025-02-16 23:59:59'
       AND t.block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
       AND t.block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+  `)
+  return data.reduce((sum, row) => sum + (row.amount_usd || 0), 0)
+}
 
-    UNION ALL
-    
-    SELECT COALESCE(t.usd_amount, 0) AS amount_usd
-    FROM solana.assets.transfers t
-    WHERE t.from_address IN (SELECT addr FROM addr_list)
-      AND t.to_address = '7JQeyNK55fkUPUmEotupBFpiBGpgEQYLe8Ht1VdSfxcP'
-      AND t.block_timestamp >= TIMESTAMP '2025-02-17 00:00:00'
-      AND t.block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-      AND t.block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
-  `);
+// Jupiter Mobile swap fees land in its own collector from 2026-09-15 (in the fee authorities before), in native SOL,
+// wSOL (token account ADKKyzoY8MUtPAMgjuBkuc9Y3BmZaTueeGkbMo7CVrdg) and SPL tokens.
+const MOBILE_COLLECTOR = '6Gfahmxqn1VfJE1rZ3JsDZdztUKMc4F8bjR9pfu1XhWZ'
+const MOBILE_COLLECTOR_START = 1789430400 // 2026-09-15
+// Jupiter's share of positive slippage lands here from 2026-08-17 06:19 UTC (in the fee authorities before).
+const SLIPPAGE_COLLECTOR = 'sobLmyY3kjTYqk2r7Ui18PC6YzHUBDaD2tk6PPNAv4o'
+const SLIPPAGE_COLLECTOR_START = 1786924800 // 2026-08-17
+// Keepers whose order fills also pay into the fee authorities; those fees are counted on the Jupiter Limit and Jupiter DCA listings.
+const JUPITER_LIMIT_KEEPER = 'gasAx5Y917MYdmdnwiomwYDhmDKNGDJnN1MmEbxVdVw' // first fill 2025-10-02
+const JUPITER_DCA_KEEPER = 'gasBidSWW5zmwXs3gn8TG2ijzKkrwpyM7ucwjgDQst6' // first fill 2026-03-25
+// Signers whose transactions are not swap fees: the Baskets keeper (from 2026-11), sweeps and fee conversions by the
+// revenue collector and the Mobile collector, and a 6,250 wSOL Pump cashback on 2026-08-30.
+const EXCLUDED_SIGNERS = [
+  'gasCZBUg3Bh3Cakv5mAWQxkgAeRSEqn6ThD9Gnppih4',
+  '7JQeyNK55fkUPUmEotupBFpiBGpgEQYLe8Ht1VdSfxcP',
+  MOBILE_COLLECTOR,
+  '63THnNJix4sy75MNAZ5uSQWAtTDGiWHQsbntbmxmj6jZ',
+]
 
-  const ultraRevenue = data.reduce((sum, row) => sum + (row.amount_usd || 0), 0);
+// Fees read at swap time since 2025-02-17: the positive token balance change of every account owned by a fee wallet,
+// per transaction. A fee authority is also an intermediate hop on routed swaps, and its balance nets to zero there.
+// Fees in tokens without a Dune price are left out, as Jupiter does. Returns USD per product, split by the signer.
+// Used up to 2025-12-31; it also covers 2026 (within a few percent of the stats API) if the API is ever dropped.
+export async function getJupiterFeeAuthorityFees(options: FetchOptions): Promise<Record<string, number>> {
+  const wallets = [...JUPITER_FEE_AUTHORITIES]
+  if (options.startOfDay >= SLIPPAGE_COLLECTOR_START) wallets.push(SLIPPAGE_COLLECTOR)
+  const mobile = options.startOfDay >= MOBILE_COLLECTOR_START
+  if (mobile) wallets.push(MOBILE_COLLECTOR)
+  const signers = [JUPITER_LIMIT_KEEPER, JUPITER_DCA_KEEPER, ...EXCLUDED_SIGNERS]
+  const list = (addresses: string[]) => addresses.map((a) => `'${a}'`).join(', ')
+  const rows = await queryDuneSql(options, `
+    WITH aa AS (
+      SELECT tx_id, address, signed, token_mint_address, token_balance_change, balance_change
+      FROM solana.account_activity
+      WHERE TIME_RANGE
+        AND tx_success
+        AND ((token_balance_owner IN (${list(wallets)}) AND token_balance_change > 0)
+          ${mobile ? `OR (address = '${MOBILE_COLLECTOR}' AND balance_change > 0 AND NOT signed)` : ''}
+          OR (signed AND address IN (${list(signers)})))
+    ),
+    signer AS (
+      SELECT tx_id, MAX(CASE address WHEN '${JUPITER_LIMIT_KEEPER}' THEN 'limit' WHEN '${JUPITER_DCA_KEEPER}' THEN 'dca' ELSE 'excluded' END) AS product
+      FROM aa
+      WHERE signed AND address IN (${list(signers)})
+      GROUP BY 1
+    ),
+    received AS (
+      SELECT tx_id, token_mint_address AS mint, token_balance_change AS amount FROM aa WHERE token_balance_change > 0
+      UNION ALL
+      -- native SOL into the Mobile collector
+      SELECT tx_id, 'So11111111111111111111111111111111111111112', balance_change / 1e9 FROM aa
+      WHERE address = '${MOBILE_COLLECTOR}' AND balance_change > 0 AND NOT signed
+    )
+    SELECT COALESCE(s.product, 'aggregator') AS product, SUM(r.amount * p.price) AS fees_usd
+    FROM received r
+    LEFT JOIN signer s ON s.tx_id = r.tx_id
+    LEFT JOIN prices.day p ON p.blockchain = 'solana'
+      AND p.timestamp = from_unixtime(${options.startOfDay})
+      AND p.contract_address_varchar = r.mint
+    GROUP BY 1
+  `)
+  const fees = Object.fromEntries(rows.map((row: any) => [row.product, Number(row.fees_usd)]))
+  if (!fees.aggregator) throw new Error(`Jupiter fee authorities: no fees on Dune for ${options.dateString}`)
+  return fees
+}
 
-  const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(ultraRevenue, JUPITER_METRICS.AggSwapFees);
-  const dailyHoldersRevenue = await getLitterboxBuybacks(options);
+// From 2026-01-01, Jupiter's stats API, including swaps made in Jupiter Mobile and the Jupiter Extension.
+const getFeesUsd = async (options: FetchOptions) => {
+  if (options.startOfDay < JUP_BUY_BACK_START_TIME) return getLegacyFeesUsd(options)
+  if (options.startOfDay < JUPITER_STATS_API_START_TS) return (await getJupiterFeeAuthorityFees(options)).aggregator
+  const { dailyFees } = await getJupiterStatsRevenue(options, { aggregator: JUPITER_METRICS.AggSwapFees })
+  return dailyFees.getUSDValue()
+}
 
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances()
+  dailyFees.addUSDValue(await getFeesUsd(options), JUPITER_METRICS.AggSwapFees)
   return {
     dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees.clone(jupTreasuryShare(options.startOfDay)),
-    dailyHoldersRevenue,
+    dailyHoldersRevenue: await getLitterboxBuybacks(options, await getCachedDay(options)),
   }
 }
 
-// From 2026-01-01, Jupiter's stats API, including swaps made in Jupiter Mobile and the Jupiter Extension. Swap fees land
-// in the fee authorities above, except Jupiter Mobile swap fees from 2026-09-15, which land in the Mobile collector
-// 6Gfahmxqn1VfJE1rZ3JsDZdztUKMc4F8bjR9pfu1XhWZ.
-// Positive slippage fees land in sobLmyY3kjTYqk2r7Ui18PC6YzHUBDaD2tk6PPNAv4o from 2026-08-17 and in the fee authorities
-// before that.
-const fetchStatsApi = async (options: FetchOptions) => {
-  const { dailyFees, dailyRevenue } = await getJupiterStatsRevenue(options, { aggregator: JUPITER_METRICS.AggSwapFees })
-  const dailyHoldersRevenue = await getLitterboxBuybacks(options, await getCachedDay(options))
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(jupTreasuryShare(options.startOfDay)), dailyHoldersRevenue }
-}
-
-const fetch = async (options: FetchOptions) =>
-  options.startOfDay >= JUPITER_STATS_API_START_TS ? fetchStatsApi(options) : fetchOnchain(options)
-
 const methodology = {
-  Fees: 'Jupiter platform fees on swaps routed through Jupiter, including its share of positive slippage.',
+  Fees: 'Jupiter platform fees on swaps routed through Jupiter, including Jupiter Mobile and its share of positive slippage. Excludes limit order and DCA fills, counted on the Jupiter Limit and Jupiter DCA listings.',
   Revenue: 'All Jupiter platform fees on swaps, kept by Jupiter.',
   HoldersRevenue: 'JUP bought back into the Jupiter Litterbox wallet since 2025-02-17, funded with 50% of Aggregator, JupiterZ, Limit, DCA and Perps revenue and reported once, on this listing.',
   ProtocolRevenue: 'Half of platform fees, kept by the treasury. The other half buys back JUP, counted here as holders revenue.',
@@ -226,7 +256,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [JUPITER_METRICS.AggSwapFees]: "Platform fees on swaps routed through Jupiter, including its share of positive slippage.",
+    [JUPITER_METRICS.AggSwapFees]: "Platform fees on swaps routed through Jupiter, including Jupiter Mobile and its share of positive slippage, excluding limit order and DCA fills.",
   },
   Revenue: {
     [JUPITER_METRICS.AggSwapFees]: "All platform fees on swaps, kept by Jupiter.",

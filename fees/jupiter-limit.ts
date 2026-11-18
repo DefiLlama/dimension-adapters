@@ -1,8 +1,10 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryAllium } from "../helpers/allium"
-import { JUPITER_METRICS, jupTreasuryShare } from "./jupiter"
+import { getJupiterFeeAuthorityFees, JUPITER_METRICS, jupTreasuryShare } from "./jupiter"
 import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../helpers/jupiter-stats"
+
+const LIMIT_KEEPER_START = 1759363200 // 2025-10-02
 
 const fetchOnchain = async (options: FetchOptions) => {
   const data: { usd_amount: number; product: string }[] = await queryAllium(`
@@ -35,6 +37,11 @@ const fetchOnchain = async (options: FetchOptions) => {
     const metric = row.product === 'lo_v1' ? JUPITER_METRICS.LimitOrderV1Fees : JUPITER_METRICS.LimitOrderV2Fees;
     dailyFees.addUSDValue(row.usd_amount, metric);
   });
+
+  // v2 orders filled as swaps by the keeper pay into the Jupiter fee authorities, so they are read there and left out of
+  // the Jupiter Aggregator listing.
+  if (options.startOfDay >= LIMIT_KEEPER_START)
+    dailyFees.addUSDValue((await getJupiterFeeAuthorityFees(options)).limit ?? 0, JUPITER_METRICS.LimitOrderV2Fees);
 
   return {
     dailyFees,
@@ -81,7 +88,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2022-10-14',
-  dependencies: [Dependencies.ALLIUM],
+  dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology,
   breakdownMethodology
