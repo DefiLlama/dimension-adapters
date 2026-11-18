@@ -213,7 +213,10 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.SEI]: { factory: '0xd0c54c480fD00DDa4DF1BbE041A6881f2F09111e', deadFrom: "2026-01-15" },
   },
   "kayen-v3": {
-    [CHAIN.CHILIZ]: { factory: '0x4bC8BDF50843Cc503E196Be4A9560134d358bb3C', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+    // Stock Uniswap V3 pools: the protocol share is slot0().feeProtocol, set per pool by the factory owner. Every pool read 0 until
+    // 2026-09-08 (Chiliz block 37,361,442), when the first pools were set to 8 (1/8 of the swap fee), then 6 (1/6) from 2026-09-21
+    // (block 37,736,458); newer pools are switched on one by one. Collected to 0xB8eb63f4DDDa86BD61Ce6EBCFa05f1474012bB01, read at the window block
+    [CHAIN.CHILIZ]: { factory: '0x4bC8BDF50843Cc503E196Be4A9560134d358bb3C', userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
   },
   "equalizer-cl": {
     [CHAIN.SONIC]: { factory: '0x7Ca1dCCFB4f49564b8f13E18a67747fd428F1C40' },
@@ -1077,6 +1080,14 @@ const methodologyMap: Record<string, any> = {
     ProtocolRevenue: "The protocol's share of swap fees, read from each pool (one tenth on every pool with swaps), sent to the XSwap treasury on each swap.",
     SupplySideRevenue: "Swap fees left to liquidity providers after the protocol's share.",
   },
+  "kayen-v3": {
+    Volume: "Swap volume on Kayen V3 pools on Chiliz.",
+    Fees: "Swap fees paid by traders, at each pool's fee tier.",
+    UserFees: "Swap fees paid by traders, at each pool's fee tier.",
+    Revenue: "The protocol's share of swap fees, read from each pool: zero before 2026-09-08, then one eighth and, from 2026-09-21, one sixth on the pools switched on.",
+    ProtocolRevenue: "The protocol's share of swap fees, read from each pool and collected by the protocol.",
+    SupplySideRevenue: "Swap fees left to liquidity providers after the protocol's share.",
+  },
   "cleopatra-exchange": {
     Fees: "User pays 0.05%, 0.30%, or 1% on each swap.",
     UserFees: "User pays 0.05%, 0.30%, or 1% on each swap.",
@@ -1211,6 +1222,14 @@ protocols['xswap-v3'].breakdownMethodology = {
   Revenue: { 'Protocol fees': methodologyMap['xswap-v3'].Revenue },
   ProtocolRevenue: { 'Protocol fees': methodologyMap['xswap-v3'].ProtocolRevenue },
   SupplySideRevenue: { 'LP fees': methodologyMap['xswap-v3'].SupplySideRevenue },
+}
+
+protocols['kayen-v3'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['kayen-v3'].Fees },
+  UserFees: { 'Trading fees': methodologyMap['kayen-v3'].UserFees },
+  Revenue: { 'Protocol fees': methodologyMap['kayen-v3'].Revenue },
+  ProtocolRevenue: { 'Protocol fees': methodologyMap['kayen-v3'].ProtocolRevenue },
+  SupplySideRevenue: { 'LP fees': methodologyMap['kayen-v3'].SupplySideRevenue },
 }
 
 protocols['communityv3'].breakdownMethodology = {
