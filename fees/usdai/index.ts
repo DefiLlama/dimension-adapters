@@ -41,14 +41,12 @@ const LOAN_ROUTER_V2 = '0x1C2ED170de32846316784c4fd58A5e3C7563E12f';
 const LOAN_ORIGINATED_EVENT_ABI = 'event LoanOriginated(bytes32 indexed loanTermsHash, address indexed borrower, address indexed currencyToken, uint256 principal, uint256 originationFee)';
 const LENDER_REPAID_EVENT_ABI = 'event LenderRepaid(bytes32 indexed loanTermsHash,address indexed lender,uint8 indexed trancheIndex,uint256 principal,uint256 interest,uint256 prepay)';
 const LOAN_REPAID_EVENT_ABI = 'event LoanRepaid(bytes32 indexed loanTermsHash, address indexed borrower, uint256 principal, uint256 interest, uint256 prepayment, uint256 exitFee, bool isRepaid)';
-const HOOK_FAILED_EVENT_ABI = 'event HookFailed(string reason)';
-// HookFailed(string) comes from the published loan-router source. The deployed routers are ERC-1967
-// proxies, so this signature is not taken from their implementation bytecode. An archive scan found
-// no HookFailed on either router through this block. Scan from this checkpoint in every later
-// window: a failed hook can leave loanRouterBalances() stale until its state is repaired and verified.
+// HookFailed(string) comes from the published loan-router source (the deployed routers are ERC-1967
+// proxies). A failed sUSDai hook can leave loanRouterBalances() stale, so a window containing one
+// throws. No HookFailed was emitted on either router through block 525095470 (2026-11-17).
 // https://github.com/usdai-foundation/usdai-loan-router-contracts/blob/main/src/LoanLogicV2.sol
 // https://arbiscan.io/address/0x1C2ED170de32846316784c4fd58A5e3C7563E12f#events
-const HOOK_FAILED_CLEAR_THROUGH_BLOCK = 525_095_470;
+const HOOK_FAILED_EVENT_ABI = 'event HookFailed(string reason)';
 
 // Loan router v2 emits all fees through a generic FeePaid event (kind: 0 origination, 1 repayment, 2 exit, 3 liquidation, 4 refinance)
 const FEE_PAID_EVENT_ABI = 'event FeePaid(bytes32 indexed loanTermsHash, uint8 indexed kind, address indexed recipient, address feeModel, uint256 amount)';
@@ -107,19 +105,19 @@ const normalizeUsdai = (token: string) =>
 
 // Methodology
 const methodology = {
-  Fees: "Total interest accrued from USDai's base token yield, GPU-financing yield, and escrow timelock yield, plus loan fees, net of settlement reversals",
-  Revenue: "Admin fees accrued to the protocol treasury plus loan fees paid to the protocol, net of settlement reversals",
-  ProtocolRevenue: "Admin fees accrued to the protocol treasury plus loan fees paid to the protocol, net of settlement reversals",
-  SupplySideRevenue: "Interest accrued to Staked USDai holders, net of settlement reversals, plus refinance fees paid to staked USDai"
+  Fees: "Interest earned on USDai's reserves (T-bill-backed wrapped M and PYUSD), on GPU-backed loans and on escrowed deposits, plus origination, exit, refinance and liquidation fees paid by borrowers. PYUSD, loan and escrow interest is counted as it accrues; when a loan repayment pays less interest than had accrued, the difference is subtracted on that day.",
+  Revenue: "The protocol's 10% admin fee on interest from USDai's reserves, GPU-backed loans and escrowed deposits, plus origination, exit and liquidation fees paid by borrowers.",
+  ProtocolRevenue: "The protocol's 10% admin fee on interest from USDai's reserves, GPU-backed loans and escrowed deposits, plus origination, exit and liquidation fees paid by borrowers, all sent to the protocol treasury.",
+  SupplySideRevenue: "Interest from USDai's reserves, GPU-backed loans and escrowed deposits paid to staked USDai holders after the 10% admin fee, plus refinance fees and interest recovered from liquidated loans."
 };
 
 const breakdownMethodology = {
   Fees: {
     [METRICS.ASSET_YIELDS_WRAPPED_M]: 'Asset yields from wrapped M (Tbill backed yields)',
     [METRICS.ASSET_YIELDS_PYUSD]: 'Asset yields from PYUSD',
-    [METRICS.ASSET_YIELDS_GPU_FINANCING]: 'Asset yields generated from GPU-financing, net of settlement reversals',
+    [METRICS.ASSET_YIELDS_GPU_FINANCING]: 'Interest on GPU-backed loans. USDai loans held by staked USDai are counted as interest accrues, and a repayment that pays less interest than had accrued reduces that day; older PYUSD and USDC loans are counted when repaid',
     [METRICS.GPU_FINANCING_ORIGINATION_FEE]: 'GPU-financing origination fee',
-    [METRICS.GPU_FINANCING_REFINANCE_FEE]: 'Refinance fees paid to staked USDai with no admin fee; unknown recipients or ambiguous transfer redirects make the window unavailable',
+    [METRICS.GPU_FINANCING_REFINANCE_FEE]: 'Fees paid by borrowers when refinancing a GPU-backed loan',
     [METRICS.GPU_FINANCING_EXIT_FEE]: 'GPU-financing exit fee',
     [METRICS.GPU_FINANCING_LIQUIDATION_FEE]: 'GPU-financing liquidation fee',
     [METRICS.GPU_FINANCING_LENDER_LIQUIDATION_REPAID]: 'GPU-financing lender liquidation repaid',
@@ -128,7 +126,7 @@ const breakdownMethodology = {
   Revenue: {
     [METRICS.ASSET_YIELDS_WRAPPED_M_TO_PROTOCOL]: 'Asset yields from wrapped M to protocol',
     [METRICS.ASSET_YIELDS_PYUSD_TO_PROTOCOL]: 'Asset yields from PYUSD to protocol',
-    [METRICS.ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL]: 'Asset yields from GPU-financing to protocol, net of settlement reversals',
+    [METRICS.ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL]: '10% admin fee on GPU-backed loan interest',
     [METRICS.GPU_FINANCING_ORIGINATION_FEE_TO_PROTOCOL]: 'GPU-financing origination fee to protocol',
     [METRICS.GPU_FINANCING_EXIT_FEE_TO_PROTOCOL]: 'GPU-financing exit fee to protocol',
     [METRICS.GPU_FINANCING_LIQUIDATION_FEE_TO_PROTOCOL]: 'GPU-financing liquidation fee to protocol',
@@ -137,7 +135,7 @@ const breakdownMethodology = {
   ProtocolRevenue: {
     [METRICS.ASSET_YIELDS_WRAPPED_M_TO_PROTOCOL]: 'Asset yields from wrapped M to protocol',
     [METRICS.ASSET_YIELDS_PYUSD_TO_PROTOCOL]: 'Asset yields from PYUSD to protocol',
-    [METRICS.ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL]: 'Asset yields from GPU-financing to protocol, net of settlement reversals',
+    [METRICS.ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL]: '10% admin fee on GPU-backed loan interest',
     [METRICS.GPU_FINANCING_ORIGINATION_FEE_TO_PROTOCOL]: 'GPU-financing origination fee to protocol',
     [METRICS.GPU_FINANCING_EXIT_FEE_TO_PROTOCOL]: 'GPU-financing exit fee to protocol',
     [METRICS.GPU_FINANCING_LIQUIDATION_FEE_TO_PROTOCOL]: 'GPU-financing liquidation fee to protocol',
@@ -146,8 +144,8 @@ const breakdownMethodology = {
   SupplySideRevenue: {
     [METRICS.ASSET_YIELDS_WRAPPED_M_TO_SUSDAI]: 'Asset yields from wrapped M to staked USDai',
     [METRICS.ASSET_YIELDS_PYUSD_TO_SUSDAI]: 'Asset yields from PYUSD to staked USDai',
-    [METRICS.ASSET_YIELDS_GPU_FINANCING_TO_SUSDAI]: 'Asset yields from GPU-financing to staked USDai, net of settlement reversals',
-    [METRICS.GPU_FINANCING_REFINANCE_FEE_TO_SUSDAI]: 'Refinance fees paid to staked USDai with no admin fee; unknown recipients or ambiguous transfer redirects make the window unavailable',
+    [METRICS.ASSET_YIELDS_GPU_FINANCING_TO_SUSDAI]: 'GPU-backed loan interest paid to staked USDai after the 10% admin fee',
+    [METRICS.GPU_FINANCING_REFINANCE_FEE_TO_SUSDAI]: 'Refinance fees, paid in full to staked USDai with no admin fee',
     [METRICS.GPU_FINANCING_LENDER_LIQUIDATION_REPAID_TO_SUSDAI]: 'GPU-financing lender liquidation repaid to staked USDai',
     [METRICS.ESCROW_TIMELOCK_YIELDS_TO_SUSDAI]: 'Escrow timelock yields to staked USDai',
   },
@@ -177,6 +175,7 @@ const fetch: any = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances();
   const openingBlock = await options.getFromBlock() - 1;
   const openingApi = new ChainApi({ chain: options.chain, block: openingBlock });
+  const closingBlock = await options.getToBlock();
   const loanInterestAtBlock = new Map<number, Promise<bigint>>();
   const getLoanInterestAtBlock = (block: number): Promise<bigint> => {
     let value = loanInterestAtBlock.get(block);
@@ -214,7 +213,7 @@ const fetch: any = async (options: FetchOptions) => {
     getAccruedValue(openingApi, BASE_YIELD_ACCRUAL_START_BLOCK, USDAI, BASE_YIELD_ACCRUED_ABI),
     getAccruedValue(options.toApi, BASE_YIELD_ACCRUAL_START_BLOCK, USDAI, BASE_YIELD_ACCRUED_ABI),
     getLoanInterestAtBlock(openingBlock),
-    getLoanInterestAtBlock(options.toApi.block),
+    getLoanInterestAtBlock(closingBlock),
     getAccruedValue(openingApi, ESCROW_ACCRUAL_START_BLOCK, ESCROW_TIMELOCK, ESCROW_ACCRUED_ABI),
     getAccruedValue(options.toApi, ESCROW_ACCRUAL_START_BLOCK, ESCROW_TIMELOCK, ESCROW_ACCRUED_ABI),
   ]);
@@ -277,44 +276,28 @@ const fetch: any = async (options: FetchOptions) => {
     pools.map(pool => processPoolLoans(pool, dailyFees, dailyRevenue, dailySupplySideRevenue, options))
   );
 
-  // HookFailed does not name the hook. Conservatively reject this and later windows after any
-  // failure; advancing the checkpoint requires independently verifying repaired accrual state.
-  if (options.toApi.block > HOOK_FAILED_CLEAR_THROUGH_BLOCK) {
-    const hookFailedLogs = await options.getLogs({
-      targets: [LOAN_ROUTER, LOAN_ROUTER_V2],
-      eventAbi: HOOK_FAILED_EVENT_ABI,
-      fromBlock: HOOK_FAILED_CLEAR_THROUGH_BLOCK + 1,
-      toBlock: options.toApi.block,
-      onlyArgs: false,
-    });
-    if (hookFailedLogs.length > 0) {
-      throw new Error(`USDai loan router hook failed in transaction ${hookFailedLogs[0].transactionHash}`);
-    }
+  // HookFailed does not name the hook, so any failure in this window makes the accrual read
+  // unreliable. Only this window is rejected: blocking every later window would halt all fee
+  // sources until a manual code change.
+  const hookFailedLogs = await options.getLogs({
+    targets: [LOAN_ROUTER, LOAN_ROUTER_V2],
+    eventAbi: HOOK_FAILED_EVENT_ABI,
+    onlyArgs: false,
+  });
+  if (hookFailedLogs.length > 0) {
+    throw new Error(`USDai loan router hook failed in transaction ${hookFailedLogs[0].transactionHash}`);
   }
 
-  const usdaiSettlementsByBlock = new Map<number, {
-    interest: bigint,
-    protocolFee: bigint,
-    liquidationLoanTermsHash?: string,
-  }>();
-  const addUsdaiSettlement = (rawLog: any, hasLiquidation: boolean) => {
-    const block = Number(rawLog.blockNumber);
-    const existing = usdaiSettlementsByBlock.get(block);
-    const loanTermsHash = rawLog.args.loanTermsHash.toLowerCase();
-    if (
-      hasLiquidation
-      && existing?.liquidationLoanTermsHash
-      && existing.liquidationLoanTermsHash !== loanTermsHash
-    ) {
-      throw new Error(`Cannot attribute multiple USDai liquidations in block ${block}`);
-    }
-    usdaiSettlementsByBlock.set(block, {
-      interest: (existing?.interest ?? 0n) + BigInt(rawLog.args.interest),
-      protocolFee: (existing?.protocolFee ?? 0n)
-        + BigInt(rawLog.args.interest) * GPU_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE,
-      liquidationLoanTermsHash:
-        hasLiquidation ? loanTermsHash : existing?.liquidationLoanTermsHash,
-    });
+  // Interest repaid to sUSDai on USDai loans. These settlements clear the accrual getter, so the
+  // receipts are added back to its delta below. Each receipt's admin fee is rounded separately.
+  let usdaiSettledInterest = 0n;
+  let usdaiSettledProtocolFee = 0n;
+  const usdaiSettlementBlocks = new Set<number>();
+  const addUsdaiSettlement = (rawLog: any) => {
+    const interest = BigInt(rawLog.args.interest);
+    usdaiSettledInterest += interest;
+    usdaiSettledProtocolFee += interest * GPU_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE;
+    usdaiSettlementBlocks.add(Number(rawLog.blockNumber));
   };
 
   // GPU-financing repayment yield from loan router
@@ -334,7 +317,7 @@ const fetch: any = async (options: FetchOptions) => {
       currencyToken.toLowerCase() === USDAI.toLowerCase()
       && log.lender.toLowerCase() === SUSDAI.toLowerCase()
     ) {
-      addUsdaiSettlement(rawLog, false);
+      addUsdaiSettlement(rawLog);
       continue;
     }
     const protocolFee = log.interest * GPU_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE;
@@ -385,7 +368,7 @@ const fetch: any = async (options: FetchOptions) => {
     const clearsUsdaiAccrual = currencyToken.toLowerCase() === USDAI.toLowerCase()
       && log.lender.toLowerCase() === SUSDAI.toLowerCase();
     if (clearsUsdaiAccrual) {
-      addUsdaiSettlement(rawLog, false);
+      addUsdaiSettlement(rawLog);
       continue;
     }
     const protocolFee = log.interest * GPU_YIELD_ADMIN_FEE_RATE / BASIS_POINTS_SCALE;
@@ -503,7 +486,7 @@ const fetch: any = async (options: FetchOptions) => {
     const clearsUsdaiAccrual = currencyToken.toLowerCase() === USDAI.toLowerCase()
       && log.lender.toLowerCase() === SUSDAI.toLowerCase();
     if (clearsUsdaiAccrual) {
-      addUsdaiSettlement(rawLog, true);
+      addUsdaiSettlement(rawLog);
       continue;
     }
 
@@ -540,15 +523,16 @@ const fetch: any = async (options: FetchOptions) => {
   accruedLoanInterest += migratedLoanInterest;
   accruedLoanProtocolFee += migratedLoanProtocolFee;
 
-  for (const [block, settlement] of usdaiSettlementsByBlock) {
+  // A migration's getter drop is read per block, so a settlement in the same block would be misattributed.
+  for (const block of usdaiSettlementBlocks) {
     if (migrationBlocks.has(block)) {
       throw new Error(`Cannot attribute USDai migration and settlement in block ${block}`);
     }
-    // Add actual receipts, not the full getter drop: a liquidation can clear interest that was
-    // previously accrued but never recovered. Each receipt's admin fee is rounded separately.
-    accruedLoanInterest += settlement.interest;
-    accruedLoanProtocolFee += settlement.protocolFee;
   }
+  // Add actual receipts, not the full getter drop: a repayment or liquidation can clear interest
+  // that was accrued but never paid, and that difference is reversed in this window.
+  accruedLoanInterest += usdaiSettledInterest;
+  accruedLoanProtocolFee += usdaiSettledProtocolFee;
 
   dailyFees.add(USDAI, accruedLoanInterest, METRICS.ASSET_YIELDS_GPU_FINANCING);
   dailyRevenue.add(USDAI, accruedLoanProtocolFee, METRICS.ASSET_YIELDS_GPU_FINANCING_TO_PROTOCOL);
