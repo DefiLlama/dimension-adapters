@@ -5,13 +5,13 @@ import { METRIC } from "../helpers/metrics";
 
 const adapter: SimpleAdapter = {
   version: 2,
-  //pullHourly: true,
+  pullHourly: true,
   protocolType: ProtocolType.CHAIN,
   chains: [CHAIN.EDU_CHAIN],
   // first day checked to run; on 2024-11-08 the chain went over an hour without a block and the block lookup refuses
   // ("more than 1 hour away"). Pre-launch fees are dust: the fee account held 0.027 EDU at block 100 (2024-11-05).
   start: "2024-11-15",
-  skipBreakdownValidation: true, // gross fees only, see above
+  skipBreakdownValidation: true,
   fetch: async (options: FetchOptions) => {
     const dailyFees = options.createBalances();
     dailyFees.addGasToken(await getArbitrumNitroFeesWei(options), METRIC.TRANSACTION_GAS_FEES);
