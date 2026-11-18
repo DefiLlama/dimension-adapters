@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { RELAY_LISTED_UNTIL, relayTotals } from "../../aggregators/sweep-finance/relay";
+import { RELAY_LISTED_UNTIL, relayListCovers, relayTotals } from "../../aggregators/sweep-finance/relay";
 import { CHAIN } from "../../helpers/chains";
 
 // Sweep (https://trysweep.finance) - turns many token balances across chains into one or two tokens in one go, sending
@@ -195,8 +195,10 @@ function namesSweepReferrer(orderCall: string): boolean {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const dailyBridgeVolume = options.createBalances();
   const { acrossSpokePool, mayan } = chainConfig[options.chain];
+  // A chain with Relay legs alone reports nothing past the end of the Relay list, rather than zero.
+  if (!acrossSpokePool && !mayan && !relayListCovers(options)) return {};
+  const dailyBridgeVolume = options.createBalances();
 
   if (acrossSpokePool) {
     const deposits = await options.getLogs({ target: acrossSpokePool, eventAbi: ACROSS_DEPOSIT, maxBlockRange: LOGS_BLOCK_RANGE });
