@@ -5,6 +5,11 @@ import { addTokensReceived } from "../helpers/token";
 
 const BUY_BACK_WALLETS = ['0x8d4ab2a3e89eadfdc729204adf863a0bfc7746f6'];
 const BUY_BACK_TOKEN = '0x1bc0c42215582d5a085795f4badbac3ff36d1bcb';
+// from block 44190560 (2026-04-02) the buyback executor sends the CLANKER it buys to this Safe instead of the
+// wallet above; only transfers from the executor are counted, buys stopped after 2026-04-21
+// first one: https://basescan.org/tx/0x3c3fc41fd301d6ca35b9c917f9de602036e612f280586c08b06d5ddc4448961e
+const BUY_BACK_EXECUTOR = '0xfc535ead4104177b70bf235d67ab436d99788e04';
+const BUY_BACK_SAFE = '0x0c793f24556b5a903ccf14fe41f220c0b6a46c8e';
 
 
 const PROTOCOL_FEE_CREDITED = 'event ProtocolFeeCredited(bytes32 indexed poolId, address indexed recipient, address currency, uint256 amount)';
@@ -109,6 +114,13 @@ const fetch = async (options: FetchOptions) => {
       targets: BUY_BACK_WALLETS,
       tokens: [BUY_BACK_TOKEN],
     });
+    await addTokensReceived({
+      options,
+      balances: rawBuybacks,
+      target: BUY_BACK_SAFE,
+      fromAddressFilter: BUY_BACK_EXECUTOR,
+      tokens: [BUY_BACK_TOKEN],
+    });
     dailyHoldersRevenue.addBalances(rawBuybacks, "Token Buy Back");
   }
 
@@ -123,7 +135,7 @@ const methodology = {
   Fees: "Total swap fees paid by traders in Clanker-deployed Uniswap v4 pools (creator fee + Clanker's 20% of creator fee). On Elysium (Clanker v5), the buy and sell tax paid on every swap in a launch's pool, including the anti-snipe surcharge of its first seconds of trading; the part of the tax that is burned in the launched token is excluded.",
   Revenue: "Clanker protocol's cut: 20% of the creator LP fee charged on top of each swap. On Elysium (Clanker v5), the protocol's share of each swap's tax (10% of the tax, at least 0.5% and at most 1% of the trade), the anti-snipe surcharge, and dividend shares redirected to Clanker while no holder qualifies.",
   ProtocolRevenue: "Clanker protocol's cut of swap fees (on Elysium also the anti-snipe surcharge and redirected dividend shares), minus the amount spent buying back CLANKER (negative when a buyback exceeds the period's revenue).",
-  HoldersRevenue: "CLANKER tokens bought back and distributed to holders.",
+  HoldersRevenue: "CLANKER tokens bought on the market with protocol revenue and sent to the buyback wallets.",
   SupplySideRevenue: "Token creator's LP rewards, claimable from the initial single-sided Uniswap v4 position. On Elysium (Clanker v5), the creators' share of each swap's tax and the dividend share paid to holders of the launched token.",
 };
 
@@ -141,7 +153,7 @@ const breakdownMethodology = {
     "Anti-Snipe Fees To Protocol": "All Clanker v5 anti-snipe surcharges, credited to Clanker's protocol fee recipient (Elysium).",
   },
   HoldersRevenue: {
-    "Token Buy Back": "CLANKER tokens bought back and sent to the buyback wallet.",
+    "Token Buy Back": "CLANKER tokens bought back and sent to the buyback wallet (a Safe from 2026-04-02).",
   },
   SupplySideRevenue: {
     "Swap Fees To Creators": "Token creator's LP rewards, claimable from the initial single-sided Uniswap v4 position. On Elysium, the creator reward slots' share of the Clanker v5 tax (CreatorTaxCredited events).",
