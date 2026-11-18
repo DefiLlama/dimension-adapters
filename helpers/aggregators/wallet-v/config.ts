@@ -1,5 +1,7 @@
 import { CHAIN } from '../../chains';
 
+// Wallet V's EVM fee-collection wallet, paid the commission in this swap.
+// https://bscscan.com/tx/0x99971e414cdb5fdf2fe0d15c081efdd1f970ff03a6c3b95ed12616ce3a23a9c3
 export const FEE_WALLET = '0xd64a453da8fcdd049697aa5c6dabfff09916c795';
 
 // 1inch AggregationRouterV6. Robinhood has a separate deployment.
@@ -16,7 +18,7 @@ export type EvmRoutes = {
   fusion?: { settlement: string; start: string };
 };
 
-export const evmRoutes: Record<string, EvmRoutes> = {
+export const chainConfig: Record<string, EvmRoutes | { start: string }> = {
   [CHAIN.ETHEREUM]: {
     start: '2025-05-15',
     classic: CLASSIC_ROUTER,
@@ -49,6 +51,7 @@ export const evmRoutes: Record<string, EvmRoutes> = {
   [CHAIN.POLYGON]: { start: '2026-09-29', classic: CLASSIC_ROUTER },
   [CHAIN.AVAX]: { start: '2026-09-29', classic: CLASSIC_ROUTER },
   [CHAIN.ROBINHOOD]: { start: '2026-09-01', classic: ROBINHOOD_ROUTER },
+  [CHAIN.SOLANA]: { start: '2025-09-04' },
 };
 
 // Ethereum deployments matched to the Backed asset registry and Wallet V's Fusion fills.
@@ -64,11 +67,6 @@ export const fusionXStocks = new Set([
   '0xe8ff2d2b9fd5099b70e535a53feb83048cf798f2', // SQQQx
   '0xe92f673ca36c5e2efd2de7628f815f84807e803f', // GOOGLx
 ]);
-
-export const swapChains = {
-  ...Object.fromEntries(Object.entries(evmRoutes).map(([chain, route]) => [chain, { start: route.start }])),
-  [CHAIN.SOLANA]: { start: '2025-09-04' },
-};
 
 export const bridgeChains: Record<string, { start: string }> = {
   [CHAIN.OPTIMISM]: { start: '2025-07-17' },

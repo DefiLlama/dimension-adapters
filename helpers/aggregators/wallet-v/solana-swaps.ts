@@ -1,19 +1,24 @@
 import { PromisePool } from '@supercharge/promise-pool';
 import { FetchOptions } from '../../../adapters/types';
-import { CHAIN } from '../../chains';
 import { getTransaction } from '../../solana';
-import { startTimestamp, swapChains } from './config';
+import { startTimestamp } from './config';
 import { Amount, indexedRows, timeRange } from './evm-data';
 import { Swap } from './evm-swaps';
 
 // Wallet V's Jupiter fee authority. Swap reference:
 // 371nFQmdZ7oFvttwQLu8ratU4tcL5bTMzFx5Ma17gCVaA185RfXKBT7Sx5JFe7XaJBN992ZYVRFFDqVbrvBX5F7w
 const feeOwner = '8EQkAYq6vEP9VVeiGQtZhKZtkBySRmoQGDZeEU8hJDcy';
+// Jupiter v6 program invoked by the swap reference above.
+// https://explorer.solana.com/tx/371nFQmdZ7oFvttwQLu8ratU4tcL5bTMzFx5Ma17gCVaA185RfXKBT7Sx5JFe7XaJBN992ZYVRFFDqVbrvBX5F7w
 const jupiter = 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4';
+// SPL Token and Token-2022 program IDs from Solana's token documentation.
+// https://solana.com/docs/tokens
 const splTokenPrograms = new Set([
   'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
   'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb',
 ]);
+// Associated Token Account program: https://www.solana-program.com/docs/associated-token-account
+const associatedTokenProgram = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
 // These two fee accounts provide a fallback for index rows expressed in
 // token-account form. The balance owner in the original transaction is authoritative.
 const usdcFeeAccount = 'CWgqT4tjzetsTK8pjCru6xiop3Jw5mkSLyC1si2PSet1';
@@ -67,7 +72,7 @@ function tokenAccounts(transaction: ParsedSwapTransaction): Map<string, Account>
     if (!account || !mint) continue;
     if (splTokenPrograms.has(item.programId) && parsed.type.startsWith('initializeAccount')) {
       accounts.set(account, { mint, owner });
-    } else if (item.programId === 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' && wallet) {
+    } else if (item.programId === associatedTokenProgram && wallet) {
       accounts.set(account, { mint, owner: wallet });
     }
   }
@@ -128,8 +133,8 @@ export function decodeJupiterSwaps(tx: ParsedSwapTransaction): Swap[] {
 }
 
 /** Use indexed SPL transfers to find candidates, then read the original instructions. */
-export async function readSolanaSwaps(options: FetchOptions): Promise<Swap[]> {
-  const from = Math.max(options.startTimestamp, startTimestamp(swapChains[CHAIN.SOLANA].start));
+export async function readSolanaSwaps(options: FetchOptions, config: { start: string }): Promise<Swap[]> {
+  const from = Math.max(options.startTimestamp, startTimestamp(config.start));
   const end = options.endTimestamp;
   if (from >= end) return [];
   const rows = await indexedRows<{ tx_hash: string }>(`

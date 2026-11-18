@@ -17,7 +17,11 @@ const affiliate = toBeHex(1, 32);
 const oldFee = 'event FeeInfo(address token, address indexed affiliatorAddress, uint256 platformFee, uint256 destinationExecutorFee, uint256 affiliateFee, uint16 indexed dAppTag)';
 const newFee = 'event FeeInfo(address token, address indexed affiliatorAddress, uint256 affiliateFee, uint8 indexed feeType, uint16 indexed dAppTag)';
 
+// Across source SpokePool emitting the verified Optimism deposit.
+// https://optimism.blockscout.com/tx/0xc5f4c4cac29234e3603a962344b634a2c273cedb6d28b7fa6cc86ad578c827d1
 const acrossOptimism = '0x6f26bf09b1c792e3228e5467807a900a503c0281';
+// Across destination SpokePool emitting its matching Arbitrum fill.
+// https://arbitrum.blockscout.com/tx/0x02acb8e4e4dfc6ab89951a860e69f20d1b678a0ee66181e4f0712f53e064ae78
 const acrossArbitrum = '0xe35e9842fceaca96570b734083f4a58e8f7c5f2a';
 const optimismChainId = 10n;
 const arbitrumChainId = 42161n;
@@ -33,6 +37,8 @@ const fills = [
 // https://github.com/mayan-finance/swap-sdk
 const swiftEthereum = '0xc38e4e6a15593f908255214653d3d947ca1c2338';
 const swiftSolana = 'BLZRi6frs4X4DNLw56V4EXai1b6QVESN1BhHBTYM9VcY';
+// Wormhole's chain ID registry assigns Solana ID 1.
+// https://wormhole.com/docs/build/start-building/supported-networks/
 const solanaWormholeId = 1n;
 const settleDiscriminator = createHash('sha256').update('global:settle').digest('hex').slice(0, 16);
 const swiftParams = '(bytes32 trader, bytes32 tokenOut, uint64 minAmountOut, uint64 gasDrop, uint64 cancelFee, uint64 refundFee, uint64 deadline, bytes32 destAddr, uint16 destChainId, bytes32 referrerAddr, uint8 referrerBps, uint8 auctionMode, bytes32 random)';
@@ -182,7 +188,7 @@ async function mayanSettledOrders(options: FetchOptions, orders: SwiftOrder[]): 
     FROM settlements s
     JOIN solana.raw.transactions t ON t.txn_id = s.txn_id
     WHERE ${timeRange(options.startTimestamp, end, 't.')} AND t.success
-  `, ['solana.raw.instructions', 'solana.raw.inner_instructions'], end, 'Mayan settlements');
+  `, ['solana.raw.instructions', 'solana.raw.inner_instructions', 'solana.raw.transactions'], end, 'Mayan settlements');
   return Array.from(new Set(rows.map(row => row.state))).map(state => byState.get(state)!);
 }
 

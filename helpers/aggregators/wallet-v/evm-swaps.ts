@@ -1,7 +1,7 @@
 import { Interface, ZeroAddress } from 'ethers';
 import { FetchOptions } from '../../../adapters/types';
 import { getAlliumChain } from '../../allium';
-import { EvmRoutes, evmRoutes, FEE_WALLET, fusionXStocks, startTimestamp } from './config';
+import { EvmRoutes, FEE_WALLET, fusionXStocks, startTimestamp } from './config';
 import {
   Amount, Call, EvmTradeTx, TraceRow, Transfer, indexedRows, nativeToken, netPaid,
   readEvmTransactions, sqlList, sumTransfers, timeRange, topicAddress, transfers, transferTopic,
@@ -39,6 +39,7 @@ const entryPoints = new Set([
 const limitOrderProtocol = '0x111111125421ca6dc452d289314280a0f8842a65';
 
 export type Swap = { volume?: Amount; fees: Amount[] };
+type TransactionActor = { payer: string; userOperation: boolean; sponsored: boolean };
 
 function feePayments(movements: Transfer[], payer: string): Amount[] {
   return movements
@@ -46,16 +47,22 @@ function feePayments(movements: Transfer[], payer: string): Amount[] {
     .map(({ token, amount }) => ({ token, amount }));
 }
 
-function transactionActor(tx: EvmTradeTx) {
-  if (!entryPoints.has(tx.transaction.to)) return { payer: tx.transaction.from, userOperation: false };
+function transactionActor(tx: EvmTradeTx): TransactionActor | undefined {
+  if (!entryPoints.has(tx.transaction.to)) return { payer: tx.transaction.from, userOperation: false, sponsored: false };
   const events = tx.logs.filter(log =>
     log.address === tx.transaction.to && log.topics[0] === abi.getEvent('UserOperationEvent')!.topicHash);
   if (events.length !== 1) return;
   const args = abi.decodeEventLog('UserOperationEvent', events[0].data, events[0].topics);
-  if (args.success) return { payer: args.sender.toLowerCase() as string, userOperation: true };
+  // Verified Wallet V operations can have no paymaster and charge zero gas while
+  // the router commission includes gas reimbursement. Keep these fees excluded.
+  // https://polygon.blockscout.com/tx/0x8eae72960e83fe9fac8ccaaa49990a1dd2da26213d6040c22e9a65443b2d9dc3
+  if (args.success) return {
+    payer: args.sender.toLowerCase(), userOperation: true,
+    sponsored: args.paymaster !== ZeroAddress || args.actualGasCost === 0n,
+  };
 }
 
-function classicSwap(tx: EvmTradeTx, router: string, actor: { payer: string; userOperation: boolean }, movements: Transfer[]): Swap | undefined {
+function classicSwap(tx: EvmTradeTx, router: string, actor: TransactionActor, movements: Transfer[]): Swap | undefined {
   const outer = tx.transaction;
   let calls: Call[];
   if (outer.to === router) {
@@ -83,15 +90,17 @@ function classicSwap(tx: EvmTradeTx, router: string, actor: { payer: string; use
     const refunds = sumTransfers(movements, item => item.token === ZeroAddress && item.to === actor.payer);
     amount = call.value - refunds;
   }
+  // AggregationRouterV6 GenericRouter defines _PARTIAL_FILL as bit 0 (1 << 0).
+  // https://etherscan.io/address/0x111111125421ca6dc452d289314280a0f8842a65#code
   const partialFillAllowed = (desc.flags & 1n) !== 0n;
   const confirmed = amount > 0n && amount <= desc.amount && (amount === desc.amount || partialFillAllowed);
   return {
     volume: confirmed ? { token, amount } : undefined,
-    fees: actor.userOperation ? [] : fees,
+    fees: actor.sponsored ? [] : fees,
   };
 }
 
-function okxSwap(tx: EvmTradeTx, router: string, actor: { payer: string; userOperation: boolean }, movements: Transfer[]): Swap | undefined {
+function okxSwap(tx: EvmTradeTx, router: string, actor: TransactionActor, movements: Transfer[]): Swap | undefined {
   const logs = tx.logs.filter(log => log.address === router);
   const orders = logs.filter(log => log.topics[0] === abi.getEvent('OrderRecord')!.topicHash);
   if (orders.length !== 1) return;
@@ -132,15 +141,17 @@ function okxSwap(tx: EvmTradeTx, router: string, actor: { payer: string; userOpe
   // the proven OrderRecord and source commissions for that call.
   if (token !== ZeroAddress || !actor.userOperation) {
     const difference = paid - amount;
+    // This native-input sample leaves a 1-wei rounding remainder. Allow only that exact difference.
+    // https://bscscan.com/tx/0x32f28db8c5842531655c7862fb96cbc0567d5faad508a4010105e84d00ada487
     if (difference !== 0n && !(token === ZeroAddress && difference === 1n)) {
-      return { fees: actor.userOperation ? [] : fees };
+      return { fees: actor.sponsored ? [] : fees };
     }
     amount = paid;
   }
-  return { volume: amount > 0n ? { token, amount } : undefined, fees: actor.userOperation ? [] : fees };
+  return { volume: amount > 0n ? { token, amount } : undefined, fees: actor.sponsored ? [] : fees };
 }
 
-function kyberSwap(tx: EvmTradeTx, router: string, userOperation: boolean, movements: Transfer[]): Swap | undefined {
+function kyberSwap(tx: EvmTradeTx, router: string, sponsored: boolean, movements: Transfer[]): Swap | undefined {
   const events = tx.logs.filter(log => log.address === router && log.topics[0] === abi.getEvent('Swapped')!.topicHash);
   if (events.length !== 1) return;
   const args = abi.decodeEventLog('Swapped', events[0].data, events[0].topics);
@@ -151,7 +162,7 @@ function kyberSwap(tx: EvmTradeTx, router: string, userOperation: boolean, movem
   const amount: bigint = args.spentAmount;
   return {
     volume: amount > 0n && token !== nativeToken(args.dstToken) ? { token, amount } : undefined,
-    fees: userOperation ? [] : fees,
+    fees: sponsored ? [] : fees,
   };
 }
 
@@ -193,7 +204,7 @@ export function decodeEvmSwap(tx: EvmTradeTx, routes: EvmRoutes): Swap | undefin
     matches.push(okxSwap(tx, routes.okx.router, actor, movements));
   }
   if (routes.kyber && tx.timestamp >= startTimestamp(routes.kyber.start)) {
-    matches.push(kyberSwap(tx, routes.kyber.router, actor.userOperation, movements));
+    matches.push(kyberSwap(tx, routes.kyber.router, actor.sponsored, movements));
   }
   if (routes.fusion && tx.timestamp >= startTimestamp(routes.fusion.start)) {
     matches.push(fusionSwap(tx, routes.fusion.settlement, movements));
@@ -203,8 +214,7 @@ export function decodeEvmSwap(tx: EvmTradeTx, routes: EvmRoutes): Swap | undefin
 }
 
 /** Discover both ERC-20 and native payments, and retain their original router calls. */
-export async function readEvmSwaps(options: FetchOptions): Promise<Swap[]> {
-  const routes = evmRoutes[options.chain];
+export async function readEvmSwaps(options: FetchOptions, routes: EvmRoutes): Promise<Swap[]> {
   const schema = `${getAlliumChain(options.chain)}.raw`;
   const from = Math.max(options.startTimestamp, startTimestamp(routes.start));
   const end = options.endTimestamp;
@@ -230,6 +240,11 @@ export async function readEvmSwaps(options: FetchOptions): Promise<Swap[]> {
       SELECT tx_hash, block_timestamp FROM incoming
       WHERE transaction_target = '${routes.classic}' OR ${knownPayer('payer')}
       UNION
+      SELECT tx.hash AS tx_hash, tx.block_timestamp
+      FROM ${schema}.transactions tx
+      JOIN incoming i ON i.tx_hash = tx.hash
+      WHERE ${timeRange(from, end, 'tx.')} AND tx.to_address = '${routes.classic}'
+      UNION
       SELECT t.transaction_hash AS tx_hash, t.block_timestamp
       FROM ${schema}.traces t
       JOIN incoming i ON i.tx_hash = t.transaction_hash
@@ -242,7 +257,7 @@ export async function readEvmSwaps(options: FetchOptions): Promise<Swap[]> {
     LEFT JOIN ${schema}.traces t ON t.transaction_hash = c.tx_hash
       AND ${timeRange(from, end, 't.')} AND t.status = 1 AND t.error IS NULL AND t.call_type = 'call'
       AND (t.value > 0 OR (${routerCalls}))
-  `, [`${schema}.logs`, `${schema}.traces`], end, options.chain);
+  `, [`${schema}.logs`, `${schema}.traces`, `${schema}.transactions`], end, options.chain);
   const transactions = await readEvmTransactions(options.chain, rows);
   return transactions.flatMap(tx => {
     const swap = decodeEvmSwap(tx, routes);
