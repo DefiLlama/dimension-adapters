@@ -11,6 +11,10 @@ const eventAbis = {
   // price the contract used so we can back out (executedPrice - oraclePrice) per trade.
   event_pool_slippage:
     "event PoolPSlippageUpdated(uint128 indexed marketId, int256 premiumIndex, uint256 oraclePrice, uint256 blockTimestamp)",
+  // Perp OB (order book) fills, emitted once per fill by the same PassivePerp proxy from the
+  // cutover block onwards. Source: Reya-Labs/reya-network instruments/passive-perp/src/libraries/Events.sol.
+  event_execution_v3:
+    "event PassivePerpExecutionV3(uint128 indexed marketId, uint128 exchangeId, uint128 indexed accountId, uint128 counterpartyAccountId, uint128 indexed eventSequenceNumber, uint256 blockTimestamp, (int256 executedBase, (uint256 protocolFeeCredit, uint256 referrerFeeCredit, uint256 takerRebateCredit, uint256 poolFeeCredit) perpFillFees, uint256 executedPrice, uint128 referrerAccountId, uint8 executionType, (int256 base, int256 realizedPnL, (uint256 price, uint256 timestamp) lastPriceData, (int256 fundingValue, uint256 baseMultiplier, uint256 adlUnwindPrice) trackers, int256 averageEntryFundingValue, uint128 session) positionData, (int256 base, int256 realizedPnL, (uint256 price, uint256 timestamp) lastPriceData, (int256 fundingValue, uint256 baseMultiplier, uint256 adlUnwindPrice) trackers, int256 averageEntryFundingValue, uint128 session) counterpartyPositionData, (int256 base, int256 realizedPnL, (uint256 price, uint256 timestamp) lastPriceData, (int256 fundingValue, uint256 baseMultiplier, uint256 adlUnwindPrice) trackers, int256 averageEntryFundingValue, uint128 session) preOrderPositionData, (int256 base, int256 realizedPnL, (uint256 price, uint256 timestamp) lastPriceData, (int256 fundingValue, uint256 baseMultiplier, uint256 adlUnwindPrice) trackers, int256 averageEntryFundingValue, uint128 session) preOrderCounterpartyPositionData, address positionAccountOwner, address counterpartyAccountOwner, uint64 accountOrderId, uint64 counterpartyOrderId, uint128 counterpartyExchangeId, uint256 meNonce, bytes metadata) data)",
   event_bridge_fee_paid:
     "event BridgeFeePaid(address indexed receiver, address indexed token, uint256 tokenFee, uint256 nativeFee, uint256 blockTimestamp)",
 };
@@ -24,7 +28,17 @@ const CONFIG = {
   poolAccountId: 2,
   coreProxy: '0xA763B6a5E09378434406C003daE6487FbbDc1a80',
   oracleAdapterProxy: '0x32edABC058C1207fE0Ec5F8557643c28E4FF379e',
+  // Perp OB upgrade block (2026-09-28 08:53:07 UTC). The passive-pool AMM events
+  // (PassivePerpMatchOrder, PoolPSlippageUpdated) end before this block; order-book
+  // fills (PassivePerpExecutionV3) start from it. Reading each set only on its side of
+  // the boundary means no window is double counted or skipped.
+  perpObCutoverBlock: 244533378,
 }
+
+// PassivePerpExecutionV3.data.executionType for an order-book match. The other types are
+// liquidations (1-3), ADL (4) and market close (5), which are not trading volume.
+// Source: reya-network instruments/passive-perp/src/libraries/DataTypes.sol (ExecutionType).
+const EXECUTION_TYPE_MATCH_ORDER = 0;
 
 // Liquidity manager (LM) tokens held by the pool's margin account. The pool earns APY equal to
 // balance * (price_end - price_start) per day for each one. Vesting is already
@@ -90,6 +104,33 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     }
   };
 
+  const processExecutionV3Log = (log: any) => {
+    const { executedBase, executedPrice, executionType, perpFillFees } = log.args.data;
+
+    // One event per fill: the taker is accountId and the maker is counterpartyAccountId, so
+    // counting each event once is taker volume.
+    if (Number(executionType) === EXECUTION_TYPE_MATCH_ORDER) {
+      const base = BigInt(executedBase);
+      const absBase = base < 0n ? -base : base;
+      // base and price are 18 decimals; RUSD has 6.
+      const volume = absBase * BigInt(executedPrice) / 10n ** BigInt(CONFIG.baseDecimals + CONFIG.priceDecimals - CONFIG.quoteDecimals);
+      dailyVolume.addToken(ADDRESSES.reya.RUSD, volume);
+    }
+
+    // Only takers pay a fee (makers pay nothing). The gross fee is the sum of four legs, already
+    // in RUSD units: the treasury keeps the residual, and the rest goes to the passive pool, the
+    // referrer and back to the taker as an instant rebate (referee, OG and VLTZ programmes).
+    // Source: reya-network instruments/passive-perp/src/libraries/DataTypes.sol (PerpFillFees).
+    // Fees are read from every execution type; today only order-book matches carry one.
+    const { protocolFeeCredit, poolFeeCredit, referrerFeeCredit, takerRebateCredit } = perpFillFees;
+    const takerFee = BigInt(protocolFeeCredit) + BigInt(poolFeeCredit) + BigInt(referrerFeeCredit) + BigInt(takerRebateCredit);
+    dailyFees.addToken(ADDRESSES.reya.RUSD, takerFee, 'Trading Fees');
+    dailyRevenue.addToken(ADDRESSES.reya.RUSD, protocolFeeCredit, 'Trading Fees To Treasury');
+    dailySupplySideRevenue.addToken(ADDRESSES.reya.RUSD, poolFeeCredit, 'Trading Fees To Stakers');
+    dailySupplySideRevenue.addToken(ADDRESSES.reya.RUSD, referrerFeeCredit, 'Trading Fees To Referrers');
+    dailySupplySideRevenue.addToken(ADDRESSES.reya.RUSD, takerRebateCredit, 'Trading Fee Rebates To Takers');
+  };
+
   // Get block range and split into batches to avoid memory issues
   const [fromBlock, toBlock] = await Promise.all([
     options.getFromBlock(),
@@ -109,49 +150,31 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     });
   }
 
+  const getLogs = (target: string, eventAbi: string, batch: { fromBlock: number; toBlock: number }) => options.getLogs({
+    target,
+    eventAbi,
+    fromBlock: batch.fromBlock,
+    toBlock: batch.toBlock,
+    skipCache: true,
+    skipCacheRead: true,
+    onlyArgs: false,
+  });
+
   for (const batch of batches) {
-    const [older_logs, newer_logs, oracle_logs, bridge_fee_logs] = await Promise.all([
-      options.getLogs({
-        target: CONFIG.perpContract,
-        eventAbi: eventAbis.event_old_order,
-        fromBlock: batch.fromBlock,
-        toBlock: batch.toBlock,
-        skipCache: true,
-        skipCacheRead: true,
-        onlyArgs: false,
-      }),
-      options.getLogs({
-        target: CONFIG.perpContract,
-        eventAbi: eventAbis.event_order,
-        fromBlock: batch.fromBlock,
-        toBlock: batch.toBlock,
-        skipCache: true,
-        skipCacheRead: true,
-        onlyArgs: false,
-      }),
-      options.getLogs({
-        target: CONFIG.perpContract,
-        eventAbi: eventAbis.event_pool_slippage,
-        fromBlock: batch.fromBlock,
-        toBlock: batch.toBlock,
-        skipCache: true,
-        skipCacheRead: true,
-        onlyArgs: false,
-      }),
-      options.getLogs({
-        target: CONFIG.peripheryContract,
-        eventAbi: eventAbis.event_bridge_fee_paid,
-        fromBlock: batch.fromBlock,
-        toBlock: batch.toBlock,
-        skipCache: true,
-        skipCacheRead: true,
-        onlyArgs: false,
-      }),
+    const hasAmmBlocks = batch.fromBlock < CONFIG.perpObCutoverBlock;
+    const hasPerpObBlocks = batch.toBlock >= CONFIG.perpObCutoverBlock;
+    const [older_logs, newer_logs, oracle_logs, execution_v3_logs, bridge_fee_logs] = await Promise.all([
+      hasAmmBlocks ? getLogs(CONFIG.perpContract, eventAbis.event_old_order, batch) : [],
+      hasAmmBlocks ? getLogs(CONFIG.perpContract, eventAbis.event_order, batch) : [],
+      hasAmmBlocks ? getLogs(CONFIG.perpContract, eventAbis.event_pool_slippage, batch) : [],
+      hasPerpObBlocks ? getLogs(CONFIG.perpContract, eventAbis.event_execution_v3, batch) : [],
+      getLogs(CONFIG.peripheryContract, eventAbis.event_bridge_fee_paid, batch),
     ]);
     // Oracle logs first so the map is populated before match logs look it up.
     oracle_logs.forEach(processOracleLog);
     older_logs.forEach(processLog);
     newer_logs.forEach(processLog);
+    execution_v3_logs.forEach(processExecutionV3Log);
     bridge_fee_logs.forEach(processBridgeFeeLog);
   }
 
@@ -214,16 +237,16 @@ const adapters: SimpleAdapter = {
   start: "2024-08-11",
   fetch,
   methodology: {
-    Volume: "Notional volume of trades.",
+    Volume: "Notional volume of trades. Since the order book upgrade on 2026-09-28 this is order-book taker volume, excluding liquidations.",
     Fees: "All fees paid by traders, including the APY earned by stakers.",
     Revenue: "Portion of fees distributed to the DAO Treasury.",
-    SupplySideRevenue: "Portion of fees distributed to vaults stakers.",
+    SupplySideRevenue: "Portion of fees distributed to vaults stakers, referrers and, since the order book upgrade on 2026-09-28, rebated to takers.",
   },
   breakdownMethodology: {
     Fees: {
-      'Trading Fees': 'Trading fees paid by users',
+      'Trading Fees': 'Trading fees paid by users. Since the order book upgrade on 2026-09-28 only takers pay fees.',
       'Bridge Fees': 'Deposit and withdraw fees paid by users while bridge assest to Reya chain.',
-      'Liquidity Fees': 'Total liquidity manager revenue',
+      'Liquidity Fees': 'Total liquidity manager revenue, plus the passive pool spread and price impact while it was the trading counterparty (until 2026-09-28)',
     },
     Revenue: {
       'Trading Fees To Treasury': 'A portion of trading fees paid by users collected by protocol treasury',
@@ -231,6 +254,8 @@ const adapters: SimpleAdapter = {
     },
     SupplySideRevenue: {
       'Trading Fees To Stakers': 'A portion of trading fees paid by users distributed to vault stakers',
+      'Trading Fees To Referrers': 'A portion of trading fees paid to the referrer of the taker (order book, since 2026-09-28)',
+      'Trading Fee Rebates To Takers': 'A portion of trading fees credited back to takers as an instant rebate under the referee, OG and VLTZ programmes (order book, since 2026-09-28)',
       'Liquidity Fees To Stakers': 'All liquidity fees are distributed to vault stakers',
     },
   }
