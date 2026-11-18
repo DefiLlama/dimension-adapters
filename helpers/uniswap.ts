@@ -427,7 +427,7 @@ const defaultFeeChangeEvent = 'event SetFee(uint24 feeOld, uint24 feeNew)'
 // Algebra Constants.COMMUNITY_FEE_DENOMINATOR, same on V1.9 and Integral
 const COMMUNITY_FEE_DENOMINATOR = 1e3
 
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, feeFromSlot0 = false, feeChangeEvent = defaultFeeChangeEvent, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, blacklistedAddresses, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false, noStateReads = false }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, feeFromSlot0 = false, feeChangeEvent = defaultFeeChangeEvent, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, blacklistedAddresses, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false, noStateReads = false, protocolFeesInSwapEvent = false }: UniV3Config): FetchV2 => {
   const blacklistedAddressesSet = blacklistedAddresses ? new Set(blacklistedAddresses.map(i => i.toLowerCase())) : null
   if (noStateReads && (!factory || isAlgebraV3 || isAlgebraV2 || algebraCommunityFee || dynamicProtocolFees || feeFromSlot0))
     throw new Error('noStateReads needs factory pools whose fee tier is in the PoolCreated log, every other option reads pool state')
@@ -635,7 +635,7 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       let pairHoldersRevenueRatio = holdersRevenueRatio;
 
       // only use custom revenue ratio when revenueRatio is not set
-      if (revenueRatio === undefined && getRevenueRatio) {
+      if (revenueRatio === undefined && getRevenueRatio && !protocolFeesInSwapEvent) {
         const { _revenueRatio, _protocolRevenueRatio, _holdersRevenueRatio } = getRevenueRatio({
           options: fetchOptions,
           poolFeeTier: feeTier,
@@ -655,6 +655,17 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
           if (blacklistedAddressesSet.has(log.sender.toLowerCase()) || blacklistedAddressesSet.has(log.recipient.toLowerCase())) return
         }
         const swapFeeTier = feeTimeline ? feeAt(feeTimeline, log.blockNumber, log.logIndex) : feeTier
+        if (protocolFeesInSwapEvent && revenueRatio === undefined && getRevenueRatio) {
+          // the Swap log carries the protocol fee taken from the input token, so the cut in force at this swap is read from it
+          const isInput0 = BigInt(log.amount0) > 0n
+          const protocolFee = isInput0 ? log.protocolFeesToken0 : log.protocolFeesToken1
+          if (protocolFee === undefined) throw new Error('protocolFeesInSwapEvent needs a swap event with protocolFeesToken0/1 fields')
+          const inputFee = Number(isInput0 ? log.amount0 : log.amount1) * swapFeeTier
+          const ratios = getRevenueRatio({ options: fetchOptions, poolFeeTier: swapFeeTier, protocolFeeRatio: inputFee > 0 ? Number(protocolFee) / inputFee : 0 })
+          pairRevenueRatio = ratios._revenueRatio
+          pairProtocolRevenueRatio = ratios._protocolRevenueRatio
+          pairHoldersRevenueRatio = ratios._holdersRevenueRatio
+        }
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
         const { token: _token, amount: _feeAmount } = addOneToken({ chain, balances: swapFees, token0, token1, amount0: log.amount0.toString() * swapFeeTier, amount1: log.amount1.toString() * swapFeeTier })
 
@@ -721,6 +732,8 @@ type UniV2Config = {
 export interface UniGetRevenueRatioProps {
   options: FetchOptions;
   poolFeeTier: number;
+  // protocolFeesInSwapEvent: share of this swap's fee the protocol took, read from the Swap log
+  protocolFeeRatio?: number;
   protocolFeeRatioToken0?: number;
   protocolFeeRatioToken1?: number;
   // Algebra community fee, as a share of the pool's swap fees
@@ -752,6 +765,8 @@ type UniV3Config = {
   // for chains whose public RPCs keep no historical state, so no eth_call at the window block works: skips the pooled-balance
   // filter and counts the core-asset leg of swaps in every factory pool holding a core asset (pool list + swap logs only)
   noStateReads?: boolean,
+  // PancakeV3: the Swap event logs the protocol fee taken per swap; getRevenueRatio is called per swap with protocolFeeRatio
+  protocolFeesInSwapEvent?: boolean,
 
   // support to get custom revenue ratio from given pool fee tier
   getRevenueRatio?: (props: UniGetRevenueRatioProps) => { _revenueRatio: number, _protocolRevenueRatio?: number, _holdersRevenueRatio?: number };
