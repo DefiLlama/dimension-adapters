@@ -25,13 +25,19 @@ import { METRIC } from '../helpers/metrics';
  * - Node A distributes all remaing of 75% of 0.475 ETH to rETh stakers
  * 
  * As descrive above, total fees on Rocketpool are distributed to supply side stakers and minipools operators.
- * The Rocket Pool protocol matches liquid stakers with node operators. It does not take a fee for providing this service.
+ * The Rocket Pool protocol matches liquid stakers with node operators. Minipools pay it no fee for this service.
+ * Since Saturn 1, megapool rewards also carve out a voter share, paid to RPL stakers, and a protocol DAO share.
  */
 
 const rETH = ADDRESSES.ethereum.RETH;
 
 // MEV and priority fees send to smoothing pool by block builders
 const smoothingPool = '0xd4E96eF8eee8678dBFf4d535E033Ed1a4F7605b7';
+
+const LABELS = {
+  VOTER_SHARE: 'Staking Rewards To RPL Stakers',
+  PDAO_SHARE: 'Staking Rewards To Protocol DAO',
+}
 
 const RocketPoolContractAbis = {
   rETHEventEtherDeposited: 'event EtherDeposited(address indexed from, uint256 amount, uint256 time)',
@@ -53,6 +59,10 @@ interface EtherDepositedEvent {
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   const dailyFees = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
+  const dailyProtocolRevenue = options.createBalances()
 
   const etherDepositedEvents: Array<EtherDepositedEvent> = (await options.getLogs({
     target: rETH,
@@ -126,6 +136,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const rewardFromBeacon = rewardToStakersAndOperators / (1 - nodeFeeRate)
 
     dailyFees.addGasToken(rewardFromBeacon, METRIC.STAKING_REWARDS)
+    dailySupplySideRevenue.addGasToken(rewardFromBeacon, METRIC.STAKING_REWARDS)
   }
 
   // Since Saturn 1, node operators can run megapools instead of minipools.
@@ -158,13 +169,17 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       eventAbi: 'event RewardsDistributed(uint256 nodeAmount, uint256 voterAmount, uint256 rethAmount, uint256 protocolDaoAmount, uint256 time)',
     })
     for (const log of rewardsDistributedLogs) {
-      // The full beacon reward is counted as fees and flows to supply side, the
-      // same as the minipool path above. Saturn 1 added a voter share (~9%) and
-      // a protocol-DAO share (currently 0%) that are arguably protocol revenue
-      // rather than supply-side; reclassifying them is left to a follow-up so
-      // this change stays scoped to the dropped-fees fix (see #8812).
+      // The full beacon reward is counted as fees. The node and rETH legs are
+      // supply side, like the minipool path above. Saturn 1 also carves out a
+      // voter share, paid to RPL stakers, and a protocol-DAO share, so those
+      // two legs are revenue.
       const beaconReward = Number(log.nodeAmount) + Number(log.voterAmount) + Number(log.rethAmount) + Number(log.protocolDaoAmount)
       dailyFees.addGasToken(beaconReward, METRIC.STAKING_REWARDS)
+      dailySupplySideRevenue.addGasToken(Number(log.nodeAmount) + Number(log.rethAmount), METRIC.STAKING_REWARDS)
+      dailyRevenue.addGasToken(Number(log.voterAmount), LABELS.VOTER_SHARE)
+      dailyRevenue.addGasToken(Number(log.protocolDaoAmount), LABELS.PDAO_SHARE)
+      dailyHoldersRevenue.addGasToken(Number(log.voterAmount), LABELS.VOTER_SHARE)
+      dailyProtocolRevenue.addGasToken(Number(log.protocolDaoAmount), LABELS.PDAO_SHARE)
     }
   }
 
@@ -179,13 +194,16 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   if (transactions) {
     for (const tx of transactions) {
       dailyFees.addGasToken(tx.value, METRIC.MEV_REWARDS)
+      dailySupplySideRevenue.addGasToken(tx.value, METRIC.MEV_REWARDS)
     }
   }
 
   return {
     dailyFees,
-    dailyRevenue: 0,
-    dailySupplySideRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
+    dailySupplySideRevenue,
   }
 }
 
@@ -200,16 +218,28 @@ const adapter: Adapter = {
   },
   methodology: {
     Fees: 'Total ETH staking rewards from Rocketpool active validators',
-    Revenue: "Rocket Pool protocol doesn't take any fees or rewards cut.",
-    SupplySideRevenue: 'Total ETH staking rewards are distributed to rETH stakers and minipool depositors.',
+    Revenue: 'The voter share (paid to RPL stakers) and protocol DAO share of megapool rewards, since the first megapool distribution on 2026-06-21. Minipools pay no protocol cut, so revenue was 0 before.',
+    ProtocolRevenue: 'The protocol DAO share of megapool rewards, set by governance (0% so far).',
+    HoldersRevenue: 'The voter share of megapool rewards, paid to RPL stakers through the rewards pool, since 2026-06-21.',
+    SupplySideRevenue: 'ETH staking rewards distributed to rETH stakers and node operators (minipools and the node and rETH shares of megapools).',
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.STAKING_REWARDS]: 'ETH rewards from running Beacon chain validators.',
       [METRIC.MEV_REWARDS]: 'ETH rewards from MEV tips on ETH execution layer paid by block builders.',
     },
+    Revenue: {
+      [LABELS.VOTER_SHARE]: 'Voter share of megapool rewards, paid to RPL stakers.',
+      [LABELS.PDAO_SHARE]: 'Protocol DAO share of megapool rewards.',
+    },
+    ProtocolRevenue: {
+      [LABELS.PDAO_SHARE]: 'Protocol DAO share of megapool rewards.',
+    },
+    HoldersRevenue: {
+      [LABELS.VOTER_SHARE]: 'Voter share of megapool rewards, paid to RPL stakers.',
+    },
     SupplySideRevenue: {
-      [METRIC.STAKING_REWARDS]: 'Share of ETH rewards from running Beacon chain validators to rETH stakers and minipool depositors.',
+      [METRIC.STAKING_REWARDS]: 'Share of ETH rewards from running Beacon chain validators to rETH stakers and node operators.',
       [METRIC.MEV_REWARDS]: 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to rETH stakers and minipool depositors.',
     },
   }
