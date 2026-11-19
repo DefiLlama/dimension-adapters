@@ -1,6 +1,5 @@
 import { ethers } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { RELAY_LAST_DAY, RELAY_LISTED_UNTIL, relayListCovers, relayTotals } from "../../aggregators/sweep-finance/relay";
 import { CHAIN } from "../../helpers/chains";
 
 // Sweep (https://trysweep.finance) - turns many token balances across chains into one or two tokens in one go, sending
@@ -19,12 +18,10 @@ import { CHAIN } from "../../helpers/chains";
 //   call names Sweep's fee wallet as referrer with a nonzero referrer fee is Sweep's.
 //   Forwarder: https://github.com/mayan-finance/swap-sdk/blob/main/src/addresses.ts (MAYAN_FORWARDER_CONTRACT)
 //   Order calls: https://github.com/mayan-finance/swap-sdk/tree/main/src/evm
-// - Relay: Sweep's requests to another chain that pay Sweep's fee wallet an app fee, with the figures Relay reports
-//   (aggregators/sweep-finance/relay.ts).
-// Sweep's legs through Symbiosis are not counted.
+// Sweep's legs through Relay and Symbiosis are not counted.
 
-// Sweep's fee wallet on EVM chains: the appFeeRecipient of its Across routes, the referrer of its Mayan orders and the app
-// fee recipient of its Relay requests (also the affiliate of its Fly swaps, aggregators/sweep-finance).
+// Sweep's fee wallet on EVM chains: the appFeeRecipient of its Across routes and the referrer of its Mayan orders (also
+// the affiliate of its Fly swaps, aggregators/sweep-finance).
 const FEE_WALLET = "0xc5205f558d955f60313c3f08986af56e24ad94ad";
 
 const ACROSS_DEPOSIT = "event FundsDeposited(bytes32 inputToken, bytes32 outputToken, uint256 inputAmount, uint256 outputAmount, uint256 indexed destinationChainId, uint256 indexed depositId, uint32 quoteTimestamp, uint32 fillDeadline, uint32 exclusivityDeadline, bytes32 indexed depositor, bytes32 recipient, bytes32 exclusiveRelayer, bytes message)";
@@ -100,10 +97,8 @@ const MAYAN_REFERRER = ethers.zeroPadValue(FEE_WALLET, 32);
 
 // Each chain Sweep's legs are sent from: the day the first leg counted here was sent from it, the chain's Across
 // SpokePool (deployed-addresses.json, above) where Sweep's Across legs leave it, and whether Sweep's Mayan orders leave
-// it too (Mayan's Forwarder is not deployed on zkSync Era and Robinhood Chain). Relay's are counted on every chain
-// listed. A chain with neither Across nor Mayan has Sweep's Relay legs alone, which are known only up to the end of the
-// Relay list, so the runner stops it there (deadFrom, aggregators/sweep-finance/relay.ts).
-type ChainConfig = { start: string; acrossSpokePool?: string; mayan?: boolean; deadFrom?: string };
+// it too (Mayan's Forwarder is not deployed on zkSync Era and Robinhood Chain).
+type ChainConfig = { start: string; acrossSpokePool?: string; mayan?: boolean };
 const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.ETHEREUM]: { start: "2026-03-14", acrossSpokePool: "0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5", mayan: true },
   [CHAIN.ARBITRUM]: { start: "2026-03-10", acrossSpokePool: "0xe35e9842fceaCA96570B734083f4a58e8F7C5f2A", mayan: true },
@@ -118,22 +113,6 @@ const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.INK]: { start: "2026-08-11", acrossSpokePool: "0xeF684C38F94F48775959ECf2012D7E864ffb9dd4" },
   [CHAIN.MODE]: { start: "2026-03-15", acrossSpokePool: "0x3baD7AD0728f9917d1Bf08af5782dCbD516cDd96" },
   [CHAIN.SCROLL]: { start: "2026-04-11", acrossSpokePool: "0x3baD7AD0728f9917d1Bf08af5782dCbD516cDd96" },
-  [CHAIN.ABSTRACT]: { start: "2026-08-07", deadFrom: RELAY_LAST_DAY },
-  [CHAIN.BOB]: { start: "2026-08-20", deadFrom: RELAY_LAST_DAY },
-  [CHAIN.BERACHAIN]: { start: "2026-10-11", deadFrom: RELAY_LAST_DAY },
-  [CHAIN.CELO]: { start: "2026-08-07", deadFrom: RELAY_LAST_DAY },
-  [CHAIN.HYPERLIQUID]: { start: "2026-10-16", deadFrom: RELAY_LAST_DAY },
-  [CHAIN.KATANA]: { start: "2026-10-24", deadFrom: RELAY_LAST_DAY },
-  [CHAIN.MANTA]: { start: "2026-08-07", deadFrom: RELAY_LAST_DAY },
-  [CHAIN.MANTLE]: { start: "2026-08-07", deadFrom: RELAY_LAST_DAY },
-  [CHAIN.METIS]: { start: "2026-10-16", deadFrom: RELAY_LAST_DAY },
-  [CHAIN.MORPH]: { start: "2026-11-11", deadFrom: RELAY_LAST_DAY },
-  [CHAIN.PLUME]: { start: "2026-10-13", deadFrom: RELAY_LAST_DAY },
-  [CHAIN.SONEIUM]: { start: "2026-08-07", deadFrom: RELAY_LAST_DAY },
-  [CHAIN.SONIC]: { start: "2026-10-16", deadFrom: RELAY_LAST_DAY },
-  [CHAIN.XDAI]: { start: "2026-08-07", deadFrom: RELAY_LAST_DAY },
-  [CHAIN.ZIRCUIT]: { start: "2026-08-20", deadFrom: RELAY_LAST_DAY },
-  [CHAIN.ZORA]: { start: "2026-08-07", deadFrom: RELAY_LAST_DAY },
 };
 
 // Where the logs indexer does not serve a call, logs are read 10,000 blocks per eth_getLogs, as bridge-aggregators/lifi
@@ -195,10 +174,8 @@ function namesSweepReferrer(orderCall: string): boolean {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const { acrossSpokePool, mayan } = chainConfig[options.chain];
-  // A chain with Relay legs alone has no data past the end of the Relay list.
-  if (!acrossSpokePool && !mayan && !relayListCovers(options)) throw new Error(`sweep-finance: Sweep's Relay legs from ${options.chain} are listed up to ${RELAY_LISTED_UNTIL} only`);
   const dailyBridgeVolume = options.createBalances();
+  const { acrossSpokePool, mayan } = chainConfig[options.chain];
 
   if (acrossSpokePool) {
     const deposits = await options.getLogs({ target: acrossSpokePool, eventAbi: ACROSS_DEPOSIT, maxBlockRange: LOGS_BLOCK_RANGE });
@@ -216,9 +193,6 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
-  const relay = relayTotals(options).crossChain[options.chain];
-  if (relay) dailyBridgeVolume.addUSDValue(relay);
-
   return { dailyBridgeVolume };
 };
 
@@ -228,7 +202,7 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: chainConfig,
   methodology: {
-    Volume: `Value users send to another chain through Sweep, counted on the chain it is sent from. Through Across: the input amount of every FundsDeposited log on the sending chain's SpokePool paid to Across's MulticallHandler on the receiving chain whose message, decoded as that handler's instructions, pays a nonzero fee to Sweep's fee wallet. Through Mayan: the amount handed to Mayan in every order logged by Mayan's Forwarder whose order call names Sweep's fee wallet as referrer with a nonzero referrer fee. Through Relay: the USD value sent, as Relay reports it, of every filled Relay request to another chain made for Sweep's app that pays Sweep's fee wallet an app fee, listed up to ${RELAY_LISTED_UNTIL} (the smaller of the values sent and arrived where they differ more than 2x). Not counted: Sweep's legs through Symbiosis, Across legs that pay Sweep's fee in a token other than the one bridged or that go to Robinhood Chain, Mayan orders whose call carries no referrer fee or whose amount the Forwarder does not log, and Relay requests made after ${RELAY_LISTED_UNTIL}.`,
+    Volume: "Value users send to another chain through Sweep, counted on the chain it is sent from. Through Across: the input amount of every FundsDeposited log on the sending chain's SpokePool paid to Across's MulticallHandler on the receiving chain whose message, decoded as that handler's instructions, pays a nonzero fee to Sweep's fee wallet. Through Mayan: the amount handed to Mayan in every order logged by Mayan's Forwarder whose order call names Sweep's fee wallet as referrer with a nonzero referrer fee. Not counted: Sweep's legs through Relay and Symbiosis, Across legs that pay Sweep's fee in a token other than the one bridged or that go to Robinhood Chain, and Mayan orders whose call carries no referrer fee or whose amount the Forwarder does not log.",
   },
 };
 
