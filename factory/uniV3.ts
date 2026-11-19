@@ -870,11 +870,11 @@ const methodologyMap: Record<string, any> = {
     SupplySideRevenue: "Liquidity providers get 85.7% of trade fees.",
   },
   "agni-fi": {
-    Fees: "Swap fees paid by traders at each pool's fee tier.",
-    UserFees: "Swap fees paid by traders at each pool's fee tier.",
-    Revenue: "The protocol share of each swap's fee, read from the protocolFeesToken0/1 fields of the pool's Swap log (32-33% of the fee on the pools as of 2026-11).",
-    ProtocolRevenue: "The protocol share of each swap's fee, collectable by the factory owner.",
-    SupplySideRevenue: "The rest of the swap fee, earned by liquidity providers.",
+    Fees: "Swap fees paid by traders on Agni pools, at each pool's fee tier.",
+    UserFees: "Swap fees paid by traders on Agni pools, at each pool's fee tier.",
+    Revenue: "The protocol's share of swap fees, 32-34% depending on the pool's fee tier (33% on 0.01% pools, 34% on 0.05%, 32% on 0.25%), in place since launch.",
+    ProtocolRevenue: "The protocol's 32-34% share of swap fees, collectable by Agni's factory owner wallet.",
+    SupplySideRevenue: "The remaining 66-68% of swap fees, earned by liquidity providers.",
   },
   "fluxion-network": {
     Volume: 'Swap volume in Fluxion pools, excluding swaps by a listed set of wallets whose volume is wash or incentive-farming trading.',
@@ -1283,11 +1283,11 @@ protocols['enosys'].breakdownMethodology = {
 }
 
 protocols['agni-fi'].breakdownMethodology = {
-  Fees: { 'Token Swap Fees': "Swap fees paid by traders in Agni pools, at the pool fee tier." },
-  UserFees: { 'Trading fees': "Swap fees paid by traders in Agni pools, at the pool fee tier." },
-  Revenue: { 'Protocol fees': "The protocol share of each swap's fee, read from its Swap log." },
-  ProtocolRevenue: { 'Protocol fees': "The protocol share of each swap's fee, collectable by the factory owner." },
-  SupplySideRevenue: { 'LP fees': 'The part of swap fees earned by liquidity providers.' },
+  Fees: { 'Token Swap Fees': "Swap fees paid by traders on Agni pools, at each pool's fee tier." },
+  UserFees: { 'Trading fees': "Swap fees paid by traders on Agni pools, at each pool's fee tier." },
+  Revenue: { 'Protocol fees': "The protocol's 32-34% share of each swap fee (33% on 0.01% pools, 34% on 0.05%, 32% on 0.25%)." },
+  ProtocolRevenue: { 'Protocol fees': "The protocol's 32-34% share of each swap fee, collectable by Agni's factory owner wallet." },
+  SupplySideRevenue: { 'LP fees': 'The remaining 66-68% of each swap fee, earned by liquidity providers.' },
 }
 
 protocols['fluxion-network'].breakdownMethodology = {
