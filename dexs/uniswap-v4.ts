@@ -432,7 +432,7 @@ async function fetch(options: FetchOptions) {
           target: config.poolManager,
           eventAbi: InitializeEvent,
           extraTopics: [poolId],
-          fromBlock: 0,
+          fromBlock: 1,
           toBlock: Number(options.toApi.block),
           onlyArgs: true,
           cacheInCloud: true,
