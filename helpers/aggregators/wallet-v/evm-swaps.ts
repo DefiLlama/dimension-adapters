@@ -234,7 +234,7 @@ export async function readEvmSwaps(options: FetchOptions, routes: EvmRoutes): Pr
       SELECT transaction_hash AS tx_hash, block_timestamp, from_address AS payer, NULL AS transaction_target
       FROM ${schema}.traces
       WHERE ${timeRange(from, end)} AND to_address = '${FEE_WALLET}'
-        AND status = 1 AND error IS NULL AND call_type = 'call' AND value > 0
+        AND status = 1 AND error IS NULL AND call_type = 'call' AND value <> '0'
     ),
     candidates AS (
       SELECT tx_hash, block_timestamp FROM incoming
@@ -256,7 +256,7 @@ export async function readEvmSwaps(options: FetchOptions, routes: EvmRoutes): Pr
     FROM candidates c
     LEFT JOIN ${schema}.traces t ON t.transaction_hash = c.tx_hash
       AND ${timeRange(from, end, 't.')} AND t.status = 1 AND t.error IS NULL AND t.call_type = 'call'
-      AND (t.value > 0 OR (${routerCalls}))
+      AND (t.value <> '0' OR (${routerCalls}))
   `, [`${schema}.logs`, `${schema}.traces`, `${schema}.transactions`], end, options.chain);
   const transactions = await readEvmTransactions(options.chain, rows);
   return transactions.flatMap(tx => {
