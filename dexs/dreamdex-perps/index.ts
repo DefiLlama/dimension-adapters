@@ -1,35 +1,51 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { USDSO, getTokyoPerpFeeRecords, getTokyoQuoteVolume } from "../../helpers/dreamdex";
+import { USDSO, getTokyoKeeperRewards, getTokyoPerpFeeRecords, getTokyoQuoteVolume } from "../../helpers/dreamdex";
 
-// dreamDEX perpetuals — on-chain CLOB perps on Somnia Tokyo, margined and settled in USDso.
-// The fee engine writes one PerpFeeRecord per charge. Only `LiquidationFee` has been observed so far (maker and taker
-// trading fees are zero at launch); any other non-rebate kind is reported as a trading fee, and rebates are fees handed
-// back to traders, so they are left out of fees and taken off revenue.
+const LABELS = {
+  LIQUIDATION_TO_PROTOCOL: "Liquidation Fees To Protocol",
+  TRADING_TO_PROTOCOL: "Trading Fees To Protocol",
+  LIQUIDATION_TO_KEEPERS: "Liquidation Fees To Keepers",
+  MAKER_REBATES: "Maker Rebates",
+  FEES_TO_INSURANCE: "Fees To Insurance Fund",
+};
+
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-  dailyVolume.add(USDSO, await getTokyoQuoteVolume(options, "PERP"), { skipChain: true });
+  dailyVolume.add(USDSO, await getTokyoQuoteVolume(options, "PERP"));
 
-  for (const { kind, amount, isRebate } of await getTokyoPerpFeeRecords(options)) {
+  for (const { kind, amount, isRebate, insurancePortion } of await getTokyoPerpFeeRecords(options)) {
     if (isRebate) {
-      dailyRevenue.add(USDSO, -BigInt(amount), { skipChain: true, label: "Fee Rebates" });
+      dailySupplySideRevenue.add(USDSO, amount, LABELS.MAKER_REBATES);
+      dailyRevenue.subtractToken(USDSO, amount, LABELS.TRADING_TO_PROTOCOL);
       continue;
     }
-    const label = kind === "LiquidationFee" ? METRIC.LIQUIDATION_FEES : METRIC.TRADING_FEES;
-    dailyFees.add(USDSO, amount, { skipChain: true, label });
-    dailyRevenue.add(USDSO, amount, { skipChain: true, label });
+    const isLiquidation = kind === "LiquidationFee";
+    const toInsurance = BigInt(insurancePortion ?? 0);
+    dailyFees.add(USDSO, amount, isLiquidation ? METRIC.LIQUIDATION_FEES : METRIC.TRADING_FEES);
+    dailyRevenue.add(USDSO, BigInt(amount) - toInsurance, isLiquidation ? LABELS.LIQUIDATION_TO_PROTOCOL : LABELS.TRADING_TO_PROTOCOL);
+    if (toInsurance) dailySupplySideRevenue.add(USDSO, toInsurance, LABELS.FEES_TO_INSURANCE);
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
+  for (const keeperReward of await getTokyoKeeperRewards(options)) {
+    dailySupplySideRevenue.add(USDSO, keeperReward, LABELS.LIQUIDATION_TO_KEEPERS);
+    dailyRevenue.subtractToken(USDSO, keeperReward, LABELS.LIQUIDATION_TO_PROTOCOL);
+  }
+
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  // Revenue nets keeper refunds and maker rebates; it goes negative in a window where those exceed the fees charged in it
+  // (a keeper refund on a liquidation whose fee was skipped, or rebates paid while taker fees are zero).
+  allowNegativeValue: true,
   adapter: {
     [CHAIN.SOMNIA_TOKYO]: {
       fetch,
@@ -40,19 +56,28 @@ const adapter: SimpleAdapter = {
     Volume:
       "Perpetual futures trading volume on dreamDEX (Somnia Tokyo), counted once per fill. The USDso notional of every " +
       "perp market is summed from the dreamDEX indexer's hourly candles and valued at the USDso price.",
-    Fees: "Fees charged by the dreamDEX perp engine, in USDso: liquidation fees, plus trading fees once they are switched on (maker and taker fees are zero at launch).",
-    Revenue: "All perp fees go to the protocol fee recipient, net of any fee rebates paid back to traders.",
-    ProtocolRevenue: "All perp fees go to the protocol fee recipient, net of any fee rebates paid back to traders.",
+    Fees: "Fees charged by the dreamDEX perp engine, in USDso: liquidation fees, plus maker and taker trading fees (zero since launch).",
+    Revenue: "Perp fees credited to the protocol's fee-recipient Safe, after keeper gas refunds on liquidations, maker rebates and the insurance fund's share.",
+    ProtocolRevenue: "Perp fees credited to the protocol's fee-recipient Safe, after keeper gas refunds on liquidations, maker rebates and the insurance fund's share.",
+    SupplySideRevenue: "Gas refunds paid out of the liquidation fee to the keepers that execute liquidations, fee rebates paid back to makers, and the share of fees routed to the insurance fund.",
   },
   breakdownMethodology: {
     Fees: {
       [METRIC.LIQUIDATION_FEES]: "Fee charged on the notional of liquidated positions.",
-      [METRIC.TRADING_FEES]: "Maker and taker fees on perp fills (zero at launch).",
+      [METRIC.TRADING_FEES]: "Maker and taker fees on perp fills (zero since launch).",
     },
     Revenue: {
-      [METRIC.LIQUIDATION_FEES]: "Liquidation fees kept by the protocol.",
-      [METRIC.TRADING_FEES]: "Trading fees kept by the protocol.",
-      "Fee Rebates": "Fees paid back to traders, deducted from revenue.",
+      [LABELS.LIQUIDATION_TO_PROTOCOL]: "Liquidation fees credited to the protocol fee-recipient Safe, net of the keeper gas refund.",
+      [LABELS.TRADING_TO_PROTOCOL]: "Trading fees credited to the protocol fee-recipient Safe, net of maker rebates.",
+    },
+    ProtocolRevenue: {
+      [LABELS.LIQUIDATION_TO_PROTOCOL]: "Liquidation fees credited to the protocol fee-recipient Safe, net of the keeper gas refund.",
+      [LABELS.TRADING_TO_PROTOCOL]: "Trading fees credited to the protocol fee-recipient Safe, net of maker rebates.",
+    },
+    SupplySideRevenue: {
+      [LABELS.LIQUIDATION_TO_KEEPERS]: "Gas refund paid to the keeper that executes each liquidation, taken out of the liquidation fee.",
+      [LABELS.MAKER_REBATES]: "Fee rebates paid back to makers.",
+      [LABELS.FEES_TO_INSURANCE]: "Share of liquidation and trading fees routed to the insurance fund that backstops bad debt.",
     },
   },
 };

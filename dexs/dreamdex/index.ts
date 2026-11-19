@@ -46,7 +46,7 @@ const fetch = async (options: FetchOptions) => {
 // Somnia Tokyo: every spot market is quoted in USDso, so the quote side of the hourly candles is summed and priced as USDso.
 const fetchTokyo = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  dailyVolume.add(USDSO, await getTokyoQuoteVolume(options, "SPOT"), { skipChain: true });
+  dailyVolume.add(USDSO, await getTokyoQuoteVolume(options, "SPOT"));
   return { dailyVolume };
 };
 
