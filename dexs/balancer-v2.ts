@@ -20,7 +20,6 @@ const LABELS = {
   ToLPs: 'Token Swap Fees To LPs',
 }
 
-const event_pools_balance_change = "event PoolBalanceChanged(bytes32 indexed poolId,address indexed liquidityProvider,address[] tokens,int256[] deltas,uint256[] protocolFeeAmounts)"
 const event_flash_bot = "event FlashLoan(address indexed recipient,address indexed token,uint256 amount,uint256 feeAmount)"
 const event_swap = "event Swap(bytes32 indexed poolId,address indexed tokenIn,address indexed tokenOut,uint256 amountIn,uint256 amountOut)"
 
@@ -39,8 +38,9 @@ async function getFees(options: FetchOptions) {
   const dailyRevenue = createBalances()
   const dailySupplySideRevenue = createBalances()
 
+  // PoolBalanceChanged protocolFeeAmounts are not counted: they are older pools' accumulated protocol swap fees, paid on
+  // join/exit, and the per-swap fees below already include them
   const logs_swap = await getLogs({ target: VAULT, eventAbi: event_swap, })
-  const logs_balance = await getLogs({ target: VAULT, eventAbi: event_pools_balance_change, })
   const logs_flash_bot = await getLogs({ target: VAULT, eventAbi: event_flash_bot, })
   // flash loan fees are paid to the ProtocolFeesCollector
   logs_flash_bot.forEach((log: any) => {
@@ -54,14 +54,16 @@ async function getFees(options: FetchOptions) {
   const collector = await toApi.call({ target: VAULT, abi: abis.getProtocolFeesCollector })
   const collectorShare = Number(await toApi.call({ target: collector, abi: abis.getSwapFeePercentage })) / 1e18
   const cachedShares = await toApi.multiCall({ abi: abis.getProtocolFeePercentageCache, calls: pools.map((pool: string) => ({ target: pool, params: [0] })), permitFailure: true })
-  logs_balance.forEach((log: any) => {
-    dailyFees.add(log.tokens, log.protocolFeeAmounts, LABELS.SwapFees)
-    log.tokens.forEach((token: string, i: number) => {
-      const amount = Number(log.protocolFeeAmounts[i])
-      dailyRevenue.add(token, amount * collectorShare, LABELS.ToProtocol)
-      dailySupplySideRevenue.add(token, amount * (1 - collectorShare), LABELS.ToLPs)
-    })
-  })
+  // a null can be an RPC failure rather than a pool without the cache: retry it alone, and only use the collector rate
+  // when the call reverts
+  for (const [i, share] of cachedShares.entries()) {
+    if (share != null) continue
+    try {
+      cachedShares[i] = await toApi.call({ target: pools[i], abi: abis.getProtocolFeePercentageCache, params: [0] })
+    } catch (e: any) {
+      if (!/revert/i.test(String(e?.message ?? e))) throw e
+    }
+  }
   logs_swap.forEach((log: any) => {
     const index = poolIds.indexOf(log.poolId)
     if (index === -1) return;
@@ -115,7 +117,7 @@ export default {
   pullHourly: true,
   fetch: fetch,
   methodology: {
-    Fees: "All trading fees collected (includes swap and yield fee) and flash loan fees.",
+    Fees: "Swap fees paid by traders and flash loan fees.",
     UserFees: "Trading fees paid by users, ranging from 0.0001% to 10%",
     Revenue: "The protocol's cut of swap fees, plus flash loan fees. The cut was 50% of swap fees until it was set to 0% on 2026-10-30 (Arbitrum, Polygon, Gnosis, Base, Avalanche, Optimism) and 2026-11-05 (Ethereum); it is still 50% on Mode and Fraxtal.",
     ProtocolRevenue: "Share of revenue to Balancer DAO.",
