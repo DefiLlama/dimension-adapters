@@ -6,6 +6,7 @@ import { addOneToken } from "../../helpers/prices";
 const RIALTO_ROUTERS = [
   '0xC94135b63772b91D79d0A2DaAb2a8801f32359bD',
   '0xb63cEcf4Aa3F0E31bD58496b2487e9CE3521b8b3', // https://robinhoodchain.blockscout.com/address/0xb63cEcf4Aa3F0E31bD58496b2487e9CE3521b8b3
+  '0x9b86F2a57c693D7c3013992CB4d858F4c3dd32f0', // https://robinhoodchain.blockscout.com/address/0x9b86F2a57c693D7c3013992CB4d858F4c3dd32f0
 ];
 
 const swapExecutedEvent = 'event SwapExecuted(address indexed sender, address indexed recipient, address indexed sellToken, address buyToken, uint256 sellAmount, uint256 buyAmount, bytes32 quoteId, bytes32 referralCode)';
