@@ -92,28 +92,32 @@ export const addDzapVolume = async (options: FetchOptions, dailyVolume: any) => 
   }
 };
 
+// Byzanlink routes Arbitrum trades through KyberSwap only, so DZap is read on Base alone.
+const DZAP_CHAINS: string[] = [CHAIN.BASE];
+
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   await addKyberVolume(options, dailyVolume);
-  await addDzapVolume(options, dailyVolume);
+  if (DZAP_CHAINS.includes(options.chain)) await addDzapVolume(options, dailyVolume);
   return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch,
-  chains: [CHAIN.BASE],
-  start: "2026-10-22",
+  adapter: {
+    [CHAIN.BASE]: { fetch, start: "2026-10-22" },
+    [CHAIN.ARBITRUM]: { fetch, start: "2026-11-19" },
+  },
   doublecounted: true, // executed by the KyberSwap and DZap routers
   methodology: {
     Volume:
-      "Value of tokenized stock buys and sells made on Byzanlink, routed through KyberSwap or DZap on Base, priced on one side of each swap.",
+      "Value of token buys and sells made on Byzanlink (tokenized stocks on Base, token swaps on Arbitrum), routed through KyberSwap on Base and Arbitrum or DZap on Base, priced on one side of each swap.",
   },
   breakdownMethodology: {
     Volume: {
-      KyberSwap: "Stock trades routed through the KyberSwap MetaAggregationRouterV2 with the Byzanlink source.",
-      DZap: "Stock trades routed through the DZap router with the Byzanlink source.",
+      KyberSwap: "Trades routed through the KyberSwap MetaAggregationRouterV2 with the Byzanlink source, on Base and Arbitrum.",
+      DZap: "Trades routed through the DZap router with the Byzanlink source, on Base.",
     },
   },
 };
