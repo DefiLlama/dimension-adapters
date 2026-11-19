@@ -75,13 +75,14 @@ async function getReserves(api: ChainApi) {
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
+  const dailyUserFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
 
   const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
   // The first hours of 2026-10-22 are before the market existed: nothing accrued, every metric is zero.
   if (toBlock < LENDER_DEPLOY_BLOCK)
-    return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue: options.createBalances(), dailyProtocolRevenue: options.createBalances() };
+    return { dailyFees, dailyUserFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue: options.createBalances(), dailyProtocolRevenue: options.createBalances() };
 
   // Each window starts one block after the previous one ends, so the opening state is read at fromBlock - 1
   // (logs cover fromBlock..toBlock); otherwise the changes in fromBlock fall between windows.
@@ -139,6 +140,12 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.add(USDS, psmMintFees, LABELS.PSM_MINT_FEES);
   dailyFees.add(USDS, redemptionFees, LABELS.REDEMPTION_FEES);
 
+  // User fees are the fees SwanUSD users pay. The sUSDS yield on the PSM reserves is paid by Sky (Sky Savings
+  // Rate), not by SwanUSD users, so it is left out here but stays in fees, revenue and holders revenue.
+  dailyUserFees.add(USDS, interest, METRIC.BORROW_INTEREST);
+  dailyUserFees.add(USDS, psmMintFees, LABELS.PSM_MINT_FEES);
+  dailyUserFees.add(USDS, redemptionFees, LABELS.REDEMPTION_FEES);
+
   dailySupplySideRevenue.add(USDS, interestToStakers, LABELS.INTEREST_TO_STAKERS);
   dailySupplySideRevenue.add(USDS, interestToMonolith, LABELS.INTEREST_TO_MONOLITH);
   dailySupplySideRevenue.add(USDS, redemptionFees, LABELS.REDEMPTION_FEES_TO_BORROWERS);
@@ -152,6 +159,7 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyFees,
+    dailyUserFees,
     dailyRevenue,
     dailySupplySideRevenue,
     dailyHoldersRevenue: dailyRevenue.clone(stakersShare, LABELS.REVENUE_TO_SWAN_STAKERS),
@@ -161,6 +169,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: 'Interest paid by SwanUSD borrowers who opt out of redemptions, sUSDS yield earned on the USDS reserves of the SwanUSD PSM, PSM mint fees and the redemption fees redeemers pay to borrowers. Excludes liquidation incentives paid to liquidators and SWAN emissions.',
+  UserFees: 'Interest paid by SwanUSD borrowers who opt out of redemptions, PSM mint fees and the redemption fees redeemers pay to borrowers. Excludes the sUSDS yield on the PSM reserves, which is paid by Sky rather than by SwanUSD users, and liquidation incentives paid to liquidators.',
   Revenue: 'Swan DAO\'s share of borrow interest (the market\'s local reserve fee, 50% since launch, plus any interest above what sSwanUSD stakers can receive), all sUSDS yield on the PSM reserves and all PSM mint fees.',
   SupplySideRevenue: 'Borrow interest paid to sSwanUSD stakers, the Monolith protocol fee on borrow interest (0% so far), and redemption fees kept by the borrowers whose collateral is redeemed.',
   HoldersRevenue: 'Swan DAO revenue distributed to SWAN stakers (sSWAN) by the RevenueRouter, 100% of it since launch.',
@@ -172,6 +181,11 @@ const breakdownMethodology = {
     [METRIC.BORROW_INTEREST]: 'Interest paid by SwanUSD borrowers who opt out of redemptions (paid debt).',
     [LABELS.PSM_YIELD]: 'Yield earned by the PSM USDS reserves deposited in sUSDS.',
     [LABELS.PSM_MINT_FEES]: 'Fee on minting SwanUSD with USDS through the PSM, ramping from 0% to 1% over the second half of the immutability period (from 2028-10-22).',
+    [LABELS.REDEMPTION_FEES]: 'Fee paid by redeemers when they swap SwanUSD for the collateral of redeemable borrowers (1.75% since launch).',
+  },
+  UserFees: {
+    [METRIC.BORROW_INTEREST]: 'Interest paid by SwanUSD borrowers who opt out of redemptions (paid debt).',
+    [LABELS.PSM_MINT_FEES]: 'Fee paid by users minting SwanUSD with USDS through the PSM, ramping from 0% to 1% over the second half of the immutability period (from 2028-10-22).',
     [LABELS.REDEMPTION_FEES]: 'Fee paid by redeemers when they swap SwanUSD for the collateral of redeemable borrowers (1.75% since launch).',
   },
   SupplySideRevenue: {

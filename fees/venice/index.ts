@@ -111,6 +111,14 @@ const adapter: SimpleAdapter = {
   start: "2025-11-08",
   methodology,
   breakdownMethodology,
+  unknownBreakdownMethodology: {
+    Fees: {
+      "Subscriptions, API and credit/DIEM": `${NOT_INCLUDED} These off-chain amounts are not reported.`,
+    },
+    Revenue: {
+      "Subscriptions, API and credit/DIEM": `${NOT_INCLUDED} These off-chain amounts are not reported.`,
+    },
+  },
 };
 
 export default adapter;

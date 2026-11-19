@@ -261,6 +261,8 @@ const factoryConfig: Record<string, string> ={
   [CHAIN.SCROLL]: "0x70C62C8b8e801124A4Aa81ce07b637A3e83cb919",
   [CHAIN.BLAST]: "0x792edAdE80af5fC680d96a2eD80A44247D2Cf6Fd",
   [CHAIN.ARC]: "0xf0db7b58379503491d857db50ac9ece64c653918",
+  // https://gov.uniswap.org/t/official-uniswap-v3-deployments-list/24323/9
+  [CHAIN.ETHERLINK]: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D",
   [CHAIN.ELYSIUM]: "0x1707327F626496A7b5b3872e7E4d2879Df7d7a9f",
 }
 
@@ -337,11 +339,12 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
   [CHAIN.SAGA]: { blockchain: 'saga', start: '2025-02-11', fetch: fetchFromOku },
   [CHAIN.XDC]: { blockchain: 'xdc', start: '2025-04-12', fetch: fetchFromOku },
   [CHAIN.NIBIRU]: { blockchain: 'nibiru', start: '2025-05-12', fetch: fetchFromOku },
-  [CHAIN.ETHERLINK]: { blockchain: 'etherlink', start: '2025-05-12', fetch: fetchFromOku },
   [CHAIN.REDBELLY]: { blockchain: 'redbelly', start: '2025-02-19', fetch: fetchFromOku },
 
   // On-chain logs (no Dune dex.trades or Oku API coverage)
   [CHAIN.OG]: { blockchain: '0g', start: '2025-09-24', fetch: fetchFromLogs },
+  // Oku stopped returning etherlink after 2026-09-22 while the pools kept trading, so the whole range reads the pools
+  [CHAIN.ETHERLINK]: { blockchain: 'etherlink', start: '2025-05-12', fetch: fetchFromLogs },
   [CHAIN.ARC]: { blockchain: 'arc', start: '2026-05-28', fetch: fetchFromLogs },
   [CHAIN.ELYSIUM]: { blockchain: 'elysium', start: '2026-11-03', fetch: fetchFromLogs },
 }

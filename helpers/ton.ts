@@ -66,6 +66,8 @@ export const runGetMethod = ton.runGetMethod
 export const callGetMethod = ton.call
 // raw toncenter POST, e.g. v2 runGetMethod at a past seqno
 export const toncenterPost = ton.toncenterPost
+// raw toncenter GET (v3 by default), e.g. `traces`
+export const toncenterGet = ton.toncenterGet
 
 // address codec
 export const Address = ton.Address

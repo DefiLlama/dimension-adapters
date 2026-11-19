@@ -54,9 +54,10 @@ const feesConfigs: Record<string, Config> = {
     broker_id: "raydium",
     start: "2024-12-11",
     methodology: {
-      Fees: "Raydium charges no fee at the moment, there is 3 bps taker fees on orderly",
-      Revenue: "No fee, so no revenue",
-      ProtocolRevenue: "n/a",
+      Volume: "Taker plus maker volume of traders on Raydium's Orderly broker.",
+      Fees: "Builder fees Raydium charges on top of Orderly's trading fees, since 2025-12-30; Raydium charged effectively no builder fee before that.",
+      Revenue: "All builder fees collected by Raydium (effectively none before 2025-12-30).",
+      ProtocolRevenue: "All builder fees collected by Raydium, kept by the protocol.",
     },
   },
   "toro-perp": {
@@ -190,6 +191,16 @@ const feesConfigs: Record<string, Config> = {
     start: "2026-08-03",
     methodology: {
       Volume: "Maker/taker volume that flows through the OrbitDEX interface",
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },
+  "nexwest": {
+    broker_id: "nexwest",
+    start: "2026-11-14",
+    methodology: {
+      Volume: "Maker/taker volume that flows through the Nexwest interface",
       Fees: "Builder Fees collected from Orderly Network",
       Revenue: "All the fees collected",
       ProtocolRevenue: "All the revenue goes to the protocol",

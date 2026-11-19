@@ -2,7 +2,8 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { getRelayApiKey, getRelayPage, RELAY_CHAINS, RELAY_REQUESTS_API } from "../helpers/relay";
 
-const USD_PRICED = new Set([1337, 8253038, 537724, 224235520, 9286185]);
+// Lighter (3586256) names its assets by id ("0" USDC, "1" ETH), not by token address
+const USD_PRICED = new Set([1337, 3586256, 8253038, 537724, 224235520, 9286185]);
 const SOLANA = 792703809;
 const SOL_NATIVE = "11111111111111111111111111111111";
 const WSOL = ADDRESSES.solana.SOL;
@@ -88,8 +89,8 @@ const adapter: SimpleAdapter = {
   chains: [...new Set(Object.values(RELAY_CHAINS))],
   start: "2025-08-28", // first day the old bridges server recorded Relay volume
   methodology: {
-    OutgoingVolume: "Value of tokens sent from each chain through successful Relay cross-chain requests, priced from the token and amount; same-chain swaps excluded.",
-    IncomingVolume: "Value of tokens delivered to each chain through successful Relay cross-chain requests, priced from the token and amount; same-chain swaps excluded.",
+    OutgoingVolume: "Value of tokens sent from each chain through successful Relay cross-chain requests, priced from the token and amount, or from the USD amount Relay reports on chains without token addresses (HyperCore, Bitcoin, XRPL, TON, Eclipse, Lighter); same-chain swaps excluded.",
+    IncomingVolume: "Value of tokens delivered to each chain through successful Relay cross-chain requests, priced from the token and amount, or from the USD amount Relay reports on chains without token addresses (HyperCore, Bitcoin, XRPL, TON, Eclipse, Lighter); same-chain swaps excluded.",
     OutgoingTxCount: "Number of successful Relay cross-chain requests sent from each chain.",
     IncomingTxCount: "Number of successful Relay cross-chain requests delivered to each chain.",
   },

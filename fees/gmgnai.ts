@@ -42,8 +42,14 @@ const chainConfig: Record<string, { start: string }> = {
   },
   [CHAIN.ARC]: {
     start: '2026-09-16'
+  },
+  [CHAIN.ELYSIUM]: {
+    start: '2026-11-09'
   }
 }
+
+const ELYSIUM_ROUTERS = ['0x6c3c2efa01a8240c00a683e36502f656f0c15fd6'];
+const FeeCollectedEvent = 'event FeeCollected(address indexed token, address indexed user, uint256 amount, uint256 timestamp)';
 
 // GMGN's nine Solana fee-collection wallets. Verified on-chain (2026-06) to be
 // pure fee collectors: they only receive per-trade fee inflows and sweep to a
@@ -230,6 +236,19 @@ const fetch: any = async (options: FetchOptions) => {
     }
   }
 
+  if (options.chain === CHAIN.ELYSIUM) {
+    // same referral estimate as the Dune-tracked EVM chains, applied per fee token
+    const referralBps = BigInt(Math.round(EVM_REFERRAL_RATE * 10_000));
+    const logs = await options.getLogs({ targets: ELYSIUM_ROUTERS, eventAbi: FeeCollectedEvent });
+    for (const log of logs) {
+      const amount = BigInt(log.amount);
+      const referral = amount * referralBps / 10_000n;
+      dailyFees.add(log.token, amount, METRIC.TRADING_FEES);
+      dailySupplySideRevenue.add(log.token, referral, REFERRAL_EST);
+      dailyRevenue.add(log.token, amount - referral, METRIC.TRADING_FEES);
+    }
+  }
+
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 }
 
@@ -245,7 +264,7 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true,
   dependencies: [Dependencies.DUNE],
   methodology: {
-    Fees: "All trading fees paid by users while using GMGN AI bot (1% per trade), collected in both the native gas token and USDC, tracked via Dune. Solana = native-SOL + USDC inflows to the fee wallets; EVM = native gas-token + USDC inflows to the fee collector.",
+    Fees: "All trading fees paid by users while using GMGN AI bot (1% per trade), collected in both the native gas token and USDC, tracked via Dune. Solana = native-SOL + USDC inflows to the fee wallets; EVM = native gas-token + USDC inflows to the fee collector; Elysium (not on Dune) = the FeeCollected events of GMGN's router there.",
     Revenue: "Trading fees retained by GMGN after referral commissions. Solana referral is measured on-chain; EVM referral is estimated at the measured Solana referral rate (~16% of fees).",
     ProtocolRevenue: "Same as Revenue.",
     SupplySideRevenue: "Referral commissions GMGN pays to referrers. Solana = measured outflows (SOL + USDC/USDT/USD1) from its three referral-distribution wallets; EVM = estimated at the Solana referral rate since EVM fees off-ramp to a CEX and referral can't be isolated on-chain.",

@@ -9,7 +9,7 @@ const SwapFee = 'Swap Fees';
 const BridgeFee = 'Bridge Fees';
 
 // FeesForwarded logs; X Layer skipped (RPCs reject the log scan, no Jumper fees seen)
-const OnchainChains = [...Object.keys(LifiFeeCollectors), CHAIN.HYPERLIQUID]
+const OnchainChains = Object.keys(LifiFeeCollectors)
   .filter((chain) => /^0x[0-9a-f]{40}$/i.test(LifiDiamonds[chain]?.id ?? ''));
 
 // LI.FI API 'LIFI Fixed Fee' leg, equal to FeesForwarded per tx on EVM. Fee wallets: solana 34FKjAdVcTax2DHqV2XnbXa9J3zmyKcFuFKWbcmgxjgm,
@@ -92,7 +92,11 @@ export const createJumperFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapt
   version: 2,
   pullHourly: true,
   fetch: fetch(category),
-  adapter: Object.fromEntries([...OnchainChains, ...ApiChains].map((chain) => [chain, { start: JumperFeeStart }])),
+  // chains launched after JumperFeeStart (Arc) start at their own fee collector start
+  adapter: Object.fromEntries([...OnchainChains, ...ApiChains].map((chain) => {
+    const chainStart = LifiFeeCollectors[chain]?.start;
+    return [chain, { start: chainStart && chainStart > JumperFeeStart ? chainStart : JumperFeeStart }];
+  })),
   methodology: {
     Fees: `Jumper platform fees (0-5 bps depending on the assets) paid by users on ${product}.`,
     Revenue: 'All platform fees are kept by Jumper.',

@@ -2,7 +2,9 @@ import ADDRESSES from "./coreAssets.json";
 import { CHAIN } from "./chains";
 
 // Peddles (https://peddles.xyz): a launchpad whose every launch is one locked Uniswap v4 position,
-// paired against ETH, BNB, USDC or a tokenised stock, with PeddlesFeeHook on the pool.
+// paired against ETH, BNB, USDC or a tokenised stock, with PeddlesFeeHook on the pool. On Anubis the
+// venue is Gully Core, a PancakeSwap Infinity fork: the same launch on its CL pool manager, paired
+// against DAI, with PeddlesPancakeFeeHook, whose events are identical to PeddlesFeeHook's.
 //
 // Shared by fees/peddles.ts and dexs/peddles.ts so the two cannot drift apart. Addresses are
 // per chain and never portable: each contract is CREATE2-deployed against constructor arguments
@@ -12,10 +14,14 @@ import { CHAIN } from "./chains";
 export type PeddlesDeployment = {
   start: string; // the day the fee hook was created
   fromBlock: number; // the block the fee hook was created in: the pool registry is read from here
-  poolManager: string; // Uniswap v4 PoolManager, the one address here that is not a Peddles contract
+  poolManager: string; // Uniswap v4 PoolManager (Infinity CLPoolManager on Gully), the one address here that is not a Peddles contract
+  // Which pool manager emits the swaps. Infinity's CL Swap has one more field (protocolFee), so a different topic.
+  venue?: "uniswap-v4" | "infinity-cl";
   feeHook: string; // PeddlesFeeHook: charges every swap and registers every launch pool
   launchFeeCollectors: string[]; // every contract that takes the launch fee, retired generations included
-  feeForwarder: string; // PeddlesFeeForwarder: the Terminal's and the trade bot's fee, taken with the swap
+  feeForwarder?: string; // PeddlesFeeForwarder: the Terminal's and the trade bot's fee, taken with the swap (absent where not deployed)
+  // Where the launch fee is pulled as an ERC-20 rather than paid in native currency (Anubis: DAI).
+  launchFeeToken?: string;
   // Where the chain's native currency is not priced as a gas token: the ERC-20 that represents it and the
   // factor between the native amount and that token's units. Arc's gas is USDC (18 decimals natively, 6 as ERC-20).
   nativeAs?: { token: string; divisor: bigint };
@@ -43,7 +49,8 @@ export const PEDDLES: Record<string, PeddlesDeployment> = {
     feeHook: "0xfe055282E3cD471A8b2cd922d31E75ECd3bBc0CC",
     launchFeeCollectors: [
       "0x4b7Aa977eA4B95D9859D73e6bc922ecF2F881978", // PeddlesStockLaunchpad
-      "0x81213e2cE27f03714143152aE5cf5c94094f1978", // PeddlesLaunchOrchestratorV20
+      "0x8BD4Cdb2248E4a5443Acdf52b22FE1A4A2ca1978", // PeddlesLaunchOrchestratorV20 (creator-bound, current since block 80273361)
+      "0x81213e2cE27f03714143152aE5cf5c94094f1978", // PeddlesLaunchOrchestratorV20 (first generation)
       "0x2e0029BeDCBb2f211Fd17EeBA8f40657cF6A1978", // PeddlesNFTFactory
       "0x6C5032DeDCc78b92b370C86a2aA0EA3AD0D71978", // PeddlesNFTBondingGraduationOrchestratorV20
     ],
@@ -78,6 +85,30 @@ export const PEDDLES: Record<string, PeddlesDeployment> = {
     feeForwarder: "0xfe9563B7952fEB2091816133a22A4D62171fD77e",
     nativeAs: { token: ADDRESSES.arc.USDC, divisor: 10n ** 12n },
   },
+  [CHAIN.ETHEREUM]: {
+    start: "2026-11-09",
+    fromBlock: 26374000,
+    poolManager: "0x000000000004444c5dc75cB358380D2e3dE08A90",
+    feeHook: "0x2AC9dAc4eB0e43c0ba0da85551eE55e369b980cC",
+    launchFeeCollectors: [
+      "0x1a924526BAa49108EF67Ecad3FC9022bf9d31978", // PeddlesStockLaunchpad
+      "0x07bAC67c56D81EaFB495c05ed43eb9ef48aa1978", // PeddlesLaunchOrchestratorV20 (creator-bound)
+      "0xd2482de6664C7d19622E328016f2acF354421978", // PeddlesNFTFactory
+      "0x0A3ba61cCa458bb78e0c1A3Ca0c16CF805281978", // PeddlesNFTBondingGraduationOrchestratorV20
+    ],
+    feeForwarder: "0xfe9563B7952fEB2091816133a22A4D62171fD77e",
+  },
+  [CHAIN.ANUBI]: {
+    start: "2026-11-09",
+    fromBlock: 18653741,
+    venue: "infinity-cl",
+    poolManager: "0xC85Edc14Fc6053151066f6D497B11E6982946a50", // Gully Core CLPoolManager
+    feeHook: "0x53edFBD1d70a65C027Bd1605a5e693e42c527E7c", // PeddlesPancakeFeeHook
+    launchFeeCollectors: [
+      "0xD01C35110Ed7d608da332620C041627E859Da4DA", // PeddlesGullyLaunchpad
+    ],
+    launchFeeToken: ADDRESSES.anubi.DAI,
+  },
 };
 
 // The registry of Peddles pools: one event per launch, carrying the pool id and both legs.
@@ -85,3 +116,11 @@ export const POOL_REGISTERED =
   "event PoolRegistered(bytes32 indexed poolId, address indexed token, address indexed quote, address creator, uint16 creatorTaxBps, uint16 excessToCreatorBps, address rewards)";
 
 export type PeddlesPool = { quote: string; quoteIsCurrency0: boolean };
+
+// The swap event of each pool manager. Both carry the pool id as topic1 and the two signed deltas.
+export const SWAP_EVENTS = {
+  "uniswap-v4":
+    "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)",
+  "infinity-cl":
+    "event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee, uint16 protocolFee)",
+};

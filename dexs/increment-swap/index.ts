@@ -20,9 +20,12 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
     };
   });
   const date = new Date(options.startOfDay * 1000);
-  const todayDateString = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`
+  const todayDateString = `${date.getUTCFullYear()}-${date.getUTCMonth() + 1}-${date.getUTCDate()}`
   const dailyVolume = historicalVolume
     .find(dayItem => dayItem.time === todayDateString)?.volume
+  // The API only serves the last 365 days, so older days (and today, until it ends) have no row.
+  if (dailyVolume === undefined)
+    throw new Error(`increment-swap: the API has no volume for ${todayDateString}, it covers ${historicalVolume[0]?.time} to ${historicalVolume.at(-1)?.time}`)
 
   return {
     dailyVolume: dailyVolume,

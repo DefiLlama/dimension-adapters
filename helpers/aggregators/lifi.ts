@@ -252,6 +252,11 @@ export const LifiDiamonds: IContract = {
     id: '0x026F252016A7C47CDEf1F05a3Fc9E20C92a49C37',
     start: '2025-10-02'
   },
+  // deployments/arc.json; start is Arc's public launch, the first day of sustained swaps
+  [CHAIN.ARC]: {
+    id: '0xA4072583658Fae592A3506A42431cb6316a8d40b',
+    start: '2026-09-16'
+  },
   // Sei is fetched via the LI.FI analytics API (getLogs unreliable here); id is the LI.FI chainId
   [CHAIN.SEI]: {
     id: '1329',
@@ -569,6 +574,16 @@ export const LifiFeeCollectors: IContract = {
   [CHAIN.MONAD]: {
     id: '0x954d55105CDF5371224268691FAf6178be5f62F5',
     start: '2025-10-02'
+  },
+  // HyperEVM, deployments/hyperevm.json
+  [CHAIN.HYPERLIQUID]: {
+    id: '0x7CaC679Cc2dF9c602590eA4965091F54EC32F2Fc',
+    start: '2025-05-19'
+  },
+  // deployments/arc.json; start matches the Arc LifiDiamonds entry (public launch)
+  [CHAIN.ARC]: {
+    id: '0x0604811F11863AA7904CF07c27875c80134744c7',
+    start: '2026-09-16'
   }
 }
 

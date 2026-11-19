@@ -3,15 +3,19 @@ import { addFees, getChainStats, adapterChains } from "../../helpers/aggregators
 
 const fetch = async (options: FetchOptions) => {
   const chain = await getChainStats(options);
-  // the API sends fee lists only where swaps recorded a fee; without them the fee is unknown, not zero
-  if (!chain?.fees) return {};
-
   const dailyFees = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
-  addFees(dailyFees, chain.fees);
-  addFees(dailyProtocolRevenue, chain.protocolRevenue ?? []);
-  addFees(dailyHoldersRevenue, chain.holdersRevenue ?? []);
+
+  // getChainStats only returns final windows, and a final window leaves out chains with no swaps created in it, so a missing chain has zero fees
+  if (chain) {
+    // every listed chain carries its fee lists (checked on monthly windows 2021-04 to 2026-11, zero fees come as "0.00"), so a missing list means the response changed
+    if (!chain.fees || !chain.protocolRevenue || !chain.holdersRevenue)
+      throw new Error(`swap stats api: ${options.chain} is listed without its fee lists`);
+    addFees(dailyFees, chain.fees);
+    addFees(dailyProtocolRevenue, chain.protocolRevenue);
+    addFees(dailyHoldersRevenue, chain.holdersRevenue);
+  }
 
   const dailyRevenue = options.createBalances();
   dailyRevenue.addBalances(dailyProtocolRevenue);

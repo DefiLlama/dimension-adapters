@@ -2,7 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { PEDDLES } from "../helpers/peddles";
 
 // Peddles: a token launchpad on Uniswap v4. Every launch pool carries PeddlesFeeHook, which charges
-// each swap in the pool's quote asset (ETH, BNB, USDC, or the tokenised stock the launch is paired against) and
+// each swap in the pool's quote asset (ETH, BNB, USDC, DAI, or the tokenised stock the launch is paired against) and
 // splits the charge at that moment between the protocol, the token's creator and the token's holders.
 //
 // Everything is read from events, and each amount is added against the asset it was charged in.
@@ -18,7 +18,7 @@ const FEE_ACCRUED =
 // Charged instead of FeeAccrued during the first minutes after a launch.
 const SNIPER_FEE_ACCRUED =
   "event SniperFeeAccrued(bytes32 indexed poolId, address indexed quote, uint256 toLiquidity, uint256 toCreator, uint256 toPlatform, bool viaBefore)";
-// Paid in the chain's native currency by whoever creates a launch.
+// Paid by whoever creates a launch: in the chain's native currency, or in DAI on Anubis (pulled as an ERC-20).
 const LAUNCH_FEE_PAID = "event LaunchFeePaid(address indexed creator, uint256 amount)";
 // Paid in the chain's native currency, in the same transaction as the swap it is charged on.
 const FORWARDER_FEE_COLLECTED =
@@ -79,14 +79,21 @@ const fetch = async (options: FetchOptions) => {
     flatten: true,
   });
   for (const log of launchFees) {
-    addNative(dailyFees, log.amount, LAUNCH_FEES);
-    addNative(dailyRevenue, log.amount, LAUNCH_FEES_TO_PROTOCOL);
+    if (deployment.launchFeeToken) {
+      dailyFees.add(deployment.launchFeeToken, log.amount, LAUNCH_FEES);
+      dailyRevenue.add(deployment.launchFeeToken, log.amount, LAUNCH_FEES_TO_PROTOCOL);
+    } else {
+      addNative(dailyFees, log.amount, LAUNCH_FEES);
+      addNative(dailyRevenue, log.amount, LAUNCH_FEES_TO_PROTOCOL);
+    }
   }
 
-  const forwarded = await options.getLogs({ target: deployment.feeForwarder, eventAbi: FORWARDER_FEE_COLLECTED });
-  for (const log of forwarded) {
-    addNative(dailyFees, log.amount, TERMINAL_FEES);
-    addNative(dailyRevenue, log.amount, TERMINAL_FEES_TO_PROTOCOL);
+  if (deployment.feeForwarder) {
+    const forwarded = await options.getLogs({ target: deployment.feeForwarder, eventAbi: FORWARDER_FEE_COLLECTED });
+    for (const log of forwarded) {
+      addNative(dailyFees, log.amount, TERMINAL_FEES);
+      addNative(dailyRevenue, log.amount, TERMINAL_FEES_TO_PROTOCOL);
+    }
   }
 
   return {
@@ -108,7 +115,7 @@ const breakdownMethodology = {
   Fees: {
     [SWAP_FEES]: "The fee charged on every swap of a launched token, in the asset the pool is paired against.",
     [OPENING_TAX]: "The higher fee charged on swaps in the first minutes after a launch.",
-    [LAUNCH_FEES]: "The fee paid to create a launch, in the chain's native currency.",
+    [LAUNCH_FEES]: "The fee paid to create a launch, in the chain's native currency (in DAI on Anubis).",
     [TERMINAL_FEES]: "The fee the Peddles Terminal and trade bot add to a swap, in the chain's native currency.",
   },
   Revenue: {

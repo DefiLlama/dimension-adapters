@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 // LayerZero V1 messaging stack uses UltraLightNodeV2 as the SendLib on V1 endpoints.
 // Native fees paid by users on `send()` are split internally into:
@@ -100,10 +101,12 @@ const fetch = async (options: FetchOptions) => {
     target,
     eventAbi: eventWithdrawNative,
   });
+  // polygon:0x000... (addGasToken) is only priced from 2023-10-25 (POL launch), WPOL has the MATIC price history
+  const nativeToken = chain === CHAIN.POLYGON ? ADDRESSES.polygon.WMATIC_2 : ADDRESSES.null;
   for (const log of nativeWithdrawals) {
     const amount = log.amount?.toString() ?? "0";
-    dailyFees.addGasToken(amount, METRIC.SERVICE_FEES);
-    dailySupplySideRevenue.addGasToken(amount, METRIC.SERVICE_FEES);
+    dailyFees.add(nativeToken, amount, METRIC.SERVICE_FEES);
+    dailySupplySideRevenue.add(nativeToken, amount, METRIC.SERVICE_FEES);
   }
 
   const zroToken = ZRO_TOKEN_BY_CHAIN[chain];

@@ -28,6 +28,17 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "wemix.fi": {
+    // factory from the wemix-fi TVL adapter (DefiLlama-Adapters registries/uniswapV2.js), deployed block 207061 (2022-10-22)
+    // volume only: pair source unverified, fee split unknown
+    [CHAIN.WEMIX]: { factory: '0xe1F36C7B919c9f893E2Cd30b471434Aa2494664A', start: '2023-02-21', customLogic: volumeOnly },
+  },
+  "rcpswap": {
+    // Unchanged Uniswap V2: https://moonsdust.gitbook.io/rcpswap ; V2 charges 0.3%: https://developers.uniswap.org/docs/unichain/guides/create-a-pool
+    // Factory deployment: https://arbitrum-nova.blockscout.com/tx/0x64e8b50b2dda7f8d5e36ca43a177954b616a483f92e61535149e4b5a7fc395fa
+    // volume only: historical fee split not documented.
+    [CHAIN.ARBITRUM_NOVA]: { factory: '0xF9901551B4fDb1FE8d5617B5deB6074Bb8E1F6FB', start: '2022-07-24', fees: 0.003, customLogic: volumeOnly },
+  },
   "bescswap": {
     // Factory and 3/1000 pair invariant: https://explorer.beschyperchain.com/api?module=contract&action=getsourcecode&address=0x20EE72D1B7E36e97566f31761dfF14eDc35Fbf22
     // Deployment 2025-08-25: https://explorer.beschyperchain.com/api/v2/addresses/0x20EE72D1B7E36e97566f31761dfF14eDc35Fbf22
@@ -92,7 +103,8 @@ const configs: Record<string, Record<string, any>> = {
     // https://sourcify.dev/server/v2/contract/56/0x3e708fdbe3ada63fc94f8f61811196f1302137ad?fields=all
     // https://sourcify.dev/server/v2/contract/137/0x5ede3f4e7203bf1f12d57af1810448e5db20f46c?fields=all
     // volume only: historical fee split not documented; feeTo is mutable.
-    [CHAIN.BSC]: { factory: '0x3e708fdbe3ada63fc94f8f61811196f1302137ad', fees: 0.002, customLogic: volumeOnly },
+    // PACOCA/WBNB pair excluded: wash volume.
+    [CHAIN.BSC]: { factory: '0x3e708fdbe3ada63fc94f8f61811196f1302137ad', fees: 0.002, customLogic: volumeOnly, blacklistPools: ['0xb9c7049cb298035640e7b6db219e68c348b976b7'] },
     [CHAIN.POLYGON]: { factory: '0x5ede3f4e7203bf1f12d57af1810448e5db20f46c', fees: 0.002, customLogic: volumeOnly },
   },
   "narwhalswap": {
@@ -216,6 +228,27 @@ const configs: Record<string, Record<string, any>> = {
     // Factory and 0.3% V2 pair invariant: https://sourcify.dev/server/v2/contract/4337/0x662b526fb70ebb508962f3f61c9f735f687c8fa5?fields=sources,compilation,deployment
     // Factory deployment block 295 is 2023-08-18 UTC; volume only: fee split not documented.
     [CHAIN.BEAM]: { factory: '0x662b526FB70EBB508962f3f61c9F735f687C8fA5', start: '2023-08-18', fees: 0.003, customLogic: volumeOnly },
+  },
+  "bscswap": {
+    // V2 pair creation and 3/1000 swap invariant: https://sourcify.dev/server/v2/contract/56/0xce8fd65646f2a2a897755a1188c04ace94d2b8d0?fields=sources
+    // Deployment block 458157 (2020-09-14); volume only: fee split not documented, feeTo is mutable.
+    [CHAIN.BSC]: { factory: '0xce8fd65646f2a2a897755a1188c04ace94d2b8d0', start: '2020-09-14', fees: 0.003, customLogic: volumeOnly },
+  },
+  "spacefi-zksync": {
+    // Factory from the spacefi-zksync TVL adapter (DefiLlama-Adapters registries/uniswapV2.js)
+    // Deployed 2023-03-18: https://explorer.zksync.io/tx/0x4e768c3e9cd2e765c03fc74fe558f4b1b54f9357b29ca43364add1106458ace9
+    // start is the first day the pools can be valued: coins.llama.fi has no historical price for Era USDC
+    // (0x3355df6d...) before 2024-02-15, so earlier days filter down to zero pools.
+    // volume only: the factory source is not verified, so the swap fee and its split are not established.
+    [CHAIN.ERA]: { factory: '0x0700Fb51560CfC8F896B2c812499D17c5B0bF6A7', start: '2024-02-15', customLogic: volumeOnly },
+  },
+  "rocketswap-anubis": {
+    // V2 factory from the rocketswap-anubis TVL adapter (DefiLlama-Adapters registries/uniswapV2.js), deployed at Anubis block 2059 (2026-04-07)
+    // start is the first full day pool balances can be read: Multicall3 only exists on Anubis from 2026-05-06,
+    // and scanning Sync logs of all 900+ pairs instead (useSyncReserves) does not complete for a day.
+    // maxPairSize 100: 53 to 56 pools pass the $200 pooled value filter (2026-11-13), above the default cap of 42.
+    // volume only: the swap fee and its split are not documented. The V3 pools are listed separately as rocketswap-anubis-v3.
+    [CHAIN.ANUBI]: { factory: '0xaf6F4e641C86A25518509BC840051A8652Af598A', start: '2026-05-07', customLogic: volumeOnly, maxPairSize: 100 },
   },
   "bdex-v2": {
     // stock uniV2 fork on BOT Chain. Factory: https://dev-docs.botchain.ai/docs/DEX/contract-addresses/
@@ -1133,6 +1166,11 @@ const configs: Record<string, Record<string, any>> = {
     // PancakeSwap-v2 fork: 0.25% swap fee; no documented protocol take, all fees to LPs
     [CHAIN.BSC]: { factory: '0x2Af5c23798FEc8E433E11cce4A8822d95cD90565', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0 },
   },
+  "fstswap": {
+    // Uniswap-V2 fork, 0.3% swap fee and feeTo-gated _mintFee (verified source: https://sourcify.dev/server/v2/contract/56/0x9a272d734c5a0d7d84e0a892e891a553e8066dce)
+    // feeTo is mutable and its history is unverified, so report volume only until the revenue split is established
+    [CHAIN.BSC]: { factory: '0x9a272d734c5a0d7d84e0a892e891a553e8066dce', start: '2021-12-23', fees: 0.003, customLogic: volumeOnly },
+  },
   "swapbased-v2": {
     // 0.30% swap fee: 0.25% to LPs, 0.05% to the treasury
     [CHAIN.BASE]: { factory: '0x04C9f118d21e8B767D2e50C946f0cC9F6C367300', start: '2023-07-28', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
@@ -1177,6 +1215,35 @@ const configs: Record<string, Record<string, any>> = {
     // fetch is overridden below to read feeTo at run time, so revenue drops to zero if it is ever unset.
     [CHAIN.BSC]: { factory: '0x65b3cc7a7cb167221266fc93884717de2dbd074e', start: '2022-04-26', fees: 0.0025, userFeesRatio: 1, revenueRatio: 8 / 25, protocolRevenueRatio: 8 / 25, allowReadPairs: true },
   },
+  "convergence": {
+    [CHAIN.ETHEREUM]: { factory: '0x4eef5746ED22A2fD368629C1852365bf5dcb79f1', start: '2021-05-07', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+  },
+  "burgerswap": {
+    // DemaxFactory (BurgerSwap v1)
+    // volume only: the swap fee is not in the pair invariant, the platform contract pulls it out per swap (pair SwapFee event) at a
+    // governance-configured rate, and its split between LPs and the protocol is not documented.
+    [CHAIN.BSC]: { factory: '0x8a1E9d3aEbBBd5bA2A64d3355A48dD5E9b511256', start: '2020-09-19', customLogic: volumeOnly },
+  },
+  "sumswap": {
+    // 3/1000 pair invariant; 1/3 of fees minted to feeTo (rootK.mul(2) denominator), feeTo is set
+    [CHAIN.ETHEREUM]: { factory: '0x96FF042f8c6757fCE515d171F194b5816CAFEe11', start: '2021-03-15', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 3, protocolRevenueRatio: 1 / 3 },
+  },
+  "mm-finance": {
+    // MeerkatPair: swapFee 17/10000 by default (settable per pair), 2/5 of fees minted to feeTo, feeTo is set
+    [CHAIN.CRONOS]: { factory: '0xd590cC180601AEcD6eeADD9B7f2B7611519544f4', start: '2021-12-06', fees: 0.0017, userFeesRatio: 1, revenueRatio: 2 / 5, protocolRevenueRatio: 2 / 5 },
+  },
+  "binaryswap": {
+    // volume only: pair source is not verified, so the swap fee and its split are unknown
+    [CHAIN.OP_BNB]: { factory: '0xd50aaE6C73E2486B0Da718D23F35Dcf5aad25911', customLogic: volumeOnly },
+  },
+  "justmoney": {
+    // useSyncReserves: the public BitTorrent RPC is not archival, so pool balances at a past block cannot be read
+    [CHAIN.BITTORRENT]: { factory: '0x4dEb2f0976DC3Bf351555524B3A24A4feA4e137E', fees: 0.003, useSyncReserves: true, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+    [CHAIN.BSC]: { factory: '0xF2Fb1b5Be475E7E1b3C31082C958e781f73a1712', start: '2021-09-21', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+    [CHAIN.ETHEREUM]: { factory: '0xd36Aba9Ec96523b0A89886c76065852aDFE2Eb39', start: '2021-10-07', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+    [CHAIN.POLYGON]: { factory: '0xD36ABA9EC96523B0A89886C76065852ADFE2EB39', start: '2021-12-02', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+    // Tron (factory TBfTeNjh7k8PbkTad8z6WS2vqh7SQZUfQ8) is not tracked: Tron RPCs only serve eth_call at the latest block, so the log helper cannot read pairs for a past window
+  },
 }
 
 const optionsMap: Record<string, any> = {
@@ -1185,6 +1252,47 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "sumswap": {
+    Volume: "Swap volume on Sumswap pairs on Ethereum.",
+    Fees: "Traders pay a 0.3% fee on every swap.",
+    UserFees: "Traders pay a 0.3% fee on every swap.",
+    Revenue: "One third of the 0.3% swap fee (0.1% of volume) goes to the Sumswap fee address.",
+    ProtocolRevenue: "One third of the 0.3% swap fee (0.1% of volume) goes to the Sumswap fee address.",
+    SupplySideRevenue: "Two thirds of the 0.3% swap fee (0.2% of volume) stay with liquidity providers.",
+  },
+  "mm-finance": {
+    Volume: "Swap volume on MM Finance pairs on Cronos.",
+    Fees: "Traders pay a 0.17% fee on every swap.",
+    UserFees: "Traders pay a 0.17% fee on every swap.",
+    Revenue: "Two fifths of the 0.17% swap fee (0.068% of volume) go to the MM Finance fee address.",
+    ProtocolRevenue: "Two fifths of the 0.17% swap fee (0.068% of volume) go to the MM Finance fee address.",
+    SupplySideRevenue: "Three fifths of the 0.17% swap fee (0.102% of volume) stay with liquidity providers.",
+  },
+  "binaryswap": {
+    Volume: "Swap volume on BinarySwap pairs on opBNB.",
+  },
+  "burgerswap": {
+    Volume: "Swap volume on BurgerSwap pairs on BNB Smart Chain.",
+  },
+  "convergence": {
+    Volume: "Swap volume on Convergence pairs on Ethereum. Excludes the Moonbeam deployment.",
+    Fees: "Traders pay a 0.3% fee on every swap.",
+    UserFees: "Traders pay a 0.3% fee on every swap.",
+    Revenue: "One sixth of the 0.3% swap fee (0.05% of volume) goes to the Convergence fee address.",
+    ProtocolRevenue: "One sixth of the 0.3% swap fee (0.05% of volume) goes to the Convergence fee address.",
+    SupplySideRevenue: "Five sixths of the 0.3% swap fee (0.25% of volume) stay with liquidity providers.",
+  },
+  "justmoney": {
+    Volume: "Swap volume on JustMoney pairs on BitTorrent, BNB Smart Chain, Ethereum and Polygon. Excludes the Tron deployment.",
+    Fees: "Traders pay a 0.3% fee on every swap.",
+    UserFees: "Traders pay a 0.3% fee on every swap.",
+    Revenue: "One sixth of the 0.3% swap fee (0.05% of volume) goes to the JustMoney fee address.",
+    ProtocolRevenue: "One sixth of the 0.3% swap fee (0.05% of volume) goes to the JustMoney fee address.",
+    SupplySideRevenue: "Five sixths of the 0.3% swap fee (0.25% of volume) stay with liquidity providers.",
+  },
+  "fstswap": {
+    Volume: "Swap volume from all FstSwap V2 pairs deployed by the FstSwap factory on BNB Smart Chain.",
+  },
   "bitblocks-finance-v2": {
     Volume: 'Volume is derived from Swap events emitted by BitBlocks Finance V2 pairs on BNB Smart Chain.',
     Fees: 'Traders pay a 0.25% fee on every V2 swap.',
@@ -2273,6 +2381,38 @@ protocols['daoaas-swap'].adapter[CHAIN.ENI].fetch = async (options: FetchOptions
       for (const log of logs) (byPair[log.address.toLowerCase()] ??= []).push(onlyArgs ? log.args : log)
       const results = targets.map((pair: string) => byPair[pair.toLowerCase()] ?? [])
       return flatten ? results.flat() : results
+    },
+  })
+
+// This contract's same-transaction round trips through this pool produce no net DAI trade.
+protocols['rocketswap-anubis'].adapter[CHAIN.ANUBI].fetch = async (options: FetchOptions) =>
+  getUniV2LogAdapter(configs['rocketswap-anubis'][CHAIN.ANUBI])({
+    ...options,
+    getLogs: async ({ targets, flatten = true, ...params }: any) => {
+      const grouped = await options.getLogs({ ...params, targets, flatten: false, onlyArgs: false })
+      const pair = '0x32a4586797e3f561f41c0f47ca57ed08d64f3dc0'
+      const account = '0x92b53785090f6fe0717ca3cf5db8f8040d3b070b'
+      const cleaned = grouped.map((logs: any[], index: number) => {
+        if (targets[index].toLowerCase() !== pair) return logs.map(log => log.args)
+        const byTx = new Map<string, any[]>()
+        logs.forEach(log => {
+          if (log.args.to.toLowerCase() !== account) return
+          const entries = byTx.get(log.transactionHash) || []
+          entries.push(log)
+          byTx.set(log.transactionHash, entries)
+        })
+        const excluded = new Set<any>()
+        byTx.forEach(entries => {
+          if (entries.length !== 2) return
+          const [a, b] = entries.map(log => log.args)
+          if (BigInt(a.amount0In) > BigInt(b.amount0Out) && BigInt(a.amount1Out) > 0n &&
+              BigInt(a.amount1Out) === BigInt(b.amount1In) && BigInt(a.amount0Out) === 0n &&
+              BigInt(a.amount1In) === 0n && BigInt(b.amount0In) === 0n && BigInt(b.amount1Out) === 0n)
+            entries.forEach(log => excluded.add(log))
+        })
+        return logs.filter(log => !excluded.has(log)).map(log => log.args)
+      })
+      return flatten ? cleaned.flat() : cleaned
     },
   })
 

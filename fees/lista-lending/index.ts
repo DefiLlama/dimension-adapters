@@ -6,7 +6,7 @@ import { addTokensReceived } from "../../helpers/token";
 import { ethers } from "ethers";
 
 /**
- * Lista Lending (Moolah) — a Morpho-Blue fork on BSC and Ethereum.
+ * Lista Lending (Moolah) — a Morpho-Blue fork on BSC, Ethereum and Robinhood Chain.
  *
  * Fees / SupplySide / Revenue are derived from on-chain interest accrual (same shape as the
  * canonical Morpho adapter), so the full borrow interest — including the yield earned by
@@ -26,19 +26,16 @@ import { ethers } from "ethers";
 
 const WAD = 10n ** 18n;
 
-const MOOLAH: Record<string, string> = {
-  [CHAIN.BSC]: "0x8F73b65B4caAf64FBA2aF91cC5D4a2A1318E5D8C",
-  [CHAIN.ETHEREUM]: "0xf820fB4680712CD7263a0D3D024D5b5aEA82Fd70",
-};
-// Lista's LendingFeeRecipient — the fee recipient set on self-operated MoolahVaults. Used to keep
-// only Lista's own vaults (third-party curators route their fee elsewhere).
-const LENDING_FEE_RECIPIENT: Record<string, string> = {
-  [CHAIN.BSC]: "0x2E2Eed557FAb1d2E11fEA1E1a23FF8f1b23551f3",
-  [CHAIN.ETHEREUM]: "0xd10a024602E042dcb9C19e21682c3b896c8B0d30",
-};
-const API_CHAIN: Record<string, string> = {
-  [CHAIN.BSC]: "bsc",
-  [CHAIN.ETHEREUM]: "ethereum",
+// moolah: the Moolah core. feeRecipient: Lista's LendingFeeRecipient, the fee recipient set on
+// self-operated MoolahVaults, used to keep only Lista's own vaults (third-party curators route their
+// fee elsewhere). The chain key doubles as the Lista API's `chain` value.
+const chainConfig: Record<string, { moolah: string; feeRecipient: string; start: string; moolahVaultAccount?: string }> = {
+  [CHAIN.BSC]: { moolah: "0x8F73b65B4caAf64FBA2aF91cC5D4a2A1318E5D8C", feeRecipient: "0x2E2Eed557FAb1d2E11fEA1E1a23FF8f1b23551f3", start: "2025-04-16", moolahVaultAccount: "0xA0b8b78208Cfe45dDC7AC7B51B108B2742B32652" },
+  // Lista Lending launched on Ethereum later.
+  [CHAIN.ETHEREUM]: { moolah: "0xf820fB4680712CD7263a0D3D024D5b5aEA82Fd70", feeRecipient: "0xd10a024602E042dcb9C19e21682c3b896c8B0d30", start: "2025-10-02" },
+  // Moolah's first four markets were created 2026-11-04. No MoolahVault yet; feeRecipient is
+  // Moolah.feeRecipient() so the vault layer is keyed when the first one is deployed.
+  [CHAIN.ROBINHOOD]: { moolah: "0xE4153Eb04417bE05b8d6B2222E4Cdd8AE674ee76", feeRecipient: "0xa45625B4F49bd1b6BB706302525E5e54F55dacBa", start: "2026-11-04" },
 };
 
 // DAO lending-position yield reclassification (BSC only, live 2026-08-24, moolah#229).
@@ -55,15 +52,12 @@ const API_CHAIN: Record<string, string> = {
 // That savings interest is already deducted from revenue as "sLisUSD Savings Cost" in lista-lisusd
 // (totalSupply * ΔgetRate), so leaving the pool leg on the supply side here would deduct it a second
 // time. Lumpy per day (a claim realises yield accrued over many prior days) but conserved cumulatively.
-const MOOLAH_VAULT_ACCOUNT: Record<string, string> = {
-  [CHAIN.BSC]: "0xA0b8b78208Cfe45dDC7AC7B51B108B2742B32652",
-};
 const LISUSD_BSC = "0x0782b6d8c4551B9760e74c0545a9bCD90bdc41E5";
 const DAO_YIELD_RECIPIENT_BSC = "0x3b99A4177E3f430590A8473f353dD87a5a2e1BfC"; // DAO position-yield recipient -> swapped to USDT, forwarded to treasury (NOT a LISTA buy-back)
 const LISUSD_POOL_SET_BSC = "0x37DB1AE9B24055D1F9fE973Aea40B7EB2995D0Bf"; // sLisUSD savings pool, funded from the same claim
 const VAULT_PAGE_SIZE = 100;
 const vaultListUrl = (chain: string, page: number) =>
-  `https://api.lista.org/api/moolah/vault/list?page=${page}&pageSize=${VAULT_PAGE_SIZE}&sort=depositsUsd&order=desc&chain=${API_CHAIN[chain]}`;
+  `https://api.lista.org/api/moolah/vault/list?page=${page}&pageSize=${VAULT_PAGE_SIZE}&sort=depositsUsd&order=desc&chain=${chain}`;
 // The market list ignores a `chain` filter and always returns every chain, so it is fetched once for
 // both and the entries are filtered on their own `chain` field. 200 is the endpoint's page cap.
 const MARKET_PAGE_SIZE = 200;
@@ -136,13 +130,13 @@ type FixedTermRelayer = { relayer: string; brokers: Set<string> };
 const getFixedTermRelayers = async (chain: string, api: FetchOptions["api"]): Promise<FixedTermRelayer[]> => {
   const markets = await getPagedList("lista-lending/markets", MARKET_PAGE_SIZE, marketListUrl);
   const ids = markets
-    .filter((m: any) => m.chain === API_CHAIN[chain] && m.isFixedTerm)
+    .filter((m: any) => m.chain === chain && m.isFixedTerm)
     .map((m: any) => m.marketId)
     .filter(Boolean);
   if (!ids.length) return [];
   const params = await api.multiCall({
     abi: abis.idToMarketParams,
-    calls: ids.map((id: string) => ({ target: MOOLAH[chain], params: [id] })),
+    calls: ids.map((id: string) => ({ target: chainConfig[chain].moolah, params: [id] })),
   });
   // Three BSC markets (slisBNB/lisUSD, WBNB/lisUSD, BTCB/lisUSD) are genuine fixed-term markets that
   // have no broker wired up yet: their `oracle` is still the plain price oracle
@@ -171,20 +165,22 @@ const getFixedTermRelayers = async (chain: string, api: FetchOptions["api"]): Pr
 
 const fetch = async (options: FetchOptions) => {
   const { chain, api } = options;
+  const { moolah, feeRecipient, moolahVaultAccount } = chainConfig[chain];
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
   // ---- Market layer: total borrow interest + market protocol fee ----
-  const interestLogs = await options.getLogs({ target: MOOLAH[chain], eventAbi: abis.AccrueInterest });
+  const interestLogs = await options.getLogs({ target: moolah, eventAbi: abis.AccrueInterest });
 
   const marketIds = [...new Set(interestLogs.map((log: any) => String(log.id)))];
   const loanToken: Record<string, string> = {};
   const marketFeeRate: Record<string, bigint> = {};
   if (marketIds.length) {
+    const calls = marketIds.map((id) => ({ target: moolah, params: [id] }));
     const [params, markets] = await Promise.all([
-      api.multiCall({ abi: abis.idToMarketParams, calls: marketIds.map((id) => ({ target: MOOLAH[chain], params: [id] })) }),
-      api.multiCall({ abi: abis.market, calls: marketIds.map((id) => ({ target: MOOLAH[chain], params: [id] })) }),
+      api.multiCall({ abi: abis.idToMarketParams, calls }),
+      api.multiCall({ abi: abis.market, calls }),
     ]);
     marketIds.forEach((id, i) => {
       loanToken[id] = params[i].loanToken;
@@ -208,7 +204,7 @@ const fetch = async (options: FetchOptions) => {
   if (vaults.length) {
     const feeRecipients = await api.multiCall({ abi: "address:feeRecipient", calls: vaults, permitFailure: true });
     const listaVaults = vaults.filter(
-      (_, i) => feeRecipients[i]?.toLowerCase() === LENDING_FEE_RECIPIENT[chain].toLowerCase()
+      (_, i) => feeRecipients[i]?.toLowerCase() === feeRecipient.toLowerCase()
     );
 
     if (listaVaults.length) {
@@ -286,7 +282,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = dailyRevenue.clone();
 
   // ---- DAO lending-position yield: reclassify from supply-side to protocol revenue ----
-  const moolahVaultAccount = MOOLAH_VAULT_ACCOUNT[chain];
   if (moolahVaultAccount) {
     const daoYield = options.createBalances();
     await addTokensReceived({
@@ -344,11 +339,8 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true,
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.BSC]: { fetch, start: "2025-04-16" },
-    // Lista Lending launched on Ethereum later.
-    [CHAIN.ETHEREUM]: { fetch, start: "2025-10-02" },
-  },
+  fetch,
+  adapter: chainConfig,
 };
 
 export default adapter;

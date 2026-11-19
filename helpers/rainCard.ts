@@ -6,6 +6,12 @@ const LIQUIDATION_EVENT =
 const LIQUIDATION_TOPIC =
   "0x246873b6476f9c2a33e0de31e3a9a0d3d6e9268b413d04928209351193ed31fb";
 
+// Rain settles through Coordinator contracts since 2026-11-04; the old contracts emit nothing after that.
+const COORDINATOR_LIQUIDATION_EVENT =
+  "event Liquidation(address indexed collateralProxy, address[] assets, uint256[] amountsNative, uint256[] amountsCents, uint8[] assetDecimals, uint256 netAmountCents, uint256[] feeNative, string indexed indexedTeamId, string teamId, string indexed indexedStatementId, string statementId)";
+const COORDINATOR_LIQUIDATION_TOPIC =
+  "0x8ffbf5b0226477a4783d04864504c4387123a733c097c607511ad62050434a66";
+
 const topic = (address: string) =>
   "0x000000000000000000000000" + address.slice(2).toLowerCase();
 
@@ -16,6 +22,19 @@ export const DefaultRainContracts: Record<string, string> = {
   [CHAIN.OPTIMISM]: "0x753Fb325Ca30f229E616eA8E6Eb620D0Bb29D0Df",
   [CHAIN.ETHEREUM]: "0xE5D3d7da4b24bc9D2FDA0e206680CD8A00C0FeBD",
   [CHAIN.POLYGON]: "0x5d5Cef756412045617415FC78D510003238EAfFd",
+  [CHAIN.AVAX]: "0x753Fb325Ca30f229E616eA8E6Eb620D0Bb29D0Df",
+};
+
+/** Rain Coordinator contracts, start = 2026-11-04. */
+export const RainCoordinatorContracts: Record<string, { address: string; start: number }> = {
+  // https://repo.sourcify.dev/8453/0x199cE51868ECC2d7c3cA622fE9EB4991eF6bA15b
+  [CHAIN.BASE]: { address: "0x199cE51868ECC2d7c3cA622fE9EB4991eF6bA15b", start: 1793750400 },
+  // not on Sourcify; same address and deployer as Optimism, emits the same Liquidation since block 521219677
+  [CHAIN.ARBITRUM]: { address: "0x0bbB2e4C8F159406ADD28506F33D20Fbec4E57F4", start: 1793750400 },
+  // https://repo.sourcify.dev/10/0x0bbB2e4C8F159406ADD28506F33D20Fbec4E57F4
+  [CHAIN.OPTIMISM]: { address: "0x0bbB2e4C8F159406ADD28506F33D20Fbec4E57F4", start: 1793750400 },
+  // https://repo.sourcify.dev/43114/0x0bbB2e4C8F159406ADD28506F33D20Fbec4E57F4
+  [CHAIN.AVAX]: { address: "0x0bbB2e4C8F159406ADD28506F33D20Fbec4E57F4", start: 1793750400 },
 };
 
 export interface RainCardChainConfig {
@@ -63,6 +82,22 @@ export function rainCardAdapterExport(
           dailyVolume.add(asset, log._amounts[index]);
         });
       });
+
+      const coordinator = RainCoordinatorContracts[options.chain];
+      if (coordinator && options.endTimestamp > coordinator.start) {
+        const coordinatorLogs = await options.getLogs({
+          target: coordinator.address,
+          eventAbi: COORDINATOR_LIQUIDATION_EVENT,
+          topics: [COORDINATOR_LIQUIDATION_TOPIC, topic(chainConfig.collateralProxy)],
+        });
+
+        // amountsNative is what leaves the proxy; Rain's feeNative is charged on top (0 on every log seen so far)
+        coordinatorLogs.forEach((log: any) => {
+          log.assets.forEach((asset: string, index: number) => {
+            dailyVolume.add(asset, log.amountsNative[index]);
+          });
+        });
+      }
 
       return { dailyVolume };
     },
@@ -129,6 +164,20 @@ const rainCardProtocols: Record<string, SimpleAdapter> = {
     },
     {
       Volume: "Total USD value of spends settled through Kolo Rain contracts.",
+    }
+  ),
+  "ethena-pay": rainCardAdapterExport(
+    {
+      [CHAIN.AVAX]: {
+        // Rain Collateral proxy created 2026-06-02 by Rain's Factory 0x154f97554eaa9ecca7b75fc3daca021613f9ac95
+        // (tx 0x0ebf2458e381cbe51d6d6a0559b047ceb7bb399059194421db722251a09f4a0e); first matched log: 2026-07-25.
+        start: "2026-07-25",
+        collateralProxy: "0x6070848bd19c37488d0516058f2933dd992733de",
+      },
+    },
+    {
+      Volume:
+        "Total USD value of Ethena Pay card spends settled from its Rain collateral contract on Avalanche, in USDe (the first settlement, on 2026-07-25, was in USDC).",
     }
   ),
 };

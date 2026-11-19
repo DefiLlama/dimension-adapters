@@ -12,6 +12,8 @@ export const DefaultDexTokensBlacklisted: Record<string, Array<string>> = {
     "0x3e985250cb137fc1ff55922116934c5982d29f85", // ZENT - supply inflated to 5e45 tokens
     "0x8d010bf9C26881788b4e6bf5Fd1bdC358c8F90b8", // DOT
     "0xBC33B4D48f76d17A1800aFcB730e8a6AAada7Fe5", //vDOT
+    "0x50bd66d59911f5e086ec87ae43c811e0d059dd11", // sBOLD - vault drained 2026-11-18 ~12:15 UTC, supply minted 3.1M -> 4.3e19
+    "0x2a21f68b60156860615bd27ac958df817df45aa3", // PT-sBOLD-4FEB2027 - minted from the inflated sBOLD (240k -> 568M supply) and dumped through 99%-fee Uniswap v4 pools (e.g. tx 0x7c6ab40136191bf0393242f6ff8b1c6b65b17420019aecc70519c5be12a43b06)
   ],
   [CHAIN.BSC]: [
     "0xac68931b666e086e9de380cfdb0fb5704a35dc2d", // old BNBTiger

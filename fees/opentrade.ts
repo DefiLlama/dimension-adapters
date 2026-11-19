@@ -130,18 +130,96 @@ const config: Record<string, VaultConfig[]> = {
   ],
 };
 
+// Vault factories, same as projects/opentrade in DefiLlama-Adapters. Every vault they create emits
+// PoolCreated(addr), so new vaults are picked up without editing a list. The static config above
+// stays for vaults that predate the factories (avax XTBT, XEVT and XRV1 are not in the avax
+// factory's logs).
+// At avax block 100456203 the avax factory had created 41 vaults holding 143.77M, of which the static
+// list covered 98k: XDFIS 0x1f04e890 (35.75M), xSLP 0x91f9f243 (34.32M), XDFIS-DeFi-2 0xc0fd0afa
+// (27.58M), xPPV 0xb031add7 (15.75M) and XUPL 0xad4388a3 (10.90M) were all missing.
+// fromBlock is the earliest factory's deploy block on the chain.
+const FACTORIES: Record<string, { fromBlock: number; addresses: string[] }> = {
+  [CHAIN.AVAX]: {
+    fromBlock: 59429843,
+    addresses: ["0x4D3b32Bb456A6E387682F6CD37FacefE9A219d0c"],
+  },
+  [CHAIN.ETHEREUM]: {
+    fromBlock: 18667715,
+    addresses: [
+      "0x0a3b7bb45ac8e267Cc4E4b2CbDB52B967d82dF18", // deployed at block 22125605
+      "0x61424410C0BB1C580ed6363FE9405d9e84FA0578", // deployed at block 19329359
+      "0xc472d3a47719DE5F9d808CA91d7B70BD2138bCAa", // deployed at block 18667715
+    ],
+  },
+  [CHAIN.PLUME]: {
+    fromBlock: 1684555,
+    addresses: ["0xA9cC3Bcf7C22895dA2A7c32a99276D734840D8d3"],
+  },
+};
+
+// Test and empty factory pools that revert on totalAssets(), same list as projects/opentrade
+const BLACKLIST: Record<string, string[]> = {
+  [CHAIN.AVAX]: [
+    "0xf5fd160c5037568d38969c0cf4be05f36a3f7560", // XEURC-LIQ-1
+    "0x9a57a503e8e72ea240b47491598d7d6a27fb4dbc", // XEMMF
+    "0x3c1c7bc69ffcab2cc1ce687764b66ba35d632b7e", // XMMF
+    "0xcc2716d82cb4916417f5e3922573245639088592", // xAPFL
+    "0x5e11edd61e79b1471179ef6f67d9587455377273", // XEPV
+    "0xcdc7859f0486be52af0e9959443e735a578b8131", // xAaveUSDC-ETH
+  ],
+  [CHAIN.PLUME]: [
+    "0x73de0dde768cbb92683c48c670f3a11057e51dac", // TEST-1
+    "0xf1f5b68833abebbfd5a559977b5b91a110286012", // TEST-002
+  ],
+};
+
 const abis = {
   exchangeRate: "uint256:exchangeRate",
   totalSupply: "uint256:totalSupply",
   totalAssets: "uint256:totalAssets",
+  liquidityAssetAddr: "address:liquidityAssetAddr",
+  poolCreated: "event PoolCreated(address indexed addr)",
 };
+
+async function getVaults(options: FetchOptions): Promise<VaultConfig[]> {
+  const vaults: VaultConfig[] = [...config[options.chain]];
+  const seen = new Set([
+    ...vaults.map((v) => v.address.toLowerCase()),
+    ...(BLACKLIST[options.chain] ?? []),
+  ]);
+
+  const { fromBlock, addresses } = FACTORIES[options.chain];
+  const logs = await options.getLogs({
+    targets: addresses,
+    eventAbi: abis.poolCreated,
+    fromBlock,
+    cacheInCloud: true,
+  });
+  const created: string[] = [];
+  for (const log of logs) {
+    const addr = log.addr?.toLowerCase();
+    if (!addr || seen.has(addr)) continue;
+    seen.add(addr);
+    created.push(log.addr);
+  }
+  if (!created.length) return vaults;
+
+  const assets = await options.api.multiCall({
+    abi: abis.liquidityAssetAddr,
+    calls: created,
+  });
+  created.forEach((address, i) => {
+    vaults.push({ address, asset: assets[i], name: address });
+  });
+  return vaults;
+}
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const vaults = config[options.chain];
+  const vaults = await getVaults(options);
   const vaultAddresses = vaults.map((v) => v.address);
 
   // Calculate period as fraction of year (using 252 trading days)

@@ -1,10 +1,17 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryAllium } from "../helpers/allium"
-import { JUPITER_METRICS, jupTreasuryShare } from "./jupiter"
+import { getJupiter2025Fees, JUP_BUY_BACK_START_TIME, JUPITER_METRICS, jupTreasuryShare } from "./jupiter"
 import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../helpers/jupiter-stats"
 
-const fetchOnchain = async (options: FetchOptions) => {
+// Before 2025-02-17, Allium. From 2025-02-17 to 2025-12-31 the saved Dune query has the same v1 and v2 fees, plus v2 orders
+// filled as swaps by the keeper (from 2025-10-02), which pay into the Jupiter fee authorities and are left out of the
+// Jupiter Aggregator listing.
+const getFees = async (options: FetchOptions) => {
+  if (options.startOfDay >= JUP_BUY_BACK_START_TIME) {
+    const row = await getJupiter2025Fees(options)
+    return [{ product: 'lo_v1', usd_amount: row.limit_v1_usd }, { product: 'lo_v2', usd_amount: row.limit_usd }]
+  }
   const data: { usd_amount: number; product: string }[] = await queryAllium(`
     -- v1: All transfers to fee wallet excluding transfers from the wallet itself
     SELECT 
@@ -28,10 +35,12 @@ const fetchOnchain = async (options: FetchOptions) => {
       AND t.block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
       AND t.block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
   `);
+  return data
+}
 
+const fetchOnchain = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-
-  data.forEach(row => {
+  (await getFees(options)).forEach(row => {
     const metric = row.product === 'lo_v1' ? JUPITER_METRICS.LimitOrderV1Fees : JUPITER_METRICS.LimitOrderV2Fees;
     dailyFees.addUSDValue(row.usd_amount, metric);
   });
@@ -81,7 +90,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2022-10-14',
-  dependencies: [Dependencies.ALLIUM],
+  dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology,
   breakdownMethodology

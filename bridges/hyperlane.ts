@@ -54,6 +54,7 @@ type WarpToken = {
   chainName: string;
   standard: string;
   symbol: string;
+  decimals: number;
   collateralAddressOrDenom?: string;
   scale?: number | { numerator: number; denominator: number };
 };
@@ -70,7 +71,8 @@ async function getWarpRoutes(): Promise<Record<string, { tokens: WarpToken[] }>>
   });
 }
 
-// event amounts are in the route's message units; local amount = amount * denominator / numerator
+// event amounts are in the route's message units; local amount = amount * denominator / numerator.
+// Registry value, used only for routers that predate the on-chain scale getters (see getRouters)
 function getScale(t: WarpToken) {
   if (t.scale === undefined) return { numerator: 1n, denominator: 1n };
   if (typeof t.scale === "number") return { numerator: BigInt(t.scale), denominator: 1n };
@@ -85,32 +87,55 @@ function getPriceKey(t: WarpToken): string | undefined {
   if (NATIVE_STANDARDS.has(t.standard)) return `${chain}:${NULL_ADDRESS}`;
 }
 
-async function getRouters(chain: string): Promise<Router[]> {
+async function getRouters(options: FetchOptions): Promise<Router[]> {
+  const chain = options.chain;
   const routes = await getWarpRoutes();
   // keyed by address: a router can be listed in several routes (e.g. MoonPay's CROSS/moonpay and USDC/moonpay)
-  const routers = new Map<string, Router>();
+  const listed = new Map<string, { t: WarpToken; tokens: WarpToken[] }>();
   for (const { tokens } of Object.values(routes)) {
     for (const t of tokens) {
       if (chainMap[t.chainName] !== chain || !t.standard.startsWith("Evm") || SKIP_STANDARDS.has(t.standard)) continue;
-      if (routers.has(t.addressOrDenom.toLowerCase())) continue;
-      let token = getPriceKey(t);
-      let scale = getScale(t);
-      if (!token && SYNTHETIC_STANDARDS.has(t.standard)) {
-        // synthetics are minted by the route and often unpriced on small chains; price them in the same
-        // asset locked by the route's collateral router, converted into that router's units
-        const anchor = tokens.find((a) => a.symbol === t.symbol && !SKIP_STANDARDS.has(a.standard) && getPriceKey(a));
-        if (anchor) {
-          token = getPriceKey(anchor);
-          scale = getScale(anchor);
-        } else {
-          token = `${chain}:${t.addressOrDenom.toLowerCase()}`;
-        }
-      }
-      if (!token) continue; // collateral router without a collateral token in the registry
-      routers.set(t.addressOrDenom.toLowerCase(), { address: t.addressOrDenom, token, ...scale });
+      if (!listed.has(t.addressOrDenom.toLowerCase())) listed.set(t.addressOrDenom.toLowerCase(), { t, tokens });
     }
   }
-  return [...routers.values()];
+  const entries = [...listed.values()];
+
+  // The scale is read from the router itself: the registry omits it on some routes (USDC/eni lists none while
+  // its 6-decimal routers return scale() = 1e12, which priced 18-decimal message amounts as 6-decimal USDC).
+  // permitFailure because the getter depends on the router version: scale(), scaleNumerator()/scaleDenominator()
+  // on newer ones, neither on old unscaled routers. Routers answering neither fall back to the registry value.
+  const calls = entries.map(({ t }) => t.addressOrDenom);
+  const scales = await options.api.multiCall({ abi: "uint256:scale", calls, permitFailure: true });
+  const numerators = await options.api.multiCall({ abi: "uint256:scaleNumerator", calls, permitFailure: true });
+  const denominators = await options.api.multiCall({ abi: "uint256:scaleDenominator", calls, permitFailure: true });
+
+  const routers: Router[] = [];
+  entries.forEach(({ t, tokens }, i) => {
+    let token = getPriceKey(t);
+    let { numerator, denominator } = getScale(t);
+    if (scales[i]) {
+      numerator = BigInt(scales[i]);
+      denominator = 1n;
+    } else if (numerators[i] && denominators[i]) {
+      numerator = BigInt(numerators[i]);
+      denominator = BigInt(denominators[i]);
+    }
+    if (!token && SYNTHETIC_STANDARDS.has(t.standard)) {
+      // synthetics are minted by the route and often unpriced on small chains; price them in the same
+      // asset locked by the route's collateral router, converted from this router's decimals to that token's
+      const anchor = tokens.find((a) => a.symbol === t.symbol && !SKIP_STANDARDS.has(a.standard) && getPriceKey(a));
+      if (anchor) {
+        token = getPriceKey(anchor);
+        numerator *= 10n ** BigInt(t.decimals);
+        denominator *= 10n ** BigInt(anchor.decimals);
+      } else {
+        token = `${chain}:${t.addressOrDenom.toLowerCase()}`;
+      }
+    }
+    if (!token) return; // collateral router without a collateral token in the registry
+    routers.push({ address: t.addressOrDenom, token, numerator, denominator });
+  });
+  return routers;
 }
 
 // logs grouped per target. The range is split here rather than with getLogs' maxBlockRange, which returns
@@ -129,7 +154,7 @@ async function getRouterLogs(options: FetchOptions, targets: string[], eventAbi:
 }
 
 const fetch = async (options: FetchOptions) => {
-  const routers = await getRouters(options.chain);
+  const routers = await getRouters(options);
   const dailyOutgoingVolume = options.createBalances();
   const dailyIncomingVolume = options.createBalances();
   let dailyOutgoingTxCount = 0;

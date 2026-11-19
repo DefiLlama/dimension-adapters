@@ -281,7 +281,7 @@ const evmChainConfig: Record<string, { start: string; contract: string }> = {
     start: "2024-06-01",
     contract: "0x36825bf3Fbdf5a29E2d5148bfe7Dcf7B5639e320",
   },
-  [CHAIN.IOTA]: { start: "2024-06-01", contract: "0x8D254a21b3C86D32F7179855531CE99164721933" },
+  [CHAIN.IOTAEVM]: { start: "2024-06-01", contract: "0x8D254a21b3C86D32F7179855531CE99164721933" },
 };
 
 const DEFAULT_FEE = 1n;

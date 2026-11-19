@@ -269,12 +269,19 @@ const buildEvmFetcher = (factory: string) => async (options: FetchOptions) => {
     swapEvent: poolSwapEvent,
     blacklistTokens: await getDexTokensBlacklisted(options),
     userFeesRatio: 1,
-    getRevenueRatio: ({ poolFeeTier }: UniGetRevenueRatioProps) => {
-      const _protocolRevenueRatio = getProtocolRevenueRatio(poolFeeTier);
-      const _holdersRevenueRatio = getHolderRevenueRatio(poolFeeTier);
+    // the protocol cut is set per pool (32-34% by tier, 12% since The Flip, rolled out from 2026-11-05), so read it from each Swap log
+    protocolFeesInSwapEvent: true,
+    getRevenueRatio: ({ poolFeeTier, protocolFeeRatio }: UniGetRevenueRatioProps) => {
+      if (protocolFeeRatio === undefined) throw new Error('pancakeswap-v3: protocol fee ratio missing');
+      // the CAKE buyback share applies only while a pool runs its default cut; The Flip sends the 12% cut to the treasury
+      // https://forum.pancakeswap.finance/t/proposal-discussion-the-flip-liquidity-should-get-paid-more/1658
+      // the pool floors the protocol fee per swap step, so small swaps measure a few points below their cut; every
+      // non-default cut set on-chain so far (10-20%) sits 12+ points below the 32-34% defaults
+      const isDefaultCut = Math.abs(protocolFeeRatio - (getProtocolRevenueRatio(poolFeeTier) + getHolderRevenueRatio(poolFeeTier))) < 0.05;
+      const _holdersRevenueRatio = isDefaultCut ? getHolderRevenueRatio(poolFeeTier) : 0;
       return {
-        _revenueRatio: _protocolRevenueRatio + _holdersRevenueRatio,
-        _protocolRevenueRatio,
+        _revenueRatio: protocolFeeRatio,
+        _protocolRevenueRatio: protocolFeeRatio - _holdersRevenueRatio,
         _holdersRevenueRatio,
       };
     },
@@ -407,7 +414,7 @@ const methodology = {
   Revenue: "Pancakeswap collects amount of swap fees for Treasury and buy back CAKE.",
   SupplySideRevenue: "Fees distributed to LPs",
   ProtocolRevenue: "Swap fees collected by Pancakeswap - distribute to Treasury",
-  HoldersRevenue: "Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools",
+  HoldersRevenue: "Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools while a pool runs its default protocol fee; pools moved to the 12% protocol fee by The Flip (from November 2026) send it all to Treasury",
 }
 
 const breakdownMethodology = {
@@ -416,7 +423,7 @@ const breakdownMethodology = {
   },
   Revenue: {
     [METRIC.PROTOCOL_REVENUE]: 'Swap fees collected by Pancakeswap - distribute to Treasury',
-    [METRIC.HOLDERS_REVENUE]: 'Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools',
+    [METRIC.HOLDERS_REVENUE]: 'Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools while a pool runs its default protocol fee; pools moved to the 12% protocol fee by The Flip (from November 2026) send it all to Treasury',
   },
   ProtocolRevenue: {
     [METRIC.PROTOCOL_REVENUE]: 'Swap fees collected by Pancakeswap - distribute to Treasury',
@@ -425,7 +432,7 @@ const breakdownMethodology = {
     [METRIC.LP_REVENUE]: 'Fees distributed to LPs',
   },
   HoldersRevenue: {
-    [METRIC.BUY_BACK_AND_BURN]: 'Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools',
+    [METRIC.BUY_BACK_AND_BURN]: 'Swap fees collected to buyback and burn CAKE: 15% fees in 0.01%, 0.05% tier pools, 23% fees in 0.25%, 1% tier pools while a pool runs its default protocol fee; pools moved to the 12% protocol fee by The Flip (from November 2026) send it all to Treasury',
   },
 }
 

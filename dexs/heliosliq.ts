@@ -12,9 +12,10 @@ import { METRIC } from "../helpers/metrics";
 //  - the pool's LP fee, set per swap by the hook (a launch fee that steps down, a base fee that rises with
 //    volatility, a tax on sandwich bots) and carried in the PoolManager's Swap event. It stays in the pool
 //    for its liquidity providers.
-//  - Helios' protocol fee, 0.1% of the swap's unspecified side (protocolFeeBps = 10 on both hooks since
-//    they were deployed, capped at 1% by the contract). The hook logs each one as ProtocolFeeTaken and
-//    holds it for the treasury (protocolFeeRecipient).
+//  - Helios' protocol fee, a share of the swap's unspecified side: protocolFeeBps was 10 (0.1%) on every
+//    hook from its deployment and was raised to 25 (0.25%) on all three hooks on 2026-11-11 at 21:43-21:44 UTC
+//    (ProtocolFeeSet events, blocks 4973465, 4973472 and 4973860); the contract caps it at 1%. The hook logs
+//    each one as ProtocolFeeTaken and holds it for the treasury (protocolFeeRecipient 0x3C4746CbE3a1c07163d9C838190295390F412bB9).
 //
 // The pools sit in the canonical Uniswap v4 PoolManager, so dexs/uniswap-v4 can count the same swaps:
 // hence doublecounted.
@@ -37,6 +38,7 @@ const POOL_MANAGER = "0xE2e105d3F7209A9DA11f83cCf3E7398a753823F1"; // Uniswap v4
 const FEE_HOOKS = [
   "0xa129c69D439f30e6FfACC435a1627b7f4F9d30c4", // HeliosFeeHook, deployed 2026-11-04 03:56 UTC
   "0x885E170Ab95421C38175d6aD43017b54AD6E30c4", // HeliosFeeHook v2 (adds the sandwich tax)
+  "0x24a3605dCa5ceD3Fdacb323843A9ab0F5497faCC",
 ].map((a) => a.toLowerCase());
 const HOOK_FROM_BLOCK = 347956; // the first hook's deployment block: no Helios pool exists before it
 
@@ -202,28 +204,28 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Volume: "Swap volume in Helios DLMM and DAMM pools (the Uniswap v4 pools that carry the Helios fee hook), counted once per trade as what the trader paid in, on the HYPE or stablecoin side of the pool.",
-  Fees: "Fees paid by traders on swaps in Helios DLMM and DAMM pools (each pool's LP fee, which the Helios hook sets per swap, plus Helios' 0.1% protocol fee), and since 2026-11-09 the creator fee Helios earns on trades of $HELIOS in the token's pool on Boxa.",
+  Fees: "Fees paid by traders on swaps in Helios DLMM and DAMM pools (each pool's LP fee, which the Helios hook sets per swap, plus Helios' protocol fee of 0.1% of the swap until 2026-11-11 and 0.25% since), and since 2026-11-09 the creator fee Helios earns on trades of $HELIOS in the token's pool on Boxa.",
   SupplySideRevenue: "The LP fee of every swap in Helios DLMM and DAMM pools, which stays in the pool for its liquidity providers.",
-  Revenue: "Helios' 0.1% protocol fee on every swap in its DLMM and DAMM pools, taken by the fee hook, and since 2026-11-09 the creator fee Helios earns on trades of $HELIOS in the token's pool on Boxa.",
-  ProtocolRevenue: "Helios' 0.1% protocol fee on every swap in its DLMM and DAMM pools, taken by the fee hook for the Helios treasury, and the treasury's 45% of the creator fee Helios earns on trades of $HELIOS in the token's pool on Boxa.",
+  Revenue: "Helios' protocol fee on every swap (0.1% until 2026-11-11, 0.25% since) in its DLMM and DAMM pools, taken by the fee hook, and since 2026-11-09 the creator fee Helios earns on trades of $HELIOS in the token's pool on Boxa.",
+  ProtocolRevenue: "Helios' protocol fee on every swap (0.1% until 2026-11-11, 0.25% since) in its DLMM and DAMM pools, taken by the fee hook for the Helios treasury, and the treasury's 45% of the creator fee Helios earns on trades of $HELIOS in the token's pool on Boxa.",
   HoldersRevenue: "HYPE that Helios pays to $HELIOS stakers and HYPE that Helios spends buying $HELIOS back from the market to burn it, since the token's relaunch on 2026-11-09. Both are paid out of the creator fee Helios earns on trades of $HELIOS in the token's pool on Boxa (half of it for buybacks, 5% for stakers), and are counted when they are paid.",
 };
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.SWAP_FEES]: "The LP fee of each swap in a Helios DLMM or DAMM pool, at the rate the hook set for that swap (carried in the Uniswap v4 Swap event).",
-    [PROTOCOL_SWAP_FEE]: "Helios' 0.1% protocol fee on each swap in a Helios DLMM or DAMM pool, from the hook's ProtocolFeeTaken events.",
+    [PROTOCOL_SWAP_FEE]: "Helios' protocol fee on each swap (0.1% until 2026-11-11, 0.25% since) in a Helios DLMM or DAMM pool, from the hook's ProtocolFeeTaken events.",
     [CREATOR_FEES]: "The token creator's part of each swap fee in the $HELIOS pool on Boxa, which Helios receives as the token's creator, from the Boxa hook's FeeTaken events. Boxa's own part of that fee is not counted.",
   },
   SupplySideRevenue: {
     [SWAP_FEES_TO_LPS]: "All LP fees, which stay in the pools for their liquidity providers.",
   },
   Revenue: {
-    [PROTOCOL_SWAP_FEE_TO_TREASURY]: "All of Helios' 0.1% protocol fee, held by the hook for the Helios treasury.",
+    [PROTOCOL_SWAP_FEE_TO_TREASURY]: "All of Helios' protocol fee (0.1% of each swap until 2026-11-11, 0.25% since), held by the hook for the Helios treasury.",
     [CREATOR_FEES_TO_HELIOS]: "All of the creator fee from the $HELIOS pool on Boxa. Helios uses half to buy $HELIOS back and burn it, keeps 45% in the treasury and pays 5% to $HELIOS stakers.",
   },
   ProtocolRevenue: {
-    [PROTOCOL_SWAP_FEE_TO_TREASURY]: "All of Helios' 0.1% protocol fee, held by the hook for the Helios treasury.",
+    [PROTOCOL_SWAP_FEE_TO_TREASURY]: "All of Helios' protocol fee (0.1% of each swap until 2026-11-11, 0.25% since), held by the hook for the Helios treasury.",
     [CREATOR_FEES_TO_TREASURY]: "The treasury's 45% of the creator fee from the $HELIOS pool on Boxa: the half not used for buybacks, less the tenth of it paid to stakers.",
   },
   HoldersRevenue: {

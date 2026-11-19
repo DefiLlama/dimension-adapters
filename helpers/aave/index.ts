@@ -16,6 +16,15 @@ export interface AaveLendingPoolConfig {
   ignoreLiquidation?: boolean;
   ignoreFlashloan?: boolean;
 
+  // Events from these transactions are not fees. Only for an incident whose logs are not
+  // fees someone paid (AGENTS.md: exploit fees are excluded, not whitelisted). A fixed list
+  // of past transaction hashes, so any day replays the same way. Drops LiquidationCall and
+  // FlashLoan from the listed transactions, and takes the supplier share of those flashloan
+  // premiums back out of the liquidity-index interest, which is where Aave credits it.
+  // Requires identifiable positive LP index jumps after an earlier same-transaction update;
+  // exclusions with a zero LP share or custom repayment callbacks need separate handling.
+  excludeTxHashes?: Array<string>;
+
   // GHO on aave
   selfLoanAssets?: {
     // address => symbol
@@ -34,6 +43,11 @@ const PercentageMathDecimals = 1e4;
 
 // https://etherscan.io/address/0x02d84abd89ee9db409572f19b6e1596c301f3c81#code#F16#L16
 const LiquidityIndexDecimals = BigInt(1e27);
+
+function excludedTxSet(pool: AaveLendingPoolConfig): Set<string> | null {
+  if (!pool.excludeTxHashes?.length) return null
+  return new Set(pool.excludeTxHashes.map((txHash) => txHash.toLowerCase()))
+}
 
 const SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
 const MAX_REASONABLE_SUPPLY_APR = 10; // 1000% APR
@@ -130,6 +144,54 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
     })
   }
 
+  const excludedTxHashes = excludedTxSet(pool)
+  // Remove premium index jumps on the same opening-supply basis as the interest below.
+  const excludedLiquidityIndexGrowth = new Map<string, bigint>()
+  let includedFlashloanEvents: Array<any> | null = null
+  if (excludedTxHashes && !pool.ignoreFlashloan) {
+    const flashloanLogs: Array<any> = await options.getLogs({
+      target: pool.lendingPoolProxy,
+      eventAbi: AaveAbis.FlashloanEvent,
+      onlyArgs: false,
+    })
+    let excludedFlashloans = flashloanLogs.filter(log => excludedTxHashes.has(String(log.transactionHash).toLowerCase()) && BigInt(log.args.premium) > 0n)
+    includedFlashloanEvents = flashloanLogs.filter(log => !excludedTxHashes.has(String(log.transactionHash).toLowerCase())).map(log => log.args)
+    if (excludedFlashloans.length) {
+      // fromApi reads post-state at the opening block, whose premiums are already in its index.
+      const openingBlock = await options.getFromBlock()
+      excludedFlashloans = excludedFlashloans.filter(log => Number(log.blockNumber) > openingBlock)
+    }
+    if (excludedFlashloans.length) {
+      const reserveUpdates: Array<any> = await options.getLogs({
+        target: pool.lendingPoolProxy,
+        eventAbi: 'event ReserveDataUpdated(address indexed reserve,uint256 liquidityRate,uint256 stableBorrowRate,uint256 variableBorrowRate,uint256 liquidityIndex,uint256 variableBorrowIndex)',
+        onlyArgs: false,
+      })
+      const updates = new Map<string, { previous?: any, current: any, used: boolean }>()
+      const events = [...reserveUpdates, ...excludedFlashloans]
+        .sort((a, b) => Number(a.blockNumber) - Number(b.blockNumber) || Number(a.logIndex ?? a.index) - Number(b.logIndex ?? b.index))
+      for (const event of events) {
+        if (event.args.reserve) {
+          const asset = String(event.args.reserve).toLowerCase()
+          updates.set(asset, { previous: updates.get(asset)?.current, current: event, used: false })
+          continue
+        }
+        const asset = String(event.args.asset).toLowerCase()
+        const pair = updates.get(asset)
+        // FlashLoanLogic updates the reserve before emitting FlashLoan. An earlier update in
+        // the same transaction has already accrued ordinary interest; no time elapses between
+        // those updates, so their index difference is only the repayment premium.
+        // Require that evidence rather than guessing when a configured incident differs.
+        if (!pair || pair.used || pair.previous?.transactionHash !== event.transactionHash || pair.current.transactionHash !== event.transactionHash)
+          throw new Error(`aave: cannot isolate excluded flashloan index growth for ${event.transactionHash} ${asset}`)
+        const growth = BigInt(pair.current.args.liquidityIndex) - BigInt(pair.previous.args.liquidityIndex)
+        if (growth <= 0n) throw new Error(`aave: cannot isolate positive excluded flashloan index growth for ${event.transactionHash} ${asset}`)
+        excludedLiquidityIndexGrowth.set(asset, (excludedLiquidityIndexGrowth.get(asset) ?? 0n) + growth)
+        pair.used = true
+      }
+    }
+  }
+
   // all calculations use BigInt because aave math has 27 decimals
   for (let reserveIndex = 0; reserveIndex < reservesList.length; reserveIndex++) {
     if (skipReserveIndexes.has(reserveIndex)) continue
@@ -192,7 +254,8 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       // normal reserves
       const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
       const reserveLiquidityIndexAfter = BigInt(reserveDataAfter[reserveIndex].liquidityIndex)
-      const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore
+      const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore - (excludedLiquidityIndexGrowth.get(token) ?? 0n)
+      if (excludedLiquidityIndexGrowth.has(token) && growthLiquidityIndex < 0n) throw new Error(`aave: excluded index growth exceeds window growth for ${token}`)
 
       const windowSeconds = options.toTimestamp - options.fromTimestamp
 
@@ -218,8 +281,8 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
   }
 
   if (!pool.ignoreFlashloan) {
-    // get flashloan fees
-    const flashloanEvents = await options.getLogs({
+    // get flashloan fees. A pool that excludes transactions already split these logs above.
+    const flashloanEvents = includedFlashloanEvents ?? await options.getLogs({
       target: pool.lendingPoolProxy,
       eventAbi: AaveAbis.FlashloanEvent,
     })
@@ -251,10 +314,15 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
   if (!pool.ignoreLiquidation) {
     // aave v3 has liquidation protocol fees which is a partition from liquidation bonus
     if (pool.version === 3) {
-      const liquidationEvents: Array<any> = await options.getLogs({
+      const liquidationLogs: Array<any> = await options.getLogs({
         target: pool.lendingPoolProxy,
         eventAbi: AaveAbis.LiquidationEvent,
+        // the transaction hash only comes with the raw log, every other pool just needs the args
+        onlyArgs: !excludedTxHashes,
       })
+      const liquidationEvents: Array<any> = !excludedTxHashes
+        ? liquidationLogs
+        : liquidationLogs.filter(log => !excludedTxHashes.has(String(log.transactionHash).toLowerCase())).map(log => log.args)
       if (liquidationEvents.length > 0) {
         const liquidationProtocolFees = (await options.api.multiCall({
           abi: AaveAbis.getConfiguration,
@@ -425,6 +493,36 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
           version: 3,
           lendingPoolProxy: '0x8f16B5713F412C5dE4951Aaf678Eb8409101f819',
           dataProvider: '0xDfc422c8793864ecD12Bc59F2024614034BcB078',
+        }],
+      },
+    },
+  },
+  // Data providers from the dtrinity-dlend TVL adapter (DefiLlama-Adapters registries/aave.js);
+  // pools read from each data provider's ADDRESSES_PROVIDER().getPool(); start = pool creation date
+  'dtrinity-dlend': {
+    config: {
+      [CHAIN.FRAXTAL]: {
+        start: '2024-11-25',
+        pools: [{
+          version: 3,
+          lendingPoolProxy: '0xd76c827ee2ce1e37c37fc2ce91376812d3c9bce2',
+          dataProvider: '0xFB3adf4c845fD6352D24F3F0981eb7954401829c',
+        }],
+      },
+      [CHAIN.SONIC]: {
+        start: '2025-04-17',
+        pools: [{
+          version: 3,
+          lendingPoolProxy: '0xedc3cfb1aa36c570cc1d374876268bdda2d460cc',
+          dataProvider: '0xB245F8321E7A4938DEf8bDb2D5E2E16481268c42',
+        }],
+      },
+      [CHAIN.ETHEREUM]: {
+        start: '2025-12-10',
+        pools: [{
+          version: 3,
+          lendingPoolProxy: '0x6598dad18bda89a0e58a1f427c8cebc0de90f153',
+          dataProvider: '0x7BC6d94344392ac7898Ce197Ae382e21c71347f2',
         }],
       },
     },
@@ -1171,20 +1269,7 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
       },
     },
   },
-  'more-markets': {
-    config: {
-      [CHAIN.FLOW]: {
-        start: '2025-01-14',
-        pools: [
-          {
-            version: 3,
-            lendingPoolProxy: '0xbC92aaC2DBBF42215248B5688eB3D3d2b32F2c8d',
-            dataProvider: '0x79e71e3c0EDF2B88b0aB38E9A1eF0F6a230e56bf',
-          },
-        ],
-      },
-    },
-  },
+  // "more-markets": moved to fees/more-markets.ts: it excludes the 2026-11-16 exploit
   'pac-finance': {
     config: {
       [CHAIN.BLAST]: {

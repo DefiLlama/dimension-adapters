@@ -31,11 +31,6 @@ const CLMM_PROGRAM = "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK";
 // creator wallet.
 const FLYWHEEL_WALLET = "HU3bsSLMoJRzREe2qakCgrFpXky6NH2xpa3AfQfh1MaG";
 
-// Quote vault (SPYX) of STONK's own pool. From 2026-08-28, fees paid in STONK and fees from STONK's own pool
-// count as fees but not as revenue, since neither can fund a STONK buyback.
-const STONK_POOL_QUOTE_VAULT = "gAqy69bjRT9Sx2tp9Fihfinc6eWHFiwdB4sdjvKtvwH";
-const STONK_REVENUE_EXCLUDED_FROM = Date.UTC(2026, 7, 28) / 1000;
-
 // The first creator or flywheel payout went out at 2026-09-04 17:13 UTC. Before then, operator transfers to
 // wallets that later launched on LaunchLab were dev-buy deliveries or SOL refunds, not payouts.
 const PAYOUTS_FROM = Date.UTC(2026, 8, 4, 17) / 1000;
@@ -54,7 +49,6 @@ const PRICE_LOOKBACK_SECONDS = 7 * 24 * 60 * 60;
 const MIN_HOUR_USD = 100;
 const MAX_PRICE_DEVIATION = 10;
 
-const STONK_POOL_LABEL = "STONK Pool";
 const BUYBACK_LABEL = "STONK Buyback And Burn";
 const PROTOCOL_REVENUE_LABEL = "Fees to Protocol";
 
@@ -145,7 +139,7 @@ const legsQuery = (start: number, end: number) => `
           AND from_token_account NOT IN (SELECT vault FROM migrated_base_vaults)
           THEN 'Graduated Pool Creator Fee'
         WHEN is_harvest
-          THEN CASE WHEN from_token_account = '${STONK_POOL_QUOTE_VAULT}' THEN '${STONK_POOL_LABEL}' ELSE 'Locked LP Trading Fees' END
+          THEN 'Locked LP Trading Fees'
       END AS fee_label,
       -- Creator and flywheel shares as paid out: plain transfers from the operator to the flywheel wallet, or to
       -- the creator of a LaunchLab pool in one of LaunchLab's quote tokens (creators of SOL launches get native
@@ -378,7 +372,6 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
-  const stonkExcluded = options.startOfDay >= STONK_REVENUE_EXCLUDED_FROM;
 
   for (const row of rows.values()) {
     const raw = row.raw;
@@ -391,14 +384,11 @@ const fetch = async (options: FetchOptions) => {
       usd === null ? balances.subtractToken(row.mint, raw, label) : balances.addUSDValue(-usd, label);
 
     if (row.kind === "fee") {
-      const stonkFee = row.mint === STONK || row.label === STONK_POOL_LABEL;
-      const label = row.label === STONK_POOL_LABEL ? "Locked LP Trading Fees" : row.label;
-      credit(dailyFees, label);
-      if (!(stonkExcluded && stonkFee)) credit(dailyRevenue, label);
+      credit(dailyFees, row.label);
+      credit(dailyRevenue, row.label);
     } else if (row.kind === "payout") {
       credit(dailySupplySideRevenue, row.label);
-      // A STONK payout comes out of STONK fees, which are already outside revenue.
-      if (!(stonkExcluded && row.mint === STONK)) debit(dailyRevenue, row.label);
+      debit(dailyRevenue, row.label);
     } else if (row.kind === "buyback") {
       credit(dailyHoldersRevenue, BUYBACK_LABEL);
     }
@@ -416,10 +406,10 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Trading fees StonkFun collects, measured when it claims them: the 1% platform fee on its Raydium LaunchLab bonding curves (every platform config whose fees it claims), the creator fee on the Raydium CPMM pools those launches graduate into, and the quote side of fees harvested from the permanently locked liquidity behind pre-LaunchLab launches. Raydium's own fee shares are excluded. Each token is valued with Dune trade prices at the hour it was received, ignoring trades priced more than 10x away from that day's median.",
   UserFees: "Same as fees.",
-  Revenue: "Fees less the creator share of standard launches and the flywheel share of reward launches, as paid out on-chain. From 2026-08-28, fees paid in STONK and fees from STONK's own pool are excluded: they cannot fund a STONK buyback.",
+  Revenue: "Fees less the creator share of standard launches and the flywheel share of reward launches, as paid out on-chain.",
   SupplySideRevenue: "Creator and flywheel shares of fees, measured when they are paid out.",
   HoldersRevenue: "Quote assets spent buying STONK on Jupiter, identified on-chain as swaps that returned STONK to the operator wallet, at the net amount each swap spent.",
-  ProtocolRevenue: "Fees StonkFun keeps after paying the creator share of standard launches and the flywheel share of reward launches, minus the quote assets spent buying STONK on Jupiter. From 2026-08-28, fees paid in STONK and fees from STONK's own pool are excluded. Buybacks spend income claimed on earlier days, so this is negative when a buyback is larger than the day's retained fees.",
+  ProtocolRevenue: "Fees StonkFun keeps after paying the creator share of standard launches and the flywheel share of reward launches, minus the quote assets spent buying STONK on Jupiter. Buybacks spend income claimed on earlier days, so this is negative when a buyback is larger than the day's retained fees.",
 };
 
 const breakdownMethodology = {

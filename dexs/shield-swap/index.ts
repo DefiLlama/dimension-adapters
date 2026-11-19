@@ -56,6 +56,8 @@ const TOKENS: Record<string, { symbol: string; decimals: number; coingeckoId: st
   "212707628815602939926313406778312270053663804591730917421274098438979020915field": { symbol: "USDCx", decimals: 6, coingeckoId: "usd-coin" },
   "2679721602684747572764973622859521753039207964435861502200550930344051field": { symbol: "ZEC", decimals: 8, coingeckoId: "zcash" },
   "713588027583982631467445712611156256175541402545323992902004380759844979field": { symbol: "USDG", decimals: 6, coingeckoId: "global-dollar" },
+  // BAT-USDCx pool created 2026-11-11; metadata: https://api.swap.shield.fi/tokens
+  "3137609573832290293291268277413025448658733942822255236455114969016435field": { symbol: "BAT", decimals: 18, coingeckoId: "basic-attention-token" },
 };
 
 type Struct = { [key: string]: AleoValue };

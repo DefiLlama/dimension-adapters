@@ -20,6 +20,7 @@ export const getLiquityV2LogAdapter: any = ({
   stableTokenAbi = 'address:boldToken', // default to stableCoin
   stabilityPoolRatio,
   revenueRatio,
+  exploitBlockRanges,
 }: LiquityV2Config): FetchV2 => {
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, api } = fetchOptions
@@ -44,6 +45,34 @@ export const getLiquityV2LogAdapter: any = ({
 
     const borrowInterest = await addTokensReceived({ options: fetchOptions, targets: stabilityPools.concat(interestRouters), tokens: [stableCoin], fromAdddesses: [nullAddress] })
 
+    // Exploit txs inside exploitBlockRanges borrowed the stablecoin through a trove opened and closed in the
+    // same tx (a flash trove). Drop their upfront fee (minted to the stability pool and interest router in
+    // that tx) and every redemption/liquidation fee emitted in the same tx. Flash troves outside the ranges
+    // pay a real upfront fee and stay counted.
+    const exploitTxs = new Set<string>()
+    for (const [rangeFromBlock, rangeToBlock] of exploitBlockRanges ?? []) {
+      const fromBlock = Math.max(await fetchOptions.getFromBlock(), rangeFromBlock)
+      const toBlock = Math.min(await fetchOptions.getToBlock(), rangeToBlock)
+      if (fromBlock > toBlock) continue
+      const troveOperationLogs = await getLogs({ targets: troves, eventAbi: TroveOperationEvent, fromBlock, toBlock, flatten: false, onlyArgs: false })
+      const opsByTx: Record<string, any[]> = {}
+      troveOperationLogs.forEach((logs, i) => {
+        logs.forEach((log: any) => {
+          const txHash = log.transactionHash.toLowerCase()
+          if (!opsByTx[txHash]) opsByTx[txHash] = []
+          // troveIds are only unique within a branch, so key them by trove manager
+          opsByTx[txHash].push({ ...log.args, troveKey: `${i}:${log.args._troveId}` })
+        })
+      })
+      for (const [txHash, ops] of Object.entries(opsByTx)) {
+        const closed = new Set(ops.filter(op => Number(op._operation) === TROVE_OP_CLOSE).map(op => op.troveKey))
+        const flashOpens = ops.filter(op => TROVE_OP_OPENS.includes(Number(op._operation)) && closed.has(op.troveKey))
+        if (!flashOpens.length) continue
+        exploitTxs.add(txHash)
+        flashOpens.forEach(op => borrowInterest.subtractToken(stableCoin, op._debtIncreaseFromUpfrontFee))
+      }
+    }
+
     dailyFees.add(borrowInterest, METRIC.BORROW_INTEREST)
 
     // share of borrow interest to stability pools
@@ -58,16 +87,19 @@ export const getLiquityV2LogAdapter: any = ({
       targets: troves,
       eventAbi: 'event RedemptionFeePaidToTrove(uint256 indexed _troveId, uint256 _ETHFee)',
       flatten: false,
+      onlyArgs: false,
     })
     const liquidationLogs = await getLogs({
       targets: troves,
       eventAbi: 'event Liquidation(uint256 _debtOffsetBySP, uint256 _debtRedistributed, uint256 _boldGasCompensation, uint256 _collGasCompensation, uint256 _collSentToSP, uint256 _collRedistributed, uint256 _collSurplus, uint256 _L_ETH, uint256 _L_boldDebt, uint256 _price)',
       flatten: false,
+      onlyArgs: false,
     })
+    const argsOutsideExploitTxs = (logs: any[]) => logs.filter((log: any) => !exploitTxs.has(log.transactionHash.toLowerCase())).map((log: any) => log.args)
 
     redemptionLogs.forEach((logs, i) => {
       const collateralToken = tokens[i]
-      logs.forEach((log: any) => {
+      argsOutsideExploitTxs(logs).forEach((log: any) => {
         dailyFees.add(collateralToken, log._ETHFee, METRICS.RedemptionFee)
 
         // v2 redemption fees are distributed to borrowers
@@ -77,7 +109,7 @@ export const getLiquityV2LogAdapter: any = ({
 
     liquidationLogs.forEach((logs, i) => {
       const collateralToken = tokens[i]
-      logs.forEach((log: any) => {
+      argsOutsideExploitTxs(logs).forEach((log: any) => {
         dailyFees.add(collateralToken, log._collGasCompensation, METRICS.GasCompensation)
         dailyFees.add(stableCoin, log._boldGasCompensation, METRICS.GasCompensation)
         dailySupplySideRevenue.add(collateralToken, log._collGasCompensation, METRICS.GasCompensation)
@@ -99,7 +131,13 @@ type LiquityV2Config = {
   stabilityPoolRatio?: number;
   revenueRatio?: number;
   start?: string;
+  exploitBlockRanges?: [number, number][]; // inclusive, one per known exploit; flash-trove txs in them are excluded
 }
+
+const TroveOperationEvent = 'event TroveOperation(uint256 indexed _troveId, uint8 _operation, uint256 _annualInterestRate, uint256 _debtIncreaseFromRedist, uint256 _debtIncreaseFromUpfrontFee, int256 _debtChangeFromOperation, uint256 _collIncreaseFromRedist, int256 _collChangeFromOperation)'
+// Operation enum in Liquity V2 ITroveEvents: openTrove = 0, closeTrove = 1, openTroveAndJoinBatch = 7
+const TROVE_OP_OPENS = [0, 7]
+const TROVE_OP_CLOSE = 1
 
 
 export const defaultV2methodology = {

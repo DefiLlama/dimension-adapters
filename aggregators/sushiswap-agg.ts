@@ -478,6 +478,13 @@ const RP11_ADDRESS: any = {
   [CHAIN.XLAYER]: '0xc10ee9031f2a0b84766a86b55a8d90f357910fb4',
 }
 
+// Route processor (source unverified, so named after the RedSnwapper 0xac4c6e212a361c968f1725b4d055b47e63f80b75
+// that calls it) the Sushi swap API uses on Ethereum since 2026-10-24; same Route event as RP9-RP11.
+// https://eth.blockscout.com/address/0xb36599414542f6630d411485d968f25592ca9091
+const RP_REDSNWAPPER_ADDRESS: any = {
+  [CHAIN.ETHEREUM]: '0xb36599414542f6630d411485d968f25592ca9091',
+}
+
 const WNATIVE_ADDRESS: any = {
   [CHAIN.ETHEREUM]: ADDRESSES.ethereum.WETH,
   [CHAIN.ARBITRUM]: ADDRESSES.arbitrum.WETH,
@@ -556,6 +563,7 @@ const fetch: FetchV2 = async ({ getLogs, createBalances, chain }): Promise<Fetch
   if (RP9_2_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP9_2_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   if (RP10_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP10_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
   if (RP11_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP11_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
+  if (RP_REDSNWAPPER_ADDRESS[chain]) logs = logs.concat(await getLogs({ target: RP_REDSNWAPPER_ADDRESS[chain], eventAbi: ROUTE_RP9_EVENT }))
 
   if (whitelistedTokens.length > 0) {
     logs = logs.filter((log: Log) => (whitelistedTokens.includes(formatAddress(log.tokenIn)) || whitelistedTokens.includes(formatAddress(log.tokenOut)))

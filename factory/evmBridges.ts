@@ -196,7 +196,8 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean | R
     [CHAIN.MODE]: symbiosisBridge({ portal: "0x292fC50e4eB66C3f6514b9E402dBc25961824D62" }, "2024-03-26"),
     [CHAIN.ROOTSTOCK]: symbiosisBridge({ portal: "0x5aa5f7f84ed0e5db0a4a85c3947ea16b53352fd4", synthesis: "0xf8504d2ca2f0bbad9d36927e3d32e278abadada0" }, "2024-03-26"),
     [CHAIN.MERLIN]: symbiosisBridge({ portal: "0x292fC50e4eB66C3f6514b9E402dBc25961824D62" }, "2024-05-20"),
-    [CHAIN.ZKLINK]: symbiosisBridge({ portal: "0x8Dc71561414CDcA6DcA7C1dED1ABd04AF474D189" }, "2024-05-20"),
+    // zklink nova halted: its last block is 2026-10-29 08:21 UTC and rpc.zklink.io answers 502
+    [CHAIN.ZKLINK]: { ...symbiosisBridge({ portal: "0x8Dc71561414CDcA6DcA7C1dED1ABd04AF474D189" }, "2024-05-20"), deadFrom: "2026-10-30" },
     [CHAIN.TAIKO]: symbiosisBridge({ portal: "0x5Aa5f7f84eD0E5db0a4a85C3947eA16B53352FD4" }, "2024-07-23"),
     [CHAIN.CRONOS]: symbiosisBridge({ portal: "0xE75C7E85FE6ADd07077467064aD15847E6ba9877" }, "2024-12-11"),
     [CHAIN.FRAXTAL]: symbiosisBridge({ portal: "0x292fC50e4eB66C3f6514b9E402dBc25961824D62" }, "2024-12-11"),
@@ -416,6 +417,7 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean | R
     [CHAIN.STABLE]: aoriBridge("0xffe691a6ddb5d2645321e0a920c2e7bdd00dd3d8", "2026-04-01"),
     [CHAIN.MEGAETH]: aoriBridge("0xffe691a6ddb5d2645321e0a920c2e7bdd00dd3d8", "2026-04-02"),
     [CHAIN.PLASMA]: aoriBridge("0xffe691a6ddb5d2645321e0a920c2e7bdd00dd3d8", "2026-04-04"),
+    [CHAIN.ROOTSTOCK]: aoriBridge("0xffe691a6ddb5d2645321e0a920c2e7bdd00dd3d8", "2026-04-03"),
   },
   "helixbox": {
     [CHAIN.ARBITRUM]: helixboxBridge("0xbA5D580B18b6436411562981e02c8A9aA1776D10", "2024-06-24"),
@@ -730,7 +732,10 @@ const configs: Record<string, { [chain: string]: BridgeChainConfig | boolean | R
     [CHAIN.AVAX]: xyBridge({ yBridge: "0x2C86f0FF75673D489b7D72D9986929a2b0Ed596C", router: "0xa0c0F962DECD78D7CDE5707895603CBA74C02989" }, "2024-01-22"),
     [CHAIN.OPTIMISM]: xyBridge({ yBridge: "0x7a6e01880693093abACcF442fcbED9E0435f1030", router: "0xF8d342db903F266de73B10a1e46601Bb08a3c195" }, "2024-01-22"),
     [CHAIN.CRONOS]: xyBridge({ yBridge: "0xF103b5B479d2A629F422C42bb35E7eEceE1ad55E", router: "0x5d6e7E537cb4a8858C8B733A2A307B4aAFDc42ca" }, "2024-01-22"),
-    [CHAIN.ASTAR]: xyBridge({ yBridge: "0x5C6C12Fd8b1f7E60E5B60512712cFbE0192E795E", router: "0x9c83E6F9E8DA12af8a0Cb8E276b722EB3D7668aF" }, "2024-01-22"),
+    [CHAIN.ASTAR]: {
+      ...xyBridge({ yBridge: "0x5C6C12Fd8b1f7E60E5B60512712cFbE0192E795E", router: "0x9c83E6F9E8DA12af8a0Cb8E276b722EB3D7668aF" }, "2024-01-22"),
+      deadFrom: "2024-11-19",
+    },
     [CHAIN.KCC]: xyBridge({ yBridge: "0x7e803b54295Cd113Bf48E7f069f0531575DA1139", router: "0x562afa22b2Fc339fd7Fa03E734E7008C3EccF8CF" }, "2024-01-22"),
     [CHAIN.BLAST]: xyBridge({ yBridge: "0x73Ce60416035B8D7019f6399778c14ccf5C9c7A1", router: "0x43A86823EBBe2ECF9A384aDfD989E26A30626458" }, "2024-03-17"),
     [CHAIN.TAIKO]: xyBridge({ yBridge: "0x6be1fe9dd10a4fbfce5552ca9add122341ec6c04", router: "0xedC061306A79257f15108200C5B82ACc874C239d" }, "2024-07-20"),

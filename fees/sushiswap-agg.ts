@@ -91,6 +91,8 @@ const ROUTE_RP7_EVENT = 'event Route(address indexed from, address to, address i
 const ROUTE_RP9_EVENT = 'event Route(address indexed from, address to, address indexed tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut, int256 slippage, uint32 indexed referralCode, bytes32 diagnosticsFirst32)'
 
 // https://etherscan.io/tx/0x2124a56218f4b7b1675fab0ece6c2cd6adee55bcc3e2bfb4dc1fc88db6bc91ee
+// Not applied to the RedSnwapper route processor 0xb36599414542f6630d411485d968f25592ca9091 (Ethereum volume since
+// 2026-10-24): its fee rate and receiver are unverified, so its fees are not tracked yet.
 const FLAT_FEE = 0.002;
 const LABEL = 'DEX Aggregator Fees';
 

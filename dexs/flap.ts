@@ -22,6 +22,8 @@ const chainConfig: Record<string, {
   useIndexer?: boolean;
   safe: string;
   wrappedNative: string;
+  // Direct Pool Launch portal. Its quote allowlist is FlapLaunchQuoteConfigSet, not TokenQuoteSet.
+  directPortal?: string;
 }> = {
   [CHAIN.BSC]: {
     start: "2024-06-27",
@@ -30,6 +32,7 @@ const chainConfig: Record<string, {
     useIndexer: true,
     safe: "0x8a08D98CBB218fceB318Ecf3aBc1BA43D8A7aB0E",
     wrappedNative: ADDRESSES.bsc.WBNB,
+    directPortal: "0x000042108465206185a077edc3f3fd2b49060000",
   },
   [CHAIN.ROBINHOOD]: {
     start: "2026-07-08",
@@ -69,12 +72,21 @@ const eventAbis = {
 const TOKEN_BOUGHT_TOPIC0 = "0xa800a2038683844fac66747f771bfdfae862eb28b16bcfa387afa9fbacce8ff7";
 const TOKEN_SOLD_TOPIC0 = "0x03a4693e592f5e75dc7c136acb39b146d2b4966c0e509c34f362dee02b3b861a";
 const TOKEN_QUOTE_SET_TOPIC0 = "0x3ceb902d3c555c21c3415b6aa839104b18e4825b2f8324011ff979089a507a8c";
+// FlapDirectLaunched(address,uint8,address,bytes32,bytes). The deployed BSC portal emits this with no
+// indexed fields (topic0 only). quoteToken is word 10 of data: 4 head words + bytes offset + bytes
+// length + tuple offset (the launch struct has strings, so abi.encode prefixes 0x20) + nonce + ts +
+// tokenVersion. ClickHouse substring is 1-based and data is 0x-prefixed, so the address starts at
+// 10*64+27. Sample launch: 0xf3b18a0435fedb0c12e846a13fb3876a59b4bcc42ab7aa0a7dde7ef913c72e20.
+const FLAP_DIRECT_LAUNCHED_TOPIC0 = "0x1cd955dcdd7a83382ee57896bcbc339565a84f9c8a35d2f70cf6c797bcce3aad";
+const DIRECT_QUOTE_SUBSTRING_AT = 10 * 64 + 27;
 const TRANSFER_TOPIC0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const SAFE_RECEIVED_TOPIC0 = "0x3d0ce9bfc3ed7d6862dbb28b2dea94561fe714a1b4d019aa8af39730d1ad7c3d";
 
 // The portal is an upgradeable proxy; getTokenV8Safe is the version-safe lens
 // over token state (enums returned as uint8, works for tokens of every version).
 const getTokenV8SafeAbi = "function getTokenV8Safe(address) view returns ((uint8 status, uint256 reserve, uint256 circulatingSupply, uint256 price, uint8 tokenVersion, uint256 r, uint256 h, uint256 k, uint256 dexSupplyThresh, address quoteTokenAddress, bool nativeToQuoteSwapEnabled, bytes32 extensionID, uint256 buyTaxRate, uint256 sellTaxRate, address pool, uint256 progress, uint8 lpFeeProfile, uint8 dexId))";
+// PortalLaunchLens.LaunchTokenState. Reverts LaunchTokenNotFound for tokens this portal did not launch.
+const getLaunchTokenAbi = "function getLaunchToken(address) view returns ((uint8 kind, uint8 tokenVersion, uint8 externalVenue, uint8 dexId, uint8 quoteTokenType, address quoteTokenAddress, uint8 status, uint256 circulatingSupply, uint256 pendingRemainder, address pool, uint8 poolType, bytes venueData, uint256 totalSupply))";
 
 const shortAddrOf = (addr: string) => addr.substring(0, 10).toLowerCase();
 const padAddress = (addr: string) => "0x" + "0".repeat(24) + addr.slice(2).toLowerCase();
@@ -195,6 +207,55 @@ const getQuoteMapForTokens = async (options: FetchOptions, portal: string, token
     rows.forEach((row: any) => { quoteByToken[row.token] = row.quote; });
   }
   return quoteByToken;
+};
+
+// Quotes used by Direct launches. FlapLaunchQuoteConfigSet is not on the deployed portal's logs;
+// the quote is inside FlapDirectLaunched.data. Native (address 0) is dropped by uniqueLower.
+const getDirectQuoteTokens = async (options: FetchOptions, directPortal: string): Promise<string[]> => {
+  const target = directPortal.toLowerCase();
+  const rows = await queryClickhouse<any>(`
+    SELECT DISTINCT concat('0x', substring(data, ${DIRECT_QUOTE_SUBSTRING_AT}, 40)) AS quote
+    FROM evm_indexer.logs
+    PREWHERE chain = ${Number(options.api.chainId)}
+      AND short_address = '${shortAddrOf(target)}'
+      AND short_topic0 = '${FLAP_DIRECT_LAUNCHED_TOPIC0.substring(0, 10)}'
+      AND address = '${target}'
+      AND topic0 = '${FLAP_DIRECT_LAUNCHED_TOPIC0}'
+  `);
+  return uniqueLower(rows.map((row: any) => row.quote));
+};
+
+// Curve TokenQuoteSet does not exist for Direct tokens. getLaunchToken reverts for everyone else.
+const getDirectLaunchQuotes = async (options: FetchOptions, directPortal: string, tokens: string[]): Promise<Record<string, string>> => {
+  const quoteByToken: Record<string, string> = {};
+  const CHUNK = 100;
+  for (let i = 0; i < tokens.length; i += CHUNK) {
+    const batch = tokens.slice(i, i + CHUNK);
+    const states = await options.api.multiCall({
+      target: directPortal,
+      abi: getLaunchTokenAbi,
+      calls: batch,
+      permitFailure: true,
+    });
+    batch.forEach((token, j) => {
+      const quote = states[j]?.quoteTokenAddress;
+      if (!quote) return;
+      quoteByToken[token] = String(quote).toLowerCase();
+    });
+  }
+  return quoteByToken;
+};
+
+const resolveSupplyQuotes = async (
+  options: FetchOptions,
+  config: (typeof chainConfig)[string],
+  taxTokens: string[],
+): Promise<Record<string, string>> => {
+  const fromCurve = await getQuoteMapForTokens(options, config.portal, taxTokens);
+  if (!config.directPortal) return fromCurve;
+  const missing = uniqueLower(taxTokens).filter((token) => fromCurve[token] === undefined);
+  if (!missing.length) return fromCurve;
+  return { ...fromCurve, ...(await getDirectLaunchQuotes(options, config.directPortal, missing)) };
 };
 
 const getTradesFromLogs = async (options: FetchOptions, portal: string): Promise<TradeTotals> => {
@@ -466,7 +527,7 @@ const fetchSupplySide = async (
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   const config = chainConfig[options.chain];
-  const { portal, useIndexer, safe, wrappedNative } = config;
+  const { portal, useIndexer, safe, wrappedNative, directPortal } = config;
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -486,8 +547,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   // Fees/Revenue: every quote-token inflow to the Flap fee Safe, from any sender.
   // Union wrappedNative so TaxProcessor WBNB→Safe settles are included.
+  // Direct quotes are not in the curve TokenQuoteSet, so Safe transfers of those tokens would be missed.
+  const directQuotes = directPortal && useIndexer ? await getDirectQuoteTokens(options, directPortal) : [];
   const erc20Quotes = uniqueLower([
     ...quoteTokens.filter((token) => token !== NATIVE_TOKEN),
+    ...directQuotes,
     wrappedNative,
   ]);
   if (useIndexer) {
@@ -506,7 +570,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   await fetchSupplySide(options, config, {
     erc20Quotes,
     quoteTokens: quoteByToken,
-    resolveQuotes: useIndexer ? (taxTokens) => getQuoteMapForTokens(options, portal, taxTokens) : undefined,
+    resolveQuotes: useIndexer ? (taxTokens) => resolveSupplyQuotes(options, config, taxTokens) : undefined,
     dailyFees,
     dailySupplySideRevenue,
   });

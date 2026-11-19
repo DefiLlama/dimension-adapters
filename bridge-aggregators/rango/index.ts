@@ -68,8 +68,11 @@ const fetch: any = async (options: FetchOptions) => {
   }
 }
 
-const prefetch = async (_: FetchOptions) => {
+const prefetch = async (options: FetchOptions) => {
   const data = await httpGet('https://api.rango.exchange/scanner/summary/daily?days=10000&breakDownBy=SOURCE&apiKey=4a624ab5-16ff-4f96-90b7-ab00ddfc342c&txType=BRIDGE');
+  const nextDay = new Date((options.startOfDay + 86400) * 1000).toISOString().slice(0, 10)
+  if (!data.stats.some((s: any) => s.date.startsWith(nextDay)))
+    throw new Error(`Rango stats have no ${nextDay} rows yet (lastUpdateTime ${data.lastUpdateTime}), day may be incomplete`)
   return data.stats;
 }
 

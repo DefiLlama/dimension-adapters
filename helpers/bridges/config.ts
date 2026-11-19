@@ -567,14 +567,18 @@ export const zkBridge = (contracts: [string, Record<number, string>][], start?: 
 // ---------------------------------------------------------------------------------------------------
 // XY Finance: yBridge (SwapRequested out, SwappedForUser in) and XYRouter requests routed through other
 // bridges (yBridge-routed requests are skipped, its own events count them). Native is 0xEeee...EEeE.
+// yBridge was upgraded on 2024-12-09 and SwapRequested gained an address after _swapId (new topic0), so both
+// versions are read. XY sunset its services on 2025-10-17; the last yBridge flows (wind-down) are on 2025-11-26.
 // https://docs.xy.finance/smart-contract/addresses
 // ---------------------------------------------------------------------------------------------------
 const XY_NATIVE = { [ADDRESSES.GAS_TOKEN_2]: ADDRESSES.null };
 export const xyBridge = (contracts: { yBridge: string; router: string }, start?: string): BridgeChainConfig => ({
   start,
+  deadFrom: "2025-11-27",
   events: [
     { eventAbi: "event XYRouterRequested(uint256 xyRouterRequestId, address indexed sender, address srcToken, uint256 amountIn, address indexed bridgeAddress, address bridgeToken, uint256 bridgeAmount, uint256 dstChainId, bytes bridgeAssetReceiver, ((bool hasTip, address tipReceiver) tipInfo, (bool hasDstChainSwap, ((address srcToken, address dstToken, uint256 minReturnAmount, address receiver) swapRequest, address dexAddress, address approveToAddress, bytes dexCalldata) swapAction) dstChainSwapInfo, (bool hasIM, address xApp, address refundReceiver, bytes message) imInfo) dstChainAction, address indexed affiliate)", targets: [contracts.router], direction: "outgoing", tokenArg: "bridgeToken", amountArg: "bridgeAmount", mapTokens: XY_NATIVE, filter: (args: any) => String(args.bridgeAddress).toLowerCase() !== contracts.yBridge.toLowerCase() },
     { eventAbi: "event SwapRequested(uint256 _swapId, address indexed _aggregatorAdaptor, (uint32 dstChainId, address dstChainToken, address dstAggregatorAdaptor, uint256 expectedDstChainTokenAmount, uint32 slippage) _dstChainDesc, address _srcToken, address indexed _vaultToken, uint256 _vaultTokenAmount, address _receiver, uint256 _srcTokenAmount, uint256 _expressFeeAmount, address indexed _referrer)", targets: [contracts.yBridge], direction: "outgoing", tokenArg: "_vaultToken", amountArg: "_vaultTokenAmount", mapTokens: XY_NATIVE },
+    { eventAbi: "event SwapRequested(uint256 _swapId, address indexed _aggregatorAdaptor, address _caller, (uint32 dstChainId, address dstChainToken, address dstAggregatorAdaptor, uint256 expectedDstChainTokenAmount, uint32 slippage) _dstChainDesc, address _srcToken, address indexed _vaultToken, uint256 _vaultTokenAmount, address _receiver, uint256 _srcTokenAmount, uint256 _expressFeeAmount, address indexed _referrer)", targets: [contracts.yBridge], direction: "outgoing", tokenArg: "_vaultToken", amountArg: "_vaultTokenAmount", mapTokens: XY_NATIVE },
     { eventAbi: "event SwappedForUser(address indexed _aggregatorAdaptor, address indexed _srcToken, uint256 _srcTokenAmount, address _dstToken, uint256 _dstTokenAmountOut, address _receiver)", targets: [contracts.yBridge], direction: "incoming", tokenArg: "_dstToken", amountArg: "_dstTokenAmountOut", mapTokens: XY_NATIVE },
   ],
 });

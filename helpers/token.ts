@@ -457,9 +457,10 @@ export const evmReceivedGasAndTokens = (receiverWallet: string, tokens: string[]
  * @param targets - Array of Solana addresses to query (alternative to target)
  * @param blacklists - Optional array of addresses to exclude from the sender side
  * @param blacklist_signers - Optional array of transaction signers to exclude
+ * @param blacklist_tx_senders - Optional. Exclude every transfer in a tx in which one of these addresses also sends tokens
  * @returns The balances object with added USD value from received tokens
  */
-export async function getSolanaReceived({ options, balances, target, targets, mints, blacklists, blacklist_signers, blacklist_mints, fromAddress, fromAddresses }: {
+export async function getSolanaReceived({ options, balances, target, targets, mints, blacklists, blacklist_signers, blacklist_tx_senders, blacklist_mints, fromAddress, fromAddresses }: {
   options: FetchOptions;
   balances?: sdk.Balances;
   target?: string;
@@ -467,6 +468,7 @@ export async function getSolanaReceived({ options, balances, target, targets, mi
   mints?: string[];
   blacklists?: string[];
   blacklist_signers?: string[];
+  blacklist_tx_senders?: string[];
   blacklist_mints?: string[];
   fromAddress?: string;
   fromAddresses?: string[];
@@ -508,6 +510,19 @@ export async function getSolanaReceived({ options, balances, target, targets, mi
     blacklist_signersCondition = `AND signer NOT IN (${formattedBlacklist})`;
   }
 
+  // Build SQL condition to exclude txs in which these addresses also send tokens (e.g. the target's own swaps)
+  let blacklist_tx_sendersCondition = '';
+
+  if (blacklist_tx_senders && blacklist_tx_senders.length > 0) {
+    const formattedBlacklist = blacklist_tx_senders.map(addr => `'${addr}'`).join(', ');
+    blacklist_tx_sendersCondition = `AND NOT EXISTS (
+      SELECT 1 FROM solana.assets.transfers o
+      WHERE o.txn_id = t.txn_id
+      AND o.from_address IN (${formattedBlacklist})
+      AND o.block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND o.block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    )`;
+  }
+
   // Build SQL condition to exclude blacklisted tokens
   let blacklist_mintsCondition = '';
 
@@ -522,12 +537,13 @@ export async function getSolanaReceived({ options, balances, target, targets, mi
   // Construct SQL query to get sum of received token values in USD and native amount
   const query = `
     SELECT mint as token, SUM(raw_amount) as amount
-    FROM solana.assets.transfers
+    FROM solana.assets.transfers t
     WHERE to_address IN (${formattedAddresses})
     AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
     ${mintsCondition}
     ${blacklistCondition}
     ${blacklist_signersCondition}
+    ${blacklist_tx_sendersCondition}
     ${blacklist_mintsCondition}
     ${fromAddressesCondition}
     GROUP BY mint

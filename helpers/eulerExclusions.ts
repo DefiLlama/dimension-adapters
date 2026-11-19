@@ -6,9 +6,10 @@ import { httpGet } from "../utils/fetchURL";
 // Euler vaults whose borrows went bad. The vault oracle keeps quoting the collapsed collateral, so nobody
 // liquidates and the debt keeps compounding at the IRM rate (up to the 60%+ max on a frozen vault). That
 // interest is never paid, it only lifts the share price, so the vault is dropped from fee tracking from the
-// day its debt went bad. Every entry is flagged by Euler's bad-debt feed below and deprecated in Euler's own
-// labels (github.com/euler-xyz/euler-labels, <chainId>/products.json deprecatedVaults); `from` is the
-// incident date, confirmed on-chain by the vault's cash running out on or right after it.
+// day its debt went bad. Every entry is deprecated in Euler's own labels (github.com/euler-xyz/euler-labels,
+// <chainId>/products.json deprecatedVaults) and is either flagged by Euler's bad-debt feed below or lends against
+// shares of a vault listed here, which the feed values at book and so cannot see; `from` is the incident date,
+// confirmed on-chain by the vault's cash running out on or right after it.
 // Stream Finance (xUSD) collapse; the Stream- and USDX-exposed vaults below ran out of cash between 10-31 and 11-05
 const STREAM_COLLAPSE = "2025-11-04";
 const RESOLV_INCIDENT = "2026-03-22";
@@ -43,6 +44,20 @@ const BAD_DEBT_VAULTS: Record<string, Array<{ vault: string; from: string }>> = 
     { vault: "0x2137568666f12fc5A026f5430Ae7194F1C1362aB", from: STREAM_COLLAPSE }, // eAUSD-2, Re7
     { vault: "0x8f23Da78e3F31Ab5DEb75dC3282198bed630ffde", from: STREAM_COLLAPSE }, // eUSDC-15, Keyring
     { vault: "0xABA9d2D4b6B93C3dc8976D8eb0690CCA56431FE4", from: STREAM_COLLAPSE }, // eUSDt-2, Re7
+    // K3 vaults whose remaining debt is backed by eUSDt-3 shares, or by shares of another vault in this group.
+    // `from` is the first day whose interest is mostly on that debt: while the cash ran out, solvent borrowers
+    // were still repaying at the max rate, and that interest was paid.
+    // eEURC-1: 68k EURC borrowed against eUSDt-3 from 2025-11-04 08:47 to 11-05 09:32 UTC, no cash since 11-05
+    { vault: "0xa4284e26Ae6469aeE8eC38Aa9Db96fc62d6315A1", from: "2025-11-05" }, // eEURC-1, K3
+    // eWAVAX-5, eBTC.b-5: one account borrowed 3,382 AVAX and 2.08 BTC against eUSDt-3 on 2025-11-05 09:34-09:55 UTC;
+    // eBTC.b-5 borrowers repaid 20 BTC at the max rate that day, the 3.2 BTC left from 11-06 never was
+    { vault: "0xe91841F707936faf515ff6d478624A325A4f9199", from: "2025-11-05" }, // eWAVAX-5, K3
+    { vault: "0x6072A6d18446278bB5a43eb747de8F61e34cB77f", from: "2025-11-06" }, // eBTC.b-5, K3
+    // eWETH.e-5: the 3.4 WETH left is backed by eUSDt-3 and eBTC.b-5 shares; other borrowers repaid 8.4k WETH on
+    // 11-04 and the last 78 WETH at the 54% max rate by 11-07 08:36 UTC
+    { vault: "0x03ef14425CF0d7Af62Cdb8D6E0Acb0b0512aE35C", from: "2025-11-08" }, // eWETH.e-5, K3
+    // eUSDC-5: its last 22.7k USDC borrowed against eEURC-1 shares on 2025-11-16 22:11 UTC (tx 0xfc02d6ce)
+    { vault: "0x6fC9b3a52944A577cd8971Fd8fDE0819001bC595", from: "2025-11-16" }, // eUSDC-5, K3
   ],
   [CHAIN.BASE]: [
     { vault: "0xC063C3b3625DF5F362F60f35B0bcd98e0fa650fb", from: RESOLV_INCIDENT }, // eUSDC-3, Apostro Resolv

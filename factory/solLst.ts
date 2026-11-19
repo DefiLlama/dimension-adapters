@@ -18,6 +18,7 @@
  *   - crypto-com-lst (multi-chain with EVM logic on Cronos)
  *   - hylo-lst (queries two separate stake pools)
  *   - bonk-staked-sol (custom metrics)
+ *   - doublezero-staked-sol (dzSOL valued at the stake pool exchange rate from 2026-10-19)
  */
 
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
@@ -563,24 +564,6 @@ const configs: Record<string, SolLstConfig> = {
     },
   }),
 
-  "doublezero-staked-sol": simpleConfig({
-    stakePoolReserveAccount: "FFtERWBSCkScg8spA2mNB9zN5SdH16NqQywXw3bbB1aJ",
-    stakePoolWithdrawAuthority: "4cpnpiwgBfUgELVwNYiecwGti45YHSH3R72CPkFTiwJt",
-    lstFeeTokenAccount: "GhN6PpyP6Ln4ycWcyvqsNcowLfYjpUcA9uWKAcFBjj2D",
-    lstMint: "Gekfj7SL2fVpTDxJZmeC46cTYxinjB6gkAnb6EGT6mnn",
-    start: "2025-07-25",
-    // doublezero uses addCGToken with a conditional cgId based on timestamp
-    revenue: { type: "addCGToken", cgId: "doublezero-staked-sol" },
-    revenueFeedback: { addToFees: false },
-    returnDailyHoldersRevenue: 0,
-    methodology: {
-      Fees: "Staking rewards from staked SOL on doublezero staked solana, plus the withdrawal fees users pay on their principal",
-      Revenue: "Includes withdrawal fees and management fees collected by fee collector",
-      ProtocolRevenue: "Revenue going to treasury/team",
-      HoldersRevenue: "No revenue share to 2Z token holders.",
-    },
-  }),
-
   "drift-staked-sol": {
     stakePoolReserveAccount: "4RjzgujRmdadbLjyh2L1Qn5ECsQ1qfjaapTfeWKYtsC3",
     stakePoolWithdrawAuthority: "6727ZvQ2YEz8jky1Z9fqDFG5mYuAvC9G34o2MxwzmrUK",
@@ -963,63 +946,7 @@ const configs: Record<string, SolLstConfig> = {
   }),
 };
 
-// --- Special handling for doublezero and jito ---
-
-// doublezero-staked-sol: has a conditional revenue cgId based on timestamp
-// We need to override the generated fetch to handle this
-const doublezeroOriginalConfig = configs["doublezero-staked-sol"];
-const doublezeroAdapter = (() => {
-  const baseCfg = { ...doublezeroOriginalConfig };
-
-  const fetch = async (options: FetchOptions) => {
-    const revenueToken = options.startTimestamp > 1759735276 ? "doublezero-staked-sol" : "solana";
-
-    const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
-      start: options.startTimestamp,
-      end: options.endTimestamp,
-      stake_pool_reserve_account: baseCfg.stakePoolReserveAccount,
-      stake_pool_withdraw_authority: baseCfg.stakePoolWithdrawAuthority,
-      lst_fee_token_account: baseCfg.lstFeeTokenAccount,
-      lst_mint: baseCfg.lstMint,
-      exclude_mints_filter: baseCfg.excludeMintsForRevenue ? "AND action!='mint'" : "",
-    });
-
-    const results = await queryDuneSql(options, query);
-
-    const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
-
-    results.forEach((row: any) => {
-      if (row.metric_type === "dailyFees" || row.metric_type === "dailyMevRewards") {
-        dailyFees.addCGToken("solana", row.amount || 0, row.metric_type === "dailyMevRewards" ? METRIC.MEV_REWARDS : METRIC.STAKING_REWARDS);
-      } else if (row.metric_type === "dailyRevenue") {
-        dailyRevenue.addCGToken(revenueToken, row.amount || 0);
-      } else if (row.metric_type === "dailyUserFees") {
-        dailyFees.addCGToken(revenueToken, row.amount || 0);
-      }
-    });
-
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue: dailyRevenue,
-      dailyHoldersRevenue: 0,
-    };
-  };
-
-  const adapter: SimpleAdapter = {
-    version: 1,
-    methodology: withMevMethodology(getMethodology(baseCfg)),
-    breakdownMethodology: withMevBreakdown(baseCfg, getBreakdownMethodology(baseCfg)),
-    fetch,
-    dependencies: [Dependencies.DUNE],
-    chains: [CHAIN.SOLANA],
-    start: baseCfg.start,
-    isExpensiveAdapter: true,
-  };
-
-  return adapter;
-})();
+// --- Special handling for jito ---
 
 // jito-staked-sol: has commented-out revenue logic, only returns dailyFees + dailySupplySideRevenue
 /* const jitoAdapter = (() => {
@@ -1080,12 +1007,11 @@ const protocols: Record<string, SimpleAdapter> = {};
 
 for (const [name, config] of Object.entries(configs)) {
   // Skip adapters with custom implementations
-  if (name === "doublezero-staked-sol" || name === "jito-staked-sol") continue;
+  if (name === "jito-staked-sol") continue;
   protocols[name] = createSolLstAdapter(config);
 }
 
 // Add custom adapters
-protocols["doublezero-staked-sol"] = doublezeroAdapter;
 // protocols["jito-staked-sol"] = jitoAdapter;
 
 // Export factory interface

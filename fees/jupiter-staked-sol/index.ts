@@ -9,6 +9,9 @@ const STAKE_POOL_WITHDRAW_AUTHORITY = "EMjuABxELpYWYEwjkKmQKBNCwdaFAy4QYAs6W9bDQ
 const LST_FEE_TOKEN_ACCOUNT_OLD = "DG399HKiLgKxGG176QiojyTtiSeqAurK6FVXGfBPTzSD";
 const LST_FEE_TOKEN_ACCOUNT_NEW = "GbvFCpMqKX65gQ8KNeob9JUAL7vHCHFSg8YN5bnpPT8g";
 const LST_MINT = ADDRESSES.solana.JupSOL;
+// Deposit and withdrawal fees reach the same fee account, but all of them go on to the Sanctum side and none to Jupiter's
+// CPZmKkAhD2wv1Z21EUZvdH8ZeSD13geAnSfyVBwcW8XK, which receives only its half of the 5% pool fee.
+const DEPOSIT_WITHDRAW_FEES_TO_SANCTUM = 'JupSOL Deposit/Withdraw Fees To Sanctum';
 
 // The pool mints a 5% fee on every lamport it gains (inflation, MEV tips, priority fees), split 2.5% Sanctum / 2.5% Jupiter
 // (https://docs.jup.ag/user-docs/earn/stake-sol/jupsol); onchain the fee account sends half of each sweep to Sanctum, e.g.
@@ -96,9 +99,9 @@ const fetch = async (options: FetchOptions) => {
       dailySupplySideRevenue.addCGToken("solana", amount * STAKER_SHARE, JUPITER_METRICS.JupSOLStakingRewardsToStakers);
       dailySupplySideRevenue.addCGToken("solana", amount * SANCTUM_SHARE, JUPITER_METRICS.JupSOLStakingRewardsToSanctum);
     } else if (row.metric_type === 'dailyRevenue') {
-      // deposit and withdrawal fees paid into the fee account, in jupSOL
+      // deposit and withdrawal fees paid into the fee account, in jupSOL, all passed on to Sanctum
       dailyFees.addCGToken("jupiter-staked-sol", amount, JUPITER_METRICS.JupSOLDepositWithdrawFees);
-      dailyRevenue.addCGToken("jupiter-staked-sol", amount, JUPITER_METRICS.JupSOLDepositWithdrawFees);
+      dailySupplySideRevenue.addCGToken("jupiter-staked-sol", amount, DEPOSIT_WITHDRAW_FEES_TO_SANCTUM);
     } else if (row.metric_type === 'jupsolJupiterValidatorRewards') {
       // the pool's reward is net of commission, so commission = reward * rate / (1 - rate), all kept by Jupiter
       const rate = jupiterValidatorCommission(options.startOfDay);
@@ -125,9 +128,9 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Fees: "Staking rewards, Jito MEV tips and Jupiter validator priority fees earned by the jupSOL pool, Jupiter's validator commission on the pool's stake, plus deposit and withdrawal fees.",
-    Revenue: "Jupiter's 2.5% of pool rewards (half of the 5% pool fee), Jupiter's validator commission, plus deposit and withdrawal fees.",
+    Revenue: "Jupiter's 2.5% of pool rewards (half of the 5% pool fee) and Jupiter's validator commission.",
     ProtocolRevenue: "All of Jupiter's revenue, kept by Jupiter. Not used for JUP buybacks.",
-    SupplySideRevenue: "95% of pool rewards to jupSOL holders, and 2.5% to Sanctum.",
+    SupplySideRevenue: "95% of pool rewards to jupSOL holders, 2.5% to Sanctum, and deposit and withdrawal fees to Sanctum.",
   },
   breakdownMethodology: {
     Fees: {
@@ -141,19 +144,18 @@ const adapter: SimpleAdapter = {
       [JUPITER_METRICS.JupSOLStakingRewards]: "Jupiter's 2.5% of inflation rewards.",
       [JUPITER_METRICS.JupSOLMevRewards]: "Jupiter's 2.5% of MEV tips.",
       [JUPITER_METRICS.JupSOLValidatorPriorityFees]: "Jupiter's 2.5% of priority fees.",
-      [JUPITER_METRICS.JupSOLDepositWithdrawFees]: "Deposit and withdrawal fees.",
       [JUPITER_METRICS.JupSOLValidatorCommission]: "Jupiter validator commission, all kept by Jupiter.",
     },
     ProtocolRevenue: {
       [JUPITER_METRICS.JupSOLStakingRewards]: "All of Jupiter's share of inflation rewards, kept by Jupiter.",
       [JUPITER_METRICS.JupSOLMevRewards]: "All of Jupiter's share of MEV tips, kept by Jupiter.",
       [JUPITER_METRICS.JupSOLValidatorPriorityFees]: "All of Jupiter's share of priority fees, kept by Jupiter.",
-      [JUPITER_METRICS.JupSOLDepositWithdrawFees]: "All of deposit and withdrawal fees, kept by Jupiter.",
       [JUPITER_METRICS.JupSOLValidatorCommission]: "All of the validator commission, kept by Jupiter.",
     },
     SupplySideRevenue: {
       [JUPITER_METRICS.JupSOLStakingRewardsToStakers]: "95% of pool rewards, to jupSOL holders.",
       [JUPITER_METRICS.JupSOLStakingRewardsToSanctum]: "2.5% of pool rewards, to Sanctum.",
+      [DEPOSIT_WITHDRAW_FEES_TO_SANCTUM]: "All deposit and withdrawal fees, to Sanctum.",
     },
   },
 };

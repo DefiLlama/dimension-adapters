@@ -26,6 +26,7 @@ const correctedTotalRevenues: Record<string, number> = {
 
 const correctedTotalFees: Record<string, number> = {
   '2026-11-11': 925.82, //api returns 31,696,940.07 (claimed 243,945.57 and transferred 4,230,577.1 are blown up too) vs 925.68 (previous day) and 925.96 (next day); the midpoint leaves the 11-10 -> 11-12 total unchanged
+  '2026-11-15': 928.99, //api returns 991.31 (+68.61 ETH, then -56.03 ETH the next day; transferred 97.18 vs ~88-90 around it) vs 922.70 (previous day) and 935.28 (next day); the midpoint leaves the 11-14 -> 11-16 total unchanged
 }
 
 const fetchCumulativeData = async (dateStr: string) => {
@@ -50,7 +51,7 @@ const fetch = async (options: FetchOptions) => {
   ]);
 
   const dailyFeesETH = current.totalFees - previous.totalFees;
-  if (Math.abs(dailyFeesETH) > previous.totalFees * 0.1)
+  if (Math.abs(dailyFeesETH) > previous.totalFees * 0.05)
     throw new Error(`Obol API cumulative fees jumped from ${previous.totalFees} to ${current.totalFees} ETH on ${options.dateString}, likely a corrupt row`);
   let dailyRevenueETH = current.totalRevenue - previous.totalRevenue;
 
