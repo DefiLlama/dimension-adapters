@@ -1786,6 +1786,10 @@ const deadFromMap: Record<string, string> = {
   "jswap": '2023-03-03',
   "okcswap": '2025-10-22',
   "bcswap": '2026-10-27',
+  // Meter halted at block 100768776 on 2026-09-24 and rpc.meter.io now returns HTTP 530 (Cloudflare 1033);
+  // last recorded volume on both adapters was 2026-09-24 ($4,501 and $13,269).
+  "voltswap-v1": '2026-09-25',
+  "voltswap-v2": '2026-09-25',
 }
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
