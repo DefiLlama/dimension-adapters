@@ -34,7 +34,7 @@ const chainConfig:any = {
     // },
     [CHAIN.BASE]: {
         name: 'Base',
-        subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-base/beta/gn',
+        subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-base/master-v4-metadata-20261030/gn',
         chainId: 8453,
         identifier: 'base',
         start: '2023-11-06',

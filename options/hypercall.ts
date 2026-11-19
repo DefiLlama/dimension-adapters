@@ -31,8 +31,11 @@ async function getTrades(fromMs: number, toMs: number): Promise<HypercallTrade[]
   return [...trades.values()];
 }
 
-// Hypercall underlyings trade as Hyperliquid perps: BTC/ETH on the main dex, equities and indices on trade.xyz (HIP-3)
-const hyperliquidCoin = (underlying: string) => (["BTC", "ETH"].includes(underlying) ? underlying : `xyz:${underlying}`);
+// Hypercall underlyings trade as Hyperliquid perps: BTC/ETH on the main dex, equities, indices and commodities on trade.xyz (HIP-3)
+// Hypercall names that differ from the trade.xyz ticker. WTI crude is xyz:CL: Hypercall's WTI index_price matched xyz:CL (82.11 vs 82.112) on 2026-11-19
+const XYZ_TICKERS: Record<string, string> = { WTI: "CL" };
+const hyperliquidCoin = (underlying: string) =>
+  ["BTC", "ETH"].includes(underlying) ? underlying : `xyz:${XYZ_TICKERS[underlying] ?? underlying}`;
 
 // Hyperliquid only serves the latest 5000 candles per interval (~208 days of 1h, ~13 years of 1d):
 // https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint#candle-snapshot

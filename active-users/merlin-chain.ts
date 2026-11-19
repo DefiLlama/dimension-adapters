@@ -2,8 +2,8 @@ import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
-// Stats host from https://scan.merlinchain.io/assets/envs.js (NEXT_PUBLIC_STATS_API_HOST)
-const STATS_URL = "https://scan-stat.merlinchain.io";
+// Stats host from https://scan.merlinchain.io/assets/envs.js (NEXT_PUBLIC_STATS_API_HOST + NEXT_PUBLIC_STATS_API_BASE_PATH)
+const STATS_URL = "https://scan.merlinchain.io/stats-api";
 const headers = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" };
 
 async function fetchLine(line: string, date: string) {

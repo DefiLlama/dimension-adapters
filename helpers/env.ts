@@ -12,7 +12,9 @@ const DEFAULTS: any = {
   // back to a random SDK RPC, and cronos-evm-rpc.publicnode.com is pruned: it answers older ranges with [] instead of an error.
   CRONOS_ARCHIVAL_RPC: 'https://cronos.rpc.sentio.xyz',
   CRONOS_ZKEVM_ARCHIVAL_RPC: 'https://mainnet.zkevm.cronos.org', // eth_getLogs: cronos-zkevm.drpc.org answers 400 and 388.rpc.thirdweb.com 429s
+  // eth_getLogs: sentry is the only endpoint with complete logs; polkachu and thirdweb answer [] for ranges that hold logs.
   INJECTIVE_ARCHIVAL_RPC: 'https://sentry.evm-rpc.injective.network',
+  INJECTIVE_RPC: 'https://1776.rpc.thirdweb.com',
   TEMPO_RPC: 'https://rpc.mainnet.tempo.xyz',
   TEMPO_ARCHIVAL_RPC: 'https://rpc.mainnet.tempo.xyz', // dRPC rejects even a 1,000-block fee-log window
   ETLK_RPC: 'https://node.mainnet.etherlink.com',
@@ -68,6 +70,7 @@ const DEFAULTS: any = {
   // eth_getLogs without a contract address (topic-only scans): nodies caps ranges at 50 blocks, publicnode requires an address,
   // drpc answers 400 and onfinality/thirdweb/swiftnodes 429. The chain's own RPC serves them over 100,000+ block ranges.
   METIS_ARCHIVAL_RPC: 'https://andromeda.metis.io/?owner=1088',
+  TOMOCHAIN_ARCHIVAL_RPC: 'https://rpc.viction.xyz',
   ROBINHOOD_RPC: 'https://rpc.mainnet.chain.robinhood.com',
   // Order matters. eth_call at the latest block is served well by all three, but an eth_call at a
   // PAST block is served only by drpc: blockdaemon answers "state at block N is pruned" and
@@ -80,6 +83,7 @@ const DEFAULTS: any = {
   ELYSIUM_RPC_CHAIN_ID: '99901',
   ELYSIUM_RPC_MAX_PARALLEL: '5',
   ELYSIUM_RPC_GET_LOGS_CONCURRENCY_LIMIT: '1',
+  ELYSIUM_RPC_MULTICALL_V3: '0xcA11bde05977b3631167028862bE2a173976CA11',
   RISE_ARCHIVAL_RPC: 'https://explorer.risechain.com/api/eth-rpc', // public rpc.risechain.com caps eth_getLogs at 5000 blocks
   STY_RPC: 'https://rpc.ankr.com/story_mainnet,https://1514.rpc.thirdweb.com', // storyrpc.io / datarpc.io prune state after ~5000 blocks; these two answer historical eth_call
   STRATO_RPC: 'https://app.strato.nexus/rpc', // noderpc.strato.nexus/rpc (SDK default) stalls hours behind head

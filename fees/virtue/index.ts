@@ -3,7 +3,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
-const { call, getCheckpointAtTimestamp, normalizeCoinType, parseStructTag } = sdk.chains.sui
+const { call, normalizeCoinType, parseStructTag } = sdk.chains.sui
 
 // Virtue mainnet packages, from the app config bundled at https://info.virtue.money
 // Every fee is collected into the VUSD Treasury (0x81f525f4fa5b2d3cf58677d3e39aabc4b0a1ca25cbba605033cfe417e47b0a16)
@@ -53,15 +53,19 @@ const getDecimals = (coinType: string) => decimalsCache[coinType] ??= iotaCall('
 const VUSD_EVENTS_FILTER = { MoveEventModule: { package: VUSD_PACKAGE, module: 'vusd' } }
 
 // vusd module events in [startTimestamp, endTimestamp). The RPC cannot combine a module and a time filter,
-// so paging starts from a transaction of the last checkpoint before the window.
+// so paging starts from the last event of any type before the window. A cursor must be a real event: a
+// transaction without events (e.g. a checkpoint's consensus prologue) fails with "Could not find the referenced transaction events".
 async function getVusdEvents(options: FetchOptions) {
   const startMs = options.startTimestamp * 1e3
   const endMs = options.endTimestamp * 1e3
-  const { sequenceNumber } = await getCheckpointAtTimestamp({ chain: 'iota', timestamp: options.startTimestamp - 1 })
-  const checkpoint = await iotaCall('iota_getCheckpoint', [String(sequenceNumber)])
+  // TimeRange endTime is inclusive
+  const anchor = await iotaCall('iotax_queryEvents', [{ TimeRange: { startTime: '0', endTime: String(startMs - 1) } }, null, 1, true])
+  const anchorId = anchor.data[0]?.id
+  // api.mainnet.iota.cafe prunes its event indexes to roughly the last 100 days (oldest event on 2026-11-19: 2026-08-11 06:23 UTC)
+  if (!anchorId) throw new Error(`virtue: no iota event before ${new Date(startMs).toISOString()}, the node's event history is pruned`)
   // the node drops the first match after a cursor that is not itself a matching event, so step back to a
-  // matching event before the window and page forward from it (null = from the first event ever)
-  const before = await iotaCall('iotax_queryEvents', [VUSD_EVENTS_FILTER, { txDigest: checkpoint.transactions[0], eventSeq: '0' }, 1, true])
+  // matching event before the window and page forward from it (null = from the oldest event the node keeps)
+  const before = await iotaCall('iotax_queryEvents', [VUSD_EVENTS_FILTER, anchorId, 1, true])
   let cursor = before.data[0]?.id ?? null
   const events: any[] = []
   while (true) {

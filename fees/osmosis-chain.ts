@@ -7,11 +7,12 @@ const fetch = async (options: FetchOptions) => {
   const end = new Date(options.toTimestamp * 1000).toISOString()
 
   const query = `
-    SELECT 
+    SELECT
         fee_denom,
         coalesce(sum(fee_amount), 0) as tx_fees
     FROM osmosis.raw.transactions
-    where block_timestamp BETWEEN '${start}' AND '${end}'
+    where block_timestamp >= '${start}' AND block_timestamp < '${end}'
+      AND fee_denom IS NOT NULL
     group by fee_denom
   `;
 

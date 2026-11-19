@@ -34,6 +34,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.CARDANO],
   start: "2021-11-28",
+  deadFrom: "2026-11-14",
   // [CHAIN.MILKOMEDA]: {  // milkomeda chain is dead
   //   fetch: async (options: FetchOptions) => getUniV2LogAdapter({ factory: '0x57A8C24B2B0707478f91D3233A264eD77149D408'})(options)
   // },

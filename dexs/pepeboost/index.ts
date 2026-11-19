@@ -54,8 +54,9 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  // v1: one full-day Allium query per day. Hourly slices ran minutes after each hour closed, before Allium had
+  // indexed past it (dex.trades loads ~1-2.5h behind), so every hourly run threw the lag check; a daily run fails only 2-3 times
+  version: 1,
   dependencies: [Dependencies.ALLIUM],
   fetch,
   chains: [CHAIN.SOLANA],
