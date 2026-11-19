@@ -1,4 +1,3 @@
-import { Balances } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -80,15 +79,6 @@ const eidToChain = new Map(
 const normalizeToken = (token: string) =>
     token.toLowerCase() === ADDRESSES.GAS_TOKEN_2 ? ADDRESSES.null : token.toLowerCase();
 
-// USDT0 on MegaETH has no coins price under its own address, so it is priced by its coingecko id
-const MEGAETH_USDT0 = ADDRESSES.megaeth.USDT.toLowerCase();
-
-const addLeg = (balances: Balances, chain: string, token: string, amount: bigint) => {
-    const normalized = normalizeToken(token)
-    if (chain === CHAIN.MEGAETH && normalized === MEGAETH_USDT0) balances.addCGToken("usdt0", Number(amount) / 1e6) // 6 decimals, single fills stay far below 2^53
-    else balances.add(`${chain}:${normalized}`, amount, { skipChain: true })
-}
-
 async function fetch(options: FetchOptions) {
     const fillLogs = await options.getLogs({
         target: chainConfig[options.chain].contract,
@@ -103,8 +93,8 @@ async function fetch(options: FetchOptions) {
         const srcChain = eidToChain.get(srcEid.toString());
         // an unknown source would drop the input but keep the output, booking the whole fill as a negative fee
         if (!srcChain) throw new Error(`aori: unknown srcEid ${srcEid} on ${options.chain}`)
-        addLeg(inputs, srcChain, inputToken, inputAmount)
-        addLeg(outputs, options.chain, outputToken, outputAmount)
+        inputs.add(`${srcChain}:${normalizeToken(inputToken)}`, inputAmount, { skipChain: true })
+        outputs.add(normalizeToken(outputToken), outputAmount)
     })
 
     const dailyFees = inputs.clone(1, "Bridge Fees");
