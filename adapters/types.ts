@@ -32,14 +32,17 @@ export type FetchOptions = {
   toTimestamp: number;
   fromTimestamp: number;
   startOfDay: number;
+  /** First block in the window, inclusive for event queries. */
   getFromBlock: () => Promise<number>;
   getToBlock: () => Promise<number>;
   chain: string,
   api: ChainApi,
+  /** Reads state at the block immediately before the window. */
   fromApi: ChainApi,
   toApi: ChainApi,
   startTimestamp: number,
   endTimestamp: number,
+  /** Alias for getFromBlock. */
   getStartBlock: () => Promise<number>,
   getEndBlock: () => Promise<number>,
   dateString: string,

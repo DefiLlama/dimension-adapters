@@ -188,7 +188,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     chain: options.chain,
     transactionType: 'to',
     addresses: [smoothingPool],
-    from_block: Number(options.fromApi.block),
+    from_block: Number(await options.getFromBlock()),
     to_block: Number(options.toApi.block),
   })
   if (transactions) {

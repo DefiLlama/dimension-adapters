@@ -182,7 +182,7 @@ type L2FeesRow = Row & { l2_fees_wei: string };
 
 // L2 fees of the window from the indexer, null when the window has no block past the 50-block reorg margin yet
 export const getIndexerL2FeesWei = async (options: FetchOptions, chainName: string = options.chain): Promise<bigint | null> => {
-	const fromBlock = Number(options.fromApi.block);
+	const fromBlock = Number(await options.getFromBlock());
 	const safeBlock = Number(options.toApi.block) - 50;
 	if (safeBlock <= fromBlock) return null;
 

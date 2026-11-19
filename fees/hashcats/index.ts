@@ -152,10 +152,10 @@ const fetch = async (options: FetchOptions) => {
   // the change in hookDue puts every mint's cut back in its own window.
   //
   // The two readings have to bracket exactly the blocks whose logs are counted.
-  // getLogs includes the window's first block, while fromApi reads the state
-  // after that block has already run, so the opening reading is taken one block
-  // earlier - otherwise a deferral in that first block would be missing from the
-  // difference while its mint was counted, and the rent would absorb the error.
+  // getLogs includes the window's first block, so the opening reading is taken
+  // one block earlier (where fromApi also reads) - otherwise a deferral in that
+  // first block would be missing from the difference while its mint was counted,
+  // and the rent would absorb the error.
   //
   // It needs its own ChainApi: a per-call block is ignored, so asking options.api
   // for an earlier height silently returns the value at the end of the window,

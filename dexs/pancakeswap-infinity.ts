@@ -113,10 +113,10 @@ async function trackPoolManager({ getLogs, chain, target, fromBlock, getFromBloc
 }
 
 async function fetch(options: FetchOptions) {
-  const { getLogs, createBalances, chain, fromApi, toApi } = options
+  const { getLogs, createBalances, chain, toApi } = options
   const { clPoolManager, binPoolManager, fromBlock } = config[chain]
   const blacklistTokens = await getDexTokensBlacklisted(options)
-  const getFromBlock = Number(fromApi.block)
+  const getFromBlock = Number(await options.getFromBlock())
   const getToBlock = Number(toApi.block)
   const dailyVolume = createBalances()
   const swapFees = createBalances()

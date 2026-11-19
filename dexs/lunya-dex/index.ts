@@ -45,7 +45,7 @@ async function fetch(options: FetchOptions) {
   const { api, toApi, chain, createBalances } = options;
   // Queried straight through the sdk, as uniswap-v4 and zora-sofi do, so the window can be split:
   // Arc is not on the indexer and its public endpoints cap a log query well below a day of blocks.
-  const fromBlock = Number(options.fromApi.block);
+  const fromBlock = Number(await options.getFromBlock());
   const toBlock = Number(options.toApi.block);
   const dailyVolume = createBalances();
   const dailyFees = createBalances();

@@ -200,7 +200,7 @@ const buildSwapAggSql = (
     AND address IN (${hexListSql(addresses, 40)})
     AND topic0 = '${SWAP_TOPIC0}'
     AND block_number >= ${fromBlock}
-    AND block_number <  ${toBlock}
+    AND block_number <= ${toBlock}
   GROUP BY address
 `;
 
@@ -250,7 +250,7 @@ async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig
 
   // Step 2: aggregate per-pair Swap event amount-out for the day
   const swapRows = await queryClickhouse<SwapAggRow>(
-    buildSwapAggSql(chainId, shortAddresses, pairAddresses, Number(options.fromApi.block), Number(options.toApi.block)),
+    buildSwapAggSql(chainId, shortAddresses, pairAddresses, Number(await options.getFromBlock()), Number(options.toApi.block)),
     undefined,
     chSettings,
   );

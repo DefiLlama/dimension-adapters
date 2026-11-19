@@ -46,7 +46,7 @@ async function fetch(options: FetchOptions) {
     chain: options.chain,
     transactionType: 'to',
     addresses: [config.hook],
-    from_block: Number(options.fromApi.block),
+    from_block: Number(await options.getFromBlock()),
     to_block: Number(options.toApi.block),
   })
 

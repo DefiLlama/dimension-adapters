@@ -370,7 +370,7 @@ async function fetch(options: FetchOptions) {
     const logParams = {
       chain: options.chain,
       target: config.poolManager,
-      fromBlock: Number(options.fromApi.block),
+      fromBlock: Number(await options.getFromBlock()),
       toBlock: Number(options.toApi.block),
       maxBlockRange: 10000,
       onlyArgs: false, // tx hash needed to group a tx's swaps per pool

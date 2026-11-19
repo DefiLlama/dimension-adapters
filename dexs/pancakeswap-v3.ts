@@ -143,7 +143,7 @@ const buildBscV3DataSql = (chainId: number, factory: string, fromBlock: number, 
       AND short_topic0 = '${V3_SWAP_SHORT_TOPIC0}'
       AND topic0 = '${V3_SWAP_TOPIC0}'
       AND block_number >= ${fromBlock}
-      AND block_number <  ${toBlock}
+      AND block_number <= ${toBlock}
     GROUP BY address
   )
   SELECT
@@ -201,7 +201,7 @@ const fetchBsc = async (options: FetchOptions) => {
     buildBscV3DataSql(
       Number(options.api.chainId),
       factories[options.chain].address.toLowerCase(),
-      Number(options.fromApi.block),
+      Number(await options.getFromBlock()),
       Number(options.toApi.block),
     ),
   );

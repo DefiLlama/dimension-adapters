@@ -61,13 +61,13 @@ const fetch = async (options: FetchOptions) => {
   const fromBlock = await options.getFromBlock();
   const toBlock = await options.getToBlock();
   const activeVaults = VAULTS.filter(v => v.block <= toBlock);
-  if (activeVaults.length && toBlock > fromBlock) {
-    const before = await pendingYield(options.fromApi, fromBlock);
+  if (activeVaults.length && toBlock >= fromBlock) {
+    const before = await pendingYield(options.fromApi, fromBlock - 1);
     const after = await pendingYield(options.toApi, toBlock);
     const assets = await options.toApi.multiCall({ abi: "address:asset", calls: activeVaults });
     const accrued = await getLogs({
       targets: activeVaults.map(v => v.target),
-      fromBlock: fromBlock + 1,
+      fromBlock,
       toBlock,
       eventAbi: "event YieldAccrued(uint256 accruedYield, uint256 newFeesFromYield, uint256 newVaultBalance)",
       onlyArgs: false,

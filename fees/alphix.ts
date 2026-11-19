@@ -96,7 +96,7 @@ async function fetch(options: FetchOptions) {
     const logs = await sdk.getEventLogs({
       chain: options.chain,
       target: chainCfg.poolManager,
-      fromBlock: Number(options.fromApi.block),
+      fromBlock: Number(await options.getFromBlock()),
       toBlock: Number(options.toApi.block),
       topics: [SWAP_TOPIC, pool.id],
       entireLog: true,
