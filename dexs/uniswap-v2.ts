@@ -6,6 +6,7 @@ import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { getUniV2LogAdapter } from "../helpers/uniswap";
 import { queryClickhouse } from "../helpers/indexer";
 import { getDefaultDexTokensWhitelisted, getDexTokensBlacklisted } from "../helpers/lists";
+import { METRIC } from "../helpers/metrics";
 import { Row } from "../helpers/indexer";
 
 type Source = 'LOGS' | 'CLICKHOUSE';
@@ -212,12 +213,12 @@ async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig
   const feeRates = getLogAdapterConfig(options);
 
   const emptyResult = (): FetchResultV2 => {
-    const dailyFees = dailyVolume.clone(0.003);
+    const dailyFees = dailyVolume.clone(0.003, METRIC.SWAP_FEES);
     return {
       dailyVolume,
       dailyFees,
       dailyUserFees: dailyFees,
-      dailySupplySideRevenue: dailyFees, // Revenue share subtracted in Uniswap V3 adapter
+      dailySupplySideRevenue: dailyFees.clone(1, 'Swap Fees To Liquidity Providers'), // Revenue share subtracted in Uniswap V3 adapter
       dailyRevenue: 0, // Tracked combined in Uniswap V3 adapter
       dailyProtocolRevenue: 0,
     };
@@ -262,12 +263,12 @@ async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig
     dailyVolume.add(tokens.token1, row.amount1_out);
   }
 
-  const dailyFees = dailyVolume.clone(0.003);
+  const dailyFees = dailyVolume.clone(0.003, METRIC.SWAP_FEES);
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees, // Revenue share subtracted in Uniswap V3 adapter
+    dailySupplySideRevenue: dailyFees.clone(1, 'Swap Fees To Liquidity Providers'), // Revenue share subtracted in Uniswap V3 adapter
     dailyRevenue: 0, // Tracked combined in Uniswap V3 adapter
     dailyProtocolRevenue: 0,
   };
@@ -281,7 +282,15 @@ const fetch = async (options: FetchOptions) => {
 
   if (config.source === 'LOGS') {
     const fetchFunction = getUniV2LogAdapter({ factory: config.factory, ...getLogAdapterConfig(options), allowReadPairs: options.chain === CHAIN.ZORA, blacklistTokens: await getDexTokensBlacklisted(options) });
-    return await fetchFunction(options);
+    const { dailyVolume, dailyFees } = await fetchFunction(options);
+    return {
+      dailyVolume,
+      dailyFees,
+      dailyUserFees: dailyFees,
+      dailySupplySideRevenue: dailyFees.clone(1, 'Swap Fees To Liquidity Providers'), // Revenue share subtracted in Uniswap V3 adapter
+      dailyRevenue: 0, // Tracked combined in Uniswap V3 adapter
+      dailyProtocolRevenue: 0,
+    };
   } else if (config.source === 'CLICKHOUSE') {
     return await fetchClickhouse(options, config);
   } else {
@@ -298,12 +307,25 @@ const methodology = {
   HoldersRevenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum shared to buy back and burn UNI, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI (Tracked combined in Uniswap V3 adapter)',
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: 'User pays 0.3% fees on each swap.',
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: 'User pays 0.3% fees on each swap.',
+  },
+  SupplySideRevenue: {
+    'Swap Fees To Liquidity Providers': 'Swap fees distributed to LPs, the fee switch share is subtracted in Uniswap V3 adapter.',
+  },
+}
+
 const adapter: Adapter = {
   version: 2,
   pullHourly: true,
   fetch,
   adapter: chainConfig,
   methodology,
+  breakdownMethodology,
 }
 
 export default adapter
