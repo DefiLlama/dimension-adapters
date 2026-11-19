@@ -29,7 +29,14 @@ interface FeesDailyResponse {
   perpsBuildersFees: TokenMap;
   spotBuildersFees: TokenMap;
   outcomeBuildersFees: TokenMap;
+  // HYPE, null when an hour of the day was aggregated without it
+  writePriorityFeeHype?: number | null;
+  readPriorityFeeHype?: number | null;
 }
+
+// first days a priority fee was charged, before them the fee did not exist
+export const HYPERLIQUID_WRITE_PRIORITY_FEE_START = 1776038400; // 2026-04-13
+export const HYPERLIQUID_READ_PRIORITY_FEE_START = 1776643200; // 2026-04-20
 
 interface VolumeDailyResponse {
   hours: number;
@@ -84,6 +91,11 @@ export interface QueryHyperliquidIndexerV2Result {
   dailyAqav2Yield: Balances;
   // USD the Assistance Fund spent buying HYPE that day
   dailyAssistanceFundBuyBack: Balances;
+
+  // HYPE paid (and burned) for order write priority (priorityGas on fills) and gossip read priority auctions.
+  // 0 before the fee existed, null when the indexer has not aggregated it for every hour of the day
+  dailyWritePriorityFees: Balances | null;
+  dailyReadPriorityFees: Balances | null;
 }
 
 const responses: Record<string, Promise<any>> = {};
@@ -140,6 +152,12 @@ export async function queryHyperliquidIndexerV2(options: FetchOptions): Promise<
     return balances;
   };
   const hyperliquidTokens = (tokenMap: TokenMap) => tokens(tokenMap, (token) => !coinsDeployedByUnit[token]);
+  const hype = (amount: number | null | undefined, start: number) => {
+    if (amount == null) return options.startOfDay < start ? options.createBalances() : null;
+    const balances = options.createBalances();
+    balances.addCGToken(CoinGeckoMaps.HYPE, Number(amount));
+    return balances;
+  };
 
   const dailyPerpFees = tokens(fees.perpsFees);
   const dailyPerpDeployersFees = usd(fees.perpsDeployersFeesUsd);
@@ -188,6 +206,8 @@ export async function queryHyperliquidIndexerV2(options: FetchOptions): Promise<
     dailySpotHyperliquidRevenue,
     dailyAqav2Yield: usd(fees.aqav2YieldUsd),
     dailyAssistanceFundBuyBack: usd(fees.afBuyBackHypeUsd),
+    dailyWritePriorityFees: hype(fees.writePriorityFeeHype, HYPERLIQUID_WRITE_PRIORITY_FEE_START),
+    dailyReadPriorityFees: hype(fees.readPriorityFeeHype, HYPERLIQUID_READ_PRIORITY_FEE_START),
   };
 }
 
