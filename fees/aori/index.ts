@@ -48,6 +48,12 @@ const chainConfig: any = {
         eid: 30398n,
         start: "2026-02-06",
     },
+    // https://docs.aori.io/developers/chains, eid matches endpoint().eid() on the contract and the peers() of the other deployments
+    [CHAIN.ROOTSTOCK]: {
+        contract: "0xffe691a6ddb5d2645321e0a920c2e7bdd00dd3d8",
+        eid: 30333n,
+        start: "2026-04-03",
+    },
 }
 
 const FILL_EVENT = `event Fill(
@@ -85,7 +91,9 @@ async function fetch(options: FetchOptions) {
     fillLogs.forEach((log: any) => {
         const { inputToken, inputAmount, outputToken, outputAmount, srcEid } = log.order;
         const srcChain = eidToChain.get(srcEid.toString());
-        if (srcChain) inputs.add(`${srcChain}:${normalizeToken(inputToken)}`, inputAmount, { skipChain: true })
+        // an unknown source would drop the input but keep the output, booking the whole fill as a negative fee
+        if (!srcChain) throw new Error(`aori: unknown srcEid ${srcEid} on ${options.chain}`)
+        inputs.add(`${srcChain}:${normalizeToken(inputToken)}`, inputAmount, { skipChain: true })
         outputs.add(normalizeToken(outputToken), outputAmount)
     })
 
@@ -94,8 +102,8 @@ async function fetch(options: FetchOptions) {
 
     return {
         dailyFees,
-        dailyRevenue: dailyFees,
-        dailyProtocolRevenue: dailyFees,
+        dailyRevenue: dailyFees.clone(),
+        dailyProtocolRevenue: dailyFees.clone(),
     }
 }
 
@@ -124,7 +132,7 @@ const adapter: SimpleAdapter = {
     adapter: chainConfig,
     methodology,
     breakdownMethodology,
-    allowNegativeValue: true,
+    allowNegativeValue: true, // input and output legs are priced separately, so a fill can net slightly below zero
 }
 
 export default adapter;
