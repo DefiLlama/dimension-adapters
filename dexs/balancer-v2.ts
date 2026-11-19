@@ -60,13 +60,18 @@ async function getFees(options: FetchOptions) {
   const collectorShare = Number(await toApi.call({ target: collector, abi: abis.getSwapFeePercentage })) / 1e18
   const cachedShares = await toApi.multiCall({ abi: abis.getProtocolFeePercentageCache, calls: pools.map((pool: string) => ({ target: pool, params: [0] })), permitFailure: true })
   // a null can be an RPC failure rather than a pool without the cache: retry it alone, and only use the collector rate
-  // when the call reverts
-  await Promise.all(cachedShares.map(async (share: any, i: number) => {
-    if (share != null) return
-    try {
-      cachedShares[i] = await toApi.call({ target: pools[i], abi: abis.getProtocolFeePercentageCache, params: [0] })
-    } catch (e: any) {
-      if (!/revert/i.test(String(e?.message ?? e))) throw e
+  // when the call reverts. cap the retries so a window with many legacy pools does not open one call per pool at once.
+  const missing = cachedShares.flatMap((share: any, i: number) => share == null ? [i] : [])
+  const RETRY_CONCURRENCY = 8
+  let cursor = 0
+  await Promise.all(Array.from({ length: Math.min(RETRY_CONCURRENCY, missing.length) }, async () => {
+    while (cursor < missing.length) {
+      const i = missing[cursor++]
+      try {
+        cachedShares[i] = await toApi.call({ target: pools[i], abi: abis.getProtocolFeePercentageCache, params: [0] })
+      } catch (e: any) {
+        if (!/revert/i.test(String(e?.message ?? e))) throw e
+      }
     }
   }))
   logs_swap.forEach((log: any) => {
