@@ -434,11 +434,17 @@ async function fetch(options: FetchOptions) {
           extraTopics: [poolId],
           fromBlock: 1,
           toBlock: Number(options.toApi.block),
-          onlyArgs: true,
+          onlyArgs: false,
           cacheInCloud: true,
         })
-        if (initializationLogs.length > 1) throw new Error(`Multiple Initialize events for ${poolId}`)
-        const initialization = initializationLogs[0]
+        const uniqueInitializations = new Map(
+          initializationLogs.map(log => [
+            `${log.transactionHash}-${log.logIndex ?? log.index}`,
+            log,
+          ]),
+        )
+        if (uniqueInitializations.size > 1) throw new Error(`Multiple Initialize events for ${poolId}`)
+        const initialization = uniqueInitializations.values().next().value?.args
         if (initialization) {
           pools[poolId] = {
             poolId,
