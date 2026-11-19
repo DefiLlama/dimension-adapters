@@ -16,7 +16,7 @@ const DZAP_SWAP_INFO =
 const DZAP_SWAPPED = `event DZapTokenSwapped(bytes32 indexed transactionId, address indexed sender, address indexed integrator, ${DZAP_SWAP_INFO} swapInfo)`;
 const DZAP_BATCH_SWAPPED = `event DZapBatchTokenSwapped(bytes32 indexed transactionId, address indexed sender, address indexed integrator, ${DZAP_SWAP_INFO}[] swapInfo)`;
 
-// One entry per chain. To add a chain: its first day of Byzanlink trades, plus the router of each venue Byzanlink
+// One entry per chain. To add a chain: its first day of Byzanlink swaps, plus the router of each venue Byzanlink
 // routes through there (leave a venue out if Byzanlink does not use it on that chain).
 const chainConfig: Record<string, { start: string; kyberRouter?: string; dzapRouter?: string }> = {
   [CHAIN.BASE]: { start: "2026-10-22", kyberRouter: KYBER_ROUTER, dzapRouter: DZAP_ROUTER },
@@ -116,12 +116,12 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   doublecounted: true, // executed by the KyberSwap and DZap routers
   methodology: {
-    Volume: "Value of token buys and sells made on Byzanlink, routed through KyberSwap or DZap, priced on one side of each swap.",
+    Volume: "Value of token swaps made on Byzanlink, routed through KyberSwap or DZap, priced on one side of each swap.",
   },
   breakdownMethodology: {
     Volume: {
-      KyberSwap: "Trades routed through the KyberSwap MetaAggregationRouterV2 with the Byzanlink source.",
-      DZap: "Trades routed through the DZap router with the Byzanlink integrator.",
+      KyberSwap: "Swaps routed through the KyberSwap MetaAggregationRouterV2 with the Byzanlink source.",
+      DZap: "Swaps routed through the DZap router with the Byzanlink integrator.",
     },
   },
 };
