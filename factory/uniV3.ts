@@ -481,6 +481,16 @@ const configs: Record<string, Record<string, any>> = {
   "stockiumswap": {
     [CHAIN.ELYSIUM]: { factory: '0x4F66184A9FFabB7f7071D590C2c48DEDf41676f4', start: '2026-10-29', userFeesRatio: 1, protocolRevenueRatio: 0, dynamicProtocolFees: true, getRevenueRatio: stockiumSwapRevenueRatio },
   },
+  // OwlSwap V3 (https://owlswap.app, https://x.com/OwlSwapDEX): unmodified Uniswap V3 fork (same init code hash 0xe34f…8b54), factories owned by
+  // the OwlSwap Safe 0xfD87752Af1dAC08db68919a898a1dD913B33ae26. Protocol share read per pool from slot0().feeProtocol (6 = 1/6 on the BSC
+  // OWL/USDT 1% pool, 0 on the other pools on 2026-11-19), collected to the OwlSwap FeeCollector. TVL: DefiLlama-Adapters registries/uniswapV3.js 'owlswap'.
+  "owlswap": {
+    [CHAIN.BSC]: { factory: '0x8d33DA172e5A27C9661286Ef1c9740de87Aa2F7B', start: '2026-10-29', userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
+    [CHAIN.OPTIMISM]: { factory: '0xe243794F0B40C9C98713be5a07F2eEbA61964fCc', start: '2026-11-18', userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
+    [CHAIN.POLYGON]: { factory: '0xe243794F0B40C9C98713be5a07F2eEbA61964fCc', start: '2026-11-18', userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
+    [CHAIN.AVAX]: { factory: '0xa03242Dd1e91f54A2104fC6F7D6e6745A9553503', start: '2026-11-18', userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
+    [CHAIN.ROBINHOOD]: { factory: '0x67CCfaCA25248cd5cC9efe4c40cDc4AB8a6a49CD', start: '2026-11-18', userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
+  },
   "superswap-v3": {
     [CHAIN.OPTIMISM]: { factory: '0xe52a36Bb76e8f40e1117db5Ff14Bd1f7b058B720', userFeesRatio: 1, revenueRatio: 0.8, protocolRevenueRatio: 0.8 },
   },
@@ -809,6 +819,14 @@ const methodologyMap: Record<string, any> = {
     Revenue: "The protocol share of StockiumSwap pool swap fees, set per pool by slot0().feeProtocol (0 on every pool checked on 2026-11-12).",
     ProtocolRevenue: "The protocol share of StockiumSwap pool swap fees, set per pool by slot0().feeProtocol and collectable by the factory owner.",
     SupplySideRevenue: "The swap fees of StockiumSwap pools earned by liquidity providers.",
+  },
+  "owlswap": {
+    Volume: "Swap volume of the OwlSwap V3 pools (Uniswap V3 pools created by the OwlSwap factories on BSC, Optimism, Polygon, Avalanche and Robinhood), from their Swap events.",
+    Fees: "Swap fees paid by traders in OwlSwap V3 pools, at the pool fee tier.",
+    UserFees: "Swap fees paid by traders in OwlSwap V3 pools, at the pool fee tier.",
+    Revenue: "The protocol share of OwlSwap V3 pool swap fees, set per pool by slot0().feeProtocol.",
+    ProtocolRevenue: "The protocol share of OwlSwap V3 pool swap fees, set per pool by slot0().feeProtocol and collected to the OwlSwap fee collector.",
+    SupplySideRevenue: "The swap fees of OwlSwap V3 pools earned by liquidity providers.",
   },
   "hydrex": {
     Volume: "Value swapped across the Hydrex Integral (Algebra Integral) pools created by the Hydrex factory on Base, counting one side of each trade. Pools launched through custom deployers are not included.",
@@ -1324,6 +1342,14 @@ protocols['stockiumswap'].breakdownMethodology = {
   UserFees: { 'Trading fees': 'Swap fees paid by traders in StockiumSwap pools, at the pool fee tier (0.01% to 7%).' },
   Revenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner.' },
   ProtocolRevenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner.' },
+  SupplySideRevenue: { 'LP fees': 'The part of swap fees earned by liquidity providers.' },
+}
+
+protocols['owlswap'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': 'Swap fees paid by traders in OwlSwap V3 pools, at the pool fee tier (0.01% to 1%).' },
+  UserFees: { 'Trading fees': 'Swap fees paid by traders in OwlSwap V3 pools, at the pool fee tier (0.01% to 1%).' },
+  Revenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collected to the OwlSwap fee collector.' },
+  ProtocolRevenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collected to the OwlSwap fee collector.' },
   SupplySideRevenue: { 'LP fees': 'The part of swap fees earned by liquidity providers.' },
 }
 
