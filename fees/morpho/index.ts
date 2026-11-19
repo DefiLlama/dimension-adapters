@@ -88,7 +88,7 @@ export const MorphoBlues: Record<string, MorphoBlueConfig> = {
     start: "2025-01-22",
   },
   [CHAIN.WC]: {
-    fromBlock: 12842868,
+    fromBlock: 9025669, // Morpho Blue deployment on World Chain (2025-01-20); first CreateMarket at 9025916
     blue: "0xE741BC7c34758b4caE05062794E8Ae24978AF432",
     start: "2025-01-22",
   },
