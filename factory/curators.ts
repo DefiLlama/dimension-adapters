@@ -681,6 +681,9 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.ARBITRUM]: {
         morphoVaultOwners: ['0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8'],
         morphoVaultV2Owners: ['0x0b1aA22117E38f260e0F3aB3b0F12a22c2691ffC'],
+        // Steakhouse USDG Pro: its CreateVaultV2 owner is the deployer contract 0x8581f3a7 (block 512247107),
+        // so owner discovery misses it. Listed as Steakhouse Financial on api.morpho.org.
+        morphoV2: ['0xbeeFf72B77e7584a450E887125F25E8D8819016a'],
         start: '2025-07-17',
       },
       [CHAIN.KATANA]: {
