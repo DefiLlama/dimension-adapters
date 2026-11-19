@@ -288,6 +288,7 @@ export enum CHAIN {
   HAVEN1 = "haven1",
   GRVT = "grvt",
   SOMNIA = "somnia",
+  SOMNIA_TOKYO = "somnia_tokyo",
   ORDERLY = "orderly",
   CAMP = "camp",
   PARADEX = "paradex",
