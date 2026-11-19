@@ -219,7 +219,8 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.SEI]: { factory: '0xd0c54c480fD00DDa4DF1BbE041A6881f2F09111e', deadFrom: "2026-01-15" },
   },
   "kayen-v3": {
-    [CHAIN.CHILIZ]: { factory: '0x4bC8BDF50843Cc503E196Be4A9560134d358bb3C', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+    // protocol share is slot0().feeProtocol, set per pool: 0 until 2026-09-08 (block 37361442), then 1/8, and 1/6 from 2026-09-21 (block 37736458)
+    [CHAIN.CHILIZ]: { factory: '0x4bC8BDF50843Cc503E196Be4A9560134d358bb3C', userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
   },
   "equalizer-cl": {
     [CHAIN.SONIC]: { factory: '0x7Ca1dCCFB4f49564b8f13E18a67747fd428F1C40' },
@@ -392,7 +393,8 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.HYPERLIQUID]: { factory: '0xD883a0B7889475d362CEA8fDf588266a3da554A1', blacklistedAddresses: ['0xbA0735019FA88C8e564d44df22A09818432EB43f'], swapEvent: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)', poolCreatedEvent: 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)', start: '2025-08-10', revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0, userFeesRatio: 1 },
   },
   "xswap-v3": {
-    [CHAIN.XDC]: { factory: '0x30F317A9EC0f0D06d5de0f8D248Ec3506b7E4a8A', userFeesRatio: 1, revenueRatio: 0 },
+    // pools send the slot0().feeProtocol share (1/10) of each swap fee to factory.treasury() during the swap, instead of accruing protocolFees
+    [CHAIN.XDC]: { factory: '0x30F317A9EC0f0D06d5de0f8D248Ec3506b7E4a8A', userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
   },
   "summitx-fi": {
     [CHAIN.CAMP]: { factory: '0xBa08235b05d06A8A27822faCF3BaBeF4f972BF7d', start: '2025-08-23', revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0 },
@@ -1099,6 +1101,22 @@ const methodologyMap: Record<string, any> = {
     Revenue: "80% of swap fees go to the protocol.",
     SupplySideRevenue: "20% of swap fees go to liquidity providers.",
   },
+  "xswap-v3": {
+    Volume: "Swap volume on XSwap V3 pools on XDC.",
+    Fees: "Swap fees paid by traders, at each pool's fee tier.",
+    UserFees: "Swap fees paid by traders, at each pool's fee tier.",
+    Revenue: "The protocol's share of swap fees, read from each pool (one tenth on every pool with swaps), sent to the XSwap treasury on each swap.",
+    ProtocolRevenue: "The protocol's share of swap fees, read from each pool (one tenth on every pool with swaps), sent to the XSwap treasury on each swap.",
+    SupplySideRevenue: "Swap fees left to liquidity providers after the protocol's share.",
+  },
+  "kayen-v3": {
+    Volume: "Swap volume on Kayen V3 pools on Chiliz.",
+    Fees: "Swap fees paid by traders, at each pool's fee tier.",
+    UserFees: "Swap fees paid by traders, at each pool's fee tier.",
+    Revenue: "The protocol's share of swap fees, read from each pool: zero before 2026-09-08, then one eighth and, from 2026-09-21, one sixth on the pools switched on.",
+    ProtocolRevenue: "The protocol's share of swap fees, read from each pool and collected by the protocol.",
+    SupplySideRevenue: "Swap fees left to liquidity providers after the protocol's share.",
+  },
   "cleopatra-exchange": {
     Fees: "User pays 0.05%, 0.30%, or 1% on each swap.",
     UserFees: "User pays 0.05%, 0.30%, or 1% on each swap.",
@@ -1225,6 +1243,22 @@ feesProtocols['cleopatra-exchange'].breakdownMethodology = {
   ProtocolRevenue: { 'Protocol fees': 'Portion of swap fees retained by protocol treasury (8% of total fees)' },
   HoldersRevenue: { 'Tokenholder fees': 'Portion of swap fees distributed to token holders (72% of total fees)' },
   SupplySideRevenue: { 'LP fees': 'Portion of swap fees distributed to liquidity providers (20% of total fees)' },
+}
+
+protocols['xswap-v3'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['xswap-v3'].Fees },
+  UserFees: { 'Trading fees': methodologyMap['xswap-v3'].UserFees },
+  Revenue: { 'Protocol fees': methodologyMap['xswap-v3'].Revenue },
+  ProtocolRevenue: { 'Protocol fees': methodologyMap['xswap-v3'].ProtocolRevenue },
+  SupplySideRevenue: { 'LP fees': methodologyMap['xswap-v3'].SupplySideRevenue },
+}
+
+protocols['kayen-v3'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['kayen-v3'].Fees },
+  UserFees: { 'Trading fees': methodologyMap['kayen-v3'].UserFees },
+  Revenue: { 'Protocol fees': methodologyMap['kayen-v3'].Revenue },
+  ProtocolRevenue: { 'Protocol fees': methodologyMap['kayen-v3'].ProtocolRevenue },
+  SupplySideRevenue: { 'LP fees': methodologyMap['kayen-v3'].SupplySideRevenue },
 }
 
 protocols['communityv3'].breakdownMethodology = {
