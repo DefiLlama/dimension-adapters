@@ -61,6 +61,7 @@ import { CHAIN } from "../helpers/chains";
 import ADDRESSES from '../helpers/coreAssets.json';
 import { queryDune } from "../helpers/dune";
 import { getDexTokensBlacklisted } from "../helpers/lists";
+import { METRIC } from "../helpers/metrics";
 import { isCoreAsset } from "../helpers/prices";
 import {
   getEstablishedTokens, getPhantomSwapKeys, phantomSwapKey, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES, WASH_MIN_USD,
@@ -453,7 +454,7 @@ async function fetch(options: FetchOptions) {
           const useToken0 = currency0 === ADDRESSES.null || isCoreAsset(options.chain, currency0) || !isCoreAsset(options.chain, currency1)
           const token = useToken0 ? currency0 : currency1
           const amount = Math.abs(Number(useToken0 ? event.amount0 : event.amount1))
-          dailyFees.add(token, amount * (Number(event.fee) / 1e6))
+          dailyFees.add(token, amount * (Number(event.fee) / 1e6), METRIC.SWAP_FEES)
           dailyVolume.add(token, amount)
         }
       }
@@ -464,7 +465,7 @@ async function fetch(options: FetchOptions) {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees,
+    dailySupplySideRevenue: dailyFees.clone(1, 'Swap Fees To Liquidity Providers'),
     dailyRevenue: 0, // tracked in uniswap-v3 adapter
     dailyProtocolRevenue: 0,
     dailyHoldersRevenue: 0, // tracked in uniswap-v3 adapter
@@ -484,6 +485,17 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: 'Protocol makes no revenue.',
     SupplySideRevenue: 'Part of fees distributed to LPs after protocol cut. (It was 100% of fees before fee switch(27 Jul 2026)).',
     HoldersRevenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SWAP_FEES]: 'Swap fees paid by users, excluding wash trading and swaps settled with no tokens changing hands.',
+    },
+    UserFees: {
+      [METRIC.SWAP_FEES]: 'Swap fees paid by users, excluding wash trading and swaps settled with no tokens changing hands.',
+    },
+    SupplySideRevenue: {
+      'Swap Fees To Liquidity Providers': 'Swap fees distributed to LPs, the fee switch share is subtracted in uniswap-v3 adapter.',
+    },
   },
   fetch,
 };
