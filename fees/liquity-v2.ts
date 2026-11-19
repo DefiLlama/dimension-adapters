@@ -8,6 +8,13 @@ import { METRICS } from "../helpers/liquity";
 const stabilityPoolRatio = 0.75;
 const revenueRatio = 0.25;
 
+// Known exploits that borrowed BOLD through troves opened and closed in the same tx; their fees are excluded
+const exploitBlockRanges: [number, number][] = [
+  // sBOLD vault exploit, 2026-11-18 12:00-12:20 UTC: 96 txs each borrowed ~9M BOLD from a wstETH flash trove,
+  // then redeemed the proceeds (e.g. 0xaa3c7f00c5e449abb4d871b3fdad91e44d6a61c7d83c36eff23faf783d4e84cf)
+  [26441929, 26442018],
+]
+
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
@@ -19,7 +26,7 @@ async function fetch(options: FetchOptions) {
   dailySupplySideRevenue.addBalances(v0DeploymentRes.dailySupplySideRevenue)
   
   if (options.startTimestamp >= 1747526400) {
-    const v1DeploymentRes = await getLiquityV2LogAdapter({ collateralRegistry: '0xf949982b91c8c61e952b3ba942cbbfaef5386684', stabilityPoolRatio, revenueRatio, })(options)
+    const v1DeploymentRes = await getLiquityV2LogAdapter({ collateralRegistry: '0xf949982b91c8c61e952b3ba942cbbfaef5386684', stabilityPoolRatio, revenueRatio, exploitBlockRanges, })(options)
     dailyFees.addBalances(v1DeploymentRes.dailyFees)
     dailyRevenue.addBalances(v1DeploymentRes.dailyRevenue)
     dailySupplySideRevenue.addBalances(v1DeploymentRes.dailySupplySideRevenue)
@@ -35,7 +42,7 @@ export default {
   start: '2025-01-24',
   chains: [CHAIN.ETHEREUM],
   methodology: {
-    Fees: 'Total interest, redemption fees paid by borrowers and liquidation gas compensate.',
+    Fees: 'Total interest, redemption fees paid by borrowers and liquidation gas compensate. Excludes the transactions of the 2026-11-18 sBOLD exploit, which opened and closed a trove in the same transaction.',
     Revenue: '25% of borrow interests are collected as protocol liquidity incentives.',
     SupplySideRevenue: '75% of borrow interests to stability pools takers, all redemption fees paid to borrowers and all gas compensations to liquidators.',
   },
