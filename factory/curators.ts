@@ -573,6 +573,16 @@ const configs: Record<string, CuratorConfig> = {
         morphoV2: ['0x047cd0a91e9b92ed979189a6c8a120bf280f02e5'],
         start: '2026-07-14',
       },
+      [CHAIN.MONAD]: {
+        // Morpho V2 vaults curated by the RockawayX safe 0xbBac...f918, the same addresses the
+        // TVL side lists: "Y10k AUSD Vault" (0xA2fa...19d6, performanceFee 10%) and
+        // "RockawayX infiniFi AUSD" (0xBD6d...5167, performanceFee 5%).
+        morphoV2: [
+          '0xA2fa4CeD4E2d448D084f5a15011b3564922119d6',
+          '0xBD6d56b5b1b535B92D4A0A8C0a9e6Cfd9b545167',
+        ],
+        start: '2026-09-15',
+      },
       [CHAIN.SOLANA]: {
         // Kamino kvaults curated by RockawayX. Both share vaultAdminAuthority
         // 5WodE5oHa6Uy16zg4eTep9t6DqJKx7jFN6bomAm7bVQv, which owns exactly these
