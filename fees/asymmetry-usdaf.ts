@@ -28,6 +28,7 @@ async function fetch(options: FetchOptions) {
 
 export default {
   version: 2,
+  pullHourly: true,
   methodology: defaultV2methodology,
   breakdownMethodology: defaultV2BreakdownMethodology,
   fetch,

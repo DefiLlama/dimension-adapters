@@ -46,6 +46,31 @@ function computeMethodology(fp: SubgraphConfig['feesPercent']): Record<string, s
 }
 
 const configs: Record<string, SubgraphConfig> = {
+  "quainance": {
+    graphUrls: {
+      [CHAIN.QUAI]: "https://graph.quai.network/subgraphs/name/quainance/v2",
+    },
+    totalVolume: { factory: "uniswapFactories", field: "totalVolumeUSD" },
+    // 0.3% fee, all to LPs, nothing to protocol
+    feesPercent: { type: "volume", Fees: 0.3, UserFees: 0.3, ProtocolRevenue: 0, HoldersRevenue: 0, Revenue: 0, SupplySideRevenue: 0.3 },
+    start: '2026-07-06',
+  },
+  "zyberswap-v3": {
+    graphUrls: {
+      [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7ZP9MeeuXno2y9pWR5LzA96UtYuZYWTA4WYZDZR7ghbN'),
+    },
+    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+    feesPercent: { type: "fees", ProtocolRevenue: 10, HoldersRevenue: 0, Fees: 10, UserFees: 90, SupplySideRevenue: 90, Revenue: 10 },
+    start: '2023-02-20',
+    methodology: {
+      UserFees: "User pays dynamic swap fee.",
+      Fees: "A dynamic swap fee is collected as trading fee",
+      Revenue: "Protocol receives 10% of the dynamic swap fee",
+      ProtocolRevenue: "Protocol receives 10% of the dynamic swap fee",
+      SupplySideRevenue: "90% of the dynamic swap fee is distributed to LPs",
+      HoldersRevenue: "A portion of the protocol fees is used to purchase WETH and distribute to stakers.",
+    },
+  },
   "harmony-swap": {
     graphUrls: {
       [CHAIN.HARMONY]: "https://graph.swap.country/subgraphs/name/harmony-uniswap-v3",
@@ -96,6 +121,7 @@ const configs: Record<string, SubgraphConfig> = {
       SupplySideRevenue: 85,
     },
     start: "2024-03-19",
+    deadFrom: "2026-09-11",
   },
   // "retro": {
   //   graphUrls: {
@@ -188,7 +214,9 @@ const configs: Record<string, SubgraphConfig> = {
       [CHAIN.SHIDO]: "https://prod-v2-graph-node.shidoscan.com/subgraphs/name/shido/mainnet",
     },
     start: "2024-09-18",
-    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+    // subgraph was redeployed with snake_case fields (2026-09)
+    totalVolume: { factory: "factories", field: "total_volume_usd" },
+    totalFees: { factory: "factories", field: "total_fees_usd" },
     feesPercent: {
       type: "fees",
       ProtocolRevenue: 0,
@@ -198,19 +226,20 @@ const configs: Record<string, SubgraphConfig> = {
       Revenue: 0,
     },
   },
-  "morFi": {
+  "morpheus": {
     graphUrls: {
-      [CHAIN.MORPH]: "https://subgraph.morfi.io/subgraphs/name/morfi/core",
+      [CHAIN.ROBINHOOD]: "https://api.goldsky.com/api/public/project_cm8pwdzcow9bu01xm6gdhatu4/subgraphs/analytics/v1.0.0/gn",
     },
-    start: '2024-10-29',
+    start: "2026-08-13",
     totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+    totalFees: { factory: "factories", field: "totalFeesUSD" },
     feesPercent: {
       type: "fees",
-      ProtocolRevenue: 0,
-      HoldersRevenue: 0,
+      Fees: 100,
       UserFees: 100,
-      SupplySideRevenue: 100,
-      Revenue: 0,
+      Revenue: 10,
+      ProtocolRevenue: 10,
+      SupplySideRevenue: 90,
     },
   },
   "sparkdex-v4": {
@@ -237,20 +266,6 @@ const configs: Record<string, SubgraphConfig> = {
       HoldersRevenue: "25% of collected fees (10% buyback-and-burn + 10% staking rewards before 2026-05-18).",
       Revenue: "25% of collected fees.",
     },
-  },
-  mojitoswap: {
-    graphUrls: {
-      [CHAIN.KCC]: "https://thegraph.kcc.network/subgraphs/name/mojito/swap",
-    },
-    feesPercent: {
-      type: "volume",
-      UserFees: 0.3,
-      Fees: 0.3,
-      SupplySideRevenue: 0.18,
-      HoldersRevenue: 0.08,
-      ProtocolRevenue: 0.04,
-      Revenue: 0.12,
-    }
   },
   pangolin: {
     graphUrls: {
@@ -383,7 +398,25 @@ const configs: Record<string, SubgraphConfig> = {
       HoldersRevenue: 0,
     },
     start: '2026-03-14',
-  }
+    // Tsunami V3 on Ink is dead: TVL collapsed from a $46k peak (2026-05-07) to $51,
+    // volume was ~$0 by early August and the goldsky subgraph project was deleted (404).
+    deadFrom: '2026-08-04',
+  },
+  "rayls-swap": {
+    // Algebra Integral fork on Rayls, factory 0x3f912b39A89708Db8E10205421d3726e2DF4984D.
+    // factory.defaultCommunityFee() = pool.globalState().communityFee = 20 out of
+    // COMMUNITY_FEE_DENOMINATOR 1000 => 2% of swap fees to the community vault, 98% to LPs.
+    graphUrls: {
+      [CHAIN.RAYLS]: "https://rayls-graph.algebra.finance/subgraphs/name/mainnet-analytics",
+    },
+    totalVolume: { factory: "factories", field: "totalVolumeUSD" },
+    totalFees: { factory: "factories", field: "totalFeesUSD" },
+    feesPercent: {
+      type: "fees",
+      SupplySideRevenue: 100,
+    },
+    start: "2026-05-18",
+  },
 };
 
 // Build protocols from configs
@@ -402,7 +435,7 @@ for (const [name, config] of Object.entries(configs)) {
 
   const adapter: SimpleAdapter = {
     version: 2,
-    // pullHourly: true,
+    pullHourly: true,
     adapter: chains.reduce((acc, chain) => ({
       ...acc,
       [chain]: {

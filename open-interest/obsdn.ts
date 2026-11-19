@@ -18,6 +18,7 @@ const fetch = async (_options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  deadFrom: '2026-08-01',
   chains: [CHAIN.MONAD],
   fetch,
   runAtCurrTime: true,

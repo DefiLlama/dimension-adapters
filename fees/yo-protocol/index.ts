@@ -7,13 +7,24 @@ const methodology = {
     SupplySideRevenue: 'All yields and fees are distributed to suppliers.',
 }
 
-const vaults = [
-    '0x0000000f2eB9f69274678c76222B35eEc7588a65', // YO_USD
-    '0x3A43AEC53490CB9Fa922847385D82fe25d0E9De7', // YO_ETH
-    '0xbCbc8cb4D1e8ED048a6276a5E94A3e952660BcbC', // YO_BTC
-]
+const VAULTS: Record<string, string[]> = {
+    [CHAIN.BASE]: [
+        '0x0000000f2eB9f69274678c76222B35eEc7588a65', // YO_USD
+        '0x3A43AEC53490CB9Fa922847385D82fe25d0E9De7', // YO_ETH
+        '0xbCbc8cb4D1e8ED048a6276a5E94A3e952660BcbC', // YO_BTC
+    ],
+    [CHAIN.ETHEREUM]: [
+        '0x0000000f2eB9f69274678c76222B35eEc7588a65', // YO_USD
+        '0x3A43AEC53490CB9Fa922847385D82fe25d0E9De7', // YO_ETH
+        '0xbCbc8cb4D1e8ED048a6276a5E94A3e952660BcbC', // YO_BTC
+        '0x50c749aE210D3977ADC824AE11F3c7fd10c871e9', // YO_EUR
+        '0x586675A3a46B008d8408933cf42d8ff6c9CC61a1', // YO_GOLD
+        '0x5DD8BFa6C5C68D05d25EF6143E05C11E26c4cDB7', // YO_USD_EDGE
+    ],
+}
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
+    const vaults = VAULTS[options.chain]
     const dailyFees = options.createBalances();
 
     // get assets
@@ -85,10 +96,11 @@ const adapter: SimpleAdapter = {
             'Withdraw Fees': 'Withdraw fees are distributed to suppliers.',
         },
     },
-    fetch,
-    chains: [CHAIN.BASE],
-  start: '2025-01-22',
-  allowNegativeValue: true, // vaults can be negative yields
+    adapter: {
+        [CHAIN.BASE]: { fetch, start: '2025-01-22' },
+        [CHAIN.ETHEREUM]: { fetch, start: '2025-12-04' },
+    },
+    allowNegativeValue: true, // vaults can be negative yields
 };
 
 export default adapter;

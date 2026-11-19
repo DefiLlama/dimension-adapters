@@ -31,7 +31,7 @@ async function fetch(options: FetchOptions) {
   for (const receiver of RECEIVERS) {
     const transfers = await options.getLogs({
       target: USDC,
-      topics: [TRANSFER_TOPIC, null as any, padAddress(receiver)],
+      topics: [TRANSFER_TOPIC, null, padAddress(receiver)],
       entireLog: true,
     });
 

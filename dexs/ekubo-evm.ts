@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { nullAddress } from "../helpers/token";
@@ -8,7 +9,7 @@ const CHAIN_ID = 1; // Ethereum mainnet
 
 function toEvmAddress(raw: string): string {
   const s = (raw ?? '').toLowerCase();
-  return !s || s === '0x0' || s === '0x0000000000000000000000000000000000000000'
+  return !s || s === '0x0' || s === ADDRESSES.null
     ? nullAddress
     : s;
 }

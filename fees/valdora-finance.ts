@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { METRIC } from "../helpers/metrics";
 import { httpGet } from "../utils/fetchURL";
@@ -5,6 +6,8 @@ import { httpGet } from "../utils/fetchURL";
 // https://docs.valdora.finance/liquid-staking/introduction
 const ZIGCHAIN_ARCHIVAL_LCD = "https://api.zigchain.com";
 const STAKER_CONTRACT = "zig18nnde5tpn76xj3wm53n0tmuf3q06nruj3p6kdemcllzxqwzkpqzqk7ue55";
+// From this block (2026-09-30 19:06 UTC) rewards_earned_today is an 18-decimal Decimal (uzig * 1e12); fees_minted_today stays in uzig
+const REWARDS_DECIMAL_HEIGHT = 12554333;
 
 function encodeQuery(data: Record<string, unknown>): string {
   return encodeURIComponent(Buffer.from(JSON.stringify(data)).toString("base64"));
@@ -59,18 +62,20 @@ async function queryDailyRewards(height: number) {
 
 const fetch = async (options: FetchOptions) => {
   const height = await getHeightAtOrBefore(options.toTimestamp);
-  const { rewards_earned_today, fees_minted_today } = await queryDailyRewards(height);
+  const res = await queryDailyRewards(height);
+  const { fees_minted_today } = res;
+  const rewards_earned_today = height >= REWARDS_DECIMAL_HEIGHT ? (BigInt(res.rewards_earned_today) / 10n ** 12n).toString() : res.rewards_earned_today;
 
   const supplySideAmount = (BigInt(rewards_earned_today) - BigInt(fees_minted_today)).toString();
 
   const dailyFees = options.createBalances();
-  dailyFees.add("uzig", rewards_earned_today, METRIC.STAKING_REWARDS);
+  dailyFees.add(ADDRESSES.zigchain.uzig, rewards_earned_today, METRIC.STAKING_REWARDS);
 
   const dailyProtocolRevenue = options.createBalances();
-  dailyProtocolRevenue.add("uzig", fees_minted_today, METRIC.PROTOCOL_FEES);
+  dailyProtocolRevenue.add(ADDRESSES.zigchain.uzig, fees_minted_today, METRIC.PROTOCOL_FEES);
 
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.add("uzig", supplySideAmount, METRIC.STAKING_REWARDS);
+  dailySupplySideRevenue.add(ADDRESSES.zigchain.uzig, supplySideAmount, METRIC.STAKING_REWARDS);
 
   return {
     dailyFees,
@@ -104,7 +109,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  // pullHourly: true disabled: daily_rewards_and_fees is a cumulative daily snapshot, summing 24 hourly readings inflates the result ~24x
+  pullHourly: false, // daily cumulative snapshot, hourly would sum 24x
   methodology,
   breakdownMethodology,
   adapter: {

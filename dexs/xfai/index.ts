@@ -25,6 +25,8 @@ const fetchTotalFees = async (api: ChainApi): Promise<number> => {
 }
 
 const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.LINEA]: {
       fetch: async (options: FetchOptions) => {

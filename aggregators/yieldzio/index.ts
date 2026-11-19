@@ -27,7 +27,7 @@ const fetch = async (options: FetchOptions) => {
 
   // Fees can be paid in any ERC-20, so query all token contracts by recipient.
   const transferLogs = await options.getLogs({
-    topics: [TRANSFER_TOPIC, null as any, recipientTopic],
+    topics: [TRANSFER_TOPIC, null, recipientTopic],
     noTarget: true,
     eventAbi: TRANSFER_EVENT,
     entireLog: true,

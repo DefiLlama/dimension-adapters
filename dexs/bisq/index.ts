@@ -1,5 +1,5 @@
 import fetchURL from "../../utils/fetchURL"
-import { ChainBlocks, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const historicalVolumeEndpoint = "https://markets.bisq.network/api/volumes?interval=day"
@@ -9,21 +9,18 @@ interface IVolumeall {
   period_start: number;
 }
 
-const fetch = async ({startOfDay, createBalances, }: FetchOptions) => {
-  const totalVolume = createBalances()
+const fetch = async ({ startOfDay, dateString, createBalances }: FetchOptions) => {
   const dailyVolume = createBalances()
 
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
-  historicalVolume
-    .filter(volItem => volItem.period_start <= startOfDay)
-    .map(({ volume }) => totalVolume.addCGToken('bitcoin', +volume))
+  const dayItem = historicalVolume.find(dayItem => dayItem.period_start === startOfDay)
+  if (!dayItem) {
+    const latestDay = new Date(historicalVolume[historicalVolume.length - 1].period_start * 1000).toISOString().slice(0, 10)
+    throw new Error(`Bisq markets API has no volume for ${dateString} (latest day: ${latestDay})`)
+  }
+  dailyVolume.addCGToken('bitcoin', +dayItem.volume)
 
-  const dailyVol = historicalVolume
-    .find(dayItem => dayItem.period_start === startOfDay)?.volume
-  dailyVolume.addCGToken('bitcoin', +(dailyVol as any))
-
-  return {
-    dailyVolume };
+  return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {

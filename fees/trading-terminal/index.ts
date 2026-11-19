@@ -1,3 +1,6 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { addGasTokensReceived, addTokensReceived } from '../../helpers/token';
 // source: https://dune.com/queries/5028370/8311321

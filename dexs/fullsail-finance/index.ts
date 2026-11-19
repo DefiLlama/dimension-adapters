@@ -1,9 +1,11 @@
-import fetchURL from "../../utils/fetchURL";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { getSwaps } from "./helper";
 
 const fetch = async (options: FetchOptions) => {
-    const dailyVolume = (await fetchURL(`https://app.fullsail.finance/api/defi_llama/volume?start_timestamp=${options.startTimestamp * 1000}&end_timestamp=${options.endTimestamp * 1000}`)).volume_usd;
+    const dailyVolume = options.createBalances();
+    const swaps = await getSwaps(options);
+    for (const swap of swaps) dailyVolume.add(swap.coinIn, swap.amountIn);
 
     return {
         dailyVolume,
@@ -12,12 +14,16 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     adapter: {
         [CHAIN.SUI]: {
             fetch,
             start: '2025-05-30',
         }
-    }
+    },
+    methodology: {
+        Volume: 'Input amount of every swap on Full Sail CLMM pools, from on-chain swap events.',
+    },
 };
 
 export default adapter;

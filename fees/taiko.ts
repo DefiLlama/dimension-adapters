@@ -6,6 +6,10 @@ import { METRIC } from "../helpers/metrics";
 const L1_EXECUTION_COSTS = "Ethereum L1 Execution Gas Costs";
 const L1_BLOB_COSTS = "Ethereum L1 Blob Data Costs";
 
+// GoldenTouch sends the anchor tx that opens every Taiko block. taiko-geth skips the gas debit and the fee payout for it
+// (https://github.com/taikoxyz/taiko-geth/blob/taiko/core/state_transition.go), so its gasUsed * gasPrice in gas.fees was never paid
+const TAIKO_GOLDEN_TOUCH = "0x0000777735367b36bc9b61c50022d9d0700db4ec";
+
 const TAIKO_ROLLUP_CONTRACTS = [
   "0x06a9Ab27c7e2255df1815E6CC0168d7755Feb19a", // Taiko Inbox
   "0x68d30f47F19c07bCCEf4Ac7FAE2Dc12FCa3e0dC9", // Taiko LabProver
@@ -40,6 +44,7 @@ const fetch = async (options: FetchOptions) => {
         ) AS l2_fees_wei
       FROM gas.fees
       WHERE blockchain = 'taiko'
+        AND tx_from <> ${TAIKO_GOLDEN_TOUCH}
         AND block_time >= from_unixtime(${options.startTimestamp})
         AND block_time < from_unixtime(${options.endTimestamp})
     ),
@@ -134,9 +139,9 @@ const adapter: Adapter = {
   start: "2024-05-27",
   dependencies: [Dependencies.DUNE],
   protocolType: ProtocolType.CHAIN,
-  allowNegativeValue: true,
+  allowNegativeValue: true, // L1 proposal and proving costs routinely exceed the L2 fees, so revenue goes negative
   methodology: {
-    Fees: "Transaction gas fees paid by users on Taiko.",
+    Fees: "Transaction gas fees paid by users on Taiko. The per-block anchor transaction is fee-exempt and not counted.",
     Revenue: "Taiko transaction gas fees net of Ethereum L1 posting, proving, and verification costs.",
     SupplySideRevenue: "Ethereum L1 execution gas and blob fees paid for Taiko proposal, proving, and verification transactions.",
   },

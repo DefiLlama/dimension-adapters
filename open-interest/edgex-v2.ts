@@ -10,7 +10,7 @@ const fetch = async (options: FetchOptions) => {
     if (openInterestAtEnd === undefined || openInterestAtEnd === null || openInterestAtEnd === '') {
         throw new Error(`No open interest data found for ${options.dateString} in edgeX v2 response`);
     }
-    return { openInterestAtEnd };
+    return { openInterestAtEnd: openInterestAtEnd / 2 };
 }
 
 const adapter: SimpleAdapter = {

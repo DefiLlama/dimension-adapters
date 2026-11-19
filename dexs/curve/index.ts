@@ -1,3 +1,7 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { ICurveDexConfig, ContractVersion, getCurveDexData } from "../../helpers/curve";
@@ -90,33 +94,33 @@ const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
     metaBasePools: {
       '0x6c3f90f043a72fa612cbac8115ee7e52bde6e490': {
         tokens: [
-          '0x6B175474E89094C44Da98b954EedeAC495271d0F', // DAI
-          '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
-          '0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT
+          ADDRESSES.ethereum.DAI, // DAI
+          ADDRESSES.ethereum.USDC, // USDC
+          ADDRESSES.ethereum.USDT, // USDT
         ],
       },
       '0x3175df0976dfa876431c2e9ee6bc45b65d3473cc': {
         tokens: [
-          '0x853d955aCEf822Db058eb8505911ED77F175b99e', // FRAX
-          '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', // USDC
+          ADDRESSES.ethereum.FRAX, // FRAX
+          ADDRESSES.ethereum.USDC, // USDC
         ],
       },
       '0x075b1bb99792c9e1041ba13afef80c91a1e70fb3': {
         tokens: [
           '0xEB4C2781e4ebA804CE9a9803C67d0893436bB27D',
-          '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+          ADDRESSES.ethereum.WBTC,
           '0xfE18be6b3Bd88A2D2A7f928d00292E7a9963CfC6',
         ],
       },
       '0x49849c98ae39fff122806c06791fa73784fb3675': {
         tokens: [
           '0xEB4C2781e4ebA804CE9a9803C67d0893436bB27D',
-          '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+          ADDRESSES.ethereum.WBTC,
         ],
       },
       '0x051d7e5609917bd9b73f04bac0ded8dd46a74301': {
         tokens: [
-          '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+          ADDRESSES.ethereum.WBTC,
           '0xfE18be6b3Bd88A2D2A7f928d00292E7a9963CfC6',
         ],
       },
@@ -152,20 +156,20 @@ const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
     metaBasePools: {
       '0x7f90122bf0700f9e7e1f688fe926940e8839f353': {
         tokens: [
-          '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8',
-          '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+          ADDRESSES.arbitrum.USDC,
+          ADDRESSES.arbitrum.USDT,
         ],
       },
       '0x3e01dd8a5e1fb3481f0f589056b428fc308af0fb': {
         tokens: [
-          '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',
-          '0xDBf31dF14B66535aF65AaC99C32e9eA844e14501',
+          ADDRESSES.arbitrum.WBTC,
+          ADDRESSES.fantom.renBTC,
         ],
       },
       '0xc9b8a3fdecb9d5b218d02555a8baf332e5b740d5': {
         tokens: [
-          '0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F',
-          '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8',
+          ADDRESSES.arbitrum.FRAX,
+          ADDRESSES.arbitrum.USDC,
         ],
       },
     }
@@ -195,15 +199,15 @@ const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
     metaBasePools: {
       '0x1337bedc9d22ecbe766df105c9623922a27963ec': {
         tokens: [
-          '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1',
-          '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
-          '0x94b008aA00579c1307B0EF2c499aD98a8ce58e58',
+          ADDRESSES.optimism.DAI,
+          ADDRESSES.optimism.USDC,
+          ADDRESSES.optimism.USDT,
         ]
       },
       '0x29a3d66b30bc4ad674a4fdaf27578b64f6afbfe7': {
         tokens: [
-          '0x2E3D870790dC77A83DD1d18184Acc7439A53f475',
-          '0x7F5c764cBc14f9669B88837ca1490cCa17c31607',
+          ADDRESSES.optimism.FRAX,
+          ADDRESSES.optimism.USDC,
         ]
       },
     }
@@ -238,10 +242,10 @@ const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
           '0x532E6537FEA298397212F09A61e03311686f548e',
         ]
       },
-      '0xdbf31df14b66535af65aac99c32e9ea844e14501': {
+      [ADDRESSES.fantom.renBTC]: {
         tokens: [
           '0x686bEF2417b6Dc32C50a3cBfbCC3bb60E1e9a15D',
-          '0xDBf31dF14B66535aF65AaC99C32e9eA844e14501',
+          ADDRESSES.fantom.renBTC,
         ]
       }
     }
@@ -265,25 +269,25 @@ const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
     ],
     customPools: {},
   },
-  [CHAIN.FANTOM]: {
-    start: '2021-09-16',
-    stable_factory: [
-      '0x686d67265703d1f124c45e33d47d794c566889ba',
-    ],
-    factory_crypto: [
-      '0xE5De15A9C9bBedb4F5EC13B131E61245f2983A69',
-    ],
-    factory_twocrypto: [
-      '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
-    ],
-    factory_tricrypto: [
-      '0x9AF14D26075f142eb3F292D5065EB3faa646167b',
-    ],
-    factory_stable_ng: [
-      '0xe61Fb97Ef6eBFBa12B36Ffd7be785c1F5A2DE66b',
-    ],
-    customPools: {},
-  },
+  // [CHAIN.FANTOM]: {
+  //   start: '2021-09-16',
+  //   stable_factory: [
+  //     '0x686d67265703d1f124c45e33d47d794c566889ba',
+  //   ],
+  //   factory_crypto: [
+  //     '0xE5De15A9C9bBedb4F5EC13B131E61245f2983A69',
+  //   ],
+  //   factory_twocrypto: [
+  //     '0x98EE851a00abeE0d95D08cF4CA2BdCE32aeaAF7F',
+  //   ],
+  //   factory_tricrypto: [
+  //     '0x9AF14D26075f142eb3F292D5065EB3faa646167b',
+  //   ],
+  //   factory_stable_ng: [
+  //     '0xe61Fb97Ef6eBFBa12B36Ffd7be785c1F5A2DE66b',
+  //   ],
+  //   customPools: {},
+  // },
   [CHAIN.POLYGON]: {
     start: '2021-10-05',
     stable_factory: [
@@ -317,7 +321,7 @@ const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
       '0xf8a57c1d3b9629b77b6726a042ca48990a84fb49': {
         tokens: [
           '0x5c2ed810328349100A66B82b78a1791B101C9D61',
-          '0xDBf31dF14B66535aF65AaC99C32e9eA844e14501',
+          ADDRESSES.fantom.renBTC,
         ]
       },
       '0xe7a24ef0c5e95ffb0f6684b813a78f2a3ad7d171': {
@@ -327,7 +331,11 @@ const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
           '0x60D55F02A771d515e077c9C2403a1ef324885CeC',
         ]
       },
-    }
+    },
+    blacklistedTokens: [
+      // Curve.fi amDAI/amUSDC/amUSDT LP; coins DB mislabels/prices it as am3CRV (~$20k)
+      '0xE7a24EF0C5e95Ffb0f6684b813A78F2a3AD7D171',
+    ],
   },
   [CHAIN.BASE]: {
     start: '2023-08-30',
@@ -372,9 +380,9 @@ const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
     metaBasePools: {
       '0x1337bedc9d22ecbe766df105c9623922a27963ec': {
         tokens: [
-          '0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d',
-          '0xDDAfbb505ad214D7b80b1f830fcCc89B60fb7A83',
-          '0x4ECaBa5870353805a9F068101A40E0f32ed605C6',
+          ADDRESSES.xdai.WXDAI,
+          ADDRESSES.xdai.USDC,
+          ADDRESSES.xdai.USDT,
         ]
       }
     }
@@ -523,7 +531,37 @@ const CurveDexConfigs: { [key: string]: ICurveDexConfig } = {
     blacklistedPools: [
     ],
   },
+  // [CHAIN.ARC]: {
+  //   start: '2026-09-16',
+  //   factory_stable_ng: [
+  //     '0x8271e06E5887FE5ba05234f5315c19f3Ec90E8aD',
+  //   ],
+  //   factory_twocrypto: [
+  //     '0xe7FBd704B938cB8fe26313C3464D4b7B7348c88C',
+  //   ],
+  //   factory_tricrypto: [
+  //     '0x6E28493348446503db04A49621d8e6C9A40015FB',
+  //   ],
+  //   customPools: {},
+  //   blacklistedPools: [
+  //   ],
+  // },
 
+  // [CHAIN.ETHERLINK]: {
+  //   start: "2025-08-02",
+  //   factory_stable_ng: [
+  //     "0x8271e06E5887FE5ba05234f5315c19f3Ec90E8aD",
+  //   ],
+  //   factory_twocrypto: [
+  //     "0xe7FBd704B938cB8fe26313C3464D4b7B7348c88C",
+  //   ],
+  //   factory_tricrypto: [
+  //     "0x6E28493348446503db04A49621d8e6C9A40015FB",
+  //   ],
+  //   customPools: {},
+  //   blacklistedPools: [
+  //   ],
+  // },
   // [CHAIN.TAC]: {
   //   start: '2025-06-25',
   //   factory_stable_ng: [
@@ -547,9 +585,10 @@ const TREASURY_SHARE_OF_ADMIN_FEES = 0.1
 class ChainNotInApiError extends Error { }
 
 async function fetchFromApi(options: FetchOptions) {
-  if (options.startOfDay < 1704067200) throw new ChainNotInApiError('Can not fetch data from api older than 2024-01-01');
+  const start = Math.ceil(options.startTimestamp / 3600) * 3600;
+  if (start < 1704067200) throw new ChainNotInApiError('Can not fetch data from api older than 2024-01-01');
 
-  const apiResponse = await fetchCurveApiData(options.startOfDay);
+  const apiResponse = await fetchCurveApiData(start, options.endTimestamp);
   const chainData = getChainDataFromApiResponse(apiResponse, options.chain);
 
   if (!chainData) {
@@ -622,6 +661,7 @@ const methodology = {
 export function getCurveExport(configs: { [key: string]: ICurveDexConfig }) {
   const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     methodology,
     adapter: Object.keys(configs).reduce((acc, chain) => {
       return {

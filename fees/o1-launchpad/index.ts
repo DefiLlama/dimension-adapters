@@ -1,404 +1,319 @@
-import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
-import { METRIC } from "../../helpers/metrics";
-import ADDRESSES from '../../helpers/coreAssets.json'
+import { Balances, coins, util } from "@defillama/sdk";
+import BigNumber from "bignumber.js";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { accountSuite, Baseline, Fee } from "./accounting";
+import { chainConfig, DEFAULT_MAX_BLOCK_RANGE, Market, Suite, ZERO } from "./config";
+import { EventKind, events, Log, lower } from "./events";
 
-const ZERO_ADDRESS = ADDRESSES.null;
-const BASE_USDC = ADDRESSES.base.USDC;
-const ROBINHOOD_USDG = ADDRESSES.robinhood.USDG;
-
-const TOKEN_LAUNCH_FEES = "Token Launch Fees";
-const SWAP_FEES_TO_CREATORS = "Swap Fees to Creators";
-const SWAP_FEES_TO_REFERRERS = "Swap Fees to Referrers";
-const SWAP_FEES_TO_PROTOCOL = "Swap Fees to Protocol";
-const TOKEN_LAUNCH_FEES_TO_PROTOCOL = "Token Launch Fees to Protocol";
-
-const TRADE_EVENT =
-  "event Trade(bytes32 indexed id, address indexed executor, address indexed referrer, address feeCurrency, uint256 totalFee, bytes32 comment)";
-const CREDITED_EVENT =
-  "event Credited(address indexed recipient, address indexed currency, uint256 amount)";
-const LAUNCH_FEE_PAID_EVENT =
-  "event LaunchFeePaid(address indexed payer, address indexed quote, address indexed treasury, uint256 amount)";
-
-type NumericValue = bigint | number | string;
-
-interface Suite {
-  id: string;
-  factory: string;
-  hook: string;
-  feeEscrow: string;
-  legacyFeeCurrency: boolean;
-  launchFeeCurrency: "none" | "quote" | "native";
-}
-
-interface ChainConfig {
-  start: string;
-  suites: Suite[];
-  legacyQuotes: Set<string>;
-}
-
-interface DecodedLog<TArgs> {
-  address: string;
-  transactionHash: string;
-  blockNumber: number;
-  logIndex?: number;
-  index?: number;
-  args: TArgs;
-}
-
-interface TradeArgs {
-  referrer: string;
-  feeCurrency: string;
-  totalFee: NumericValue;
-}
-
-interface CreditArgs {
-  recipient: string;
-  currency: string;
-  amount: NumericValue;
-}
-
-interface LaunchFeeArgs {
-  quote: string;
-  amount: NumericValue;
-}
-
-interface PositionedEvent {
-  transactionHash: string;
-  blockNumber: number;
-  logIndex: number;
-}
-
-interface TradeEvent extends PositionedEvent {
-  referrer: string;
-  currency: string;
-  totalFee: bigint;
-}
-
-interface CreditEvent extends PositionedEvent {
-  recipient: string;
-  currency: string;
-  amount: bigint;
-}
-
-interface FeeAllocation {
-  trade: TradeEvent;
-  creatorFee: bigint;
-  referrerFee: bigint;
-  platformFee: bigint;
-}
-
-const chainConfig: Record<string, ChainConfig> = {
-  [CHAIN.BASE]: {
-    start: "2026-07-01",
-    suites: [
-      // https://basescan.org/address/0xe3ab924c72463c1ac8d1d8352ee640b89eb1ea64
-      {
-        id: "base-mainnet-block-v1",
-        factory: "0xe3ab924c72463c1ac8d1d8352ee640b89eb1ea64",
-        hook: "0xa068cf4c52abdd3479145c4b3cbd8e3d71542a44",
-        feeEscrow: "0xabe87e4af23dafad0a170aa900d574c03d904597",
-        legacyFeeCurrency: true,
-        launchFeeCurrency: "none",
-      },
-      // https://basescan.org/address/0xa52ad458ce0282a971ecc71c051a32f28946bb9f
-      {
-        id: "base-mainnet-timestamp-v2",
-        factory: "0xa52ad458ce0282a971ecc71c051a32f28946bb9f",
-        hook: "0x985c14baa2a18316ffda0aefb3a632fadfca2acc",
-        feeEscrow: "0xa2cbd9065cec93c443cafb0837a62800ee7c4a84",
-        legacyFeeCurrency: false,
-        launchFeeCurrency: "quote",
-      },
-      // https://basescan.org/address/0x1de58a6769526a03a504d9d59b8757cd8097dc57
-      {
-        id: "base-mainnet-rwa-timestamp-v3",
-        factory: "0x1de58a6769526a03a504d9d59b8757cd8097dc57",
-        hook: "0xbca7774615c74b7991a111f1c7b2d0efea61aacc",
-        feeEscrow: "0xcf9ed8f4145eac9059bcd83227eeb8591fac0a9a",
-        legacyFeeCurrency: false,
-        launchFeeCurrency: "native",
-      },
-    ],
-    legacyQuotes: new Set([ZERO_ADDRESS, BASE_USDC]),
-  },
-  [CHAIN.ROBINHOOD]: {
-    start: "2026-07-01",
-    suites: [
-      // https://robinhoodchain.blockscout.com/address/0x8b40fc20c405d47d725c9723d056a1c6f62bbccf
-      {
-        id: "robinhood-block-v1",
-        factory: "0x8b40fc20c405d47d725c9723d056a1c6f62bbccf",
-        hook: "0xe960e6c80c74cfdf03c91e7af4e1f5f53f096a44",
-        feeEscrow: "0xf5681c4c0dc0c2e32c9d127b3cc0fc992b584553",
-        legacyFeeCurrency: true,
-        launchFeeCurrency: "none",
-      },
-      // https://robinhoodchain.blockscout.com/address/0x76f0923ac4df0a079a10f628a7bce6426ccd344a
-      {
-        id: "robinhood-block-v2",
-        factory: "0x76f0923ac4df0a079a10f628a7bce6426ccd344a",
-        hook: "0xca4b035a5dbfa2a00fc5dcb08fd1c5a22d0eaa44",
-        feeEscrow: "0x00d5701a92794c3744428b62646e7bc4e77a0a9a",
-        legacyFeeCurrency: true,
-        launchFeeCurrency: "none",
-      },
-      // https://robinhoodchain.blockscout.com/address/0x411f21283d3e492bc395027329e08f9f4f560ba5
-      {
-        id: "robinhood-timestamp-v3",
-        factory: "0x411f21283d3e492bc395027329e08f9f4f560ba5",
-        hook: "0x441f773b3bb1ed4c6457d0528624112e43c02acc",
-        feeEscrow: "0x32f7a9a05bd62487d085ad494e14ec42543e19d2",
-        legacyFeeCurrency: false,
-        launchFeeCurrency: "quote",
-      },
-      // https://robinhoodchain.blockscout.com/address/0xe64ac4113848bbc1a6dde1a6d1da96720a36f297
-      {
-        id: "robinhood-rwa-timestamp-v4",
-        factory: "0xe64ac4113848bbc1a6dde1a6d1da96720a36f297",
-        hook: "0x778b0c4eea7d35d66513b587ba87fc9084b0eacc",
-        feeEscrow: "0x4f2b1cda8748cd64c56039bf5e2e54bc13d4a3d7",
-        legacyFeeCurrency: false,
-        launchFeeCurrency: "native",
-      },
-    ],
-    legacyQuotes: new Set([ZERO_ADDRESS, ROBINHOOD_USDG]),
-  },
+/**
+ * Opening-block state readers. Every suite generation exposes the same state the adapter used
+ * to rebuild by replaying events from its first block; reading it point-in-time keeps refills
+ * reproducible while removing all genesis-range log queries.
+ * Layouts verified on-chain against every deployed Base suite on 2026-09-23.
+ */
+const views = {
+  // Historical (non-minimal) hooks share this layout across the block, timestamp and RWA generations.
+  poolConfig: "function poolConfig(bytes32 poolId) view returns (bool initialized, bool tokenIsCurrency0, address creator, address platformTreasury, uint16 baseFeeBps, uint16 creatorBps, uint16 platformBps, uint16 referrerBps, uint16 antiSnipeStartTotalBps, uint32 antiSnipeWindowSeconds, uint48 launchTime)",
+  quotes: "function quotes(address quote) view returns (bool registered, uint8 decimals, int24 tick, uint256 creationFee)",
+  quoteConfig: "function quoteConfig(address quote) view returns (bool registered, uint8 decimals, int24 tick)",
+  launchSupply: "function launchSupply() view returns (uint256)",
+  nativeLaunchFee: "function nativeLaunchFee() view returns (uint256)",
 };
 
-const normalizeAddress = (address: string) => address.toLowerCase();
-const toBigInt = (value: NumericValue) => BigInt(value.toString());
-const transactionKey = (suite: Suite, hash: string) => `${suite.id}:${hash}`;
+const markets: Market[] = ["Crypto", "Stocks"];
+/** Build the fee-source and recipient labels shared by balances and their methodology. */
+const labels = (market: Market) => ({
+  swap: `${market} Swap Fees`,
+  launch: `${market} Launch Fees`,
+  protocol: `${market} Swap Fees To Protocol`,
+  launchProtocol: `${market} Launch Fees To Protocol`,
+  creator: `${market} Swap Fees To Creators`,
+  referrer: `${market} Swap Fees To Referrers`,
+});
 
-const positionOf = <TArgs>(log: DecodedLog<TArgs>): PositionedEvent => {
-  const logIndex = log.logIndex ?? log.index;
-  if (logIndex === undefined) throw new Error("o1 Launchpad event is missing its log index");
-  return {
-    transactionHash: normalizeAddress(log.transactionHash),
-    blockNumber: Number(log.blockNumber),
-    logIndex: Number(logIndex),
-  };
+const suiteAddresses = (suite: Suite) => new Set([suite.factory, suite.hook, suite.escrow].map(lower));
+const ownedBy = (suite: Suite) => {
+  const addresses = suiteAddresses(suite);
+  return (log: Log) => addresses.has(log.address);
 };
+const emitter = (kind: EventKind, suite: Suite) => kind === "credit" ? suite.escrow
+  : ["trade", "component", "pool"].includes(kind) ? suite.hook : suite.factory;
 
-const addToken = (
-  balances: ReturnType<FetchOptions["createBalances"]>,
-  currency: string,
-  amount: bigint,
-  label: string,
-) => {
-  if (amount === 0n) return;
-  if (currency === ZERO_ADDRESS) balances.addGasToken(amount, label);
-  else balances.add(currency, amount, label);
-};
-
-const dedupeLogs = <TArgs>(logs: DecodedLog<TArgs>[]) => {
-  const unique = new Map<string, DecodedLog<TArgs>>();
+/**
+ * Read one event kind from every given contract and normalize SDK/RPC log shapes.
+ * @param options Fetch context providing the SDK log reader.
+ * @param kind Event ABI and normalized kind to attach to each log.
+ * @param targets Factory, hook or escrow addresses that emit this kind.
+ * @param fromBlock Inclusive first block; single-block RPC queries are widened then filtered.
+ * @param toBlock Inclusive last block.
+ * Window event data is never cached: each window is a fresh range, so a cache entry can only
+ * grow without being reused, and a partially written entry would silently under-report every
+ * later run. This follows the repository guidance that caching is for small, slowly changing
+ * config scans rather than per-window event data.
+ * @returns Validated logs with identical copies deduplicated, or an empty array for an empty range.
+ * @throws On retrieval failure, malformed logs or conflicting copies of the same event.
+ */
+async function readLogs(options: FetchOptions, kind: EventKind, targets: string[], fromBlock: number, toBlock: number, maxBlockRange: number): Promise<Log[]> {
+  if (fromBlock > toBlock || !targets.length) return [];
+  const wanted = new Set(targets.map(lower));
+  const logs = await options.getLogs({
+    // The SDK's RPC fallback needs a non-empty block span even for one-block requests.
+    targets: [...wanted], eventAbi: events[kind], fromBlock: fromBlock === toBlock ? fromBlock - 1 : fromBlock, toBlock,
+    onlyArgs: false, entireLog: true, parseLog: true, skipCache: true, maxBlockRange,
+  });
+  const unique = new Map<string, Log>();
   for (const log of logs) {
-    const position = positionOf(log);
-    unique.set(
-      `${normalizeAddress(log.address)}:${position.transactionHash}:${position.blockNumber}:${position.logIndex}`,
-      log,
-    );
-  }
-  return [...unique.values()];
-};
-
-const splitTransaction = (unorderedEvents: Array<TradeEvent | CreditEvent>): FeeAllocation[] => {
-  const events = [...unorderedEvents].sort((left, right) => left.logIndex - right.logIndex);
-  const allocations: FeeAllocation[] = [];
-  let pendingCredits: CreditEvent[] = [];
-
-  for (const event of events) {
-    if ("amount" in event) {
-      pendingCredits.push(event);
+    const blockNumber = Number(log.blockNumber ?? log.block_number);
+    const logIndex = Number(log.logIndex ?? log.index ?? log.log_index);
+    const address = lower(log.address ?? log.source);
+    const transactionHash = log.transactionHash ?? log.transaction_hash;
+    if (!log.args || !Number.isInteger(blockNumber) || !Number.isInteger(logIndex)
+      || !transactionHash || !wanted.has(address) || blockNumber > toBlock) {
       continue;
     }
-    if (!pendingCredits.length) return [];
-    if (pendingCredits.some((credit) => credit.currency !== event.currency)) return [];
+    if (blockNumber < fromBlock) continue;
+    const parsed: Log = { kind, address, transactionHash: lower(transactionHash), blockNumber, logIndex, args: log.args };
+    const identity = `${parsed.transactionHash}:${logIndex}`;
+    const previous = unique.get(identity);
+    if (previous) {
+      // Some RPC/cache responses repeat an event. Count identical copies once, but never
+      // accept different payloads for the same on-chain identity.
+      /** Serialize bigint fields so duplicate normalized logs can be compared. */
+      const json = (args: Log) => JSON.stringify(args, (_, value) => typeof value === "bigint" ? value.toString() : value);
+      if (json(previous) !== json(parsed)) continue;
+    } else unique.set(identity, parsed);
+  }
+  return [...unique.values()];
+}
 
-    const referrerCredits = pendingCredits.filter(
-      (credit) => event.referrer !== ZERO_ADDRESS && credit.recipient === event.referrer,
-    );
-    const nonReferrerCredits = pendingCredits.filter(
-      (credit) => event.referrer === ZERO_ADDRESS || credit.recipient !== event.referrer,
-    );
-    const creditedTotal = pendingCredits.reduce((sum, credit) => sum + credit.amount, 0n);
-    if (creditedTotal !== event.totalFee || !nonReferrerCredits.length) return [];
+/**
+ * Read this window's activity and in-window state changes for every live suite on this chain.
+ * One getLogs per event kind covers all suite contracts; accounting still splits by address.
+ * State that predates the window is read point-in-time by {@link resolveBaseline} instead of
+ * being replayed from each suite's first block, so no query reaches outside the window.
+ * @param options Fetch context providing contract-scoped log retrieval.
+ * @param suites Deployments whose first block is at or before toBlock.
+ * @param fromBlock Inclusive first block of the window.
+ * @param toBlock Inclusive last block of the window.
+ * @returns Window events, including the configuration changes that occurred inside it.
+ * @throws On retrieval failure, malformed logs or conflicting copies of the same event.
+ */
+async function collectSuites(options: FetchOptions, suites: Suite[], fromBlock: number, toBlock: number): Promise<Log[]> {
+  if (!suites.length) return [];
+  const maxBlockRange = chainConfig[options.chain]?.maxBlockRange ?? DEFAULT_MAX_BLOCK_RANGE;
+  /** One call for this kind across the suites that emit it. */
+  const read = (kind: EventKind, group: Suite[]) =>
+    readLogs(options, kind, group.map(suite => emitter(kind, suite)), fromBlock, toBlock, maxBlockRange);
+  let logs: Log[] = [];
+  for (const kind of ["trade", "credit", "launch"] as EventKind[]) logs = logs.concat(await read(kind, suites));
+  logs = logs.concat(await read("component", suites.filter(suite => suite.minimal)));
+  logs = logs.concat(await read("launchFee", suites.filter(suite => !suite.minimal && suite.launchFee !== "none")));
+  logs = logs.concat(await read("nativeLaunchFee", suites.filter(suite => suite.minimal && suite.launchFee !== "none")));
+  if (!logs.length) return [];
 
-    allocations.push({
-      trade: event,
-      creatorFee: nonReferrerCredits.slice(0, -1).reduce((sum, credit) => sum + credit.amount, 0n),
-      referrerFee: referrerCredits.reduce((sum, credit) => sum + credit.amount, 0n),
-      platformFee: nonReferrerCredits[nonReferrerCredits.length - 1].amount,
-    });
-    pendingCredits = [];
+  const launched = suites.filter(suite => suite.minimal && logs.some(log => log.kind === "launch" && ownedBy(suite)(log)));
+  logs = logs.concat(await read("launchBuy", launched));
+  const active = suites.filter(suite => logs.some(ownedBy(suite)));
+  const needsQuote = (suite: Suite) => suite.launchFee !== "none" || suite.route !== "standard";
+  // Configuration changes landing inside the window. Anything earlier is already in the baseline.
+  logs = logs.concat(await read("pool", active.filter(suite => !suite.minimal)));
+  logs = logs.concat(await read("quote", active.filter(suite => needsQuote(suite) && !suite.minimal)));
+  logs = logs.concat(await read("minimalQuote", active.filter(suite => needsQuote(suite) && suite.minimal)));
+  logs = logs.concat(await read("unregister", active.filter(suite => needsQuote(suite) && !suite.minimal)));
+  logs = logs.concat(await read("minimalUnregister", active.filter(suite => needsQuote(suite) && suite.minimal)));
+  logs = logs.concat(await read("tick", active.filter(suite => needsQuote(suite) && suite.minimal)));
+  logs = logs.concat(await read("supply", active.filter(suite => suite.route !== "standard")));
+  logs = logs.concat(await read("nativeFeeConfig", active.filter(suite => suite.launchFee === "native")));
+  logs = logs.concat(await read("quoteFeeConfig", active.filter(suite => suite.launchFee === "quote")));
+  return logs;
+}
+
+/**
+ * Read one suite's state as of the block before the window opens.
+ * Uses `options.fromApi`, whose calls carry that block, so a refill of an old window reads the
+ * state that was live then rather than the current one. Only pools and quotes touched by this
+ * window are read, which keeps the work proportional to activity rather than to chain history.
+ * @param options Fetch context providing the opening-block API.
+ * @param suite Deployment whose state is being resolved.
+ * @param logs This suite's window logs, used to scope the lookups.
+ * @param previousBlock Block immediately preceding the window.
+ * @returns Pool creators and treasuries, quote configurations, launch supply and native fee.
+ * @throws On call failure for a suite that was already deployed at previousBlock.
+ */
+async function resolveBaseline(options: FetchOptions, suite: Suite, logs: Log[], previousBlock: number): Promise<Baseline> {
+  const baseline: Baseline = { pools: new Map(), quotes: new Map(), nativeFee: 0n };
+  // A suite deployed inside this window has no earlier state; its events all arrive in-window.
+  if (previousBlock < suite.firstBlock) return baseline;
+  const api = options.fromApi;
+  const of = (kind: EventKind) => logs.filter(log => log.kind === kind);
+  const launchedHere = new Set(of("launch").map(log => lower(log.args.poolId)));
+
+  // Historical suites attribute credits by creator and treasury; minimal suites use component
+  // ids and never read either, so they need no pool lookup at all.
+  if (!suite.minimal) {
+    const traded = [...new Set(of("trade").map(log => lower(log.args.poolId)))].filter(id => !launchedHere.has(id));
+    if (traded.length) {
+      // No permitFailure: an unknown pool returns a zeroed struct rather than reverting, so a
+      // genuine call failure must propagate instead of silently emptying the baseline.
+      const configs = await api.multiCall({
+        abi: views.poolConfig,
+        calls: traded.map(poolId => ({ target: suite.hook, params: [poolId] })),
+      });
+      traded.forEach((poolId, index) => {
+        const config = configs[index];
+        if (!config?.initialized) return;
+        baseline.pools.set(poolId, { creator: lower(config.creator), treasury: lower(config.platformTreasury) });
+      });
+    }
   }
 
-  return pendingCredits.length ? [] : allocations;
-};
-
-const decodeTrade = (log: DecodedLog<TradeArgs>): TradeEvent => ({
-  ...positionOf(log),
-  referrer: normalizeAddress(log.args.referrer),
-  currency: normalizeAddress(log.args.feeCurrency),
-  totalFee: toBigInt(log.args.totalFee),
-});
-
-const decodeCredit = (log: DecodedLog<CreditArgs>): CreditEvent => ({
-  ...positionOf(log),
-  recipient: normalizeAddress(log.args.recipient),
-  currency: normalizeAddress(log.args.currency),
-  amount: toBigInt(log.args.amount),
-});
-
-const reconcileSuite = (
-  suite: Suite,
-  legacyQuotes: Set<string>,
-  tradeLogs: DecodedLog<TradeArgs>[],
-  creditLogs: DecodedLog<CreditArgs>[],
-) => {
-  const eventsByTransaction = new Map<string, Array<TradeEvent | CreditEvent>>();
-  const addEvent = (event: TradeEvent | CreditEvent) => {
-    const key = transactionKey(suite, event.transactionHash);
-    const events = eventsByTransaction.get(key);
-    if (events) events.push(event);
-    else eventsByTransaction.set(key, [event]);
-  };
-  for (const log of tradeLogs) addEvent(decodeTrade(log));
-  for (const log of creditLogs) addEvent(decodeCredit(log));
-
-  const allocations: FeeAllocation[] = [];
-  for (const events of eventsByTransaction.values()) {
-    if (suite.legacyFeeCurrency && events.every((event) => !legacyQuotes.has(event.currency))) continue;
-    allocations.push(...splitTransaction(events));
+  if (suite.launchFee !== "none" || suite.route !== "standard") {
+    // Include quotes named only by an in-window configuration event: a tick or creation-fee
+    // update is rejected by the replay unless that quote's registration is already known.
+    const configKinds: EventKind[] = ["quote", "minimalQuote", "unregister", "minimalUnregister", "tick", "quoteFeeConfig"];
+    const tokens = [...new Set([
+      ...of("trade").map(log => lower(log.args.feeCurrency)),
+      ...of("launch").map(log => lower(log.args.quote)),
+      ...configKinds.flatMap(kind => of(kind).map(log => lower(log.args.quote))),
+    ])];
+    if (tokens.length) {
+      const abi = suite.minimal ? views.quoteConfig : views.quotes;
+      const configs = await api.multiCall({
+        abi,
+        calls: tokens.map(quote => ({ target: suite.factory, params: [quote] })),
+      });
+      tokens.forEach((token, index) => {
+        const config = configs[index];
+        if (!config?.registered) return;
+        baseline.quotes.set(token, {
+          registered: true, decimals: Number(config.decimals), tick: Number(config.tick),
+          creationFee: suite.minimal ? 0n : BigInt(config.creationFee),
+        });
+      });
+    }
   }
-  return allocations;
-};
 
-const PARSED_LOG_FETCH_OPTIONS = {
-  entireLog: true,
-  parseLog: true,
-} as const;
+  // Both are governance parameters set once per deployment; reading them costs one call each.
+  if (suite.route !== "standard")
+    baseline.supply = BigInt(await api.call({ abi: views.launchSupply, target: suite.factory }));
+  if (suite.launchFee === "native")
+    baseline.nativeFee = BigInt(await api.call({ abi: views.nativeLaunchFee, target: suite.factory }));
+  return baseline;
+}
 
+/**
+ * Aggregate reconciled fees into labeled fee, protocol and supply-side balances.
+ * @param options Chain context used for balances and historical-price fallback.
+ * @param fees Raw fee records carrying event-time stock prices when available.
+ * @returns Fee, revenue, protocol-revenue and supply-side balances with token attribution.
+ * @throws If a required historical stock price is unavailable or USD valuation is non-finite.
+ */
+async function addFees(options: FetchOptions, fees: Fee[]) {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const fallbackPrices = new Map<number, Awaited<ReturnType<typeof coins.getPrices>>>();
+  const timestamps = new Map<number, number>();
 
-const fetchAllocations = async (options: FetchOptions, config: ChainConfig) => {
-  const { suites, legacyQuotes } = config;
-  const [tradeLogsPerHook, creditLogsPerEscrow] = await Promise.all([
-    options.getLogs({
-      targets: suites.map((suite) => suite.hook),
-      eventAbi: TRADE_EVENT,
-      flatten: false,
-      ...PARSED_LOG_FETCH_OPTIONS,
-    }),
-      options.getLogs({
-      targets: suites.map((suite) => suite.feeEscrow),
-      eventAbi: CREDITED_EVENT,
-      flatten: false,
-      ...PARSED_LOG_FETCH_OPTIONS,
-    }),
-  ]);
+  for (const fee of fees) {
+    if (fee.fees === 0n) continue;
+    const names = labels(fee.market);
+    let stockPrice = fee.stockPrice;
+    const stockCurrency = fee.market === "Stocks" && fee.currency !== ZERO;
+    if (stockCurrency && stockPrice === undefined) {
+      let timestamp = timestamps.get(fee.log.blockNumber);
+      if (timestamp === undefined) {
+        timestamp = await util.getTimestamp(fee.log.blockNumber, options.chain);
+        timestamps.set(fee.log.blockNumber, timestamp);
+      }
+      // Batch missing stock assets at each historical hour. No current-price fallback.
+      // Block timestamps are Unix seconds; one hour is 60 minutes * 60 seconds = 3600 seconds.
+      const hour = Math.floor(timestamp / 3600) * 3600;
+      if (!fallbackPrices.has(hour)) {
+        const tokens = [...new Set(fees.filter(f => f.market === "Stocks" && f.currency !== ZERO && f.stockPrice === undefined)
+          .map(f => `${options.chain}:${f.currency}`))];
+        fallbackPrices.set(hour, await coins.getPrices(tokens, hour));
+      }
+      const price = fallbackPrices.get(hour)![`${options.chain}:${fee.currency}`];
+      if (!price || !Number.isFinite(price.price) || price.price <= 0 || !Number.isInteger(price.decimals)) {
+        continue;
+      }
+      stockPrice = price.price / 10 ** price.decimals;
+    }
+    /** Add a raw fee in its native token or convert Stocks units using the resolved event price. */
+    const add = (balances: Balances, raw: bigint, label: string) => {
+      if (stockCurrency) {
+        const usd = new BigNumber(raw.toString()).times(stockPrice!).toNumber();
+        if (!Number.isFinite(usd)) throw new Error(`Invalid o1 USD value for ${fee.currency}`);
+        balances.addUSDValue(usd, label, { id: `${options.chain}:${fee.currency}` });
+      } else if (fee.currency === ZERO) balances.addGasToken(raw, label);
+      else balances.add(fee.currency, raw, label);
+    };
+    add(dailyFees, fee.fees, fee.launch ? names.launch : names.swap);
+    add(dailyRevenue, fee.revenue, fee.launch ? names.launchProtocol : names.protocol);
+    add(dailySupplySideRevenue, fee.creator, names.creator);
+    add(dailySupplySideRevenue, fee.referrer, names.referrer);
+  }
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+}
 
-  return suites.map((suite, index) => reconcileSuite(
-    suite,
-    legacyQuotes,
-    dedupeLogs(tradeLogsPerHook[index] ?? []),
-    dedupeLogs(creditLogsPerEscrow[index] ?? []),
-  ));
-};
-
-const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
+/**
+ * Collect and account for every configured suite on the requested chain.
+ * @param options V2 fetch context; its starting boundary block is excluded and ending block included.
+ * @returns Fee and revenue dimensions aggregated across the chain's historical deployments.
+ * @throws On unsupported chains, invalid block ranges, or any collection, accounting or pricing failure.
+ */
+const fetch = async (options: FetchOptions) => {
   const config = chainConfig[options.chain];
   if (!config) throw new Error(`Unsupported o1 Launchpad chain ${options.chain}`);
-
-  const launchFeeSuites = config.suites.filter((suite) => suite.launchFeeCurrency !== "none");
-  const launchFeeLogsPerFactory = launchFeeSuites.length
-    ? await options.getLogs({
-      targets: launchFeeSuites.map((suite) => suite.factory),
-      eventAbi: LAUNCH_FEE_PAID_EVENT,
-      flatten: false,
-    }) as LaunchFeeArgs[][]
-    : [];
-
-  const dailyFees = options.createBalances();
-  const dailyUserFees = options.createBalances();
-  const dailyRevenue = options.createBalances();
-  const dailyProtocolRevenue = options.createBalances();
-  const dailySupplySideRevenue = options.createBalances();
-
-  const allocationsBySuite = await fetchAllocations(options, config);
-  for (const [suiteIndex, suite] of config.suites.entries()) {
-    for (const { trade, creatorFee, referrerFee, platformFee } of allocationsBySuite[suiteIndex]) {
-      if (suite.legacyFeeCurrency && !config.legacyQuotes.has(trade.currency)) continue;
-      addToken(dailyFees, trade.currency, trade.totalFee, METRIC.SWAP_FEES);
-      addToken(dailyUserFees, trade.currency, trade.totalFee, METRIC.SWAP_FEES);
-      addToken(dailySupplySideRevenue, trade.currency, creatorFee, SWAP_FEES_TO_CREATORS);
-      addToken(dailySupplySideRevenue, trade.currency, referrerFee, SWAP_FEES_TO_REFERRERS);
-      addToken(dailyRevenue, trade.currency, platformFee, SWAP_FEES_TO_PROTOCOL);
-      addToken(dailyProtocolRevenue, trade.currency, platformFee, SWAP_FEES_TO_PROTOCOL);
-    }
+  // The start block is the previous period's ending block. Exclude it so adjacent
+  // hourly windows cannot count the same block twice.
+  const previousBlock = await options.getFromBlock();
+  const toBlock = await options.getToBlock();
+  if (!Number.isInteger(previousBlock) || previousBlock <= 0 || !Number.isInteger(toBlock) || toBlock < previousBlock)
+    throw new Error("Invalid o1 Launchpad block interval");
+  const fromBlock = previousBlock + 1;
+  const suites = config.suites.filter(suite => suite.firstBlock <= toBlock);
+  const logs = await collectSuites(options, suites, fromBlock, toBlock);
+  let fees: Fee[] = [];
+  for (const suite of suites) {
+    const start = Math.max(fromBlock, suite.firstBlock);
+    const suiteLogs = logs.filter(ownedBy(suite));
+    if (!suiteLogs.length) continue;
+    const baseline = await resolveBaseline(options, suite, suiteLogs, previousBlock);
+    fees = fees.concat(accountSuite(suite, config.cryptoQuotes, suiteLogs, start, toBlock, baseline));
   }
-
-  for (const [suiteIndex, suite] of launchFeeSuites.entries()) {
-    for (const log of launchFeeLogsPerFactory[suiteIndex] ?? []) {
-      const currency = suite.launchFeeCurrency === "native"
-        ? ZERO_ADDRESS
-        : normalizeAddress(log.quote);
-      const amount = toBigInt(log.amount);
-      addToken(dailyFees, currency, amount, TOKEN_LAUNCH_FEES);
-      addToken(dailyUserFees, currency, amount, TOKEN_LAUNCH_FEES);
-      addToken(dailyRevenue, currency, amount, TOKEN_LAUNCH_FEES_TO_PROTOCOL);
-      addToken(dailyProtocolRevenue, currency, amount, TOKEN_LAUNCH_FEES_TO_PROTOCOL);
-    }
-  }
-
-  return {
-    dailyFees,
-    dailyUserFees,
-    dailyRevenue,
-    dailyProtocolRevenue,
-    dailySupplySideRevenue,
-  };
+  return addFees(options, fees);
 };
 
 const methodology = {
-  Fees: "Quote-denominated swap fees plus token-launch fees paid through o1 Launchpad. Legacy swap fees paid in launched tokens are excluded because they cannot be priced consistently.",
-  UserFees: "Swap fees paid by traders plus token-launch fees paid by creators.",
-  Revenue: "The platform share of swap fees plus token-launch fees received by the protocol.",
-  ProtocolRevenue: "The platform share of swap fees plus token-launch fees received by the protocol.",
-  SupplySideRevenue: "Swap fees allocated to token creators and referrers.",
-  HoldersRevenue: "No fees are distributed to token holders.",
+  Fees: "Quote-denominated swap fees from Hook Trade events plus token-launch payment events across configured suites. Legacy launch-token-denominated swap fees are excluded because reliable historical USD valuation is unavailable. Crypto uses token balances; Stocks use the event-time factory tick reference price under the documented $4,000 opening-cap convention, with historical DefiLlama prices only when that reference is unavailable.",
+  Revenue: "Actual platform and protocol-owned fixed-component swap credits, plus token-launch fees. Includes anti-snipe surcharges, referral fallback and rounding retained by the protocol. Claims do not count again.",
+  ProtocolRevenue: "Swap and launch fees retained by the protocol treasury.",
+  SupplySideRevenue: "Actual swap credits allocated to creators and referrers, including amounts still unclaimed.",
 };
-
-const breakdownMethodology = {
-  Fees: {
-    [METRIC.SWAP_FEES]: "Quote-denominated fees charged when launch tokens are traded.",
-    [TOKEN_LAUNCH_FEES]: "Fees charged when a token is launched through a current production factory.",
-  },
-  UserFees: {
-    [METRIC.SWAP_FEES]: "Quote-denominated fees paid by traders.",
-    [TOKEN_LAUNCH_FEES]: "Fees paid by creators when launching a token.",
-  },
-  Revenue: {
-    [SWAP_FEES_TO_PROTOCOL]: "Swap fees allocated to the platform treasury.",
-    [TOKEN_LAUNCH_FEES_TO_PROTOCOL]: "Token-launch fees received by the platform treasury.",
-  },
-  ProtocolRevenue: {
-    [SWAP_FEES_TO_PROTOCOL]: "Swap fees allocated to the platform treasury.",
-    [TOKEN_LAUNCH_FEES_TO_PROTOCOL]: "Token-launch fees received by the platform treasury.",
-  },
-  SupplySideRevenue: {
-    [SWAP_FEES_TO_CREATORS]: "Swap fees allocated to token creators.",
-    [SWAP_FEES_TO_REFERRERS]: "Swap fees allocated to valid referrers.",
-  },
-};
-
+const revenueBreakdown = Object.fromEntries(markets.flatMap(m => [
+  [labels(m).protocol, `${m} swap fees credited to the protocol, including treasury-owned fixed components.`],
+  [labels(m).launchProtocol, `${m} token-launch fees paid to the protocol.`],
+]));
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
   adapter: chainConfig,
   methodology,
-  breakdownMethodology,
+  breakdownMethodology: {
+    Fees: Object.fromEntries(markets.flatMap(m => [
+      [labels(m).swap, `${m} quote-denominated swap fees, including anti-snipe surcharges.`],
+      [labels(m).launch, `${m} token-launch fees from Factory payment events.`],
+    ])),
+    Revenue: revenueBreakdown,
+    ProtocolRevenue: revenueBreakdown,
+    SupplySideRevenue: Object.fromEntries(markets.flatMap(m => [
+      [labels(m).creator, `${m} swap fees credited to token creators.`],
+      [labels(m).referrer, `${m} swap fees credited to valid referrers.`],
+    ])),
+  },
 };
 
 export default adapter;

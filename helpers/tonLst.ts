@@ -1,5 +1,6 @@
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions, SimpleAdapter, FetchResultFees } from "../adapters/types";
+import { toncenterPost } from "./ton";
 
 interface TonLstExportConfigs {
   poolAddress: string;
@@ -19,11 +20,21 @@ interface TonLstExportConfigs {
 //   stack[0]  : input slice echoed back by the runtime
 //   stack[3]  : total_balance         (TON accounted by the pool, in nanoton)
 //   stack[12] : governance_fee        (share of pool profit sent to governance,
-//                                      encoded as a 24-bit fraction of 2**24)
-//   stack[14] : supply                (number of pool jettons issued)
+//                                      encoded as a 24-bit fraction of 2**24;
+//                                      stack[13] in the newer layout)
+//   stack[14] : supply                (number of pool jettons issued;
+//                                      stack[18] in the newer layout)
 const STACK_TOTAL_BALANCE = 3;
-const STACK_GOVERNANCE_FEE = 12;
-const STACK_SUPPLY = 14;
+// The getter has two layouts, told apart by length (the echoed input slice
+// included): 31 values in the original contract (Tonstakers, Stakee), and 35
+// in its newer version (KTON), which adds instant_withdrawal_fee,
+// accrued_governance_fee, disbalance_tolerance and
+// credit_start_prior_elections_end before supply. total_balance is at the
+// same place in both.
+const STACK_LAYOUTS: Record<number, { governanceFee: number; supply: number }> = {
+  31: { governanceFee: 12, supply: 14 },
+  35: { governanceFee: 13, supply: 18 },
+};
 const GOVERNANCE_FEE_DENOM = 2 ** 24; // per the 24-bit encoding in the spec
 
 interface PoolSnapshot {
@@ -32,8 +43,22 @@ interface PoolSnapshot {
   governanceFeeFraction: number; // 0..1, e.g. 0.16 for Tonstakers
 }
 
+// Toncenter serves past state at any seqno except ~1-2 days old ones, where most of its liteservers
+// fail with "cannot load state ... gc'd" and ~1 call in 5 succeeds (2026-11-07). The sdk retries 4
+// times, so retry that error a few more rounds. Match the prefix, the sdk cuts the message short.
+const STATE_GC_ROUNDS = 6;
+
+async function runGetMethodAtSeqno(payload: any) {
+  for (let round = 1; ; round++) {
+    try {
+      return await toncenterPost({ path: 'runGetMethod', body: payload, version: 2 });
+    } catch (e: any) {
+      if (round >= STATE_GC_ROUNDS || !String(e?.message).includes('cannot load state')) throw e;
+    }
+  }
+}
+
 async function fetchPoolSnapshot(blockNumber: number, poolAddress: string): Promise<PoolSnapshot> {
-  const url = 'https://ton-mainnet.core.chainstack.com/f2a2411bce1e54a2658f2710cd7969c3/api/v2/runGetMethod';
   const payload = {
     address: poolAddress,
     method: "get_pool_full_data",
@@ -46,16 +71,15 @@ async function fetchPoolSnapshot(blockNumber: number, poolAddress: string): Prom
     seqno: blockNumber,
   };
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await response.json();
+  const data = await runGetMethodAtSeqno(payload);
   const stack = data.result.stack;
+  const layout = STACK_LAYOUTS[stack.length];
+  if (!layout) {
+    throw new Error(`Unknown get_pool_full_data layout: ${stack.length} values`);
+  }
   const totalBalance = parseInt(stack[STACK_TOTAL_BALANCE][1], 16);
-  const supply = parseInt(stack[STACK_SUPPLY][1], 16);
-  const governanceFeeRaw = parseInt(stack[STACK_GOVERNANCE_FEE][1], 16);
+  const supply = parseInt(stack[layout.supply][1], 16);
+  const governanceFeeRaw = parseInt(stack[layout.governanceFee][1], 16);
   return {
     totalBalance,
     supply,

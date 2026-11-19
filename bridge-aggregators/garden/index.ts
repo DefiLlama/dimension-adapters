@@ -181,7 +181,6 @@ const prefetch = async (options: FetchOptions) => {
 async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp: number) {
     const volumes = { sameChain: {}, crossChain: {} };
     let currentPage = 1;
-    let insideDateRange = false;
     let shouldContinue = true;
 
     while (shouldContinue) {
@@ -198,29 +197,36 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
             }
             break;
         }
-        for (const tx of response.result.data) {
-            const txTimestamp = new Date(tx.created_at).getTime() / 1000;
-            if (!insideDateRange && txTimestamp > endTimestamp) {
-                continue;
-            }
-            if (txTimestamp <= endTimestamp && txTimestamp >= startTimestamp) {
-                if (!insideDateRange) {
-                    insideDateRange = true;
-                }
-                const { source_swap, destination_swap } = tx;
-                const sourceChain = normalizeChain(source_swap.chain);
-                const destChain = normalizeChain(destination_swap.chain);
-                addToVolume(
-                    sourceChain === destChain ? volumes.sameChain : volumes.crossChain,
-                    sourceChain,
-                    source_swap.token_address,
-                    source_swap.filled_amount
+
+        // Pages are newest-first, so a stale first row means paging further is
+        // pointless and would publish the same silent zeros as an empty feed.
+        if (currentPage === 1) {
+            const newestTimestamp = new Date(response.result.data[0].created_at).getTime() / 1000;
+            if (newestTimestamp < startTimestamp) {
+                throw new Error(
+                    `garden bridge: freshest completed order (${response.result.data[0].created_at}) predates the requested window — the orders feed looks stale, not zero`
                 );
             }
-            if (insideDateRange && txTimestamp < startTimestamp) {
+        }
+
+        for (const tx of response.result.data) {
+            const txTimestamp = new Date(tx.created_at).getTime() / 1000;
+            if (txTimestamp >= endTimestamp) continue;
+            // newest-first feed: the first row older than the window ends the walk,
+            // even when the window had no orders (otherwise an empty hour pages all history)
+            if (txTimestamp < startTimestamp) {
                 shouldContinue = false;
                 break;
             }
+            const { source_swap, destination_swap } = tx;
+            const sourceChain = normalizeChain(source_swap.chain);
+            const destChain = normalizeChain(destination_swap.chain);
+            addToVolume(
+                sourceChain === destChain ? volumes.sameChain : volumes.crossChain,
+                sourceChain,
+                source_swap.token_address,
+                source_swap.filled_amount
+            );
         }
         if (shouldContinue && currentPage < response.result.total_pages) {
             currentPage++;
@@ -252,6 +258,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     fetch,
     adapter: chainMapper,
     prefetch: prefetch as any

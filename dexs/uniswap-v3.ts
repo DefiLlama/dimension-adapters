@@ -1,8 +1,12 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { addOneToken } from "../helpers/prices";
 import { queryDune } from "../helpers/dune";
 import { httpPost } from "../utils/fetchURL";
+import { DUNE_DEX_BLACKLIST_TABLE, getDexTokensBlacklisted } from "../helpers/lists";
 import {
   getEstablishedTokens, getUniV3LogAdapter, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES,
   WASH_MIN_USD, WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
@@ -18,33 +22,21 @@ import {
 // fetchers just read config.blockchain. Buyback/holders-revenue is shared with
 // the on-chain adapter.
 
-const FEE_SWITCH_DATE: Record<string, string> = {
-  [CHAIN.ETHEREUM]: "2025-12-29",
-  [CHAIN.OPTIMISM]: "2026-03-08",
-  [CHAIN.ARBITRUM]: "2026-03-08",
-  [CHAIN.BASE]: "2026-03-08",
-  [CHAIN.CELO]: "2026-06-02",
-  [CHAIN.WC]: "2026-03-08",
-  [CHAIN.ZORA]: "2026-03-08",
-  [CHAIN.XLAYER]: "2026-03-08",
-  [CHAIN.BSC]: "2026-06-02",
-  [CHAIN.POLYGON]: "2026-06-02",
-  [CHAIN.ROBINHOOD]: "2026-07-27",
-}
-
-const FIREPIT : Record<string, string> = {
-  [CHAIN.ETHEREUM]: '0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721',
-  [CHAIN.UNICHAIN]: '0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB',
-  [CHAIN.WC]: '0x455e844D286631566cF98D6cb2996149734618C6',
-  [CHAIN.CELO]: '0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25',
-  [CHAIN.ZORA]: '0x2f98eD4D04e633169FbC941BFCc54E785853b143',
-  [CHAIN.XLAYER]: '0xe122E231cb52aea99690963Fd73E91e33E97468f',
-  [CHAIN.ARBITRUM]: '0xB8018422bcE25D82E70cB98FdA96a4f502D89427',
-  [CHAIN.OPTIMISM]: '0x94460443Ca27FFC1baeCa61165fde18346C91AbD',
-  [CHAIN.BASE]: '0xFf77c0ED0B6b13A20446969107E5867abc46f53a',
-  [CHAIN.BSC]: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2',
-  [CHAIN.POLYGON]: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2',
-  [CHAIN.ROBINHOOD]: '0x7A8F74C2585F84C781F951B7F2FF21337D5B630B',
+const HOLDERS_REVENUE_CONFIG: Record<string, { feeSwitchDate: string | null; firepit: string | null }> = {
+  [CHAIN.ETHEREUM]: { feeSwitchDate: "2025-12-29", firepit: '0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721' },
+  [CHAIN.OPTIMISM]: { feeSwitchDate: "2026-03-08", firepit: '0x94460443Ca27FFC1baeCa61165fde18346C91AbD' },
+  [CHAIN.ARBITRUM]: { feeSwitchDate: "2026-03-08", firepit: '0xB8018422bcE25D82E70cB98FdA96a4f502D89427' },
+  [CHAIN.BASE]: { feeSwitchDate: "2026-03-08", firepit: '0xFf77c0ED0B6b13A20446969107E5867abc46f53a' },
+  [CHAIN.CELO]: { feeSwitchDate: "2026-06-02", firepit: '0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25' },
+  [CHAIN.WC]: { feeSwitchDate: "2026-03-08", firepit: '0x455e844D286631566cF98D6cb2996149734618C6' },
+  [CHAIN.ZORA]: { feeSwitchDate: "2026-03-08", firepit: '0x2f98eD4D04e633169FbC941BFCc54E785853b143' },
+  [CHAIN.XLAYER]: { feeSwitchDate: "2026-03-08", firepit: '0xe122E231cb52aea99690963Fd73E91e33E97468f' },
+  [CHAIN.BSC]: { feeSwitchDate: "2026-06-02", firepit: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2' },
+  [CHAIN.POLYGON]: { feeSwitchDate: "2026-06-02", firepit: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2' },
+  [CHAIN.ROBINHOOD]: { feeSwitchDate: "2026-07-27", firepit: '0x7A8F74C2585F84C781F951B7F2FF21337D5B630B' },
+  [CHAIN.UNICHAIN]: { feeSwitchDate: "2026-01-09", firepit: '0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB' },
+  // Releaser from github.com/Uniswap/protocol-fees .records/Arc.json; fee switch relayed 2026-10-05 (tx 0x2d42e5e9...5c49), first Released 2026-10-18
+  [CHAIN.ARC]: { feeSwitchDate: "2026-10-05", firepit: '0xe1Adf3f130Abf616a7aB04AEeBf8D0470F6B6a16' },
 }
 
 const THRESHOLD_FUNCTION_ABI = 'uint256:threshold'
@@ -52,8 +44,8 @@ const RELEASED_EVENT_ABI = 'event Released (uint256 indexed nonce, address index
 
 async function fetchHoldersRevenue(options: FetchOptions) {
   const dailyHoldersRevenue = options.createBalances()
-  const firepit = FIREPIT[options.chain]
-  if (!firepit || !FEE_SWITCH_DATE[options.chain] || options.dateString < FEE_SWITCH_DATE[options.chain]) {
+  const { feeSwitchDate, firepit } = HOLDERS_REVENUE_CONFIG[options.chain] ?? {}
+  if (!firepit || !feeSwitchDate || options.dateString < feeSwitchDate) {
     return dailyHoldersRevenue
   }
 
@@ -74,22 +66,28 @@ async function fetchHoldersRevenue(options: FetchOptions) {
 // so SUM per token gives that token's total traded amount; addOneToken later
 // counts one (priceable) side as volume. No token whitelist: DefiLlama pricing
 // (+ <$10k-TVL rule) drops unpriceable tokens, and fetchWashPools drops pools
-// whose flow is too concentrated to be organic.
+// whose flow is too concentrated to be organic. Swaps touching a token in the
+// shared Dune blacklist (DUNE_DEX_BLACKLIST_TABLE, per chain or 'any') are
+// dropped in-query, so scam quote tokens never reach pricing.
 function buildQuery(blockchains: string[], options: FetchOptions): string {
   const inList = blockchains.map((b) => `'${b}'`).join(',');
   return `
-    SELECT blockchain, project_contract_address AS pool, t.token, CAST(SUM(t.amount) AS VARCHAR) AS amount
-    FROM dex.trades
+    SELECT d.blockchain, d.project_contract_address AS pool, t.token, CAST(SUM(t.amount) AS VARCHAR) AS amount
+    FROM dex.trades d
     CROSS JOIN UNNEST(
-      ARRAY[token_bought_address, token_sold_address],
-      ARRAY[token_bought_amount_raw, token_sold_amount_raw]
+      ARRAY[d.token_bought_address, d.token_sold_address],
+      ARRAY[d.token_bought_amount_raw, d.token_sold_amount_raw]
     ) AS t (token, amount)
-    WHERE blockchain IN (${inList})
-      AND project = 'uniswap'
-      AND version = '3'
-      AND block_time >= from_unixtime(${options.startTimestamp})
-      AND block_time < from_unixtime(${options.endTimestamp})
-    GROUP BY blockchain, project_contract_address, t.token`;
+    LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b0 ON b0.address = d.token_bought_address AND b0.chain IN ('any', d.blockchain)
+    LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b1 ON b1.address = d.token_sold_address AND b1.chain IN ('any', d.blockchain)
+    WHERE d.blockchain IN (${inList})
+      AND d.project = 'uniswap'
+      AND d.version = '3'
+      AND d.block_time >= from_unixtime(${options.startTimestamp})
+      AND d.block_time < from_unixtime(${options.endTimestamp})
+      AND b0.address IS NULL
+      AND b1.address IS NULL
+    GROUP BY d.blockchain, d.project_contract_address, t.token`;
 }
 
 // Same wash test the v4 adapter runs (see there). v3 is barely exposed - 0.4% of
@@ -259,6 +257,13 @@ async function fetchFromOku(options: FetchOptions) {
 
 const factoryConfig: Record<string, string> ={
   [CHAIN.OG]: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D",
+  // dex.trades has all but stopped carrying uni-v3 rows for these two, so they read the pools directly
+  [CHAIN.SCROLL]: "0x70C62C8b8e801124A4Aa81ce07b637A3e83cb919",
+  [CHAIN.BLAST]: "0x792edAdE80af5fC680d96a2eD80A44247D2Cf6Fd",
+  [CHAIN.ARC]: "0xf0db7b58379503491d857db50ac9ece64c653918",
+  // https://gov.uniswap.org/t/official-uniswap-v3-deployments-list/24323/9
+  [CHAIN.ETHERLINK]: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D",
+  [CHAIN.ELYSIUM]: "0x1707327F626496A7b5b3872e7E4d2879Df7d7a9f",
 }
 
 async function fetchFromLogs(options: FetchOptions) {
@@ -272,6 +277,8 @@ async function fetchFromLogs(options: FetchOptions) {
     userFeesRatio: 1,
     revenueRatio: 0,
     protocolRevenueRatio: 0,
+    // same shared scam/fake-token list the Dune path applies in-query
+    blacklistTokens: await getDexTokensBlacklisted(options),
   })(options);
 
   const dailyHoldersRevenue = await fetchHoldersRevenue(options);
@@ -305,10 +312,10 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
   [CHAIN.AVAX]: { blockchain: 'avalanche_c', start: '2023-06-21', fetch: fetchFromDune },
   [CHAIN.BASE]: { blockchain: 'base', start: '2023-07-31', fetch: fetchFromDune },
   [CHAIN.ERA]: { blockchain: 'zksync', start: '2023-08-31', fetch: fetchFromDune },
-  [CHAIN.SCROLL]: { blockchain: 'scroll', start: '2023-10-14', fetch: fetchFromDune },
+  [CHAIN.SCROLL]: { blockchain: 'scroll', start: '2023-10-14', fetch: fetchFromLogs },
   [CHAIN.LINEA]: { blockchain: 'linea', start: '2023-11-11', fetch: fetchFromDune },
   [CHAIN.XDAI]: { blockchain: 'gnosis', start: '2023-11-28', fetch: fetchFromDune },
-  [CHAIN.BLAST]: { blockchain: 'blast', start: '2024-03-05', fetch: fetchFromDune },
+  [CHAIN.BLAST]: { blockchain: 'blast', start: '2024-03-05', fetch: fetchFromLogs },
   [CHAIN.ZORA]: { blockchain: 'zora', start: '2024-03-26', fetch: fetchFromDune },
   [CHAIN.MANTLE]: { blockchain: 'mantle', start: '2024-05-16', fetch: fetchFromDune },
   [CHAIN.WC]: { blockchain: 'worldchain', start: '2024-08-28', fetch: fetchFromDune },
@@ -332,20 +339,24 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
   [CHAIN.SAGA]: { blockchain: 'saga', start: '2025-02-11', fetch: fetchFromOku },
   [CHAIN.XDC]: { blockchain: 'xdc', start: '2025-04-12', fetch: fetchFromOku },
   [CHAIN.NIBIRU]: { blockchain: 'nibiru', start: '2025-05-12', fetch: fetchFromOku },
-  [CHAIN.ETHERLINK]: { blockchain: 'etherlink', start: '2025-05-12', fetch: fetchFromOku },
+  [CHAIN.REDBELLY]: { blockchain: 'redbelly', start: '2025-02-19', fetch: fetchFromOku },
 
   // On-chain logs (no Dune dex.trades or Oku API coverage)
   [CHAIN.OG]: { blockchain: '0g', start: '2025-09-24', fetch: fetchFromLogs },
+  // Oku stopped returning etherlink after 2026-09-22 while the pools kept trading, so the whole range reads the pools
+  [CHAIN.ETHERLINK]: { blockchain: 'etherlink', start: '2025-05-12', fetch: fetchFromLogs },
+  [CHAIN.ARC]: { blockchain: 'arc', start: '2026-05-28', fetch: fetchFromLogs },
+  [CHAIN.ELYSIUM]: { blockchain: 'elysium', start: '2026-11-03', fetch: fetchFromLogs },
 }
 
 const methodology = {
   Volume: "Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed.",
   Fees: "Swap fees from paid by users.",
   UserFees: "User pays fees on each swap.",
-  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood',
+  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood, From 5 Oct 2026, on Arc',
   ProtocolRevenue: 'Protocol make no revenue.',
   SupplySideRevenue: 'Fees distributed to LPs post protocol fee collection',
-  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood',
+  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood, From 5 Oct 2026, on Arc',
 }
 
 const adapter: SimpleAdapter = {

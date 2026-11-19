@@ -6,11 +6,15 @@ import { METRIC } from "../../helpers/metrics";
 // Docs:      https://docs.gondi.xyz/
 // Fees:      https://docs.gondi.xyz/gondi-v3/protocol-fees#lender-fees
 // Contracts: https://docs.gondi.xyz/gondi-v3/protocol-contracts
-const config: Record<string, { targets: string[]; start: string; fromBlock: number }> = {
+// targets: V3.0/V3.1 contracts; targetsV3_2: V3.2 contracts, whose events need the V3.2 ABI (eventsV3_2)
+const config: Record<string, { targets: string[]; targetsV3_2?: string[]; start: string; fromBlock: number }> = {
   [CHAIN.ETHEREUM]: {
     targets: [
       "0xf65b99ce6dc5f6c556172bcc0ff27d3665a7d9a8", // V3.0
       "0xf41B389E0C1950dc0B16C9498eaE77131CC08A56", // V3.1
+    ],
+    targetsV3_2: [
+      "0xe365ff3cad44d19cb7aba81df8ffd6818a66ac0a", // V3.2, deployed in block 25875847 (2026-08-31)
     ],
     start: "2024-09-02",
     fromBlock: 20663554,
@@ -21,6 +25,13 @@ const config: Record<string, { targets: string[]; start: string; fromBlock: numb
     ],
     start: "2026-03-18",
     fromBlock: 30081557,
+  },
+  [CHAIN.ROBINHOOD]: {
+    targets: [
+      "0x0e79e08e9e35388382b7febb26bc73f80465e2fb", // V3.1
+    ],
+    start: "2026-08-18",
+    fromBlock: 40089270, // MultiSourceLoan deployment block
   },
 };
 
@@ -35,6 +46,14 @@ const events = {
   LoanRefinancedFromNewOffers: "event LoanRefinancedFromNewOffers(uint256 loanId, uint256 newLoanId, (address borrower, uint256 nftCollateralTokenId, address nftCollateralAddress, address principalAddress, uint256 principalAmount, uint256 startTime, uint256 duration, (uint256 loanId, uint256 floor, uint256 principalAmount, address lender, uint256 accruedInterest, uint256 startTime, uint256 aprBps)[] tranche, uint256 protocolFee) loan, uint256[] offerIds, uint256 totalFee)",
 };
 
+// V3.2 appends `bool lenderRefinanceDisabled` to the Loan struct, which changes the topic0 of every event carrying a Loan.
+// LoanRepaid carries no Loan, so events.LoanRepaid decodes every version.
+const eventsV3_2 = {
+  LoanEmitted: "event LoanEmitted(uint256 loanId, uint256[] offerId, (address borrower, uint256 nftCollateralTokenId, address nftCollateralAddress, address principalAddress, uint256 principalAmount, uint256 startTime, uint256 duration, (uint256 loanId, uint256 floor, uint256 principalAmount, address lender, uint256 accruedInterest, uint256 startTime, uint256 aprBps)[] tranche, uint256 protocolFee, bool lenderRefinanceDisabled) loan, uint256 fee)",
+  LoanRefinanced: "event LoanRefinanced(uint256 renegotiationId, uint256 oldLoanId, uint256 newLoanId, (address borrower, uint256 nftCollateralTokenId, address nftCollateralAddress, address principalAddress, uint256 principalAmount, uint256 startTime, uint256 duration, (uint256 loanId, uint256 floor, uint256 principalAmount, address lender, uint256 accruedInterest, uint256 startTime, uint256 aprBps)[] tranche, uint256 protocolFee, bool lenderRefinanceDisabled) loan, uint256 fee)",
+  LoanRefinancedFromNewOffers: "event LoanRefinancedFromNewOffers(uint256 loanId, uint256 newLoanId, (address borrower, uint256 nftCollateralTokenId, address nftCollateralAddress, address principalAddress, uint256 principalAmount, uint256 startTime, uint256 duration, (uint256 loanId, uint256 floor, uint256 principalAmount, address lender, uint256 accruedInterest, uint256 startTime, uint256 aprBps)[] tranche, uint256 protocolFee, bool lenderRefinanceDisabled) loan, uint256[] offerIds, uint256 totalFee)",
+};
+
 // Protocol revenue = fee * protocolFeeBps / 10000
 function getProtocolFee(fee: bigint, feeBps: bigint): bigint {
   return fee * feeBps / BPS_DIVISOR;
@@ -45,30 +64,43 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const { targets, fromBlock } = config[options.chain];
+  const { targets, targetsV3_2 = [], fromBlock } = config[options.chain];
+
+  // Loan-carrying events of every version, each decoded with its own ABI
+  const getLoanLogs = async (event: keyof typeof eventsV3_2) => {
+    const logs = await options.getLogs({ targets, eventAbi: events[event], fromBlock, cacheInCloud: true, entireLog: true, parseLog: true });
+    if (!targetsV3_2.length) return logs;
+    const logsV3_2 = await options.getLogs({ targets: targetsV3_2, eventAbi: eventsV3_2[event], fromBlock, cacheInCloud: true, entireLog: true, parseLog: true });
+    return logs.concat(logsV3_2);
+  };
 
   const [emittedAll, refinancedAll, refinancedNewAll, repaidDaily] = await Promise.all([
-    options.getLogs({ targets, eventAbi: events.LoanEmitted, fromBlock, cacheInCloud: true, entireLog: true, parseLog: true }),
-    options.getLogs({ targets, eventAbi: events.LoanRefinanced, fromBlock, cacheInCloud: true, entireLog: true, parseLog: true }),
-    options.getLogs({ targets, eventAbi: events.LoanRefinancedFromNewOffers, fromBlock, cacheInCloud: true, entireLog: true, parseLog: true }),
-    options.getLogs({ targets, eventAbi: events.LoanRepaid, entireLog: true, parseLog: true }),
+    getLoanLogs('LoanEmitted'),
+    getLoanLogs('LoanRefinanced'),
+    getLoanLogs('LoanRefinancedFromNewOffers'),
+    options.getLogs({ targets: targets.concat(targetsV3_2), eventAbi: events.LoanRepaid, entireLog: true, parseLog: true }),
   ]);
 
-  // Build loanId -> {token, feeBps}
+  // Loan ids restart at 1 on every loan contract, so a loan is identified by its contract and id
+  const loanKey = (entireLog: any, loanId: bigint) => `${entireLog.address.toLowerCase()}-${loanId}`;
+
+  // Build (contract, loanId) -> {token, feeBps}
   const loanInfo: Record<string, { token: string; feeBps: bigint, timestamp: string }> = {};
   for (const entireLog of emittedAll) {
     const log = entireLog.args
-    loanInfo[log.loanId.toString()] = { token: log.loan.principalAddress, feeBps: BigInt(log.loan.protocolFee), timestamp: entireLog.timestamp };
+    loanInfo[loanKey(entireLog, log.loanId)] = { token: log.loan.principalAddress, feeBps: BigInt(log.loan.protocolFee), timestamp: entireLog.timestamp };
   }
   for (const entireLog of refinancedAll) {
     const log = entireLog.args
-    if(!loanInfo[log.newLoanId.toString()] || entireLog.timestamp > loanInfo[log.newLoanId.toString()].timestamp)
-    loanInfo[log.newLoanId.toString()] = { token: log.loan.principalAddress, feeBps: BigInt(log.loan.protocolFee), timestamp: entireLog.timestamp };
+    const key = loanKey(entireLog, log.newLoanId)
+    if(!loanInfo[key] || entireLog.timestamp > loanInfo[key].timestamp)
+    loanInfo[key] = { token: log.loan.principalAddress, feeBps: BigInt(log.loan.protocolFee), timestamp: entireLog.timestamp };
   }
   for (const entireLog of refinancedNewAll) {
     const log = entireLog.args
-    if(!loanInfo[log.newLoanId.toString()] || entireLog.timestamp > loanInfo[log.newLoanId.toString()].timestamp)
-    loanInfo[log.newLoanId.toString()] = { token: log.loan.principalAddress, feeBps: BigInt(log.loan.protocolFee), timestamp: entireLog.timestamp };
+    const key = loanKey(entireLog, log.newLoanId)
+    if(!loanInfo[key] || entireLog.timestamp > loanInfo[key].timestamp)
+    loanInfo[key] = { token: log.loan.principalAddress, feeBps: BigInt(log.loan.protocolFee), timestamp: entireLog.timestamp };
   }
 
   const isInTimeRange = (ts: bigint) => ts >= options.startTimestamp && ts < options.endTimestamp;
@@ -89,7 +121,7 @@ const fetch = async (options: FetchOptions) => {
   // Daily repayment fees (LoanRepaid)
   for (const entireLog of repaidDaily) {
     const log = entireLog.args
-    const info = loanInfo[log.loanId.toString()];
+    const info = loanInfo[loanKey(entireLog, log.loanId)];
     if (!info || info.feeBps === 0n) continue;
     const protocolCut = BigInt(log.fee);
     const totalInterest = protocolCut * BPS_DIVISOR / info.feeBps;
@@ -134,9 +166,9 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Total interest and origination/refinancing fees paid by borrowers and lenders on Gondi V3 NFT lending.",
-  Revenue: "15% of realized interest + 15% of origination/refinancing fees.",
-  ProtocolRevenue: "15% of realized interest + 15% of origination/refinancing fees.",
-  SupplySideRevenue: "85% of interest and origination/refinancing fees distributed to lenders.",
+  Revenue: "15% of realized interest + 15% of origination/refinancing fees (20% on V3.2 private loans, live on Ethereum since 2026-08-31).",
+  ProtocolRevenue: "15% of realized interest + 15% of origination/refinancing fees (20% on V3.2 private loans, live on Ethereum since 2026-08-31).",
+  SupplySideRevenue: "85% of interest and origination/refinancing fees distributed to lenders (80% on V3.2 private loans).",
 };
 
 const breakdownMethodology = {

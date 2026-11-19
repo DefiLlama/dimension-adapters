@@ -14,7 +14,7 @@ async function fetch({ createBalances, getLogs }: FetchOptions) {
 
   const soldLogs = await getLogs({
     target: '0xeb554444b5c49bab7781b1cfc0e3be211053c6d7',
-    eventAbi: 'event Sold (address indexed operator, address indexed to, uint256 indexed id, uint256 amount)',
+    eventAbi: 'event Sold (address indexed operator, address indexed to, uint256 id, uint256 amount)',
   });
   soldLogs.forEach(log => {
     const amountSold = log.amount.toString() * 1.01

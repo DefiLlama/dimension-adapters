@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -32,7 +33,7 @@ const WINDFALL_FEE_SHARE =
 
 /** Polygon PoS DAI used for tickets, jackpots, fees and prize payments. */
 const POLYGON_DAI =
-  "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063";
+  ADDRESSES.polygon.DAI;
 
 /**
  * Start boundary for the current production deployment.

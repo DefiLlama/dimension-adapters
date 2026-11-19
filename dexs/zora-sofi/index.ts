@@ -86,7 +86,7 @@ async function getZoraCoinsVolume(options: FetchOptions): Promise<FetchResultV2>
 
   const zoraFactory = ZoraFactories[options.chain];
 
-  const fromBlock = Number(options.fromApi.block);
+  const fromBlock = Number(await options.getFromBlock());
   const toBlock = Number(options.toApi.block);
 
   // v3
@@ -169,7 +169,7 @@ async function getZoraCoinsfees(options: FetchOptions): Promise<FetchResultV2> {
 
   const zoraFactory = ZoraFactories[options.chain];
 
-  const fromBlock = Number(options.fromApi.block);
+  const fromBlock = Number(await options.getFromBlock());
   const toBlock = Number(options.toApi.block);
 
   // v3 fees - events from coin and creator coin contracts

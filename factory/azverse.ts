@@ -1,13 +1,9 @@
 import { azverseBrokerFeesExports, azverseBrokerVolumeExports } from "../helpers/azverse";
 import { createFactoryExports } from "./registry";
 
-// broker_id values are returned by https://app.azverse.xyz/exapi/stats/v1/stats/public/defillama/brokers
+// broker_id values are returned by https://app.azverse.net/exapi/stats/v1/stats/public/defillama/brokers
 const brokerConfigs = {
-  "azx-perps": { brokerId: "AZVERSE", brokerName: "AZX", start: "2025-12-31" },
-  "avodex-perps": { brokerId: "AVODEX", brokerName: "AvoDex", start: "2025-12-31" },
-  "monster-perps": { brokerId: "MONSTER", brokerName: "Monster", start: "2025-12-31" },
-  "bbx-perps": { brokerId: "BBXCOM", brokerName: "BBX", start: "2025-12-31" },
-  "xox-perps": { brokerId: "XOX", brokerName: "XOX", start: "2025-12-31" },
+  "xox-perps": { brokerId: "XOX", brokerName: "XOX", start: "2025-12-11" },
 };
 
 const dexsProtocols = Object.fromEntries(

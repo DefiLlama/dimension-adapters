@@ -61,8 +61,9 @@ const fetchUnit0 = async (options: FetchOptions) => {
     }
   `
   const res = await request(endpoints[options.chain], query)
+  // the subgraph only writes a day row when there was a swap that day
   return {
-    dailyVolume: res.swopfiDayData.dailyVolumeUSD,
+    dailyVolume: res.swopfiDayData?.dailyVolumeUSD ?? 0,
   };
 
 }

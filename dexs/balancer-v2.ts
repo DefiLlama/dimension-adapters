@@ -96,6 +96,7 @@ async function fetch(options: FetchOptions) {
 
 export default {
   version: 2,
+  pullHourly: true,
   fetch: fetch,
   methodology: {
     Fees: "All trading fees collected (includes swap and yield fee)",

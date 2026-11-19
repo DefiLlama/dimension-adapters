@@ -1,4 +1,7 @@
 with
+    relay_blocks as ( -- blocks delivered by the Flashbots relay, from its proposer_payload_delivered data API
+        select hash from unnest(array[{{blocks}}]) as r(hash)
+    ),
     tx_ct as (
         select
             block_number,
@@ -12,6 +15,7 @@ with
             and b."time" < from_unixtime({{end}})
         where
             TIME_RANGE
+            and b.hash in (select hash from relay_blocks)
         group by
             1,
             2
@@ -42,6 +46,7 @@ with
             )
             and b."time" >= from_unixtime({{start}})
             and b."time" < from_unixtime({{end}})
+            and b.hash in (select hash from relay_blocks)
     ),
     block_wo_eob_payment as ( -- need to sum up the cb transfer in traces
         select
@@ -59,6 +64,7 @@ with
             and to=b.miner
             and success=true -- make sure the trace was successful
             and TIME_RANGE
+            and b.hash in (select hash from relay_blocks)
         group by
             1,
             2
@@ -97,11 +103,12 @@ with
             ) as priority_fee_reward
         FROM
             ethereum.transactions a
-            left join ethereum.blocks b on block_number="number"
+            join ethereum.blocks b on block_number="number"
                 and b."time" >= from_unixtime({{start}})
                 and b."time" < from_unixtime({{end}})
         where
             TIME_RANGE
+            and b.hash in (select hash from relay_blocks)
         group by
             1
     )

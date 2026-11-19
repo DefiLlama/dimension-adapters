@@ -1,11 +1,14 @@
+// Changes to this helper's revenue logic require further approval before merging:
+// Trueo markets depend on the Uniswap and Aero revenue it feeds (uniswap-v2/v3/v4, aerodrome, aerodrome-slipstream, velodrome, velodrome-v2).
+
 import ADDRESSES from './coreAssets.json'
 
-import { Balances, ChainApi, cache } from "@defillama/sdk";
+import { Balances, ChainApi, cache, coins } from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { addOneToken, isCoreAsset } from "./prices";
 import { queryDune } from "./dune";
-import { httpGet } from "../utils/fetchURL";
 import { ethers } from "ethers";
+import { toPositionedLogArgs } from "./logs";
 
 const ZERO_ADDRESS = ADDRESSES.null;
 
@@ -33,10 +36,7 @@ export const WASH_USD_MIN_TRADES_PER_EOA = 30;
 // test A is for.
 export const WASH_DUST_USD = 25_000;
 
-// UTC start of the day being recorded. runAdapter hands fetch a window of
-// [dayStart - 1s, dayEnd), so flooring startTimestamp lands on the PREVIOUS
-// day and the filter would apply yesterday's flag list - fatal for fake-ticker
-// pools that live a single day. Key off endTimestamp instead.
+// UTC day containing the inclusive end snapshot.
 export function washDayStart(options: FetchOptions): number {
   return Math.floor((options.endTimestamp - 1) / 86400) * 86400;
 }
@@ -90,22 +90,112 @@ export async function getEstablishedTokens(chain: string, tokens: string[]): Pro
     if (token === ZERO_ADDRESS || isCoreAsset(chain, token)) established.add(token);
     else unknown.add(token);
   }
-  const pending = [...unknown];
-  for (let i = 0; i < pending.length; i += 100) {
-    const keys = pending.slice(i, i + 100).map(t => `${chain}:${t}`).join(',');
-    const { coins } = await httpGet(`https://coins.llama.fi/prices/current/${keys}?searchWidth=6h`);
-    for (const [key, info] of Object.entries(coins ?? {}) as [string, any][]) {
-      if ((info?.confidence ?? 0) >= 0.9) established.add(key.split(':')[1].toLowerCase());
-    }
+  const priceData = await coins.getPrices([...unknown].map(t => `${chain}:${t}`), 'now');
+  for (const [key, info] of Object.entries(priceData) as [string, any][]) {
+    if ((info?.confidence ?? 0) >= 0.9) established.add(key.split(':')[1].toLowerCase());
   }
   return established;
 }
 
-export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 200 }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
-  const balanceCalls = Object.entries(pairs).map(([pair, tokens]) => tokens.map(i => ({ target: i, params: pair }))).flat()
+// Uniswap v4 flash accounting lets one transaction add liquidity, swap through it
+// and remove it again with the deltas cancelling, so the PoolManager emits Swap
+// logs for tokens nobody holds: a 1-tick position in a freshly minted token
+// paired with ETH/USDC, "swapped" for $100M+ with zero value sent and no real
+// token moving (optimism 0xc4a48a865abad9390c0718e1b9374f327ba47a17b4cb356346ab2c0066b4d7d4:
+// 178k ETH of Swap logs, tx value 0, only the fake token transferred). The cheaper
+// variant keeps a pre-funded fake-token position in a fee-0 pool and round-trips
+// through it inside one tx. Both leave the same fingerprint inside one tx and one
+// pool: the swaps net to ~0 on both tokens, or liquidity was both added and
+// removed. Such groups are dropped. Cost: ~0.1% of organic volume (a same-tx
+// round trip through one pool has no legitimate use; JIT hooks that add and
+// remove around a user's swap are negligible). Keyed by tx hash + pool id.
+export function getPhantomSwapKeys(swaps: any[], liquidityMods: any[]): Set<string> {
+  const abs = (x: bigint) => x < 0n ? -x : x
+  const groups: Record<string, { n: number; net0: bigint; gross0: bigint; net1: bigint; gross1: bigint }> = {}
+  for (const log of swaps) {
+    const g = groups[phantomSwapKey(log)] ??= { n: 0, net0: 0n, gross0: 0n, net1: 0n, gross1: 0n }
+    const a0 = BigInt(String(log.args.amount0)), a1 = BigInt(String(log.args.amount1))
+    g.n++; g.net0 += a0; g.gross0 += abs(a0); g.net1 += a1; g.gross1 += abs(a1)
+  }
+  const liquidity: Record<string, { add?: boolean; remove?: boolean }> = {}
+  for (const log of liquidityMods) {
+    const l = liquidity[phantomSwapKey(log)] ??= {}
+    if (BigInt(String(log.args.liquidityDelta)) > 0n) l.add = true; else l.remove = true
+  }
+  const phantom = new Set<string>()
+  for (const [key, g] of Object.entries(groups)) {
+    // |net| <= 1% of gross on both tokens: the fee is all that fails to cancel
+    const roundTrip = g.n >= 2 && abs(g.net0) * 100n <= g.gross0 && abs(g.net1) * 100n <= g.gross1
+    if (roundTrip || (liquidity[key]?.add && liquidity[key]?.remove)) phantom.add(key)
+  }
+  return phantom
+}
+
+export function phantomSwapKey(log: any): string {
+  return `${log.transactionHash}:${log.args.id}`.toLowerCase()
+}
+
+// Fail fast above 10% failed balance calls to tolerate isolated RPC errors without
+// reporting a mostly-failed batch of pools as legitimately empty. See PR #8565 for the
+// original all-or-nothing precedent this threshold replaces.
+const MAX_FAILED_BALANCE_CALL_RATIO = 0.1
+const MAX_BALANCE_CALL_RETRIES = 2
+
+// Of the given core-asset tokens, the ones the price API can actually price. A core
+// asset without price support must not take the single-sided shortcut below: its side
+// values to 0, doubling still gives 0, and the pair would be dropped even when the
+// other side is priceable. On API failure returns empty (every pair takes the
+// two-sided path, same as before this optimization).
+async function getPricedCoreTokens(chain: string, tokens: string[]): Promise<Set<string>> {
+  try {
+    const priceData = await coins.getPrices(tokens.map(t => `${chain}:${t}`), 'now')
+    return new Set(Object.keys(priceData).map(key => key.split(':')[1].toLowerCase()))
+  } catch (e) {
+    return new Set()
+  }
+}
+
+export async function filterPools({ api, pairs, createBalances, maxPairSize = 42, minUSDValue = 200, enforceBalanceFailureRatio = false }: { api: ChainApi, pairs: IJSON<string[]>, createBalances: any, maxPairSize?: number, minUSDValue?: number, enforceBalanceFailureRatio?: boolean }): Promise<IJSON<number>> {
+  const chain = api.chain
+
+  const coreTokens = new Set<string>()
+  Object.values(pairs).forEach(tokens => tokens.forEach(t => { if (isCoreAsset(chain, t)) coreTokens.add(t.toLowerCase()) }))
+  const pricedCoreTokens = await getPricedCoreTokens(chain, [...coreTokens])
+
+  // A pair holding a priced core asset needs only that side's balance: in an AMM both
+  // sides hold equal value, so pool value ~= 2x the core side. Only pairs without a
+  // priced core asset need both balances (and both tokens priced).
+  const balanceCalls: { target: string, params: string }[] = []
+  const pairHasPricedCore: IJSON<boolean> = {}
+  for (const [pair, tokens] of Object.entries(pairs)) {
+    const coreToken = tokens.find(t => pricedCoreTokens.has(t.toLowerCase()))
+    if (coreToken) {
+      pairHasPricedCore[pair] = true
+      if (coreToken !== ZERO_ADDRESS) balanceCalls.push({ target: coreToken, params: pair })
+    } else {
+      tokens.forEach(t => { if (t !== ZERO_ADDRESS) balanceCalls.push({ target: t, params: pair }) })
+    }
+  }
+
   const res = await api.multiCall({ abi: 'erc20:balanceOf', calls: balanceCalls, permitFailure: true, })
-  if (balanceCalls.length && res.every((bal) => bal == null))
-    throw new Error(`filterPools: every pooled balance call failed on ${api.chain}, refusing to report ${Object.keys(pairs).length} pools as empty`)
+
+  // Retry failed calls to separate infra failure from deterministic reverts:
+  // - every call still fails after the retries -> the RPC is dead, throw
+  // - the retries fixed some calls (flaky/rate-limited RPC) and too many still fail -> throw
+  // - the retries fixed nothing while the rest of the batch succeeds -> the failures are
+  //   deterministic (broken token contracts, seen on hyperliquid) and count as zero
+  let failedIndices = res.map((bal, i) => bal == null ? i : -1).filter((i) => i > -1)
+  let retryFixed = 0
+  for (let attempt = 0; attempt < MAX_BALANCE_CALL_RETRIES && failedIndices.length; attempt++) {
+    const retried = await api.multiCall({ abi: 'erc20:balanceOf', calls: failedIndices.map((i) => balanceCalls[i]), permitFailure: true, })
+    retried.forEach((bal, j) => { if (bal != null) { res[failedIndices[j]] = bal; retryFixed++ } })
+    failedIndices = failedIndices.filter((_, j) => retried[j] == null)
+  }
+  const failedCalls = failedIndices.length
+  const rpcIsDead = balanceCalls.length > 0 && failedCalls === balanceCalls.length
+  const rpcIsFlaky = (retryFixed > 0 || enforceBalanceFailureRatio) && failedCalls / balanceCalls.length > MAX_FAILED_BALANCE_CALL_RATIO
+  if (rpcIsDead || rpcIsFlaky)
+    throw new Error(`filterPools: ${failedCalls}/${balanceCalls.length} pooled balance calls failed on ${api.chain}, refusing to report ${Object.keys(pairs).length} pools as (partly) empty`)
   const balances: Balances = createBalances()
   const pairBalances: IJSON<Balances> = {}
   res.forEach((bal, i) => {
@@ -119,7 +209,9 @@ export async function filterPools({ api, pairs, createBalances, maxPairSize = 42
   await balances.getUSDValue()
   const filteredPairs: IJSON<number> = {}
   for (const pair of Object.keys(pairs)) {
-    const pooledValue = await pairBalances[pair].getUSDValue()
+    if (!pairBalances[pair]) continue;
+    let pooledValue = await pairBalances[pair].getUSDValue()
+    if (pairHasPricedCore[pair]) pooledValue *= 2
     if (pooledValue < minUSDValue)
       continue;
     filteredPairs[pair] = pooledValue
@@ -131,6 +223,67 @@ export async function filterPools({ api, pairs, createBalances, maxPairSize = 42
   // if there are more than 21 pools, we need to filter out the ones with the lowest value
   const sortedPairs = Object.entries(filteredPairs).sort((a, b) => b[1] - a[1]).slice(0, maxPairSize)
   return Object.fromEntries(sortedPairs)
+}
+
+const v2SyncEvent = 'event Sync(uint112 reserve0, uint112 reserve1)'
+
+// filterPools for chains whose public RPCs serve logs but have pruned past state, so the
+// balanceOf calls at the window's block fail. A pair's reserves after its last Sync in the
+// window are its balances at the window end, the same point-in-time value filterPools reads.
+// Every UniV2 swap emits Sync, so a pair with no Sync in the window had no swap to count.
+async function filterPoolsBySyncReserves({ fetchOptions, pairs, maxPairSize = 42, minUSDValue = 200 }: { fetchOptions: FetchOptions, pairs: IJSON<string[]>, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
+  const { chain, createBalances, getLogs } = fetchOptions
+  const pairIds = Object.keys(pairs)
+  if (!pairIds.length) return {}
+
+  const coreTokens = new Set<string>()
+  Object.values(pairs).forEach(tokens => tokens.forEach(t => { if (isCoreAsset(chain, t)) coreTokens.add(t.toLowerCase()) }))
+  const pricedCoreTokens = await getPricedCoreTokens(chain, [...coreTokens])
+
+  const syncLogs = await getLogs({ targets: pairIds, eventAbi: v2SyncEvent, flatten: false, onlyArgs: false })
+  const balances: Balances = createBalances()
+  const pairBalances: IJSON<Balances> = {}
+  const pairHasPricedCore: IJSON<boolean> = {}
+  syncLogs.forEach((logs: any[], i: number) => {
+    if (!logs?.length) return
+    const pair = pairIds[i]
+    const last = logs.map(toPositionedLogArgs).sort((a, b) => b.blockNumber - a.blockNumber || b.logIndex - a.logIndex)[0]
+    const reserves = [last.reserve0, last.reserve1]
+    const tokens = pairs[pair]
+    // valued like filterPools: 2x the priced core side when the pair has one, else both sides
+    const coreIndex = tokens.findIndex(t => pricedCoreTokens.has(t.toLowerCase()))
+    pairHasPricedCore[pair] = coreIndex > -1
+    pairBalances[pair] = createBalances()
+    tokens.forEach((token, j) => {
+      if (coreIndex > -1 && j !== coreIndex) return
+      balances.add(token, reserves[j])
+      pairBalances[pair].add(token, reserves[j])
+    })
+  })
+  // we do this to cache price results
+  await balances.getUSDValue()
+  const filteredPairs: IJSON<number> = {}
+  for (const pair of Object.keys(pairBalances)) {
+    let pooledValue = await pairBalances[pair].getUSDValue()
+    if (pairHasPricedCore[pair]) pooledValue *= 2
+    if (pooledValue < minUSDValue) continue
+    filteredPairs[pair] = pooledValue
+  }
+
+  const sortedPairs = Object.entries(filteredPairs).sort((a, b) => b[1] - a[1]).slice(0, maxPairSize)
+  return Object.fromEntries(sortedPairs)
+}
+
+// drop pairs where either side is a blacklisted token (see helpers/lists.ts)
+function filterBlacklistedTokens(pairObject: IJSON<string[]>, blacklistTokens?: string[]): IJSON<string[]> {
+  if (!blacklistTokens?.length) return pairObject
+  const blacklist = new Set(blacklistTokens.map(i => i.toLowerCase()))
+  const filtered: IJSON<string[]> = {}
+  for (const [pair, tokens] of Object.entries(pairObject)) {
+    if (tokens.some(token => blacklist.has(String(token).toLowerCase()))) continue
+    filtered[pair] = tokens
+  }
+  return filtered
 }
 
 function filterBlacklistedPools(pairObject: IJSON<string[]>, blacklistPools?: string[]): IJSON<string[]> {
@@ -148,7 +301,7 @@ const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, u
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
 export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
-  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, allowReadPairs } = v2Config
+  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, allowReadPairs, enforceBalanceFailureRatio, useSyncReserves } = v2Config
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     let blacklistedAddressesSet: any
@@ -187,8 +340,10 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
     const dailyVolume = createBalances()
     const swapFees = createBalances()
     const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
-    const pairsToFilter = filterBlacklistedPools(pairObject, blacklistPools)
-    const filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances, maxPairSize })
+    const pairsToFilter = filterBlacklistedPools(filterBlacklistedTokens(pairObject, blacklistTokens), blacklistPools)
+    const filteredPairs = useSyncReserves
+      ? await filterPoolsBySyncReserves({ fetchOptions, pairs: pairsToFilter, maxPairSize })
+      : await filterPools({ api, pairs: pairsToFilter, createBalances, maxPairSize, enforceBalanceFailureRatio })
     const pairIds = Object.keys(filteredPairs)
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
     const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })
@@ -268,14 +423,19 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
 const defaultV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 const defaultPoolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
 const defaultAlgebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
+const defaultFeeChangeEvent = 'event SetFee(uint24 feeOld, uint24 feeNew)'
 // Algebra Constants.COMMUNITY_FEE_DENOMINATOR, same on V1.9 and Integral
 const COMMUNITY_FEE_DENOMINATOR = 1e3
 
-export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false }: UniV3Config): FetchV2 => {
+export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent = defaultV3SwapEvent, customLogic, isAlgebraV3 = false, isAlgebraV2 = false, feeFromSlot0 = false, feeChangeEvent = defaultFeeChangeEvent, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, blacklistedAddresses, pools, getRevenueRatio, dynamicProtocolFees = false, algebraCommunityFee = false, noStateReads = false, protocolFeesInSwapEvent = false }: UniV3Config): FetchV2 => {
+  const blacklistedAddressesSet = blacklistedAddresses ? new Set(blacklistedAddresses.map(i => i.toLowerCase())) : null
+  if (noStateReads && (!factory || isAlgebraV3 || isAlgebraV2 || algebraCommunityFee || dynamicProtocolFees || feeFromSlot0))
+    throw new Error('noStateReads needs factory pools whose fee tier is in the PoolCreated log, every other option reads pool state')
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     const pairObject: IJSON<string[]> = {}
     const fees: any = {}
+    const feeTimelines: IJSON<{ blockNumber: number, logIndex: number, fee: number }[]> = {}
     const communityFees: IJSON<number> = {}
 
     if (!chain) throw new Error('Wrong version?')
@@ -317,7 +477,12 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
           ? 'function globalState() view returns (uint160 price, int24 tick, uint16 fee, uint8 pluginConfig, uint16 communityFee)'
           : 'function globalState() view returns (uint160 price, int24 tick, uint16 feeZto, uint16 feeOtz, uint16 timepointIndex, uint16 communityFee)'
         const _states = await api.multiCall({ abi, calls: logs.map((log: any) => log.pool), permitFailure: true })
-        _states.forEach((state: any, i: number) => { if (state != null) communityFees[logs[i].pool] = Number(state.communityFee) / COMMUNITY_FEE_DENOMINATOR })
+        _states.forEach((state: any, i: number) => {
+          if (state == null) return
+          communityFees[logs[i].pool] = Number(state.communityFee) / COMMUNITY_FEE_DENOMINATOR
+          // some Integral pools have no fee() method; the current fee is the 3rd globalState field
+          if (isAlgebraV3 && !fees[logs[i].pool]) fees[logs[i].pool] = Number(state.fee) / 1e6
+        })
       }
     } else if (Array.isArray(pools)) {
 
@@ -335,8 +500,25 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
     }
 
     const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
-    const pairsToFilter = filterBlacklistedPools(pairObject, blacklistPools)
-    const filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances })
+    const pairsToFilter = filterBlacklistedPools(filterBlacklistedTokens(pairObject, blacklistTokens), blacklistPools)
+    let filteredPairs: IJSON<number>
+    let poolSwapLogs: IJSON<any[]> | undefined
+    if (noStateReads) {
+      // No balanceOf filter: scan the window's swaps by topic and keep the factory's own pools (PoolCreated cache) that
+      // hold a core asset. addOneToken then prices only that core leg, so no long-tail token is ever priced.
+      const corePools: IJSON<string> = {}
+      for (const [pool, tokens] of Object.entries(pairsToFilter))
+        if (tokens.some(t => isCoreAsset(chain, t))) corePools[pool.toLowerCase()] = pool
+      const swapLogs = await getLogs({ noTarget: true, eventAbi: swapEvent, onlyArgs: false })
+      poolSwapLogs = {}
+      for (const log of swapLogs) {
+        const pool = corePools[String(log.address).toLowerCase()]
+        if (pool) (poolSwapLogs[pool] ??= []).push(log.args)
+      }
+      filteredPairs = Object.fromEntries(Object.keys(poolSwapLogs).map(pool => [pool, 0]))
+    } else {
+      filteredPairs = await filterPools({ api, pairs: pairsToFilter, createBalances })
+    }
     const dailyVolume = createBalances()
     const swapFees = createBalances()
     const revenue = createBalances()
@@ -369,7 +551,9 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       })
 
       slot0Results.forEach((slot0: any, i: number) => {
-        const feeProtocol = Number(slot0?.feeProtocol ?? 0)
+        // a failed read leaves the ratio undefined, so getRevenueRatio can reject it instead of seeing feeProtocol = 0
+        if (!slot0) return
+        const feeProtocol = Number(slot0.feeProtocol)
         const token0Denominator = feeProtocol & 0x0f
         const token1Denominator = (feeProtocol >> 4) & 0x0f
 
@@ -380,21 +564,78 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       })
     }
 
-    const allLogs = await getLogs({ targets: pairs, eventAbi: swapEvent, flatten: false })
+    if (feeFromSlot0) {
+      const slot0Abi = 'function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint24 fee, bool unlocked)'
+      const readSlots = async (slotApi: ChainApi) => {
+        const _slots = await slotApi.multiCall({ abi: slot0Abi, calls: pairs, permitFailure: true })
+        const retryIndexes = pairs.map((_: string, i: number) => i).filter((i: number) => _slots[i] == null)
+        if (retryIndexes.length) {
+          const _retries = await slotApi.multiCall({ abi: slot0Abi, calls: retryIndexes.map((i: number) => pairs[i]), permitFailure: true })
+          retryIndexes.forEach((i: number, j: number) => { _slots[i] = _retries[j] })
+        }
+        return _slots
+      }
+      const _slots = await readSlots(api)
+      const unread = pairs.filter((_: string, i: number) => _slots[i] == null)
+      if (unread.length) throw new Error(`slot0 unreadable on ${unread.length} of ${pairs.length} pools, the fee in the pool creation log is a tick spacing and cannot be used instead: first ${unread[0]}`)
+      _slots.forEach((slot: any, i: number) => { fees[pairs[i]] = Number(slot.fee) / 1e6 })
 
-    allLogs.map((logs: any, index) => {
-      if (!logs.length) return;
+      const openingSlots = await readSlots(new ChainApi({ chain, block: (await fetchOptions.getFromBlock()) - 1 }))
+      const changeLogs = await getLogs({ targets: pairs, eventAbi: feeChangeEvent, flatten: false, onlyArgs: false })
+      changeLogs.forEach((logs: any[], i: number) => {
+        const pair = pairs[i]
+        const openingFee = openingSlots[i] == null ? undefined : Number(openingSlots[i].fee) / 1e6
+        if (!logs?.length) {
+          if (openingFee !== undefined && openingFee !== fees[pair]) throw new Error(`fee change logs missing on ${pair}: fee went from ${openingFee} to ${fees[pair]} in the window but no change was logged`)
+          return
+        }
+        const positions = new Set()
+        const changes = logs.map(toPositionedLogArgs)
+          .filter((change: any) => {
+            const position = `${change.blockNumber}:${change.logIndex}`
+            if (positions.has(position)) return false
+            positions.add(position)
+            return true
+          })
+          .sort((a, b) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex)
+        const chained = changes.every((change: any, j: number) => j === 0 || Number(change.feeOld) === Number(changes[j - 1].feeNew))
+        const opensAtOpeningFee = openingFee === undefined || Number(changes[0].feeOld) / 1e6 === openingFee
+        const closesAtClosingFee = Number(changes[changes.length - 1].feeNew) / 1e6 === fees[pair]
+        if (!chained || !opensAtOpeningFee || !closesAtClosingFee) throw new Error(`fee change logs incomplete on ${pair}: ${changes.length} changes do not link the opening fee ${openingFee} to the closing fee ${fees[pair]}`)
+        feeTimelines[pair] = [
+          { blockNumber: -1, logIndex: -1, fee: Number(changes[0].feeOld) / 1e6 },
+          ...changes.map((change: any) => ({ blockNumber: change.blockNumber, logIndex: change.logIndex, fee: Number(change.feeNew) / 1e6 })),
+        ]
+      })
+    }
+
+    const hasFeeTimelines = Object.keys(feeTimelines).length > 0
+    const feeAt = (timeline: { blockNumber: number, logIndex: number, fee: number }[], blockNumber: number, logIndex: number) => {
+      let fee = timeline[0].fee
+      for (const change of timeline.slice(1)) {
+        if (change.blockNumber > blockNumber || (change.blockNumber === blockNumber && change.logIndex > logIndex)) break
+        fee = change.fee
+      }
+      return fee
+    }
+
+    const allLogs = poolSwapLogs ? pairs.map(pair => poolSwapLogs![pair]) : await getLogs({ targets: pairs, eventAbi: swapEvent, flatten: false, ...(hasFeeTimelines ? { onlyArgs: false } : {}) })
+
+    allLogs.map((rawLogs: any, index) => {
+      if (!rawLogs.length) return;
       const pair = pairs[index]
       if (blacklistPoolsSet && blacklistPoolsSet.has(pair.toLowerCase())) return;
+      const logs = hasFeeTimelines ? rawLogs.map(toPositionedLogArgs) : rawLogs
       const [token0, token1] = pairObject[pair]
       const feeTier = fees[pair]
+      const feeTimeline = feeTimelines[pair]
 
       let pairRevenueRatio = revenueRatio;
       let pairProtocolRevenueRatio = protocolRevenueRatio;
       let pairHoldersRevenueRatio = holdersRevenueRatio;
 
       // only use custom revenue ratio when revenueRatio is not set
-      if (revenueRatio === undefined && getRevenueRatio) {
+      if (revenueRatio === undefined && getRevenueRatio && !protocolFeesInSwapEvent) {
         const { _revenueRatio, _protocolRevenueRatio, _holdersRevenueRatio } = getRevenueRatio({
           options: fetchOptions,
           poolFeeTier: feeTier,
@@ -409,8 +650,24 @@ export const getUniV3LogAdapter: any = ({ factory, poolCreatedEvent, swapEvent =
       }
 
       logs.forEach((log: any) => {
+        if (blacklistedAddressesSet) {
+          if (log.sender === undefined || log.recipient === undefined) throw new Error('blacklistedAddresses needs a swap event with sender and recipient fields')
+          if (blacklistedAddressesSet.has(log.sender.toLowerCase()) || blacklistedAddressesSet.has(log.recipient.toLowerCase())) return
+        }
+        const swapFeeTier = feeTimeline ? feeAt(feeTimeline, log.blockNumber, log.logIndex) : feeTier
+        if (protocolFeesInSwapEvent && revenueRatio === undefined && getRevenueRatio) {
+          // the Swap log carries the protocol fee taken from the input token, so the cut in force at this swap is read from it
+          const isInput0 = BigInt(log.amount0) > 0n
+          const protocolFee = isInput0 ? log.protocolFeesToken0 : log.protocolFeesToken1
+          if (protocolFee === undefined) throw new Error('protocolFeesInSwapEvent needs a swap event with protocolFeesToken0/1 fields')
+          const inputFee = Number(isInput0 ? log.amount0 : log.amount1) * swapFeeTier
+          const ratios = getRevenueRatio({ options: fetchOptions, poolFeeTier: swapFeeTier, protocolFeeRatio: inputFee > 0 ? Number(protocolFee) / inputFee : 0 })
+          pairRevenueRatio = ratios._revenueRatio
+          pairProtocolRevenueRatio = ratios._protocolRevenueRatio
+          pairHoldersRevenueRatio = ratios._holdersRevenueRatio
+        }
         addOneToken({ chain, balances: dailyVolume, token0, token1, amount0: log.amount0, amount1: log.amount1 })
-        const { token: _token, amount: _feeAmount } = addOneToken({ chain, balances: swapFees, token0, token1, amount0: log.amount0.toString() * feeTier, amount1: log.amount1.toString() * feeTier })
+        const { token: _token, amount: _feeAmount } = addOneToken({ chain, balances: swapFees, token0, token1, amount0: log.amount0.toString() * swapFeeTier, amount1: log.amount1.toString() * swapFeeTier })
 
         if (pairRevenueRatio || pairRevenueRatio === 0) {
           revenueEnabled = true;
@@ -465,12 +722,18 @@ type UniV2Config = {
   protocolRevenueRatio?: number,
   holdersRevenueRatio?: number,
   blacklistPools?: Array<string>,
+  blacklistTokens?: Array<string>, // pairs holding any of these tokens are skipped
   allowReadPairs?: boolean;
+  enforceBalanceFailureRatio?: boolean;
+  // value pairs from their Sync reserves instead of balanceOf at the window's block, for chains whose RPCs have no archive state
+  useSyncReserves?: boolean;
 }
 
 export interface UniGetRevenueRatioProps {
   options: FetchOptions;
   poolFeeTier: number;
+  // protocolFeesInSwapEvent: share of this swap's fee the protocol took, read from the Swap log
+  protocolFeeRatio?: number;
   protocolFeeRatioToken0?: number;
   protocolFeeRatioToken1?: number;
   // Algebra community fee, as a share of the pool's swap fees
@@ -484,6 +747,8 @@ type UniV3Config = {
   customLogic?: any,
   isAlgebraV3?: boolean,
   isAlgebraV2?: boolean,
+  feeFromSlot0?: boolean,
+  feeChangeEvent?: string,
   userFeesRatio?: number,
   revenueRatio?: number,
   protocolRevenueRatio?: number,
@@ -491,10 +756,17 @@ type UniV3Config = {
   start?: string,
   deadFrom?: string,
   blacklistPools?: Array<string>,
+  blacklistTokens?: Array<string>, // pools holding any of these tokens are skipped
+  blacklistedAddresses?: string[], // swaps whose sender or recipient is listed are skipped (volume and fees)
   pools?: string[], // alternative to providing factory
   dynamicProtocolFees?: boolean,
   // read each Algebra pool's community fee and pass it to getRevenueRatio
   algebraCommunityFee?: boolean,
+  // for chains whose public RPCs keep no historical state, so no eth_call at the window block works: skips the pooled-balance
+  // filter and counts the core-asset leg of swaps in every factory pool holding a core asset (pool list + swap logs only)
+  noStateReads?: boolean,
+  // PancakeV3: the Swap event logs the protocol fee taken per swap; getRevenueRatio is called per swap with protocolFeeRatio
+  protocolFeesInSwapEvent?: boolean,
 
   // support to get custom revenue ratio from given pool fee tier
   getRevenueRatio?: (props: UniGetRevenueRatioProps) => { _revenueRatio: number, _protocolRevenueRatio?: number, _holdersRevenueRatio?: number };

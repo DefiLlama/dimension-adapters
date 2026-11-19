@@ -1,12 +1,13 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { addTokensReceived, getETHReceived } from '../../helpers/token';
 
 const CURRENCY_ADDRESSES = {
   [CHAIN.BSC]: [
-    '0x55d398326f99059fF775485246999027B3197955', // USDT on BSC
-    '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', // USDC on BSC
-    '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56', // BUSD on BSC
+    ADDRESSES.bsc.USDT, // USDT on BSC
+    ADDRESSES.bsc.USDC, // USDC on BSC
+    ADDRESSES.bsc.BUSD, // BUSD on BSC
     '0x000Ae314E2A2172a039B26378814C252734f556A', // ASTER on BSC
   ],
 };

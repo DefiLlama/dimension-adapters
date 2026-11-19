@@ -4,9 +4,11 @@ import { CHAIN } from "../helpers/chains";
 import { createFactoryExports } from "./registry";
 
 const BASE_URL = "https://bigquery-api-636134865280.europe-west1.run.app";
+const INJECTIVE_CACHE_API = "https://api.ui.injective.network/api/v1/cache";
 
 interface VolumeConfig {
   endpoint: string;
+  fallbackEndpoint?: string;
   start: string;
   doublecounted?: boolean;
   methodology?: Record<string, string>;
@@ -21,11 +23,47 @@ interface FeesConfig {
   breakdownMethodology?: Record<string, Record<string, string>>;
 }
 
+async function fetchFallbackVolume(endpoint: string): Promise<number> {
+  const res: any = await httpGet(`${INJECTIVE_CACHE_API}/${endpoint}/tc/summary`);
+  if (!Array.isArray(res) || res.length === 0) return 0;
+  return res.reduce((acc: number, item: any) => {
+    const vol = parseFloat(item?.volume);
+    return acc + (!isNaN(vol) && vol > 0 ? vol : 0);
+  }, 0);
+}
+
+/** Whether a requested UTC day is no more than 48 hours old and not in the future. */
+function isRecentDate(dateString: string): boolean {
+  const targetTime = new Date(dateString).getTime();
+  const age = Date.now() - targetTime;
+  // Allow cache fallback only for requests within the last 48 hours
+  return age >= 0 && age <= 48 * 60 * 60 * 1000;
+}
+
+/** Build a daily volume adapter that rejects nonmatching rows before considering live fallback. */
 function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
+  /** Accept matching daily data; retain recent live fallback only when BigQuery returned no rows. */
   const fetch = async (options: FetchOptions) => {
-    const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
-    if (res.days.length !== 1) throw new Error("No data found for the given date: " + options.dateString);
-    return { dailyVolume: res.total_volume_usd };
+    let hasMismatchedDailyRow = false;
+    try {
+      const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
+      if (res && Array.isArray(res.days) && res.days.length === 1 && res.days[0]?.date === options.dateString) {
+        return { dailyVolume: res.total_volume_usd };
+      }
+      hasMismatchedDailyRow = Boolean(res && Array.isArray(res.days) && res.days.length > 0);
+    } catch {
+      // BigQuery offline or request failed
+    }
+
+    // Live snapshot only covers BigQuery lag (no rows); never replace rows returned for another date.
+    if (config.fallbackEndpoint && !hasMismatchedDailyRow && isRecentDate(options.dateString)) {
+      const liveVolume = await fetchFallbackVolume(config.fallbackEndpoint);
+      if (liveVolume > 0) {
+        return { dailyVolume: liveVolume };
+      }
+    }
+
+    throw new Error(`No data found for the given date: ${options.dateString}`);
   };
 
   return {
@@ -37,12 +75,15 @@ function createVolumeAdapter(config: VolumeConfig): SimpleAdapter {
   };
 }
 
+/** Build a fees adapter that requires one row matching the requested day. */
 function createFeesAdapter(config: FeesConfig): SimpleAdapter {
+  /** Validate the daily row before attributing fees and revenue to the requested date. */
   const fetch = async (options: FetchOptions) => {
-    const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
-    if (res.days.length !== 1) throw new Error("No data found for the given date: " + options.dateString);
-
     const dailyFees = options.createBalances();
+    const res: any = await httpGet(`${BASE_URL}/${config.endpoint}?start_date=${options.dateString}`);
+    if (!res || !Array.isArray(res.days) || res.days.length !== 1 || res.days[0]?.date !== options.dateString) {
+      throw new Error("No data found for the given date: " + options.dateString);
+    }
     dailyFees.addUSDValue(res.exchange_fees_usd, config.feesLabel);
 
     return {
@@ -65,10 +106,12 @@ function createFeesAdapter(config: FeesConfig): SimpleAdapter {
 const volumeConfigs: Record<string, VolumeConfig> = {
   "injective-spot": {
     endpoint: "injective_spot_volume",
+    fallbackEndpoint: "spot",
     start: "2021-07-17",
   },
   "injective-derivatives": {
     endpoint: "injective_derivative_volume",
+    fallbackEndpoint: "derivatives",
     start: "2021-07-17",
   },
   "helix-helix": {

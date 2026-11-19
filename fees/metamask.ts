@@ -1,5 +1,5 @@
 import { Adapter, Dependencies, FetchOptions } from "../adapters/types";
-import { fetch as fetchEvmBase, configs } from "../aggregators/metamask";
+import { fetch as fetchEvmBase, configs, SOLANA_FEE_WALLETS } from "../aggregators/metamask";
 import { getSolanaReceived } from "../helpers/token";
 import { CHAIN } from "../helpers/chains";
 
@@ -18,13 +18,15 @@ async function fetchEvm(options: FetchOptions) {
   }
 }
 
+// The fee wallets and the 2026-09-30 move are documented in aggregators/metamask.ts. Their own sweeps are
+// not fees: transfers sent by one of the wallets are excluded, and so are transfers in transactions one of
+// them signed, because part of a sweep's swap output arrives straight from the pool.
 async function fetchSol(options: FetchOptions) {
   const received = await getSolanaReceived({
     options,
-    targets: [
-      '47YRE7eLAdYzvGqSH1XLg2o8xUtywk7sS5BKv1oR4Y7i',
-      'HbBHuvgWoChfztoqz2izLRF5mSoLKQXfU68kueBmhcmL',
-    ]
+    targets: SOLANA_FEE_WALLETS,
+    blacklists: SOLANA_FEE_WALLETS,
+    blacklist_signers: SOLANA_FEE_WALLETS,
   })
   const dailyFees = received.clone(1, LABEL)
 

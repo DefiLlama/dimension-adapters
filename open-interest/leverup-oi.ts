@@ -21,11 +21,9 @@ async function fetch(options: FetchOptions) {
       target: LEVERUP_DIAMOND,
       abi: oiAbi,
     });
-    return {
-      openInterestAtEnd: Number(oi.totalUsd) / 1e18,
-      longOpenInterestAtEnd: Number(oi.longUsd) / 1e18,
-      shortOpenInterestAtEnd: Number(oi.shortUsd) / 1e18,
-    };
+    // totalUsd is longUsd + shortUsd, and the two sides are independent, so the one-sided
+    // figure is their average.
+    return { openInterestAtEnd: Number(oi.totalUsd) / 1e18 / 2 };
   }
 
   // Pre-V2 days: original method, so existing history is reproduced unchanged.
@@ -55,11 +53,9 @@ async function fetch(options: FetchOptions) {
     shortOpenInterest += (sQty * sPrice) / 1e28;
   });
 
-  return {
-    openInterestAtEnd: longOpenInterest + shortOpenInterest,
-    longOpenInterestAtEnd: longOpenInterest,
-    shortOpenInterestAtEnd: shortOpenInterest,
-  };
+  // The two sides are independent (they have run 37% apart historically), so the one-sided
+  // figure is their average rather than either leg.
+  return { openInterestAtEnd: (longOpenInterest + shortOpenInterest) / 2 };
 }
 
 const adapter: SimpleAdapter = {

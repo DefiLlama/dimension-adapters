@@ -25,12 +25,34 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0xEB4Af6fA3AFA08B10d593EC8fF87efB03BC04645'],
       },
+      [CHAIN.HYPERLIQUID]: {
+        morphoVaultOwners: ['0x36bb55C8f2fb92317767254bF8eDCef0E2Fe61e1'],
+      },
     },
   },
   "alterscope": {
     vaults: {
       [CHAIN.ETHEREUM]: {
         eulerVaultOwners: ['0x0d8249DD621fB1c386A7A7A949504035Dd3436A3'],
+      },
+    },
+  },
+  'anthias': {
+    vaults: {
+      [CHAIN.BASE]: {
+        // Anthias Labs, verified curator on api.morpho.org.
+        // Curates flagship Moonwell Morpho vaults on Base.
+        morpho: [
+          '0xa0E430870c4604CcfC7B38Ca7845B1FF653D0ff1',
+          '0xc1256Ae5FF1cf2719D4937adb3bbCCab2E00A2Ca',
+          '0x543257eF2161176D7C8cD90BA65C2d4CaEF5a796',
+          '0xf24608E0CCb972b0b0f4A6446a0BBf58c701a026',
+          '0xdbA76Bc542bb07538e046B40F2e8a215B409F7A8',
+          '0x89BeDBB1C4837444Da215A377275Ff96A84D6f53',
+          '0xbB2F06CeAE42CBcF5559Ed0713538c8892D977c9',
+          '0x5083b1387Ec3d4Ee6467B83890D98f1AF93F7c48',
+          '0x48a90E85be5C56b0A669985A12ee7C449fC79965',
+        ],
       },
     },
   },
@@ -57,6 +79,15 @@ const configs: Record<string, CuratorConfig> = {
       },
     },
   },
+  'architect': {
+    vaults: {
+      [CHAIN.BASE]: {
+        // Architect, verified curator on api.morpho.org.
+        morphoVaultOwners: ['0xC2f4848Adc95Adb16Cc79a3365814cB08439ee28'],
+        morphoVaultV2Owners: ['0xC2f4848Adc95Adb16Cc79a3365814cB08439ee28'],
+      },
+    },
+  },
   "armitage": {
     vaults: {
       [CHAIN.ETHEREUM]: {
@@ -66,14 +97,31 @@ const configs: Record<string, CuratorConfig> = {
           '0x5dc53a23AdC9f2Bed98de6F59F7F309a7c71FF2B', // Wintermute USDC Prime
           '0xA2EAaD0D586cF9FD73bb2c09cF6A7E3e187D68cd', // Wintermute USDC Select
           '0x55C1B6e461a6334B567bAF0FEb5D728715446f05', // Pendle Ecosystem USDC
+          '0xcf609F8327E68b42AF54F9D529b9f65d68038435', // Pendle Ecosystem High Yield USDC
         ],
+      },
+    },
+  },
+  "august-digital": {
+    vaults: {
+      // August Digital, verified curator on api.morpho.org (owner 0x2a155ed4 and curator 0xA81AE7d5 on chains 1 and 143).
+      // Morpho VaultV2s created by this owner, e.g. August USDC V2 0x80017bF0f793EBbE9679Cd61ff0e395B62CAbB59
+      // (monad block 61808998) and August USPC 0xdE16452C1f8CC209D8E9b104b7F240D9A251768B (monad block 110391543).
+      [CHAIN.ETHEREUM]: {
+        morphoVaultV2Owners: ['0x2a155ed454Dc5861a755F9C6bc7334a23B80cdAF'],
+      },
+      [CHAIN.MONAD]: {
+        morphoVaultV2Owners: ['0x2a155ed454Dc5861a755F9C6bc7334a23B80cdAF'],
       },
     },
   },
   "avantgarde": {
     vaults: {
       [CHAIN.ETHEREUM]: {
-        morphoVaultOwners: ['0xb263237E30fe9be53d6F401FCC50dF125D60F01a'],
+        morphoVaultOwners: ['0xb263237E30fe9be53d6F401FCC50dF125D60F01a', '0xc714F33c2527BF61749C06eA0389EC957D8153D4']
+      },
+      [CHAIN.BASE]: {
+        morphoVaultOwners: ["0x80C6c6438a438Ad3B3736a02B47793D6f854f2bF"]
       },
     },
   },
@@ -87,14 +135,32 @@ const configs: Record<string, CuratorConfig> = {
       },
     },
   },
+  'bitwise': {
+    vaults: {
+      [CHAIN.ETHEREUM]: {
+        // Bitwise, verified curator on api.morpho.org.
+        morphoVaultOwners: ['0x3585f2427b5D2746472A49406321b71799402a7d'],
+        morphoVaultV2Owners: ['0x3585f2427b5D2746472A49406321b71799402a7d'],
+      },
+      [CHAIN.BASE]: {
+        morphoVaultOwners: ['0x510F3b6621D9eA392d4F7632d02aBCf8ba92Bd6F'],
+        morphoVaultV2Owners: ['0x510F3b6621D9eA392d4F7632d02aBCf8ba92Bd6F'],
+      },
+      [CHAIN.ARC]: {
+        morphoV2: ['0x7610094B846657dCF166D59e42973db52c7015F9'], // Bitwise Premium RWA USDC
+        start: '2026-09-15', // vault deployment
+      },
+    },
+  },
   "block-analitica": {
     vaults: {
       [CHAIN.ETHEREUM]: {
         morpho: ['0x38989BBA00BDF8181F4082995b3DEAe96163aC5D', '0x2C25f6C25770fFEC5959D34B94Bf898865e5D6b1', '0x186514400e52270cef3D80e1c6F8d10A75d47344'],
       },
-      [CHAIN.BASE]: {
-        morpho: ['0xa0E430870c4604CcfC7B38Ca7845B1FF653D0ff1', '0xc1256Ae5FF1cf2719D4937adb3bbCCab2E00A2Ca', '0x543257eF2161176D7C8cD90BA65C2d4CaEF5a796', '0xf24608E0CCb972b0b0f4A6446a0BBf58c701a026'],
-      },
+      // The four Base Moonwell vaults that used to be listed here are already
+      // resolved by the moonwell-vaults owner below, so both entries booked the
+      // same fees. Morpho's API also reports their curator as Anthias Labs, not
+      // Block Analitica.
     },
   },
   "clearstar": {
@@ -103,6 +169,8 @@ const configs: Record<string, CuratorConfig> = {
       // creation receipt, not the current owner() (every one of these vaults is owned today by
       // 0xb3CF59A5, a Clearstar address in Morpho's curators registry on chains 1, 143 and 8453).
       // 0x829A1385 is already registered as a Clearstar V2 owner on katana below.
+      // 0x6539519E deployed Clearstar's Euler vaults on ethereum, base and monad. Each one is governed
+      // by 0xb3CF59A5 / 0x30988479 (Clearstar in euler-labels entities.json) or by the deployer itself.
       [CHAIN.BASE]: {
         morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'],
         // 0x829A1385 created "Clearstar cbAssets Vault" (0x91C0...3a3c), "Clearstar Core ETH"
@@ -110,6 +178,7 @@ const configs: Record<string, CuratorConfig> = {
         // "Clearstar Reactor EURC" (0x4C7b...C55C) and "Clearstar Boring USDC" (0x0282...0681).
         // https://base.blockscout.com/tx/0xebe8310f28cb502a87403f501db7fce667c7fafd95d65c56d5e913bd7139e6f2
         morphoVaultV2Owners: ['0x829A13850b684A575C0580a83322890e19c5eFaa', '0x30988479C2E6a03E7fB65138b94762D41a733458'],
+        eulerVaultOwners: ['0x6539519E69343535a2aF6583D9BAE3AD74c6A293'],
       },
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'],
@@ -118,11 +187,13 @@ const configs: Record<string, CuratorConfig> = {
         // "Clearstar Boring USDC" (0xF3Cc...Db49).
         // https://etherscan.io/tx/0x54939debbe1cf29d026262333b63b209613f4a84ef32739d07658d47a9287335
         morphoVaultV2Owners: ['0x30988479C2E6a03E7fB65138b94762D41a733458', '0x829A13850b684A575C0580a83322890e19c5eFaa'],
+        eulerVaultOwners: ['0x6539519E69343535a2aF6583D9BAE3AD74c6A293'],
       },
       [CHAIN.MONAD]: {
         // 0x829A1385 created "Clearstar Accountable AUSD" (0xbe3E...E9a1, the start date below is
         // its creation) and "Clearstar Yield AUSD" (0x8192...ad06).
         morphoVaultV2Owners: ['0x829A13850b684A575C0580a83322890e19c5eFaa'],
+        eulerVaultOwners: ['0x6539519E69343535a2aF6583D9BAE3AD74c6A293'],
         start: '2026-05-28',
       },
       [CHAIN.POLYGON]: { morphoVaultOwners: ['0x30988479C2E6a03E7fB65138b94762D41a733458'] },
@@ -175,6 +246,18 @@ const configs: Record<string, CuratorConfig> = {
       },
     },
   },
+  "flowdesk": {
+    vaults: {
+      [CHAIN.ETHEREUM]: {
+        // Flowdesk, verified curator on api.morpho.org. 0x415ca88b is the owner in the CreateVaultV2 event of
+        // Flowdesk Confidential High Yield USDT 0xb48C056C5608bA2Ee4cD94AF2bF4b1F25295Bd7e (block 25946991)
+        // and Flowdesk AUSD RWA Strategy 0x32401B9fb79065Bc15949DE0BD43927492f02F0C (block 24671403).
+        // Ownership has since moved to other Flowdesk addresses, but the framework filters on the creation owner.
+        morphoVaultOwners: ['0x415ca88b148CD7a3bbAd61788A9b90F2a788EEc7'],
+        morphoVaultV2Owners: ['0x415ca88b148CD7a3bbAd61788A9b90F2a788EEc7'],
+      },
+    },
+  },
   "galaxy": {
     vaults: {
       [CHAIN.ETHEREUM]: {
@@ -187,12 +270,30 @@ const configs: Record<string, CuratorConfig> = {
         morphoVaultOwners: ['0x42D510eDeb9257f8D920d5B9f5109D95cB22419d'],
         morphoVaultV2Owners: ['0x42D510eDeb9257f8D920d5B9f5109D95cB22419d'],
       },
+      [CHAIN.ARC]: {
+        // Morpho V2 vault, listed directly: no Morpho vault factory is configured for arc.
+        // api.morpho.org names its curator "Galaxy Curation".
+        morphoV2: [
+          '0x8E357432CC12ff425c36432F312968aEb16112AF', // Galaxy USDC
+          '0x389abDf4355e0cF4f19298179991705a98f21c18', // Galaxy EURC
+        ],
+        start: '2026-06-12', // Galaxy USDC deployment
+      },
     },
   },
   "hakutora": {
     vaults: {
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0x76c303fA012109eCBb34E4bAf1789c3e9FbEb3A4'],
+      },
+    },
+  },
+  "hedgehood-share-lending": {
+    breakdownFees: true,
+    vaults: {
+      [CHAIN.ROBINHOOD]: {
+        morphoV2: ['0x54Bc097643BB9fd4ab004f11859893655529E954'], // hhUSDG
+        start: '2026-10-27', // vault deployment, block 98846901
       },
     },
   },
@@ -215,6 +316,9 @@ const configs: Record<string, CuratorConfig> = {
           '0xC56EA16EA06B0a6A7b3B03B2f48751e549bE40fD',
           '0x9B97783B747c51b39c3d320050dc9C512868dAa8',
         ],
+        // deployer of the Hyperithm aHyperBTC / mHyperBTC Euler markets. Its 9 vaults are governed by
+        // 0xdE9014cE / 0x75178137 (Hyperithm in euler-labels 143/entities.json) or by the deployer itself
+        eulerVaultOwners: ['0x594c5eE5a326295FF6212C31BB3311747D3bD562'],
         start: '2025-12-23', // hyperAUSDd creation, earliest of the four
       },
       [CHAIN.HYPERLIQUID]: {
@@ -234,6 +338,21 @@ const configs: Record<string, CuratorConfig> = {
     vaults: {
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0x0FB44352bcfe4c5A53a64Dd0faD9a41184A1D609'],
+      },
+    },
+  },
+  "keyrock": {
+    vaults: {
+      [CHAIN.ETHEREUM]: {
+        morphoVaultOwners: [
+          '0xbA75546ACD56b3a9142f94F179b03970eE4283Fd', // initial owner — Keyrock V1/V2 vaults
+        ],
+      },
+      [CHAIN.ARC]: {
+        // Morpho V2 vault, listed directly: no Morpho vault factory is configured for arc.
+        // api.morpho.org names its curator "Keyrock".
+        morphoV2: ['0x5bEfAb92a5A3D60F578Cb51EEb4e4FD50a1e3123'], // Keyrock Prime USDC
+        start: '2026-08-10', // vault deployment
       },
     },
   },
@@ -313,13 +432,49 @@ const configs: Record<string, CuratorConfig> = {
       },
     },
   },
+  "pangolins": {
+    vaults: {
+      [CHAIN.BASE]: {
+        // Pangolins, verified curator on api.morpho.org (curator 0x98554757 on chain 8453). 0xB8108fA5 is the
+        // initialOwner in the CreateMetaMorpho event of Pangolins USDC 0x1401d1271C47648AC70cBcdfA3776D4A87CE006B (base block 38108843).
+        morphoVaultOwners: ['0xB8108fA53B7228D8bfC84712Ba3B870c78Ab7c2E'],
+        morphoVaultV2Owners: ['0xB8108fA53B7228D8bfC84712Ba3B870c78Ab7c2E'],
+      },
+      [CHAIN.BSC]: {
+        morpho: ['0xEB4F6FFB1038E1cCa701e7d53083B37ec5b6Ba33'], // Lista/Moolah Pangolins USDT Vault
+        start: '2025-05-06',
+      },
+    },
+  },
+  'presto': {
+    vaults: {
+      [CHAIN.ETHEREUM]: {
+        // Presto, verified curator on api.morpho.org.
+        morphoVaultOwners: [
+          '0x21d7f2430E33054151AC3963aCBD4813e78cB3C9',
+          '0xb41437827266a20aB30bf457A81561f7b5e1bE6D',
+        ],
+        morphoVaultV2Owners: [
+          '0x21d7f2430E33054151AC3963aCBD4813e78cB3C9',
+          '0xb41437827266a20aB30bf457A81561f7b5e1bE6D',
+        ],
+      },
+    },
+  },
   "re7": {
     breakdownFees: true,
     vaults: {
       [CHAIN.ETHEREUM]: {
         morphoVaultOwners: ['0x46BA7bCD764a692208781B0Fdc642E272ee597bC', '0xE86399fE6d7007FdEcb08A2ee1434Ee677a04433'],
         eulerVaultOwners: ['0xa563FEEA4028FADa193f1c1F454d446eEaa6cfD7', '0x46BA7bCD764a692208781B0Fdc642E272ee597bC'],
+        // created by 0xE7Fb2921 (block 25754849), curator 0xa58f41dd is RE7 Labs on api.morpho.org
+        morphoV2: ['0x5E2339BCb89B42782CEE454B46C7C6f88c0E4f83'], // Aerie x Plume USDC Core
         start: '2024-09-25',
+      },
+      [CHAIN.OPTIMISM]: {
+        // no VaultV2 factory is configured for optimism, so the vault is listed directly
+        morphoV2: ['0x3d63934715b6D4c4DFbBC1a00Fe2A2145079DD76'], // Re7 WETH, created 2026-04-21
+        start: '2026-04-21',
       },
       [CHAIN.BASE]: {
         morphoVaultOwners: ['0xD8B0F4e54a8dac04E0A57392f5A630cEdb99C940'],
@@ -411,6 +566,13 @@ const configs: Record<string, CuratorConfig> = {
         morpho: ['0x6137dcfdd3c83fe2922b1cba4105d2e92b327a06'],
         start: '2026-03-22',
       },
+      [CHAIN.PHAROS]: {
+        // "RockawayX USDC" (roxUSDC), Morpho V2, performanceFee 15%. Its curator safe
+        // 0x8747...d846 is 2-of-3 with 0xBDa6...f9e5, the sole owner of the Base deployer safe
+        // 0x22d4...676a above. Morpho's API does not cover Pharos, so it is listed by address.
+        morphoV2: ['0x047cd0a91e9b92ed979189a6c8a120bf280f02e5'],
+        start: '2026-07-14',
+      },
       [CHAIN.SOLANA]: {
         // Kamino kvaults curated by RockawayX. Both share vaultAdminAuthority
         // 5WodE5oHa6Uy16zg4eTep9t6DqJKx7jFN6bomAm7bVQv, which owns exactly these
@@ -431,6 +593,19 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.BASE]: {
         morpho: ['0x616a4E1db48e22028f6bbf20444Cd3b8e3273738', '0x27D8c7273fd3fcC6956a0B370cE5Fd4A7fc65c18', '0x5a47C803488FE2BB0A0EAaf346b420e4dF22F3C7'],
         start: '2025-01-21',
+      },
+    },
+  },
+  "sharpbyte-capital": {
+    vaults: {
+      // SharpByte, verified curator on api.morpho.org (owner 0x07A1eC35 and curator 0x73fceD2C on chains 1 and 143).
+      // Morpho VaultV2s created by this owner, e.g. SharpByte AUSD Tori Ecosystem 0x790e4f829fe865d432c4Ea83B8B15F8871415B6c
+      // (monad block 103274908) and SharpByte USDC High Yield 0xf57E9898575fab80b0f2aCDe5443276BeC8C542D (monad block 105321746).
+      [CHAIN.ETHEREUM]: {
+        morphoVaultV2Owners: ['0x07A1eC352EF67BB5b8b75A7fF9540b27f9a53d71'],
+      },
+      [CHAIN.MONAD]: {
+        morphoVaultV2Owners: ['0x07A1eC352EF67BB5b8b75A7fF9540b27f9a53d71'],
       },
     },
   },
@@ -523,6 +698,32 @@ const configs: Record<string, CuratorConfig> = {
         morphoVaultV2Owners: ['0xfeed46c11F57B7126a773EeC6ae9cA7aE1C03C9a', '0xE9c34c8Fe2d8452807eA13148b3F52b91354eA04'],
         start: '2026-05-29',
       },
+      [CHAIN.ARC]: {
+        // Morpho V2 vaults, listed directly: no Morpho vault factory is configured for arc.
+        // api.morpho.org names "Steakhouse Financial" as curator of 0xbeef0016 and 0xbeef00be;
+        // 0xbeef0007 carries no curator label there, but its curator() is one of the addresses the
+        // API lists for Steakhouse Financial. Same three vaults as the TVL adapter on arc.
+        morphoV2: [
+          '0xbeef0007d5A04246F5382957035Df34f7e82102e', // Steakhouse Prime USDC
+          '0xbeef0016cb2Fd5C352ea7CA08a9f54739DFa7298', // Steakhouse Prime USDC
+          '0xbeef00be37BdE921BAE06fad223125BAB16c41D1', // Steakhouse Prime EURC
+        ],
+        start: '2026-06-03', // first vault deployment (0xbeef0007)
+      },
+      [CHAIN.SOLANA]: {
+        // Kamino kvaults whose vaultAdminAuthority is 9ceRgz579BcfWogs3RE11FKNQaWW7Lmtnev3MXspxUjF, the admin the
+        // TVL adapter attributes to Steakhouse (kaminoLendVaultAdmins). These are every kvault under that admin
+        // on api.kamino.finance/kvaults/vaults, and all six are named "Steakhouse ...".
+        kaminoVaults: [
+          'BoZDRc1RDY9FzUZZ19WT4GbtTnnbXQ8AGSU5ByEw3ut5', // Steakhouse High Yield USDG, 2.5% performance fee
+          'HDsayqAsDWy3QvANGqh2yNraqcD8Fnjgh73Mhb3WRS5E', // Steakhouse USDC, 5%
+          'BEEfo7xwgK2ZP13Pxo7qqTPzAteKJmXjVWtMWcXSvbn2', // Steakhouse High Yield USDC, 5%
+          'BqBsS4myH82S4yfqeKjXSF7yErWwSi5WTshSzKmHQgzw', // Steakhouse USDG, 5%
+          '2eCcHyUfFmiLX5RnNY21Qfndqww7TmwaKBgNXX5Unu7o', // Steakhouse High Yield USD1, 5%
+          'CEGA5ps5JvDjYrp6a3RbzJypanxwFzZ3PW5T7MrpdzCC', // Steakhouse USDT, 5%, empty today
+        ],
+        start: '2025-04-02', // first metrics snapshot of HDsayq..., the oldest of the six
+      },
     },
   },
   "telosc": {
@@ -579,6 +780,25 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.UNICHAIN]: {
         start: '2025-09-01',
         eulerVaultOwners: ['0x12e74f3C61F6b4d17a9c3Fdb3F42e8f18a8bB394'],
+      },
+    },
+  },
+  "waterline": {
+    vaults: {
+      [CHAIN.ETHEREUM]: {
+        // Waterline, verified curator on api.morpho.org (curator 0xC5fA35a7, owner 0x5c48Cffd).
+        // Same vault list as the Waterline TVL adapter.
+        morpho: [
+          '0xbeEF346d7099865208Ff331e4f648f4154DDAa05', // Waterline Reservoir USDC (V1)
+          '0xBEeF1f5Bd88285E5B239B6AAcb991d38ccA23Ac9', // Waterline infiniFi USDC (V1)
+        ],
+        // Morpho VaultV2s, so fee() reverts and performanceFee() is the fee source.
+        morphoV2: [
+          '0xBEeFF047C03714965a54b671A37C18beF6b96210', // Waterline Reservoir USDC, created at block 24285335
+          '0xAb5955EB671d150527f8E61A42B703832F86616C', // M1 USDC, created at block 25351103
+          '0xbeEFF75262b2eC16a3C62a807F02EE7627654931', // Waterline InfiniFi USDC, created at block 24992127
+          '0x7d4741ba166B21cf3168A9A0ea71388531C52FF7', // Tenbin USDC, created at block 25504113
+        ],
       },
     },
   },

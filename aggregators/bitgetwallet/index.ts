@@ -81,7 +81,9 @@ const CHAINS: Array<CHAIN> = [
   CHAIN.OPTIMISM,
   CHAIN.FANTOM,
   CHAIN.PLASMA,
-  CHAIN.SEI
+  CHAIN.SEI,
+  CHAIN.ROBINHOOD,
+  CHAIN.INK
 ];
 
 const adapter: SimpleAdapter = {

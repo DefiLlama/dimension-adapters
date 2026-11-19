@@ -96,6 +96,7 @@ export function isPlainDateArg(rawTimeArg?: string) {
 type AdapterRunOptions = {
   deadChains?: Set<string>, // chains that are dead and should be skipped
   onlyChains?: Set<string>, // if set, run only these chains, used for chain level refills
+  allowChainFailures?: boolean, // if true (needs withMetadata), a failing chain does not fail the run: its data is left out and it is listed in failedChains
   module: SimpleAdapter,
   endTimestamp: number,
   name?: string,
@@ -115,12 +116,20 @@ type AdapterRunOptions = {
 }
 
 export default async function runAdapter(options: AdapterRunOptions) {
-  const { module,} = options
+  const { module, name, isTest, metadata = {}, endTimestamp } = options
   if (!module) throw new Error('Module is not set')
 
   setModuleDefaults(module)
 
-  return _runAdapter(options)
+  // Count every http request made during the run (rpc per chain, indexer, subgraphs, fetchURL...) and
+  // write the per-chain totals to the adapter-calls index when it settles, see sdk.callStats
+  const callStatsMeta = {
+    application: 'dimensions', type: 'protocol',
+    name: name ?? metadata.name ?? 'unknown',
+    id: metadata.id, adapterType: metadata.adapterType, runType: metadata.runType ?? (isTest ? 'test' : undefined),
+    endTimestamp,
+  }
+  return sdk.callStats.run(callStatsMeta, () => _runAdapter(options), { print: isTest })
 }
 
 const startOfDayIdCache: { [key: string]: string } = {}
@@ -139,9 +148,12 @@ async function _runAdapter({
   withMetadata = false,
   deadChains = new Set(),
   onlyChains,
+  allowChainFailures = false,
   runWindowInSeconds = ONE_DAY_IN_SECONDS,
   metadata = {},
 }: AdapterRunOptions) {
+  allowChainFailures = allowChainFailures && withMetadata
+  const failedChains: { chain: string, error: string }[] = []
   const cleanCurrentDayTimestamp = endTimestamp
   const adapterVersion = module.version
   const moduleUID = module._randomUID
@@ -182,7 +194,7 @@ async function _runAdapter({
   // Run prefetch if provided
   let preFetchedResults: any = null;
   if (typeof prefetch === 'function') {
-    const firstChain = chains.find(chain => validStart[chain]?.canRun);
+    const firstChain = chains.find(chain => validStart[chain]?.canRun && (!onlyChains || onlyChains.has(chain)));
     if (firstChain) {
       const options = await getOptionsObject({ timestamp: cleanCurrentDayTimestamp, chain: firstChain, chainBlocks, moduleUID, windowSize: WINDOW_SECONDS, });
       preFetchedResults = await prefetch(options);
@@ -233,8 +245,36 @@ async function _runAdapter({
   }
 
 
-  if (withMetadata) return { response, adaptorRecordV2JSON, breakdownByToken }
+  if (withMetadata) return { response: response.filter(i => i), adaptorRecordV2JSON, breakdownByToken, failedChains }
   return response
+
+  // a chain can fail after part of its data was added, take all of it out again
+  function removeChainData(chain: string) {
+    Object.entries(aggregated).forEach(([recordType, metric]: any) => {
+      if (!(chain in metric.chains)) return
+      delete metric.chains[chain]
+      const values: number[] = Object.values(metric.chains)
+      if (!values.length) delete aggregated[recordType]
+      else metric.value = values.reduce((acc, value) => acc + value, 0)
+    })
+    delete breakdownByToken[chain]
+    Object.entries(breakdownByLabelByChain).forEach(([recordType, labels]: any) => {
+      Object.entries(labels).forEach(([label, chainValues]: any) => {
+        if (!(chain in chainValues)) return
+        delete chainValues[chain]
+        const values: number[] = Object.values(chainValues)
+        if (values.length) {
+          breakdownByLabel[recordType][label] = values.reduce((acc, value) => acc + value, 0)
+          return
+        }
+        delete labels[label]
+        delete breakdownByLabel[recordType][label]
+      })
+      if (Object.keys(labels).length) return
+      delete breakdownByLabelByChain[recordType]
+      delete breakdownByLabel[recordType]
+    })
+  }
 
   async function getChainResult(chain: string) {
     const startTime = getUnixTimeNow()
@@ -340,7 +380,11 @@ async function _runAdapter({
 
         (error as any).chain = chain
       } catch { }
-      throw error
+      if (!allowChainFailures) throw error
+
+      removeChainData(chain)
+      failedChains.push({ chain, error: String((error as any)?.message ?? error).slice(0, 2000) })
+      return undefined
     }
   }
 
@@ -355,8 +399,16 @@ async function _runAdapter({
       return new Balances({ timestamp: closeToCurrentTime ? undefined : timestamp, chain: _chain })
     }
     const toTimestamp = timestamp - 1
-    const fromTimestamp = toTimestamp - windowSize
-    const getFromBlock = async () => await getBlock(fromTimestamp, chain)
+    const fromTimestamp = timestamp - windowSize
+    // Consecutive windows tile by timestamp (this fromTimestamp === previous toTimestamp + 1), but
+    // getBlock(fromTimestamp) and getBlock(previous toTimestamp) usually resolve to the same block, so
+    // that block's logs were counted in both windows (every hourly slot on ethereum). Start this window
+    // one block after the previous window's end block instead. Non-EVM chains return null, keep that.
+    const getSnapshotBlock = () => getBlock(fromTimestamp - 1, chain)
+    const getFromBlock = async () => {
+      const previousToBlock = await getSnapshotBlock()
+      return typeof previousToBlock === 'number' ? previousToBlock + 1 : previousToBlock
+    }
     const getToBlock = async () => await getBlock(toTimestamp, chain, chainBlocks)
     const problematicChains = new Set(['sei',])
 
@@ -418,7 +470,7 @@ async function _runAdapter({
     let fromBlock, toBlock
     // we fetch current block and previous blocks only for evm chains/ chains we have RPC for
     if (getProvider(chain)) {
-      fromBlock = await getFromBlock()
+      fromBlock = await getSnapshotBlock()
       toBlock = await getToBlock()
     }
     const fromApi = new ChainApi({ chain, timestamp: fromTimestamp, block: fromBlock })
@@ -465,6 +517,9 @@ async function _runAdapter({
   }
 
   async function setChainValidStart(chain: string) {
+    // Run every window that ends after the configured start. The server passes an end
+    // of D 23:59:59 (or HH:59:59 for hourly slices), so comparing against the window
+    // start (end - window) skipped the start day itself and its first hour.
     const cleanPreviousDayTimestamp = cleanCurrentDayTimestamp - ONE_DAY_IN_SECONDS
     let _start = adapterObject![chain]?.start ?? 0
     // Use root-level deadFrom if set, otherwise use chain-specific deadFrom
@@ -485,7 +540,7 @@ async function _runAdapter({
 
     if (typeof _start === 'number') {
       validStart[chain] = {
-        canRun: _start <= cleanPreviousDayTimestamp,
+        canRun: _start < cleanCurrentDayTimestamp,
         startTimestamp: _start
       }
       return;
@@ -506,7 +561,7 @@ async function _runAdapter({
       return defaultStart
     })
     validStart[chain] = {
-      canRun: typeof start === 'number' && start <= cleanPreviousDayTimestamp,
+      canRun: typeof start === 'number' && start < cleanCurrentDayTimestamp,
       startTimestamp: start
     }
   }

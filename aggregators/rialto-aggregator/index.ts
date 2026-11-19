@@ -1,27 +1,35 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { addOneToken } from "../../helpers/prices";
 
-const RIALTO_ROUTER = '0xC94135b63772b91D79d0A2DaAb2a8801f32359bD';
+// Rialto router contracts on Robinhood.
+const RIALTO_ROUTERS = [
+  '0xC94135b63772b91D79d0A2DaAb2a8801f32359bD',
+  '0xb63cEcf4Aa3F0E31bD58496b2487e9CE3521b8b3', // https://robinhoodchain.blockscout.com/address/0xb63cEcf4Aa3F0E31bD58496b2487e9CE3521b8b3
+];
 
-const routeActionEvent = 'event RouteActionExecuted(uint256 indexed hopIndex, uint8 kind, address indexed pool, address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut)';
+const swapExecutedEvent = 'event SwapExecuted(address indexed sender, address indexed recipient, address indexed sellToken, address buyToken, uint256 sellAmount, uint256 buyAmount, bytes32 quoteId, bytes32 referralCode)';
 const feeChargedEvent = 'event FeeCharged(address indexed token, address indexed recipient, uint256 amount, uint16 bps, bytes32 integratorId)';
 
+/**
+ * Returns volume and fees emitted by completed Rialto swaps for the requested period.
+ */
 async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  const routeActionLogs = await options.getLogs({
-    target: RIALTO_ROUTER,
-    eventAbi: routeActionEvent,
+  const swapExecutedLogs = await options.getLogs({
+    targets: RIALTO_ROUTERS,
+    eventAbi: swapExecutedEvent,
   });
 
   const feeChargedLogs = await options.getLogs({
-    target: RIALTO_ROUTER,
+    targets: RIALTO_ROUTERS,
     eventAbi: feeChargedEvent,
   });
 
-  for (const log of routeActionLogs) {
-    dailyVolume.add(log.tokenIn, log.amountIn);
+  for (const log of swapExecutedLogs) {
+    await addOneToken({ balances: dailyVolume, token0: log.sellToken, amount0: log.sellAmount, token1: log.buyToken, amount1: log.buyAmount });
   }
 
   for (const log of feeChargedLogs) {
@@ -37,7 +45,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Volume: "Volume of all swaps routed through Rialto router.",
+  Volume: "Input volume emitted once for each completed swap routed through Rialto.",
   Fees: "5-10 BPs of platform fees charged on all swaps.",
   Revenue: "5-10 BPs of platform fees charged on all swaps.",
   ProtocolRevenue: "5-10 BPs of platform fees charged on all swaps.",

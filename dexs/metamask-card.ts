@@ -62,7 +62,7 @@ const fetch = async (options: FetchOptions) => {
 
   const limit = configs[options.chain].getTrasnactionLimit;
   let transactions: Array<any> = [];
-  let blockNumber = Number(options.fromApi.block);
+  let blockNumber = Number(await options.getFromBlock());
   for (blockNumber; blockNumber <= Number(options.toApi.block); blockNumber += limit + 1) {
     const toBlock = blockNumber + limit > Number(options.toApi.block) ? Number(options.toApi.block) : blockNumber + limit;
     transactions = transactions.concat(await retry(options.chain, blockNumber, toBlock, configs[options.chain].withdrawContracts));

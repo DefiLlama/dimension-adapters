@@ -19,7 +19,7 @@ const thegraph_endpoints = sdk.graph.modifyEndpoint('4z9FBF12CrfoQJhAkWicqzY2fKY
 const radix_endpoint = "https://radix.defiplaza.net/api/defillama/volume";
 
 const adapter: SimpleAdapter = {
-	version: 2,
+	version: 1, // subgraph returns whole days
 	adapter: {
 		[CHAIN.ETHEREUM]: {
 			fetch: async ({ startTimestamp, endTimestamp, createBalances }: FetchOptions) => {
@@ -30,7 +30,7 @@ const adapter: SimpleAdapter = {
 							totalTradeVolumeUSD
 							totalFeesEarnedUSD
 						}
-						dailies(first: 1, where:{date_lte: ${endTimestamp}, date_gte: ${startTimestamp}}, orderBy: date, orderDirection:desc) {
+						dailies(first: 1, where:{date_lt: ${endTimestamp}, date_gte: ${startTimestamp}}, orderBy: date, orderDirection:desc) {
 							date
 							tradeVolumeUSD
 							swapUSD

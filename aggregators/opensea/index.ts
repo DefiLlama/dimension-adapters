@@ -1,8 +1,9 @@
 import { Dependencies, FetchOptions } from "../../adapters/types";
 import { queryDuneSql } from "../../helpers/dune";
+import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex";
 import { CHAIN } from "../../helpers/chains";
 import { SimpleAdapter } from "../../adapters/types";
-import { getSolanaReceived } from "../../helpers/token";
+import { solanaVolumeQuery } from "./solana";
 
 const chainConfig: any = {
 	[CHAIN.ETHEREUM]: { dune_chain: 'ethereum' },
@@ -24,32 +25,32 @@ const chainConfig: any = {
 	[CHAIN.ROBINHOOD]: { dune_chain: 'robinhood' },
 }
 
-const prefetch = async (options: FetchOptions) => {
-	return await queryDuneSql(options, `
-		SELECT 
-			blockchain,
-			SUM(amount_usd) as dailyVolume
-		FROM dex_aggregator.trades
-		WHERE tx_hash IN (
-			SELECT DISTINCT hash FROM evms.transactions 
-			WHERE
-				block_time >= FROM_UNIXTIME(${options.startTimestamp})
-				AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
-				AND varbinary_substring(data, varbinary_length(data) - 3, 4) = from_hex('865d8597')
-		)
-		GROUP BY 1
-	`);
-};
+// Dune chains read from dex_aggregator.trades; robinhood is not in it and is read from dex.trades below
+const duneAggregatorChains = Object.values(chainConfig)
+	.map((c: any) => c.dune_chain)
+	.filter((c: string) => c !== 'solana' && c !== 'robinhood')
+const duneChainList = [...duneAggregatorChains, 'robinhood'].map((c) => `'${c}'`).join(', ')
 
-const fetchRobinhood = async (options: FetchOptions) => {
-	const results = await queryDuneSql(options, `
+const prefetch = async (options: FetchOptions) => {
+	assertDuneSolanaIndexed(options);
+	const timeRange = (column: string) => `${column} >= FROM_UNIXTIME(${options.startTimestamp}) AND ${column} < FROM_UNIXTIME(${options.endTimestamp})`
+	return await queryDuneSql(options, `
 		WITH opensea_txs AS (
-			SELECT DISTINCT hash
+			SELECT DISTINCT blockchain, hash
 			FROM evms.transactions
-			WHERE blockchain = 'robinhood'
-				AND block_time >= FROM_UNIXTIME(${options.startTimestamp})
-				AND block_time <= FROM_UNIXTIME(${options.endTimestamp})
+			WHERE blockchain IN (${duneChainList})
+				AND ${timeRange('block_time')}
 				AND varbinary_substring(data, varbinary_length(data) - 3, 4) = from_hex('865d8597')
+		),
+		aggregator_volume AS (
+			SELECT
+				t.blockchain,
+				SUM(t.amount_usd) AS dailyVolume
+			FROM dex_aggregator.trades t
+			INNER JOIN opensea_txs os ON t.tx_hash = os.hash AND t.blockchain = os.blockchain
+			WHERE t.blockchain IN (${duneAggregatorChains.map((c) => `'${c}'`).join(', ')})
+				AND ${timeRange('t.block_time')}
+			GROUP BY 1
 		),
 		robinhood_trades AS (
 			SELECT
@@ -58,44 +59,50 @@ const fetchRobinhood = async (options: FetchOptions) => {
 				t.token_sold_address,
 				t.amount_usd
 			FROM dex.trades t
-			INNER JOIN opensea_txs os ON t.tx_hash = os.hash
+			INNER JOIN opensea_txs os ON t.tx_hash = os.hash AND os.blockchain = 'robinhood'
 			WHERE t.blockchain = 'robinhood'
-				AND t.block_time >= FROM_UNIXTIME(${options.startTimestamp})
-				AND t.block_time <= FROM_UNIXTIME(${options.endTimestamp})
+				AND ${timeRange('t.block_time')}
+		),
+		robinhood_volume AS (
+			SELECT
+				'robinhood' AS blockchain,
+				SUM(t.amount_usd) AS dailyVolume
+			FROM robinhood_trades t
+			WHERE NOT EXISTS (
+				SELECT 1
+				FROM robinhood_trades prior_leg
+				WHERE prior_leg.tx_hash = t.tx_hash
+					AND prior_leg.token_bought_address = t.token_sold_address
+			)
 		)
-		SELECT SUM(t.amount_usd) AS dailyVolume
-		FROM robinhood_trades t
-		WHERE NOT EXISTS (
-			SELECT 1
-			FROM robinhood_trades prior_leg
-			WHERE prior_leg.tx_hash = t.tx_hash
-				AND prior_leg.token_bought_address = t.token_sold_address
-		)
+		SELECT blockchain, dailyVolume FROM aggregator_volume
+		UNION ALL
+		SELECT blockchain, dailyVolume FROM robinhood_volume
 	`);
-
-	return {
-		dailyVolume: results[0]?.dailyVolume || 0,
-	}
-}
+};
 
 const fetchSolana = async (options: FetchOptions) => {
-	const dailyFees = await getSolanaReceived({
-		options,
-		target: 'FEwxLZ64Wdh1VFP53jfA37yDVnD8gL3FgzsZNuQ6pCC9',
-	})
-	const dailyVolume = dailyFees.clone(100 / 0.85)
-
-	return {
-		dailyVolume,
+	const results = await queryDuneSql(options, solanaVolumeQuery(options), { extraUIDKey: 'solana-volume' });
+	const row = results[0];
+	if (!row || row.volume == null || row.decoded_legs == null || row.input_legs == null || row.unpriced_input_legs == null) {
+		throw new Error('OpenSea Solana: missing Dune volume result');
 	}
+	if (Number(row.decoded_legs) > 0 && Number(row.input_legs) === 0) {
+		throw new Error('OpenSea Solana: decoded swaps have missing input amounts');
+	}
+	if (Number(row.unpriced_input_legs) > 0) {
+		console.log(`OpenSea Solana: ${row.unpriced_input_legs} of ${row.input_legs} input legs have no USD price, excluded from volume`);
+	}
+	const dailyVolume = Number(row.volume);
+	if (!Number.isFinite(dailyVolume) || dailyVolume < 0) {
+		throw new Error('OpenSea Solana: invalid Dune volume');
+	}
+	return { dailyVolume };
 }
 
 const fetch = async (options: FetchOptions) => {
 	if (options.chain === CHAIN.SOLANA) {
 		return await fetchSolana(options)
-	}
-	if (options.chain === CHAIN.ROBINHOOD) {
-		return await fetchRobinhood(options)
 	}
 	const results = options.preFetchedResults || [];
 	const chainData = results.find(
@@ -111,7 +118,13 @@ const adapter: SimpleAdapter = {
 	fetch,
 	chains: Object.keys(chainConfig),
 	prefetch,
-	dependencies: [Dependencies.DUNE, Dependencies.ALLIUM],
+	dependencies: [Dependencies.DUNE],
+	methodology: {
+		Volume: "On Solana, decoded swap input value for traders identified by a signed OpenSea memo or a transfer to the OpenSea fee wallet, counting each outer routing instruction's fresh input once; fee-free swaps without a memo, swaps Dune does not decode and swaps where neither token has a USD price are excluded. On EVM, tagged transactions present in Dune's aggregator trades are counted, except Robinhood uses DEX trades with intermediate-token legs excluded; unlisted chains and tags only inside bundled calls are not covered.",
+	},
+	breakdownMethodology: {
+		Volume: "Solana is valued at fresh route input using Dune's decoded trade prices, not fee receipts; EVM retains its existing aggregator and Robinhood DEX sources.",
+	},
 	doublecounted: true
 }
 

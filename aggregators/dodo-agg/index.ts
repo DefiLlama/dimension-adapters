@@ -55,6 +55,7 @@ const config: any = {
       "0x003B18357460e789e711849749A793c430d14f97",
       "0x2144BF2003bFd9Aa0950716333fBb5B7A1Caeda4",
     ],
+    deadFrom: "2026-07-31",
   },
   [CHAIN.MANTLE]: {
     DODOFeeRouteProxys: [
@@ -109,6 +110,7 @@ const config: any = {
       "0x2aea827424f99a187A2bF056F0782E927AB2066a",
       "0x0e038eaEf8383dfcE2B80b6E4E3F25Fd963527C4",
     ],
+    deadFrom: "2026-08-12",
   },
   [CHAIN.ZIRCUIT]: {
     DODOFeeRouteProxys: [
@@ -144,7 +146,7 @@ const adapter_agg = {
 };
 
 Object.keys(config).forEach(
-  (chain) => ((adapter_agg.adapter as any)[chain] = { fetch, start: "2024-08-01" })
+  (chain) => ((adapter_agg.adapter as any)[chain] = { fetch, start: "2024-08-01", deadFrom: config[chain].deadFrom })
 );
 
 const adapter: SimpleAdapter = {

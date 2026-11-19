@@ -75,7 +75,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1, // API returns whole days
   adapter: {
     [CHAIN.CARDANO]: {
       fetch,

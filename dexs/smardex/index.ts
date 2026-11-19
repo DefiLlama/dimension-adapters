@@ -1,10 +1,8 @@
 import { cache } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
 import { filterPools2 } from "../../helpers/uniswap";
 import { CHAIN_CONFIG } from "./config";
-import { addUsdnVolume } from "./usdn-volume";
 
 const SWAP_EVENT = "event Swap(address indexed sender, address indexed to, int256 amount0, int256 amount1)";
 
@@ -37,11 +35,17 @@ export async function getAmmSwapVolume(options: FetchOptions) {
 
 async function fetch(options: FetchOptions) {
   const dailyVolume = await getAmmSwapVolume(options);
-  if (options.chain === CHAIN.ETHEREUM) await addUsdnVolume(options, dailyVolume);
   return { dailyVolume };
 }
 
-const adapter: SimpleAdapter = { adapter: {}, version: 2, pullHourly: true };
+const adapter: SimpleAdapter = {
+  adapter: {},
+  version: 2,
+  pullHourly: true,
+  methodology: {
+    Volume: "Value swapped through SmarDex AMM pairs, counting one side of each swap; USDN position opens/closes are tracked under SmarDex USDN, and USDN vault, rebalancer and liquidation flows are excluded since they are not swaps.",
+  },
+};
 
 Object.keys(CHAIN_CONFIG.FACTORIES).forEach((chain: string) => {
   adapter.adapter![chain] = {

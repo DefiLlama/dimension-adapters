@@ -30,7 +30,9 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  chains: [CHAIN.CARDANO],
+  // V2 positions live in the Strike node, not on Cardano (docs: perpetuals/strike-node), so
+  // the venue is keyed as off_chain.
+  chains: [CHAIN.OFF_CHAIN],
   start: "2026-03-19",
   methodology,
 };

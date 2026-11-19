@@ -4,9 +4,11 @@ import { httpGet } from "../../utils/fetchURL"
 import { Agent } from "https"
 
 const agent = new Agent({ family: 4 });
+// since 2026-11-10 the api2.byreal.io CDN answers 403 to the default axios (and curl) user agent
+const headers = { "User-Agent": "Mozilla/5.0 (compatible; DefiLlama/1.0)" };
 
 const fetch = async (): Promise<FetchResultV2> => {
-  const response = await httpGet(`https://api2.byreal.io/byreal/api/dex/v2/overview/global`, { httpsAgent: agent })
+  const response = await httpGet(`https://api2.byreal.io/byreal/api/dex/v2/overview/global`, { httpsAgent: agent, headers })
   const data = response.result.data
 
   // Every Byreal CLMM AmmConfig sets protocol_fee_rate = 200000 (20% of swap

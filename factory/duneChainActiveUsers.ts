@@ -12,6 +12,7 @@ const CHAINS: { protocol: string; chain: string; duneTable: string; start: strin
   { protocol: "hyperevm", chain: CHAIN.HYPERLIQUID, duneTable: "hyperevm", start: "2025-02-18" },
   { protocol: "kaia", chain: CHAIN.KLAYTN, duneTable: "kaia", start: "2019-06-25" },
   { protocol: "mezo", chain: CHAIN.MEZO, duneTable: "mezo", start: "2025-05-06" },
+  { protocol: "morph", chain: CHAIN.MORPH, duneTable: "morph", start: "2024-10-21" }, // socialscan api down since 2026-10-19 (503)
   { protocol: "opbnb", chain: CHAIN.OP_BNB, duneTable: "opbnb", start: "2023-08-11" },
   { protocol: "sophon", chain: CHAIN.SOPHON, duneTable: "sophon", start: "2024-12-18" },
   { protocol: "taiko", chain: CHAIN.TAIKO, duneTable: "taiko", start: "2024-05-25" },

@@ -28,10 +28,11 @@ const fetch = async (options: FetchOptions) => {
     }),
   ]);
 
+  // getOpenInterest returns long+short summed, halve it for the one-sided convention
   const openInterestAtEnd = openInterests.reduce((total: number, openInterest: any, i: number) => {
     const baseOpenInterest = Number(openInterest) / WAD;
     const markPrice = Number(markPrices[i]) / WAD;
-    return total + baseOpenInterest * markPrice;
+    return total + (baseOpenInterest * markPrice) / 2;
   }, 0);
 
   return { openInterestAtEnd };

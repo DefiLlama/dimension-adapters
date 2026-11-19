@@ -35,10 +35,11 @@ const fetch = async (options: FetchOptions) => {
   const rows = await getVolumeRows();
 
   const dailyVolume = options.createBalances();
-  const todaysRows = rows.filter((row) => row.source === source && row.date.slice(0, 10) === options.dateString);
-  if (!todaysRows.length) {
-    throw new Error(`No rows found for ${source} on ${options.dateString}`);
+  const sourceRows = rows.filter((row) => row.source === source);
+  if (!sourceRows.length) {
+    throw new Error(`No rows found for ${source}`);
   }
+  const todaysRows = sourceRows.filter((row) => row.date.slice(0, 10) === options.dateString);
   const total = todaysRows.reduce((sum, row) => sum + row.volume, 0);
   dailyVolume.addUSDValue(total);
 

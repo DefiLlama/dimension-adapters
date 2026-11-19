@@ -73,7 +73,7 @@ const getSsvRevenue = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     target: SSV,
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0xd1208cC82765aA4dc696117D26f37388B6Dcb6D5", 32)],
+    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null, ethers.zeroPadValue("0xd1208cC82765aA4dc696117D26f37388B6Dcb6D5", 32)],
   })
   // Transfers from the dedicated fee recipient are 100% protocol;
   // everything else has an 80% protocol cut (4/5 in integer math).
@@ -88,7 +88,7 @@ const getObolRevenue = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     target: OBOL,
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
+    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
   })
   return logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
 }
@@ -104,14 +104,14 @@ const getWithdrawalFees = async (options: FetchOptions) => {
 
 const getMiscStakingRevenue = async (options: FetchOptions) => {
   const logs = await options.getLogs({
-    target: "0x35fA164735182de50811E8e2E824cFb9B6118ac2", //eETH as WETH
+    target: ADDRESSES.ethereum.EETH, //eETH as WETH
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
+    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
   });
   const logs2 = await options.getLogs({
     target: EIGEN,
     eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
-    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null as any, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
+    topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
   });
 
   const wethRevenue = logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
@@ -120,6 +120,16 @@ const getMiscStakingRevenue = async (options: FetchOptions) => {
 }
 
 const getAdditionalRevenueStreams = async (options: FetchOptions) => {
+  // Holders revenue = ETHFI bought by Safe 0x2f5301a3 (the withdrawal-fee recipient above), plus ten monthly off-chain purchases
+  // (2024-07 to 2025-04) hardcoded below with no buyer address or tx hash. As of 2026-11-12 the Safe's last ETHFI buy is a CoW fill
+  // on 2026-04-01 (0xb236e4a5dd02755313e3bf02dcd1c2b30afe6954d203177648821902e46bbe19), so holders revenue is 0 from 2026-04-02.
+  // Do not add the buyers of the programmatic buyback (Snapshot etherfi-dao.eth
+  // 0xed61adff5103b4e50be49b28fca8ecbbea9d685141d2d5a34d1d24232ac91891, passed 2026-09-03):
+  // Safe 0x43F4ca92F7F378bCdcF1508b866b5B6c47D6408C and EthfiBuyback 0xa7b1d3a045fe9566513f3ecc858469640c88be29.
+  // Their ETHFI is bridged to the CashbackDistributor 0x38F2fBb259F042DE3A601E0f7135f768DE08F5A2 on Optimism (the latest fills
+  // were still awaiting the bridge on 2026-11-12) and paid out as card, trade and borrow cashback, which fees/etherfi-cash-cards
+  // already counts as Fees and SupplySideRevenue at payout. Counting the purchases here too would show the same dollars as both
+  // a cashback cost and holder income under the ether.fi parent.
   const query = `
      select
          sum(amount_usd) as revenue_usd
@@ -130,6 +140,9 @@ const getAdditionalRevenueStreams = async (options: FetchOptions) => {
          dex_aggregator.trades
          where blockchain = 'ethereum'
          and taker = 0x2f5301a3D59388c509C65f8698f521377D41Fd0F
+         -- only trades that buy ETHFI: the wallet also swapped USDC and WETH into USDT, e.g.
+         -- 0xad07edc030fda4111845f4903663403bc7452bd51b26d47420cb232ccec5661e, and those are not buybacks
+         and token_bought_address = ${ADDRESSES.ethereum.ETHFI}
          and TIME_RANGE
 
          union all
@@ -263,9 +276,9 @@ const adapter: Adapter = {
   methodology: {
     Fees: "Total rewards generated from ether.fi staking services: ETH staking, Eigenlayer restaking, validator operations",
     Revenue: "Protocol's share of fees including management fees from staking/restaking and validator operations rewards",
-    ProtocolRevenue: "Same as Revenue - all protocol earnings retained by ether.fi.",
+    ProtocolRevenue: "ether.fi's share of staking, restaking and validator rewards, plus eETH withdrawal fees, all kept by the protocol treasury.",
     SupplySideRevenue: "Portion of fees distributed to stakers.",
-    HoldersRevenue: "Token buybacks executed by ether.fi benefiting ETHFI token holders.",
+    HoldersRevenue: "ETHFI bought back on the open market by ether.fi's treasury, plus monthly off-chain buybacks from July 2024 to April 2025; excludes ETHFI bought since September 2026 to fund ether.fi Cash cashback, which the ether.fi Cash listing counts as a cost.",
   },
   breakdownMethodology: {
     Fees: {
@@ -290,7 +303,7 @@ const adapter: Adapter = {
       [MetricLabels.stETH_STAKING_REWARDS]: 'stETH rebasing rewards passed on to stakers (everything above the 2.5% protocol share).',
     },
     HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: 'ETHFI token buybacks executed by ether.fi from protocol revenue',
+      [METRIC.TOKEN_BUY_BACK]: 'ETHFI bought on the open market by ether.fi\'s treasury, plus monthly off-chain buybacks from July 2024 to April 2025; excludes ETHFI bought since September 2026 for ether.fi Cash cashback.',
     },
   }
 };

@@ -56,11 +56,14 @@ const getV3FeePercentages = (timestamp: number, chain: string) => {
 
 async function fetch(options: FetchOptions) {
   const feesConfig = getV3FeePercentages(options.startOfDay, options.chain);
+  // The Manta and Immutable factories are Uniswap V3 deployments (DefiLlama's TVL registry lists them without
+  // isAlgebra): they emit PoolCreated, so the Algebra `Pool` event parses nothing and the fetch returns $0.
+  const isUniFork = [CHAIN.IMX, CHAIN.MANTA].includes(options.chain as CHAIN);
   const adapter = getUniV3LogAdapter({
     factory: QuickswapV3Factories[options.chain],
-    poolCreatedEvent: 'event Pool (address indexed token0, address indexed token1, address pool)',
+    ...(isUniFork ? {} : { poolCreatedEvent: 'event Pool (address indexed token0, address indexed token1, address pool)' }),
     swapEvent: 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick)',
-    isAlgebraV2: true,
+    isAlgebraV2: !isUniFork,
     ...feesConfig,
   });
 
@@ -77,6 +80,14 @@ const adapter: SimpleAdapter = {
     ProtocolRevenue: "Foundation receives 30% of the protocol revenue since Nov 4, 2025 (~3.97% of fees). Before that ~3.23% of fees; 3% on uni forks.",
     SupplySideRevenue: "~86.77% of collected fees go to liquidity providers (90% on uni forks like IMX).",
     HoldersRevenue: "Community receives 70% of the protocol revenue since Nov 4, 2025 (~9.26% of fees) for buybacks. Before that 10% of fees; 7% on uni forks.",
+  },
+  breakdownMethodology: {
+    Fees: { 'Token Swap Fees': "Swap fees paid on each trade at the pool's fee: dynamic on Algebra pools, a fixed tier on Manta and Immutable." },
+    UserFees: { 'Trading fees': "Swap fees paid by traders on each trade." },
+    Revenue: { 'Protocol fees': "Share of swap fees kept by the protocol: 13.23% now (8.5% before March 2025), 10% on Manta and Immutable." },
+    ProtocolRevenue: { 'Protocol fees': "Share of swap fees going to the foundation: 30% of the protocol's share since Nov 2025, 3% of fees on Manta and Immutable." },
+    SupplySideRevenue: { 'LP fees': "Swap fees left to liquidity providers after the protocol's share." },
+    HoldersRevenue: { 'Tokenholder fees': "Share of swap fees used for community buybacks: 70% of the protocol's share since Nov 2025, 7% of fees on Manta and Immutable." },
   },
   fetch,
   adapter: {

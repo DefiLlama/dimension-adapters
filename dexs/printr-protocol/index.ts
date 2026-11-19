@@ -184,7 +184,8 @@ const adapter: SimpleAdapter = {
   dependencies: [Dependencies.DUNE],
   fetch,
   start: START,
-  chains: [CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.AVAX, CHAIN.MANTLE, CHAIN.MONAD, CHAIN.BSC, CHAIN.ETHEREUM, CHAIN.SOLANA],
+  // Robinhood: first TokenTrade in block 10524446 (tx 0xd11b4c80c41b48e6102d8e6922adafda78f13921ce60f8b89bd0b19c3c58f9c5)
+  chains: [CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.AVAX, CHAIN.MANTLE, CHAIN.MONAD, CHAIN.BSC, CHAIN.ETHEREUM, CHAIN.SOLANA, [CHAIN.ROBINHOOD, { start: '2026-07-15' }]],
   methodology,
   breakdownMethodology,
   isExpensiveAdapter: true,

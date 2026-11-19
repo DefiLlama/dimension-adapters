@@ -36,6 +36,8 @@ const chains: { [chain: string]: { id: number; start: string } } = {
   [CHAIN.PLASMA]: { id: 9745, start: "2025-09-30" },
   [CHAIN.HYPERLIQUID]: { id: 999, start: "2025-07-29" },
   [CHAIN.MONAD]: { id: 143, start: "2026-06-18" },
+  [CHAIN.XLAYER]: { id: 196, start: "2026-08-02" },
+  [CHAIN.ROBINHOOD]: { id: 4663, start: "2026-09-02" },
 };
 
 // every market ever deployed, so that backfills see the markets that were live on that day
@@ -100,7 +102,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
   // a market can only trade between its deployment and its expiry
   const markets = (await getAllMarkets(chains[options.chain].id)).filter(
     (market) =>
-      new Date(market.timestamp).getTime() / 1000 <= options.endTimestamp &&
+      new Date(market.timestamp).getTime() / 1000 < options.endTimestamp &&
       new Date(market.expiry).getTime() / 1000 > options.startTimestamp
   );
   if (!markets.length) return { dailyVolume };

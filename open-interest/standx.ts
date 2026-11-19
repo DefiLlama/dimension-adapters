@@ -34,7 +34,9 @@ const fetch = async (_options: FetchOptions) => {
     }, { openInterestAtEnd: 0 });
 
     return {
-        openInterestAtEnd,
+        // open_interest_notional is double-sided (measured: 43 windows at exactly 2x fill size,
+        // 12/12 lags, on BNB-USD), so halve it for the one-sided convention
+        openInterestAtEnd: openInterestAtEnd / 2,
     };
 };
 

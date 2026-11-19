@@ -6,13 +6,16 @@ import { METRIC } from "../../helpers/metrics";
 const fetch = async (options: FetchOptions) => {
 
   const response = await fetchURL(
-    `https://beta.bullbit.ai/services/one/v1/info/trading-data?from=${options.startTimestamp}&to=${options.endTimestamp}`
+    `https://app.bullbit.ai/services/one/v1/info/trading-data?from=${options.startTimestamp}&to=${options.endTimestamp}`
   );
 
   const todaysData = response.find((day: any) => day.date === options.startOfDay);
   if (!todaysData) {
     throw new Error(`No data found for date ${options.startOfDay}`);
   }
+
+  if (todaysData.totalVolume < 0 || todaysData.totalFee < 0)
+    throw new Error(`Bullbit API returned negative values for ${options.dateString}: volume ${todaysData.totalVolume}, fee ${todaysData.totalFee}`);
 
   const dailyFees = options.createBalances();
   const dailyVolume = options.createBalances();

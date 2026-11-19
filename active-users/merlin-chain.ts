@@ -2,26 +2,27 @@ import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpGet } from "../utils/fetchURL";
 
-const fetch = async (options: FetchOptions) => {
-  const { startOfDay } = options;
-  const endOfDay = startOfDay + 86400;
-  const input = encodeURIComponent(JSON.stringify({ json: { timeStart: startOfDay, timeEnd: endOfDay } }));
-  const dateStr = new Date(startOfDay * 1000).toISOString().slice(0, 10);
+// Stats host from https://scan.merlinchain.io/assets/envs.js (NEXT_PUBLIC_STATS_API_HOST)
+const STATS_URL = "https://scan-stat.merlinchain.io";
+const headers = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" };
 
-  const [txRes, userRes] = await Promise.all([
-    httpGet(`https://scan.merlinchain.io/api/trpc/stat.getDailyTxCount?input=${input}`),
-    httpGet(`https://scan.merlinchain.io/api/trpc/stat.getUniqueAddressesCount?input=${input}`),
+async function fetchLine(line: string, date: string) {
+  const data = await httpGet(`${STATS_URL}/api/v1/lines/${line}?from=${date}&to=${date}&resolution=DAY`, { headers });
+  const entry = data.chart.find((item: any) => item.date === date);
+  if (!entry) throw new Error(`No Merlin Blockscout ${line} data on ${date}`);
+  return Number(entry.value);
+}
+
+const fetch = async (options: FetchOptions) => {
+  const date = options.dateString;
+  const [dailyTransactionsCount, dailyActiveUsers] = await Promise.all([
+    fetchLine("newTxns", date),
+    fetchLine("activeAccounts", date),
   ]);
 
-  if (!txRes?.result?.data?.json || !userRes?.result?.data?.json)
-    throw new Error("Failed to fetch Merlin chain stats");
-
-  const txEntry = txRes.result.data.json.find((item: any) => item.date.startsWith(dateStr));
-  const userEntry = userRes.result.data.json.find((item: any) => item.date.startsWith(dateStr));
-
   return {
-    dailyTransactionsCount: txEntry?.count ?? 0,
-    dailyActiveUsers: userEntry?.count ?? 0,
+    dailyTransactionsCount,
+    dailyActiveUsers,
   };
 };
 

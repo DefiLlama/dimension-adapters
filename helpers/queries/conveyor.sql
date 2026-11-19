@@ -7,7 +7,7 @@ WITH
       dex.trades
     WHERE
       block_time>=from_unixtime({{startTimestamp}})
-      AND block_time<=from_unixtime({{endTimestamp}})
+      AND block_time < from_unixtime({{endTimestamp}})
     GROUP BY
       tx_hash
   ),
@@ -27,7 +27,7 @@ WITH
         'swapExactTokenForEth'
       )
       AND td.block_time>=from_unixtime({{startTimestamp}})
-      AND td.block_time<=from_unixtime({{endTimestamp}})
+      AND td.block_time < from_unixtime({{endTimestamp}})
     UNION ALL
     SELECT
       'ethereum' AS blockchain,
@@ -44,7 +44,7 @@ WITH
         'swapExactTokenForEth'
       )
       AND td.block_time>=from_unixtime({{startTimestamp}})
-      AND td.block_time<=from_unixtime({{endTimestamp}})
+      AND td.block_time < from_unixtime({{endTimestamp}})
     UNION ALL
     SELECT
       'arbitrum' AS blockchain,
@@ -61,7 +61,7 @@ WITH
         'swapExactTokenForEth'
       )
       AND td.block_time>=from_unixtime({{startTimestamp}})
-      AND td.block_time<=from_unixtime({{endTimestamp}})
+      AND td.block_time < from_unixtime({{endTimestamp}})
     UNION ALL
     SELECT
       'bnb' AS blockchain,
@@ -78,7 +78,7 @@ WITH
         'swapExactTokenForEth'
       )
       AND td.block_time>=from_unixtime({{startTimestamp}})
-      AND td.block_time<=from_unixtime({{endTimestamp}})
+      AND td.block_time < from_unixtime({{endTimestamp}})
     UNION ALL
     SELECT
       'optimism' AS blockchain,
@@ -95,7 +95,7 @@ WITH
         'swapExactTokenForEth'
       )
       AND td.block_time>=from_unixtime({{startTimestamp}})
-      AND td.block_time<=from_unixtime({{endTimestamp}})
+      AND td.block_time < from_unixtime({{endTimestamp}})
     UNION ALL
     SELECT
       'base' AS blockchain,
@@ -112,7 +112,7 @@ WITH
         'swapExactTokenForEth'
       )
       AND td.block_time>=from_unixtime({{startTimestamp}})
-      AND td.block_time<=from_unixtime({{endTimestamp}})
+      AND td.block_time < from_unixtime({{endTimestamp}})
   ),
   conveyor_transactions_with_volume AS (
     SELECT

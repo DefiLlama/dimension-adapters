@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
@@ -140,7 +141,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     : [];
 
   const couponTokens: string[] = [];
-  const zeroAddr = '0x0000000000000000000000000000000000000000';
+  const zeroAddr = ADDRESSES.null;
   for (let i = 0; i < bondTokenList.length; i++) {
     const ct = ctFromBondToken[i];
     if (ct === undefined || ct === null) continue;

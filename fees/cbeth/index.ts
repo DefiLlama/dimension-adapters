@@ -1,9 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import * as sdk from "@defillama/sdk";
 import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
-const cbETH = "0xbe9895146f7af43049ca1c1ae358b0541ea49704";
+const cbETH = ADDRESSES.ethereum.cbETH;
 const MevFeeRecipient = "0x4675c7e5baafbffbca748158becba61ef3b0a263";
 
 const PROTOCOL_FEE = 0.10; // 10%
@@ -37,7 +38,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     chain: options.chain,
     transactionType: "to",
     addresses: [MevFeeRecipient],
-    from_block: Number(options.fromApi.block),
+    from_block: Number(await options.getFromBlock()),
     to_block: Number(options.toApi.block),
   });
   if (transactions) {

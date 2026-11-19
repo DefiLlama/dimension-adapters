@@ -4,7 +4,7 @@ import { httpGet } from "../utils/fetchURL";
 let data: any
 
 async function fetch({ dateString }: FetchOptions) {
-  if (!data) data = httpGet('https://api-dex.colorpool.xyz/pool/volume-history?timeframe=1D')
+  if (!data) data = httpGet('https://dex-api-mainnet.colorpool.xyz/pool/volume-history?timeframe=1D')
   data = await data
   const dayData = data.find((day: any) => day.date.startsWith(dateString))
   if (!dayData) throw new Error("No data for date: " + dateString)

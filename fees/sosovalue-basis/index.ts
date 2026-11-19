@@ -44,6 +44,7 @@ const fetch = async (options: FetchOptions) => {
 
 export default {
     version: 2,
+    pullHourly: true,
     allowNegativeValue: true, // Yield strategies aren't risk-free
     adapter: {
         [CHAIN.BASE]: {

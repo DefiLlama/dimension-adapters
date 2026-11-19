@@ -4,7 +4,8 @@ import fetchURL from "../utils/fetchURL";
 import { PromisePool } from "@supercharge/promise-pool";
 import { sleep } from "../utils/utils";
 
-const GUM_MARKETS_URL = "https://gum-api.jup.net/fe/mainnet-beta/perps/markets";
+const GUM_PERPS_API = "https://api.gum.ag/app/perps";
+const GUM_MARKETS_URL = `${GUM_PERPS_API}/markets`;
 
 async function fetch(options: FetchOptions) {
   const dailyVolume = options.createBalances();
@@ -14,7 +15,7 @@ async function fetch(options: FetchOptions) {
 
   await PromisePool.withConcurrency(3)
     .for(symbols).process(async (symbol) => {
-      const ohlcvData = await fetchURL(`https://gum-api.jup.net/fe/mainnet-beta/perps/ohlcv/${symbol}?interval=1D&from=${options.startOfDay}&to=${options.endTimestamp}`);
+      const ohlcvData = await fetchURL(`${GUM_PERPS_API}/ohlcv/${symbol}?interval=1D&from=${options.startOfDay}&to=${options.endTimestamp}`);
       const todaysData = ohlcvData.find((data: any) => data.t === options.startOfDay * 1000);
       if (todaysData) {
         dailyVolume.addUSDValue(todaysData.v);

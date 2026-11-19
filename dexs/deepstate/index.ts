@@ -9,10 +9,11 @@ import { quoteAtTick } from "./tickMath";
 const ROUTER = "0x6cf19308C22FC82ea620Fa0B3E94948d20f27B96";
 const START_BLOCK = 36_932_568;
 const USDG = ADDRESSES.robinhood.USDG;
-// Governance-configured protocol recipient (`feeFlowController`): https://deepstate.sh/api/runtime
+// Governance-configured protocol recipients (router `FeeConfigured`): the STATE vault, then the 2DEEP governor from 2026-09-22.
 const PROTOCOL_FEE_RECIPIENT = "0xbfb7b3Ff3D498a559b946B836d26F0E168f273D5";
-// Official interface recipient (`integratorFee.recipient`): https://deepstate.sh/api/runtime
-const FRONTEND_FEE_RECIPIENT = "0xFCD5B1592fF743DB9864A577cdFFF3a2fF31E7cb";
+const GOVERNOR_FEE_RECIPIENT = "0xF5011f7F3B09D2A6D1cF74A7f50400b37a6Ea82C";
+// Official interface recipients (`integratorFee.recipient`): https://deepstate.sh/api/runtime
+const FRONTEND_FEE_RECIPIENTS = ["0xFCD5B1592fF743DB9864A577cdFFF3a2fF31E7cb", "0x83fB2739abd9963c5341E4A176D93a7E5Ee73445"];
 const TRANSFER_TOPIC = ethers.id("Transfer(address,address,uint256)");
 const TRANSFER = "event Transfer(address indexed from, address indexed to, uint256 value)";
 
@@ -91,6 +92,7 @@ async function addRouterTransfers(
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const protocolFees = options.createBalances();
+  const governorFees = options.createBalances();
   const frontendFees = options.createBalances();
   const books = new Map<string, PoolConfig>();
   Object.values(POOLS).forEach((pool) => books.set(pool.initialBook, pool));
@@ -138,21 +140,25 @@ const fetch = async (options: FetchOptions) => {
 
   await Promise.all([
     addRouterTransfers(options, PROTOCOL_FEE_RECIPIENT, protocolFees),
-    addRouterTransfers(options, FRONTEND_FEE_RECIPIENT, frontendFees),
+    addRouterTransfers(options, GOVERNOR_FEE_RECIPIENT, governorFees),
+    ...FRONTEND_FEE_RECIPIENTS.map((recipient) => addRouterTransfers(options, recipient, frontendFees)),
   ]);
 
   const dailyFees = options.createBalances();
   dailyFees.addBalances(protocolFees, "Protocol fees");
+  dailyFees.addBalances(governorFees, "Protocol fees");
   dailyFees.addBalances(frontendFees, "Interface fees");
 
   const dailyRevenue = options.createBalances();
   dailyRevenue.addBalances(protocolFees, "Fees to STATE vault");
+  dailyRevenue.addBalances(governorFees, "Fees to 2DEEP governor");
   dailyRevenue.addBalances(frontendFees, "Official interface fees");
 
   const dailyHoldersRevenue = options.createBalances();
   dailyHoldersRevenue.addBalances(protocolFees, "Fees to STATE vault");
 
   const dailyProtocolRevenue = options.createBalances();
+  dailyProtocolRevenue.addBalances(governorFees, "Fees to 2DEEP governor");
   dailyProtocolRevenue.addBalances(frontendFees, "Official interface fees");
 
   return {
@@ -172,15 +178,15 @@ const methodology = {
   Fees:
     "All taker fees transferred by the router: the governance-configured protocol fee plus call-scoped integrator fees charged by the official interface.",
   UserFees: "Same as Fees. Both fees are deducted independently from matched taker output.",
-  Revenue: "Protocol fees sent to the STATE vault plus official-interface integrator fees.",
-  HoldersRevenue: "Protocol fees sent to the STATE vault for pro-rata redemption by STATE holders.",
-  ProtocolRevenue: "Integrator fees sent to the official Deepstate interface recipient.",
+  Revenue: "Protocol fees sent to the STATE vault, or to the 2DEEP governor from 2026-09-22, plus official-interface integrator fees.",
+  HoldersRevenue: "Protocol fees sent to the STATE vault for pro-rata redemption by STATE holders, until governance moved the protocol fee to the 2DEEP governor on 2026-09-22.",
+  ProtocolRevenue: "Protocol fees held by the 2DEEP governor from 2026-09-22, plus integrator fees sent to the official Deepstate interface recipients.",
   SupplySideRevenue: "Zero. Resting-order makers receive execution proceeds and token incentives, not taker fees.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Protocol fees": "Governance-configured taker fee transferred by the router to the STATE vault.",
+    "Protocol fees": "Governance-configured taker fee transferred by the router to the STATE vault, or to the 2DEEP governor from 2026-09-22.",
     "Interface fees": "Call-scoped integrator fee charged by the official Deepstate interface.",
   },
   UserFees: {
@@ -189,13 +195,15 @@ const breakdownMethodology = {
   },
   Revenue: {
     "Fees to STATE vault": "Protocol fees sent to the STATE vault.",
-    "Official interface fees": "Integrator fees sent to the official Deepstate interface recipient.",
+    "Fees to 2DEEP governor": "Protocol fees sent to the 2DEEP governor from 2026-09-22.",
+    "Official interface fees": "Integrator fees sent to the official Deepstate interface recipients.",
   },
   HoldersRevenue: {
     "Fees to STATE vault": "Protocol fees sent to the STATE vault for pro-rata redemption by STATE holders.",
   },
   ProtocolRevenue: {
-    "Official interface fees": "Integrator fees sent to the official Deepstate interface recipient.",
+    "Fees to 2DEEP governor": "Protocol fees held by the 2DEEP governor, spent only through governance proposals.",
+    "Official interface fees": "Integrator fees sent to the official Deepstate interface recipients.",
   },
 };
 

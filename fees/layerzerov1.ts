@@ -1,6 +1,7 @@
 import { Adapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
+import ADDRESSES from "../helpers/coreAssets.json";
 
 // LayerZero V1 messaging stack uses UltraLightNodeV2 as the SendLib on V1 endpoints.
 // Native fees paid by users on `send()` are split internally into:
@@ -65,7 +66,7 @@ const config: Record<string, ChainConfig> = {
   [CHAIN.PLASMA]: { ultraLightNodeV2: "0x38dE71124f7a447a01D67945a51eDcE9FF491251", start: "2025-09-25" },
   [CHAIN.MEGAETH]: { ultraLightNodeV2: "0x38dE71124f7a447a01D67945a51eDcE9FF491251", start: "2025-09-01" },
   // [CHAIN.BITLAYER]: { ultraLightNodeV2: "0x38dE71124f7a447a01D67945a51eDcE9FF491251", start: "2024-04-01" },
-  [CHAIN.PLUME]: { ultraLightNodeV2: "0x38dE71124f7a447a01D67945a51eDcE9FF491251", start: "2025-02-01" },
+  [CHAIN.PLUME]: { ultraLightNodeV2: "0xfd76d9CB0Bac839725aB79127E7411fe71b1e3CA", start: "2025-02-01" },
   [CHAIN.KATANA]: { ultraLightNodeV2: "0x38dE71124f7a447a01D67945a51eDcE9FF491251", start: "2025-05-01" },
   [CHAIN.SOPHON]: { ultraLightNodeV2: "0xFe5DFA6B4d6bE848B57dd378b0798aF60F1E6D35", start: "2025-01-01" },
   // [CHAIN.NIBIRU]: { ultraLightNodeV2: "0xD958989F016b6f64aDEEa935E2C51cbdeC1c83Ed", start: "2025-01-01" },
@@ -100,10 +101,12 @@ const fetch = async (options: FetchOptions) => {
     target,
     eventAbi: eventWithdrawNative,
   });
+  // polygon:0x000... (addGasToken) is only priced from 2023-10-25 (POL launch), WPOL has the MATIC price history
+  const nativeToken = chain === CHAIN.POLYGON ? ADDRESSES.polygon.WMATIC_2 : ADDRESSES.null;
   for (const log of nativeWithdrawals) {
     const amount = log.amount?.toString() ?? "0";
-    dailyFees.addGasToken(amount, METRIC.SERVICE_FEES);
-    dailySupplySideRevenue.addGasToken(amount, METRIC.SERVICE_FEES);
+    dailyFees.add(nativeToken, amount, METRIC.SERVICE_FEES);
+    dailySupplySideRevenue.add(nativeToken, amount, METRIC.SERVICE_FEES);
   }
 
   const zroToken = ZRO_TOKEN_BY_CHAIN[chain];
@@ -132,7 +135,7 @@ for (const [chain, c] of Object.entries(config)) adapterChains[chain] = { start:
 
 const adapter: Adapter = {
   version: 2,
-  // pullHourly: true,
+  pullHourly: true,
   fetch,
   adapter: adapterChains,
   methodology: {

@@ -18,6 +18,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Volume:
       "Cumulative USD value of swaps executed on the chainflip protocol",

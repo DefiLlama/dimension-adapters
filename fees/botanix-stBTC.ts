@@ -22,6 +22,7 @@ const methodology = {
 
 export default {
   version: 2,
+  pullHourly: true,
   fetch,
   start: '2025-09-03',
   chains: [CHAIN.BOTANIX],

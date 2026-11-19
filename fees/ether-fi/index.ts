@@ -201,6 +201,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 1,
+  pullHourly: false,
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: '2024-03-13',

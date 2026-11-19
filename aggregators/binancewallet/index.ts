@@ -16,6 +16,8 @@ const chainConfig: Record<string, { start: string; duneChain: string; address: s
   [CHAIN.ERA]: { start: "2025-01-01", duneChain: "zksync", address: "0x45a0B6ac062a6F137dDC12C01E580cfed1A6F4EC" },
   [CHAIN.SOLANA]: { start: "2025-01-01", duneChain: "solana", address: "B3111yJCeHBcA1bizdJjUFPALfhAfSRnAbJzGUtnt56A" },
   [CHAIN.PLASMA]: { start: "2025-01-01", duneChain: "plasma", address: "0x610776e63C5ca21B92217F4c06398E5437dB6A1E" },
+  // Same router as BSC and Base: same factory (0x13b0d85c..) and identical runtime code. Deployed 2026-07-03, first trades 2026-07-11
+  [CHAIN.ROBINHOOD]: { start: "2026-07-11", duneChain: "robinhood", address: "0xb300000b72DEAEb607a12d5f54773D1C19c7028d" },
 };
 
 const evmConfig = Object.values(chainConfig).filter((c) => c.duneChain !== "solana");

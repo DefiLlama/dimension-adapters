@@ -34,7 +34,7 @@ const chainConfig:any = {
     // },
     [CHAIN.BASE]: {
         name: 'Base',
-        subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-base/prod/gn',
+        subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-base/beta/gn',
         chainId: 8453,
         identifier: 'base',
         start: '2023-11-06',
@@ -55,14 +55,14 @@ const chainConfig:any = {
     },
     [CHAIN.MANTA]: {
         name: 'Manta',
-        subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-manta/prod/gn',
+        subgraphEndpoint: 'https://subgraph-archive.steer.finance/graphql/manta',
         chainId: 169,
         identifier: 'manta',
         start: '2023-12-01',
     },
     [CHAIN.MODE]: {
         name: 'Mode',
-        subgraphEndpoint: 'https://api.subgraph.ormilabs.com/api/public/803c8c8c-be12-4188-8523-b9853e23051d/subgraphs/steer-protocol-mode/prod/gn',
+        subgraphEndpoint: 'https://subgraph-archive.steer.finance/graphql/mode',
         chainId: 34443,
         identifier: 'mode',
         start: '2024-03-24',

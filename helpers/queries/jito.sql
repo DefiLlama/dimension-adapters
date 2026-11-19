@@ -61,16 +61,37 @@ WITH
             AND p_sol.contract_address = FROM_BASE58('So11111111111111111111111111111111111111112')
             AND p_sol.timestamp >= FROM_UNIXTIME({{start}})
             AND p_sol.timestamp < FROM_UNIXTIME({{end}})
-        LEFT JOIN solana.transactions t
-            ON a.tx_id = t.id
-            AND a.block_date = t.block_date
-            AND t.block_date >= FROM_UNIXTIME({{start}})
-            AND t.block_date < FROM_UNIXTIME({{end}})
         WHERE a.block_date >= date('2025-08-01')
             AND a.block_date >= FROM_UNIXTIME({{start}})
             AND a.block_date < FROM_UNIXTIME({{end}})
             AND (a.address = '5eosrve6LktMZgVNszYzebgmmC7BjLK8NoWyRQtcmGTF' OR a.address = 'GSyXx6WRm2o6Qu4RWxTH17swLZKpTKQdQTS2uGcus1NF')
-            AND any_match(t.account_keys, x -> x = 'T1pyyaTNZsKv2WcRAB8oVnk93mLJw2XzjtVYqCsaHqt')
+            AND a.address_prefix IN ('5e', 'GS')
+            -- transactions that include the Tip Payment program, found through account_activity (pruned by
+            -- address_prefix) instead of scanning a full day of solana.transactions for account_keys
+            AND a.tx_id IN (
+                SELECT tx_id
+                FROM solana.account_activity
+                WHERE block_date >= FROM_UNIXTIME({{start}})
+                    AND block_date < FROM_UNIXTIME({{end}})
+                    AND address = 'T1pyyaTNZsKv2WcRAB8oVnk93mLJw2XzjtVYqCsaHqt'
+                    AND address_prefix = 'T1'
+            )
+    ),
+    jtx_fees AS (
+        -- The DAO's share of JTX platform fees (JIP-38, 80%): the JTX program's sweep swaps users' fee balances into JTO
+        -- and sends 80% of it to the DAO wallet. The other 20% goes to 8DBak2z2..., which holds the JTX program's upgrade
+        -- authority (JIP-38's development share), and is not counted.
+        SELECT
+            block_date,
+            amount / 1e9 AS jto_amt
+        FROM
+            tokens_solana.transfers
+        WHERE
+            (to_owner = '5eosrve6LktMZgVNszYzebgmmC7BjLK8NoWyRQtcmGTF' OR to_owner = 'GSyXx6WRm2o6Qu4RWxTH17swLZKpTKQdQTS2uGcus1NF')
+            AND outer_executing_account = 'JTXJTXfr1wVRMEzqiPhXUr69zJtfGuLh5qEiXG772Zj'
+            AND token_mint_address = 'jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL'
+            AND block_date >= FROM_UNIXTIME({{start}})
+            AND block_date < FROM_UNIXTIME({{end}})
     )
 SELECT
     -- raw jitoSOL amount, priced in the adapter: dune amount_usd is null before 2024 so usd_amt
@@ -78,4 +99,6 @@ SELECT
     (SELECT COALESCE(SUM(jitoSOL_amt), 0) FROM jitostake_pool_fees) AS jitostake_pool_fees,
     (SELECT COALESCE(SUM(usd_amt), 0) FROM interceptor_fees) AS interceptor_fees,
     (SELECT COALESCE(SUM(usd_amt), 0) FROM tip_router_fees) AS tip_router_fees,
-    (SELECT COALESCE(SUM(usd_amt), 0) FROM bam_mev_tips) AS bam_mev_tips
+    (SELECT COALESCE(SUM(usd_amt), 0) FROM bam_mev_tips) AS bam_mev_tips,
+    -- raw JTO amount, priced in the adapter
+    (SELECT COALESCE(SUM(jto_amt), 0) FROM jtx_fees) AS jtx_fees

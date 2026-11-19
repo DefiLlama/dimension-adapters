@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import BigNumber from "bignumber.js";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -11,7 +12,7 @@ const START = "2026-07-10";
 const FEE_DENOMINATOR = new BigNumber(10_000);
 const PROTOCOL_FEE_PERCENT = new BigNumber(5);
 const PERCENT_DENOMINATOR = new BigNumber(100);
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 
 const SWAP_EVENT = "event Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)";
 

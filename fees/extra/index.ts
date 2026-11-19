@@ -106,6 +106,7 @@ const fetch = async ({ fromTimestamp, toTimestamp, createBalances, chain }: Fetc
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Includes Leveraged Yield Farming fees like re-investment, borrowing, liquidation and price-range trigger fees plus the borrowing interest accrued",
     Revenue: "All Leveraged Yield Farming fees are revenue and the protocol collects a 15% performance fee on borrowing interest profit",

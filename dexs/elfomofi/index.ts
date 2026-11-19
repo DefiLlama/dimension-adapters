@@ -33,7 +33,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
         dailyVolume.add(log.fromToken, log.fromAmount);
     }
 
-    if (options.chain !== CHAIN.BASE) {
+    if (options.chain !== CHAIN.BASE && options.chain !== CHAIN.BSC) {
         return { dailyVolume };
     }
 
@@ -160,6 +160,10 @@ const adapter: SimpleAdapter = {
       [CHAIN.BSC]: {
         fetch,
         start: "2026-03-15",
+      },
+      [CHAIN.ROBINHOOD]: {
+        fetch,
+        start: "2026-09-05",
       },
     },
   };

@@ -15,6 +15,7 @@ const fetchVolume = async ({ fromTimestamp, toTimestamp }: FetchOptions) => {
 
 const adapter: any = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.SUI]: {
       fetch: fetchVolume,

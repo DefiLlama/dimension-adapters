@@ -45,6 +45,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: "Staking rewards and fees accumulated on the strategy pools and vaults.",
     Revenue: "20% of staking rewards and fees for loyalty program (user rebates).",

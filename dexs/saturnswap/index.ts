@@ -2,7 +2,14 @@ import fetchURL from "../../utils/fetchURL";
 import { CHAIN } from "../../helpers/chains";
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
 
+const badDataDates = ['2026-09-25']
+
 const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
+    if (badDataDates.includes(options.dateString)) {
+        return {
+            dailyVolume: '0',
+        };
+    }
     const startOfDay = options.startOfDay;
     const response = await fetchURL(`https://api.saturnswap.io/v1/defillama/volume?timestamp=${startOfDay}`);
     return {
@@ -11,7 +18,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
 };
 
 const adapter: SimpleAdapter = {
-    version: 2,
+    version: 1, // daily stats keyed by day
     fetch,
     chains: [CHAIN.CARDANO],
     start: '2024-06-13',

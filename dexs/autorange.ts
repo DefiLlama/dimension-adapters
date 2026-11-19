@@ -43,7 +43,7 @@ const fetch = async (options: FetchOptions) => {
 
   const [positionInitLogs, rebalancedLogs] = await Promise.all([
     options.getLogs({ targets: vaults, eventAbi: positionInitAbi, flatten: false }),
-    options.getLogs({ targets: vaults, eventAbi: rebalancedAbi, flatten: false }),
+    options.getLogs({ targets: vaults, eventAbi: rebalancedAbi, flatten: false, onlyArgs: false }),
   ]);
 
   vaults.forEach((_, i) => {
@@ -55,11 +55,11 @@ const fetch = async (options: FetchOptions) => {
 
   const anyRebalances = rebalancedLogs.some((logs: any[]) => logs?.length);
   if (anyRebalances) {
-    const increaseLogs = await options.getLogs({ target: positionManager, eventAbi: increaseLiquidityAbi });
+    const increaseLogs = await options.getLogs({ target: positionManager, eventAbi: increaseLiquidityAbi, onlyArgs: false });
 
     const byTokenId = new Map<string, any[]>();
     (increaseLogs ?? []).forEach((log: any) => {
-      const key = String(log.tokenId);
+      const key = String(log.args.tokenId);
       const existing = byTokenId.get(key);
       if (existing) existing.push(log);
       else byTokenId.set(key, [log]);
@@ -67,13 +67,13 @@ const fetch = async (options: FetchOptions) => {
 
     vaults.forEach((_, i) => {
       (rebalancedLogs[i] ?? []).forEach((log: any) => {
-        const matches = (byTokenId.get(String(log.newTokenId)) ?? []).filter(
+        const matches = (byTokenId.get(String(log.args.newTokenId)) ?? []).filter(
           (m: any) => m.transactionHash === log.transactionHash,
         );
         if (!matches.length) return;
         matches.forEach((match) => {
-          dailyVolume.add(token0s[i], match.amount0);
-          dailyVolume.add(token1s[i], match.amount1);
+          dailyVolume.add(token0s[i], match.args.amount0);
+          dailyVolume.add(token1s[i], match.args.amount1);
         });
       });
     });

@@ -2,7 +2,7 @@ import fetchURL from "../utils/fetchURL";
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-const thalaDappURL = "https://app.thala.fi/";
+const thalaDappURL = "https://app.thala.fi";
 const volumeQueryURL = `${thalaDappURL}/api/defillama/trading-volume-chart?project=thalaswap-v3&timeframe=`;
 const feesQueryURL = `${thalaDappURL}/api/defillama/trading-fee-chart?project=thalaswap-v3&timeframe=`;
 const revenueQueryURL = `${thalaDappURL}/api/defillama/protocol-revenue-chart?project=thalaswap-v3&timeframe=`;

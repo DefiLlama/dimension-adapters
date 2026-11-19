@@ -72,6 +72,7 @@ const breakdownMethodology = {
 
 export default {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.METIS]: {
       fetch,

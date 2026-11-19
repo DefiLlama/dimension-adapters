@@ -2,7 +2,7 @@ import { Adapter, FetchOptions } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { METRIC } from "../../helpers/metrics"
 
-const dolomiteMarginAddresses = {
+export const dolomiteMarginAddresses = {
     [CHAIN.ARBITRUM]: "0x6Bd780E7fDf01D77e4d475c821f1e7AE05409072",
     [CHAIN.BERACHAIN]: "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
     [CHAIN.ETHEREUM]: "0x003Ca23Fd5F0ca87D01F6eC6CD14A8AE60c2b97D",
@@ -124,7 +124,8 @@ const adapters: Adapter = {
         [CHAIN.POLYGON_ZKEVM]: { fetch: fetch, start: '2024-02-01', },
         // [CHAIN.XLAYER]: { fetch: fetch, start: '2024-04-28', }
     },
-    version: 2
+    version: 2,
+    pullHourly: true,
 }
 
 export default adapters;

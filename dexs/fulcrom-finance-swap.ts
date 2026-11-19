@@ -1,10 +1,12 @@
 import request, { gql } from "graphql-request";
+import * as sdk from "@defillama/sdk";
 import { SimpleAdapter, FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
 const endpoints: { [key: string]: string } = {
   [CHAIN.CRONOS]: "https://graph.cronoslabs.com/subgraphs/name/fulcrom/stats-prod",
-  // [CHAIN.ERA]: "https://api.studio.thegraph.com/query/52869/stats-prod/version/latest",
+  // same stats subgraph as fees/fulcrom-finance.ts; indexes the Era Vault 0x7d5b0215EF203D0660BC37d5D09d964fd6b55a1E
+  [CHAIN.ERA]: sdk.graph.modifyEndpoint('4nAamZ3MZqSegV9CfN3fRpcu5j415JDLZJdBsn6CZX91'),
   [CHAIN.CRONOS_ZKEVM]: "https://api.goldsky.com/api/public/project_clwrfupe2elf301wlhnd7bvva/subgraphs/fulcrom-stats-mainnet/prod/gn"
 };
 

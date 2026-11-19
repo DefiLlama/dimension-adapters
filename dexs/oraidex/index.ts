@@ -7,12 +7,16 @@ const historicalVolumeEndpoint = "https://api.oraidex.io/v1/pools/"
 interface IVolumeall {
   value: number;
   volume24Hour: string;
+  totalLiquidity: string;
 }
+
+const MAX_DAILY_TURNOVER = 50;
 
 const fetch = async () => {
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
   const dailyVolume = historicalVolume
     .filter(e => Number(e.volume24Hour)/1e6 < 100_000_000) // prev pool volume spike
+    .filter(e => Number(e.volume24Hour) <= MAX_DAILY_TURNOVER * Number(e.totalLiquidity))
     .reduce((acc, { volume24Hour }) => acc + Number(volume24Hour), 0) / 1e6;
 
   return {

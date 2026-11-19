@@ -37,6 +37,15 @@ const endpoints: any = {
 }
 
 const arbitrumMigrationTS = Math.floor(+new Date('2022-11-30') / 1e3)
+// Arbitrum GraphPayments: https://github.com/graphprotocol/contracts/blob/main/packages/horizon/addresses.json.
+const GRAPH_PAYMENTS = '0x7Aae8ae011927BC36Cb4d0d3e81f2E6E30daE06D'
+// Horizon query-fee dataService: https://arbiscan.io/tx/0x76b47edac8f315cda2a133d30bfaf6bfbfa2ede84eb437395f43d5bc8df31dc9.
+const SUBGRAPH_SERVICE = '0xb2bb92d0de618878e438b55d5846cfecd9301105'
+// Arbitrum GRT (L2GraphToken), same source.
+const GRT = '0x9623063377AD1B27544C965cCd7342f7EA7e88C7'
+// First GraphPaymentCollected on Arbitrum: block 408991647 (2025-12-10T00:39Z).
+const horizonStartTS = Math.floor(+new Date('2025-12-10') / 1e3)
+const graphPaymentCollectedEvent = 'event GraphPaymentCollected(uint8 indexed paymentType, address indexed payer, address receiver, address indexed dataService, uint256 tokens, uint256 tokensProtocol, uint256 tokensDataService, uint256 tokensDelegationPool, uint256 tokensReceiver, address receiverDestination)'
 
 const fetch = async (options: FetchOptions) => {
 
@@ -101,6 +110,24 @@ const fetch = async (options: FetchOptions) => {
     dailySupplySideRevenue.addCGToken("the-graph", totalSupplySideDiff / 1e18);
   }
 
+  if (options.chain === CHAIN.ARBITRUM && options.endTimestamp > horizonStartTS) {
+    // Horizon totalQueryFees is net of protocol tax, and the subgraph's GraphPayments handler is registered on a 9-arg
+    // event signature that never fires, so the burned tax is missing from both fees and totalTaxedQueryFees.
+    // Only SubgraphService query fees reach the subgraph totals, hence the dataService filter.
+    // Remove this once totalTaxedQueryFees starts moving alongside GraphPaymentCollected.
+    const logs = await options.getLogs({ target: GRAPH_PAYMENTS, eventAbi: graphPaymentCollectedEvent });
+    let burn = BigInt(0);
+    for (const log of logs) {
+      if (Number(log.paymentType) === 0 && log.dataService.toLowerCase() === SUBGRAPH_SERVICE) {
+        burn += BigInt(log.tokensProtocol);
+      }
+    }
+    if (burn > BigInt(0)) {
+      dailyFees.add(GRT, burn);
+      dailyRevenue.add(GRT, burn);
+    }
+  }
+
   return {
     dailyFees,
     dailyUserFees: dailyFees,
@@ -113,9 +140,9 @@ const fetch = async (options: FetchOptions) => {
 const adapter: Adapter = {
   version: 2,
   methodology: {
-    Fees: "Total query fees paid by users for accessing subgraph data",
-    Revenue: "Combined revenue from protocol tax (burned fees)",
-    HoldersRevenue: "Combined revenue from protocol tax (burned fees)",
+    Fees: "Total query fees paid by users for accessing subgraph data, including the protocol tax burned by GraphPayments since Graph Horizon",
+    Revenue: "Protocol tax on query fees, burned (legacy staking tax, and since Graph Horizon the 1% protocol payment cut burned by GraphPayments)",
+    HoldersRevenue: "Protocol tax on query fees, burned (legacy staking tax, and since Graph Horizon the 1% protocol payment cut burned by GraphPayments)",
     SupplySideRevenue: "Combined revenue from indexer rebates, curator fees and delegator rewards"
   },
   fetch,

@@ -28,7 +28,12 @@ const chainConfig:any  = {
     [CHAIN.XDC]: "XDC",
     [CHAIN.INJECTIVE]: "Injective",
     [CHAIN.HEDERA]: "Hedera",
+    [CHAIN.BASE]: "Base",
 }
+
+// receipt chains this adapter books on their own chain. Receipts on any other chain stay in the
+// ethereum total instead of being subtracted from it and never booked anywhere
+const RECEIPT_CHAINS = new Set(Object.values(chainConfig).filter(Boolean))
 
 async function prefetch(_options: FetchOptions) {
     const { assets } = await fetchURL(KAIO_TVL_API);
@@ -60,6 +65,7 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
             dailyRevenue.addUSDValue(managementFees, METRIC.MANAGEMENT_FEES);
         }
         for (const chaindata of receipts.chains) {
+            if (!RECEIPT_CHAINS.has(chaindata.chain)) continue;
             for (const asset of chaindata.assets) {
                 const symbol = instrumentIdToSymbol.get(asset.instrumentId);
                 if (!symbol) continue;

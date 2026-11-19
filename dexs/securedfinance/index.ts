@@ -83,7 +83,7 @@ const fetch = async (options: FetchOptions) => {
 
 // 🔁 Wrap it in the DeFiLlama adapter structure
 const adapter: SimpleAdapter = {
-    version: 2,
+    version: 1, // subgraph returns whole days
     adapter: {
         [CHAIN.ETHEREUM]: {
             fetch,

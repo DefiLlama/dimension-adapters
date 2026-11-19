@@ -10,6 +10,7 @@ import { addTokensReceived } from '../../helpers/token';
 
 const RENZO_TOKEN = "0x3B50805453023a91a8bf641e279401a0b23FA6F9";
 const BUYBACK_BOT = "0x7d7445b6e7098efBDEAfA4A24f443847D5dAA262";
+const COW_SETTLEMENT = "0x9008D19f58AAbD9eD0D60971565AA8510560ab41";
 
 const fetch = async (options: FetchOptions) => {
   const { createBalances, startTimestamp, endTimestamp } = options;
@@ -74,12 +75,16 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances()
   dailySupplySideRevenue.addBalances(distributedBalances.getBalances())
 
-  const dailyHoldersRevenue = await addTokensReceived({ token: RENZO_TOKEN, options, target: BUYBACK_BOT })
+  const dailyHoldersRevenue = await addTokensReceived({ token: RENZO_TOKEN, options, target: BUYBACK_BOT, fromAddressFilter: COW_SETTLEMENT })
+
+  // Buybacks are funded from revenue, so protocol revenue is what the protocol keeps after them
+  const dailyProtocolRevenue = dailyRevenue.clone()
+  dailyProtocolRevenue.subtract(dailyHoldersRevenue)
 
   return {
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue,
     dailySupplySideRevenue,
     dailyHoldersRevenue
   };
@@ -90,12 +95,13 @@ const adapter: SimpleAdapter = {
   fetch, // September 4th, 2024 -- M4 EigenPod Upgrade
   chains: [CHAIN.ETHEREUM],
   start: '2024-09-04',
+  allowNegativeValue: true, // protocol revenue nets out REZ buybacks, which don't track daily revenue (bought more than that day's revenue on 37 of 106 buyback days before this fix)
   methodology: {
     Fees: "Value earned by the protocol through staking, restaking, vault rewards, instant withdrawal fees, and Lido distributions",
     Revenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
-    ProtocolRevenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
+    ProtocolRevenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees, minus the REZ bought back.",
     SupplySideRevenue: "Value distributed to stakers and depositors",
-    HoldersRevenue: "75-100% of revenue directed to buyback bot of which 90% goes to burn and 10% to stakers"
+    HoldersRevenue: "REZ bought back through CoW Protocol by the buyback bot, which gets 75-100% of revenue; 90% of the REZ is burned and 10% goes to stakers"
   },
 }
 

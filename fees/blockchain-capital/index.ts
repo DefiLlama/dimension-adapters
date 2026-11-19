@@ -55,6 +55,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
     version: 1, //oracle price updates once a day
+    pullHourly: false,
     fetch,
     breakdownMethodology,
     methodology,

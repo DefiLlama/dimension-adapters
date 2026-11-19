@@ -5,9 +5,6 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { getLegNotionalAmount, PanopticLeg } from "./notional";
 
-// Panoptic V2 indexed on-chain activity API.
-const SUBGRAPH_URL =
-  "https://api.goldsky.com/api/public/project_cl9gc21q105380hxuh8ks53k3/subgraphs/panoptic-subgraph-mainnet/v2_prod/gn";
 // Panoptic /info historical accrued-premium API.
 const PREMIUM_ENDPOINT = "https://app.panoptic.xyz/data/info-streamia-snapshot";
 // The Graph caps collection queries at 1,000 entities, after which they must be paginated:
@@ -19,6 +16,27 @@ const PROTOCOL_COMMISSION_FEES = "Protocol Option Commissions";
 const BUILDER_COMMISSION_FEES = "Builder Option Commissions";
 const PROTOCOL_COMMISSION_REVENUE = "Protocol Option Commissions To Treasury";
 const BUILDER_COMMISSION_REVENUE = "Builder Option Commissions To Protocol";
+
+type ChainConfig = {
+  chainId: number;
+  start: string;
+  subgraphUrl: string;
+};
+
+const chainConfig: Record<string, ChainConfig> = {
+  [CHAIN.ETHEREUM]: {
+    chainId: 1,
+    start: "2026-04-06",
+    subgraphUrl:
+      "https://api.goldsky.com/api/public/project_cl9gc21q105380hxuh8ks53k3/subgraphs/panoptic-subgraph-mainnet/v2_prod/gn",
+  },
+  [CHAIN.ROBINHOOD]: {
+    chainId: 4663,
+    start: "2026-09-14",
+    subgraphUrl:
+      "https://api.goldsky.com/api/public/project_cl9gc21q105380hxuh8ks53k3/subgraphs/panoptic-subgraph-robinhood/v2_prod/gn",
+  },
+};
 
 const DAILY_ACTIVITY_QUERY = gql`
   query DailyActivity(
@@ -133,12 +151,15 @@ type PremiumSnapshot = {
   };
 };
 
-async function fetchActivityPages(options: FetchOptions): Promise<ActivityPage[]> {
+async function fetchActivityPages(
+  options: FetchOptions,
+  config: ChainConfig,
+): Promise<ActivityPage[]> {
   const pages: ActivityPage[] = [];
   let skip = 0;
 
   while (true) {
-    const page = await request<ActivityPage>(SUBGRAPH_URL, DAILY_ACTIVITY_QUERY, {
+    const page = await request<ActivityPage>(config.subgraphUrl, DAILY_ACTIVITY_QUERY, {
       startTimestamp: options.startTimestamp.toString(),
       endTimestamp: options.endTimestamp.toString(),
       pageSize: PAGE_SIZE,
@@ -158,13 +179,20 @@ async function fetchActivityPages(options: FetchOptions): Promise<ActivityPage[]
   return pages;
 }
 
-async function fetchPremiumUsd(dateString: string): Promise<number> {
+async function fetchPremiumUsd(dateString: string, chainId: number): Promise<number> {
+  const params = new URLSearchParams({
+    from: dateString,
+    to: dateString,
+    chainId: chainId.toString(),
+  });
   const response = (await fetchURL(
-    `${PREMIUM_ENDPOINT}?from=${dateString}&to=${dateString}`,
+    `${PREMIUM_ENDPOINT}?${params.toString()}`,
   )) as PremiumSnapshot;
 
-  if (response.data.chainId !== 1) {
-    throw new Error(`Expected Ethereum premium snapshot, got chain ${response.data.chainId}`);
+  if (response.data.chainId !== chainId) {
+    throw new Error(
+      `Expected chain ${chainId} premium snapshot, got chain ${response.data.chainId}`,
+    );
   }
   if (response.data.unavailableReason !== null) {
     throw new Error(`Panoptic premium snapshot unavailable: ${response.data.unavailableReason}`);
@@ -180,9 +208,10 @@ async function fetchPremiumUsd(dateString: string): Promise<number> {
 }
 
 async function fetch(options: FetchOptions) {
+  const config = chainConfig[options.chain];
   const [pages, premiumUsd] = await Promise.all([
-    fetchActivityPages(options),
-    fetchPremiumUsd(options.dateString),
+    fetchActivityPages(options, config),
+    fetchPremiumUsd(options.dateString, config.chainId),
   ]);
   const dailyNotionalVolume = options.createBalances();
   const dailyPremiumVolume = options.createBalances();
@@ -224,15 +253,14 @@ async function fetch(options: FetchOptions) {
     dailyPremiumVolume,
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue.clone(),
   };
 }
 
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  chains: [CHAIN.ETHEREUM],
-  start: "2026-04-06",
+  adapter: chainConfig,
   methodology: {
     NotionalVolume:
       "Gross underlying exposure of every Panoptic V2 option leg minted or burned. The raw token amounts use the same position-size and geometric-mean tick-range calculation as Panoptic's /info analytics and are valued by DefiLlama.",

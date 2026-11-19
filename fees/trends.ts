@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
@@ -105,7 +106,7 @@ const getSqlFromString = (
   return sql;
 };
 
-const quote_mint = "So11111111111111111111111111111111111111112";
+const quote_mint = ADDRESSES.solana.SOL;
 const config = [
   "7UMR4yEaVYsQGbQGvxNUypFmPn15GkzVmwUEpUFJUPPX",
   "7UNpFBfTdWrcfS7aBQzEaPgZCfPJe8BDgHzwmWUZaMaF",

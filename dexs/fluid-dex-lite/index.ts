@@ -108,76 +108,72 @@ const fetch = async (options: FetchOptions) => {
   const dexLiteResolverAddress = dexLiteResolver(options.api.chain);
   
   if (dexLiteContractAddress && dexLiteResolverAddress) {
-    try {
-      // Get all DEX Lite pools (just the DexKeys)
-      const dexKeys: DexKey[] = await options.api.call({ 
-        target: dexLiteResolverAddress, 
-        abi: abi.getAllDexes 
-      });
+    // Get all DEX Lite pools (just the DexKeys)
+    const dexKeys: DexKey[] = await options.api.call({
+      target: dexLiteResolverAddress,
+      abi: abi.getAllDexes
+    });
 
-      // Create a map from dexId to DexKey for quick lookup
-      const dexIdToPool: { [dexId: string]: DexKey } = {};
-      dexKeys.forEach(dexKey => {
-        const dexId = calculateDexId(dexKey);
-        dexIdToPool[dexId] = dexKey;
-      });
+    // Create a map from dexId to DexKey for quick lookup
+    const dexIdToPool: { [dexId: string]: DexKey } = {};
+    dexKeys.forEach(dexKey => {
+      const dexId = calculateDexId(dexKey);
+      dexIdToPool[dexId] = dexKey;
+    });
 
-      // Get LogSwap events
-      const logSwapEvents: LogSwapEventArgs[] = await options.getLogs({
-        target: dexLiteContractAddress,
-        onlyArgs: true,
-        eventAbi: abi.logSwap,
-      });
+    // Get LogSwap events
+    const logSwapEvents: LogSwapEventArgs[] = await options.getLogs({
+      target: dexLiteContractAddress,
+      onlyArgs: true,
+      eventAbi: abi.logSwap,
+    });
 
-      // Process all LogSwap events
-      const eventsToProcess = logSwapEvents;
-      
-      dexLiteSwapEvents = eventsToProcess.map(event => {
-        // LogSwap event args: (uint256 swapData, uint256 dexVariables)
-        // With onlyArgs: true, getLogs returns arrays: [swapData, dexVariables]
-        const swapData = event[0] as bigint;
-        const dexVariablesRaw = event[1] as bigint;
-        
-        const { dexId, swap0To1, amountInAdjusted, amountOutAdjusted } = parseLogSwapData(swapData);
-        
-        // Find the corresponding pool to get token addresses
-        const dexKey = dexIdToPool[dexId];
-        if (!dexKey) {
-          console.warn(`No pool data found for dexId: ${dexId}`);
-          return null;
-        }
+    // Process all LogSwap events
+    const eventsToProcess = logSwapEvents;
 
-        const { token0, token1 } = dexKey;
-        
-        // Use dexVariables from the event itself (more accurate and efficient)
-        const dexVariablesUint256 = BigInt(dexVariablesRaw);
-        
-        // Extract values from packed dexVariables according to bit layout (matching dexLiteSlotsLink.sol):
-        // BITS_DEX_LITE_DEX_VARIABLES_FEE (0-12) => fee (13 bits, 1% = 10000)
-        // BITS_DEX_LITE_DEX_VARIABLES_TOKEN_0_DECIMALS (126-130) => token0Decimals (5 bits)
-        // BITS_DEX_LITE_DEX_VARIABLES_TOKEN_1_DECIMALS (131-135) => token1Decimals (5 bits)
-        
-        const fee = (dexVariablesUint256 >> BITS_DEX_LITE_DEX_VARIABLES_FEE) & X13;
-        
-        // Extract token decimals from the packed value
-        const token0Decimals = (dexVariablesUint256 >> BITS_DEX_LITE_DEX_VARIABLES_TOKEN_0_DECIMALS) & X5;
-        const token1Decimals = (dexVariablesUint256 >> BITS_DEX_LITE_DEX_VARIABLES_TOKEN_1_DECIMALS) & X5;
+    dexLiteSwapEvents = eventsToProcess.map(event => {
+      // LogSwap event args: (uint256 swapData, uint256 dexVariables)
+      // With onlyArgs: true, getLogs returns arrays: [swapData, dexVariables]
+      const swapData = event[0] as bigint;
+      const dexVariablesRaw = event[1] as bigint;
 
-        return {
-          swap0to1: swap0To1,
-          amountInAdjusted,
-          amountOutAdjusted,
-          token0,
-          token1,
-          fee,
-          token0Decimals,
-          token1Decimals,
-          isDexLite: true
-        };
-      }).filter(event => event !== null);
-    } catch (error) {
-      // console.warn("Failed to fetch DEX Lite data:", error);
-    }
+      const { dexId, swap0To1, amountInAdjusted, amountOutAdjusted } = parseLogSwapData(swapData);
+
+      // Find the corresponding pool to get token addresses
+      const dexKey = dexIdToPool[dexId];
+      if (!dexKey) {
+        console.warn(`No pool data found for dexId: ${dexId}`);
+        return null;
+      }
+
+      const { token0, token1 } = dexKey;
+
+      // Use dexVariables from the event itself (more accurate and efficient)
+      const dexVariablesUint256 = BigInt(dexVariablesRaw);
+
+      // Extract values from packed dexVariables according to bit layout (matching dexLiteSlotsLink.sol):
+      // BITS_DEX_LITE_DEX_VARIABLES_FEE (0-12) => fee (13 bits, 1% = 10000)
+      // BITS_DEX_LITE_DEX_VARIABLES_TOKEN_0_DECIMALS (126-130) => token0Decimals (5 bits)
+      // BITS_DEX_LITE_DEX_VARIABLES_TOKEN_1_DECIMALS (131-135) => token1Decimals (5 bits)
+
+      const fee = (dexVariablesUint256 >> BITS_DEX_LITE_DEX_VARIABLES_FEE) & X13;
+
+      // Extract token decimals from the packed value
+      const token0Decimals = (dexVariablesUint256 >> BITS_DEX_LITE_DEX_VARIABLES_TOKEN_0_DECIMALS) & X5;
+      const token1Decimals = (dexVariablesUint256 >> BITS_DEX_LITE_DEX_VARIABLES_TOKEN_1_DECIMALS) & X5;
+
+      return {
+        swap0to1: swap0To1,
+        amountInAdjusted,
+        amountOutAdjusted,
+        token0,
+        token1,
+        fee,
+        token0Decimals,
+        token1Decimals,
+        isDexLite: true
+      };
+    }).filter(event => event !== null);
   }
 
   // Process DEX Lite events 

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
@@ -14,11 +15,11 @@ const PAY_TO = "0x83f15f5bea445109e255ab82622fbdfecd1e4c9f";
 // 6-decimal stablecoin accepted on each chain + CoinGecko id for
 // deterministic $1 pricing (USDT0 on X Layer isn't reliably auto-priced).
 const TOKENS: Record<string, { token: string; cg: string }> = {
-  [CHAIN.XLAYER]: { token: "0x779ded0c9e1022225f8e0630b35a9b54be713736", cg: "tether" }, // USDT0
-  [CHAIN.BASE]: { token: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", cg: "usd-coin" },
-  [CHAIN.ETHEREUM]: { token: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", cg: "usd-coin" },
-  [CHAIN.POLYGON]: { token: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", cg: "usd-coin" },
-  [CHAIN.ARBITRUM]: { token: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", cg: "usd-coin" },
+  [CHAIN.XLAYER]: { token: ADDRESSES.xlayer.USDT0, cg: "tether" }, // USDT0
+  [CHAIN.BASE]: { token: ADDRESSES.base.USDC, cg: "usd-coin" },
+  [CHAIN.ETHEREUM]: { token: ADDRESSES.ethereum.USDC, cg: "usd-coin" },
+  [CHAIN.POLYGON]: { token: ADDRESSES.polygon.USDC_CIRCLE, cg: "usd-coin" },
+  [CHAIN.ARBITRUM]: { token: ADDRESSES.arbitrum.USDC_CIRCLE, cg: "usd-coin" },
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
