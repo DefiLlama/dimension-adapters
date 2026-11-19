@@ -92,23 +92,24 @@ export const addDzapVolume = async (options: FetchOptions, dailyVolume: any) => 
   }
 };
 
-// Byzanlink routes Arbitrum trades through KyberSwap only, so DZap is read on Base alone.
-const DZAP_CHAINS: string[] = [CHAIN.BASE];
+const chainConfig: Record<string, { start: string; dzap: boolean }> = {
+  [CHAIN.BASE]: { start: "2026-10-22", dzap: true },
+  // Byzanlink routes Arbitrum trades through KyberSwap only
+  [CHAIN.ARBITRUM]: { start: "2026-11-19", dzap: false },
+};
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   await addKyberVolume(options, dailyVolume);
-  if (DZAP_CHAINS.includes(options.chain)) await addDzapVolume(options, dailyVolume);
+  if (chainConfig[options.chain].dzap) await addDzapVolume(options, dailyVolume);
   return { dailyVolume };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: {
-    [CHAIN.BASE]: { fetch, start: "2026-10-22" },
-    [CHAIN.ARBITRUM]: { fetch, start: "2026-11-19" },
-  },
+  fetch,
+  adapter: chainConfig,
   doublecounted: true, // executed by the KyberSwap and DZap routers
   methodology: {
     Volume:
