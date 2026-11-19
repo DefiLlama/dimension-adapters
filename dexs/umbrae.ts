@@ -114,10 +114,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
   const fromBlock = await options.getFromBlock();
   const toBlock = await options.getToBlock();
-  if (!Number.isInteger(fromBlock) || !Number.isInteger(toBlock) || fromBlock <= 0 || toBlock <= fromBlock)
+  if (!Number.isInteger(fromBlock) || !Number.isInteger(toBlock) || fromBlock <= 0 || toBlock < fromBlock)
     throw new Error("Umbrae: invalid block window");
-  // SDK log bounds are inclusive. Exclude the previous window's final block.
-  const logWindow = { fromBlock: fromBlock + 1, toBlock };
+  // SDK log bounds are inclusive. getFromBlock() is the window's first block; fromApi reads the block before it.
+  const logWindow = { fromBlock, toBlock };
   const { dlmmFactories, dammFactories, u1LockVault } = config[options.chain];
   const dlmmPairs = await listPairs(options.api, dlmmFactories, toBlock);
   const dammPairs = await listPairs(options.api, dammFactories, toBlock);
@@ -152,7 +152,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const feeToken = await options.api.multiCall({ abi: abi.feeToken, calls: dammPairs });
     const protocolFees = await options.api.multiCall({ abi: abi.protocolFees, calls: dammPairs });
     const lpFees = await options.api.multiCall({ abi: abi.lpFees, calls: dammPairs });
-    const oldPairs = await listPairs(options.fromApi, dammFactories, fromBlock);
+    const oldPairs = await listPairs(options.fromApi, dammFactories, fromBlock - 1);
     const oldFeeToken = await options.fromApi.multiCall({ abi: abi.feeToken, calls: oldPairs });
     const oldProtocolFees = await options.fromApi.multiCall({ abi: abi.protocolFees, calls: oldPairs });
     const oldLpFees = await options.fromApi.multiCall({ abi: abi.lpFees, calls: oldPairs });

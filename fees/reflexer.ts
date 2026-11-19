@@ -78,13 +78,11 @@ const getAddress = (log: any) => (log.address || log.source || "").toLowerCase()
 const isWithinCurrentWindow = (event: { blockNumber: number }, fromBlock: number, toBlock: number) =>
   event.blockNumber >= fromBlock && event.blockNumber <= toBlock;
 
-// getLogs is inclusive of options.getFromBlock() and consecutive runs resolve to the
-// same block there, so events in it would be counted on both days. Starting one block
-// later partitions the days cleanly and lines the debt replay up with options.fromApi,
-// which reads SAFEEngine state after that block already executed.
+// options.getFromBlock() is the window's first block (one after the previous window's
+// last block), the same range the default getLogs uses for the debt replay.
 async function getWindow(options: FetchOptions) {
   const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
-  return { fromBlock: fromBlock + 1, toBlock };
+  return { fromBlock, toBlock };
 }
 
 const getStabilityFeeRevenueLabel = (target: string) => {
