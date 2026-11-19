@@ -28,52 +28,106 @@ export const subscanConfigMap: Record<string, SubscanConfig> = {
 }
 
 // Asset Hub Migration moved balances, staking and governance from the relay chain to Asset Hub (Kusama 2025-10-07, Polkadot
-// 2025-11-04), so user transactions now pay their fees on Asset Hub and the relay chain fees from Subscan dropped to ~0.
-// Asset Hub burns none of it: the runtime sends fees to the collator staking pot (Polkadot since runtime v2.3.0: the DAP staging
-// account, which funds staking rewards), see OnChargeTransaction in
-// https://github.com/polkadot-fellows/runtimes/tree/main/system-parachains/asset-hubs
-// Source: SQD portal (keyless, decoded events) for TransactionPayment.TransactionFeePaid, whose actualFee includes the tip and
-// also covers pallet-revive eth_transact. Fees paid in other assets (AssetTxPayment.AssetTxFeePaid, <0.1% of the value on 2026-11-14) are not counted.
-// firstBlock: a block shortly before the migration, where the block search starts (the earliest blocks have no Timestamp.Now)
-const assetHubConfigMap: Record<string, { dataset: string; rpc: string; start: string; firstBlock: number }> = {
-    [CHAIN.POLKADOT]: { dataset: 'asset-hub-polkadot', rpc: 'https://polkadot-asset-hub-rpc.polkadot.io', start: '2025-11-04', firstBlock: 10_000_000 }, // 2025-10-16
-    [CHAIN.KUSAMA]: { dataset: 'asset-hub-kusama', rpc: 'https://kusama-asset-hub-rpc.polkadot.io', start: '2025-10-07', firstBlock: 11_000_000 }, // 2025-09-25
+// 2025-11-04), so user transactions pay their fees on Asset Hub since then and the relay chain fees dropped to ~0.
+// From the migration day both chains come from the SQD portal (keyless, decoded events) instead of Subscan: the sum of
+// TransactionPayment.TransactionFeePaid, whose actualFee includes the tip and also covers pallet-revive eth_transact. On the relay
+// chain it matched Subscan's daily Fee to the planck (polkadot 2026-11-10), and unlike Subscan (our key gets 403
+// history_window_exceeded for days older than ~3 months) it can refill every day since the migration.
+// Not counted: fees paid in other assets (AssetTxPayment.AssetTxFeePaid, <0.1% of the value on 2026-11-14) and XCM delivery fees.
+// Where the fees go (OnChargeTransaction in https://github.com/polkadot-fellows/runtimes):
+// - relay chain: DealWithFees (polkadot-sdk runtime/common), fees 80% to the treasury and 20% to the block author, tips 100% to the author
+// - Asset Hub: everything to the collator staking pot (modlPotStake). On Polkadot, runtime v2.3.0 made the DAP staging account the
+//   sink instead (CHANGELOG: "DapStagingAccount is the sink for fees"); pallet-dap moves it into the DAP buffer, a
+//   governance-controlled reserve, while staking rewards are now minted by the DAP drip. Kusama still uses the staking pot.
+// firstBlock: a block shortly before the migration, the lower bound of the block-by-timestamp search
+type PortalChain = { dataset: string; rpc: string; firstBlock: number }
+const assetHubMigrationConfigMap: Record<string, { name: string; start: string; relay: PortalChain; assetHub: PortalChain; dapFromBlock?: number }> = {
+    [CHAIN.POLKADOT]: {
+        name: 'Polkadot',
+        start: '2025-11-04',
+        relay: { dataset: 'polkadot', rpc: 'https://rpc.polkadot.io', firstBlock: 28_000_000 }, // 2025-10-01
+        assetHub: { dataset: 'asset-hub-polkadot', rpc: 'https://polkadot-asset-hub-rpc.polkadot.io', firstBlock: 10_000_000 }, // 2025-10-16
+        // v2.3.0 (spec 2003000) was set in block 16,946,479 (2026-06-12 09:42 UTC), so this is the first block it ran. Fees went to
+        // modlPotStake up to block 16,946,478 and to the DAP account from the next fee event (block 16,946,490)
+        dapFromBlock: 16_946_480,
+    },
+    [CHAIN.KUSAMA]: {
+        name: 'Kusama',
+        start: '2025-10-07',
+        relay: { dataset: 'kusama', rpc: 'https://kusama-rpc.polkadot.io', firstBlock: 30_000_000 }, // 2025-09-07
+        assetHub: { dataset: 'asset-hub-kusama', rpc: 'https://kusama-asset-hub-rpc.polkadot.io', firstBlock: 11_000_000 }, // 2025-09-25
+    },
+}
+const DAP_START = '2026-06-12'
+// the SQD portal's finalized head runs ~2h behind the chain, so a day is fetched only from 2 hours after it ends (UTC)
+const PORTAL_DELAY = 2 * 3600
+
+const LABEL = {
+    RELAY_FEES: 'Relay Chain Transaction Fees',
+    ASSET_HUB_FEES: 'Asset Hub Transaction Fees',
+    RELAY_TO_TREASURY: 'Relay Chain Transaction Fees To Treasury',
+    RELAY_TO_AUTHORS: 'Relay Chain Transaction Fees To Block Authors',
+    ASSET_HUB_TO_COLLATORS: 'Asset Hub Transaction Fees To Collators',
+    ASSET_HUB_TO_DAP: 'Asset Hub Transaction Fees To DAP Buffer',
 }
 
 // Timestamp.Now = twox128("Timestamp") ++ twox128("Now")
 const TIMESTAMP_NOW_KEY = '0xf0c365c3cf59d671eb72da0e7a4113c49f1f0515f462cdcf84e0f1d6045dfcbb'
 
-async function substrateRpc(rpc: string, method: string, params: any[]) {
-    const res = await postURL(rpc, { jsonrpc: '2.0', id: 1, method, params })
-    if (res.error) throw new Error(`${rpc} ${method} failed: ${JSON.stringify(res.error)}`)
-    return res.result
+// JSON-RPC batch: one HTTP request for all calls, results in call order
+async function rpcBatch(rpc: string, calls: [string, any[]][]): Promise<any[]> {
+    const res = await postURL(rpc, calls.map(([method, params], id) => ({ jsonrpc: '2.0', id, method, params })))
+    if (!Array.isArray(res) || res.length !== calls.length) throw new Error(`${rpc}: bad batch response ${JSON.stringify(res).slice(0, 200)}`)
+    const results: any[] = []
+    for (const r of res) {
+        if (r.error) throw new Error(`${rpc} ${calls[r.id]?.[0]} failed: ${JSON.stringify(r.error)}`)
+        results[r.id] = r.result
+    }
+    return results
 }
 
-async function blockTime(rpc: string, block: number): Promise<number> {
-    const hash = await substrateRpc(rpc, 'chain_getBlockHash', [block])
-    const value: string | null = await substrateRpc(rpc, 'state_getStorage', [TIMESTAMP_NOW_KEY, hash])
-    if (!value) throw new Error(`${rpc}: no timestamp at block ${block}`)
+function decodeTimestamp(value: string | null, where: string): number {
+    if (!value) throw new Error(`no timestamp at ${where}`)
     return Number(Buffer.from(value.slice(2), 'hex').readBigUInt64LE(0)) / 1000 // u64 milliseconds
 }
 
-// smallest block whose timestamp is >= ts, by interpolation search with a bisection fallback (timestamps never decrease,
-// and several blocks can share one)
-async function firstBlockAtOrAfter(rpc: string, ts: number, first: number, head: { block: number; time: number }): Promise<number> {
-    if (head.time < ts) throw new Error(`${rpc}: finalized head ${head.block} (${head.time}) is before ${ts}`)
-    let lo = { block: first, time: await blockTime(rpc, first) }
-    let hi = head
-    if (lo.time >= ts) throw new Error(`${rpc}: block ${first} (${lo.time}) is not before ${ts}`)
-    for (let i = 0; hi.block - lo.block > 1; i++) {
-        let next = Math.floor((lo.block + hi.block) / 2)
-        if (i % 2 === 0) {
-            const guess = lo.block + Math.floor(((ts - lo.time) * (hi.block - lo.block)) / (hi.time - lo.time))
-            next = Math.min(hi.block - 1, Math.max(lo.block + 1, guess))
-        }
-        const time = await blockTime(rpc, next)
-        if (time < ts) lo = { block: next, time }
-        else hi = { block: next, time }
+// Timestamp.Now of each block: two batched calls (block hashes, then storage reads at those hashes)
+async function blockTimes(rpc: string, blocks: number[]): Promise<number[]> {
+    const hashes = await rpcBatch(rpc, blocks.map((block) => ['chain_getBlockHash', [block]]))
+    hashes.forEach((hash, i) => { if (!hash) throw new Error(`${rpc}: no hash for block ${blocks[i]}`) })
+    const values = await rpcBatch(rpc, hashes.map((hash) => ['state_getStorage', [TIMESTAMP_NOW_KEY, hash]]))
+    return values.map((value, i) => decodeTimestamp(value, `${rpc} block ${blocks[i]}`))
+}
+
+const PROBES_PER_RANGE = 31
+
+// for each timestamp, the first block whose Timestamp.Now is >= it (timestamps never decrease, several blocks can share one).
+// Searches between `first` (before all of them) and the finalized head; each round reads PROBES_PER_RANGE evenly spaced blocks
+// in every open range and narrows it 32x, so a ~15M block range closes in 5 rounds of 2 batched calls
+async function firstBlocksAtOrAfter(rpc: string, timestamps: number[], first: number): Promise<number[]> {
+    const [headHash] = await rpcBatch(rpc, [['chain_getFinalizedHead', []]])
+    const [header, headTime] = await rpcBatch(rpc, [['chain_getHeader', [headHash]], ['state_getStorage', [TIMESTAMP_NOW_KEY, headHash]]])
+    const head = { block: parseInt(header.number, 16), time: decodeTimestamp(headTime, `${rpc} finalized head`) }
+    const latest = Math.max(...timestamps)
+    if (head.time < latest) throw new Error(`${rpc}: finalized head ${head.block} (${head.time}) is before ${latest}`)
+
+    // invariant: time(lo) < timestamp <= time(hi); time(first) is checked in the first round
+    const ranges = timestamps.map(() => ({ lo: first, hi: head.block }))
+    for (let round = 0; round === 0 || ranges.some(({ lo, hi }) => hi - lo > 1); round++) {
+        const probes = new Set<number>(round === 0 ? [first] : [])
+        for (const { lo, hi } of ranges)
+            if (hi - lo > 1)
+                for (let k = 1; k <= PROBES_PER_RANGE; k++) probes.add(lo + Math.max(1, Math.floor(((hi - lo) * k) / (PROBES_PER_RANGE + 1))))
+        const blocks = [...probes].filter((block) => block < head.block).sort((a, b) => a - b)
+        const times = await blockTimes(rpc, blocks)
+        if (round === 0 && times[0] >= Math.min(...timestamps)) throw new Error(`${rpc}: block ${first} (${times[0]}) is not before ${Math.min(...timestamps)}`)
+        ranges.forEach((range, i) => blocks.forEach((block, j) => {
+            if (block <= range.lo || block >= range.hi) return
+            if (times[j] < timestamps[i]) range.lo = block
+            else range.hi = block // blocks are ascending, so later ones fall outside the narrowed range
+        }))
     }
-    return hi.block
+    return ranges.map(({ hi }) => hi)
 }
 
 // the public portal often answers 529 (overloaded) for minutes, or 429, so retry everything but the other 4xx with a capped backoff
@@ -84,27 +138,24 @@ async function portalStream(dataset: string, query: any): Promise<any[]> {
             return text.trim().split('\n').map((line) => JSON.parse(line))
         } catch (e: any) {
             const status = e.response?.status
-            if (i >= 12 || (status >= 400 && status < 500 && status !== 429)) throw e
+            if (i >= 6 || (status >= 400 && status < 500 && status !== 429)) throw e
             await sleep(Math.min(60_000, 2000 * 2 ** i) * (0.5 + Math.random()))
         }
     }
 }
 
-// TransactionPayment.TransactionFeePaid over the Asset Hub blocks of the day, in planck
-async function getAssetHubFees(chain: string, options: FetchOptions): Promise<bigint> {
-    const { dataset, rpc, firstBlock } = assetHubConfigMap[chain]
-    const finalizedHash = await substrateRpc(rpc, 'chain_getFinalizedHead', [])
-    const finalizedBlock = parseInt((await substrateRpc(rpc, 'chain_getHeader', [finalizedHash])).number, 16)
-    const head = { block: finalizedBlock, time: await blockTime(rpc, finalizedBlock) }
-    const fromBlock = await firstBlockAtOrAfter(rpc, options.startOfDay, firstBlock, head)
-    const toBlock = (await firstBlockAtOrAfter(rpc, options.startOfDay + 86400, fromBlock - 1, head)) - 1
+// TransactionPayment.TransactionFeePaid over the blocks of the UTC day, in planck: actualFee (includes the tip), the tips, and the
+// actualFee paid in blocks >= splitBlock
+async function getFeesPaid({ dataset, rpc, firstBlock }: PortalChain, options: FetchOptions, splitBlock = Infinity) {
+    const [fromBlock, nextDayBlock] = await firstBlocksAtOrAfter(rpc, [options.startOfDay, options.startOfDay + 86400], firstBlock)
+    const toBlock = nextDayBlock - 1
 
     const portalHead = (await httpGet(`https://portal.sqd.dev/datasets/${dataset}/finalized-head`)).number
     if (portalHead < toBlock) throw new Error(`${dataset}: portal finalized head ${portalHead} is behind block ${toBlock}`)
 
     // the portal returns the range in chunks, one line per block, so continue after the last block it sent (includeAllBlocks:
     // without it, a range whose last blocks have no fee event can come back empty)
-    let fees = 0n
+    let fees = 0n, tips = 0n, feesFromSplit = 0n
     let next = fromBlock
     while (next <= toBlock) {
         const blocks = await portalStream(dataset, {
@@ -117,11 +168,48 @@ async function getAssetHubFees(chain: string, options: FetchOptions): Promise<bi
         const last = blocks[blocks.length - 1]?.header?.number
         if (!(last >= next)) throw new Error(`${dataset}: portal returned no blocks from ${next} to ${toBlock}`)
         for (const block of blocks)
-            for (const event of block.events ?? [])
-                fees += BigInt(event.args.actualFee)
+            for (const event of block.events ?? []) {
+                const fee = BigInt(event.args.actualFee)
+                fees += fee
+                tips += BigInt(event.args.tip)
+                if (block.header.number >= splitBlock) feesFromSplit += fee
+            }
         next = last + 1
     }
-    return fees
+    return { fees, tips, feesFromSplit }
+}
+
+// relay chain + Asset Hub fees from the Asset Hub Migration day on, split by where the runtime sends them (see assetHubMigrationConfigMap)
+async function fetchAfterAssetHubMigration(chain: string, options: FetchOptions) {
+    const readyAt = options.startOfDay + 86400 + PORTAL_DELAY
+    if (Date.now() / 1000 < readyAt) throw new Error(`${chain} ${options.dateString}: not ready until ${new Date(readyAt * 1000).toISOString()}, the SQD portal runs ~2h behind the chain`)
+
+    const { CGToken, decimals } = subscanConfigMap[chain]
+    const { relay, assetHub, dapFromBlock } = assetHubMigrationConfigMap[chain]
+    const toToken = (planck: bigint) => Number(planck) / 10 ** decimals
+
+    const relayPaid = await getFeesPaid(relay, options)
+    const assetHubPaid = await getFeesPaid(assetHub, options, dapFromBlock)
+    const relayToTreasury = (relayPaid.fees - relayPaid.tips) * 80n / 100n // fees 80% treasury / 20% author, tips 100% author
+
+    const dailyFees = options.createBalances()
+    const dailyProtocolRevenue = options.createBalances()
+    const dailySupplySideRevenue = options.createBalances()
+
+    dailyFees.addCGToken(CGToken, toToken(relayPaid.fees), LABEL.RELAY_FEES)
+    dailyFees.addCGToken(CGToken, toToken(assetHubPaid.fees), LABEL.ASSET_HUB_FEES)
+    dailyProtocolRevenue.addCGToken(CGToken, toToken(relayToTreasury), LABEL.RELAY_TO_TREASURY)
+    dailySupplySideRevenue.addCGToken(CGToken, toToken(relayPaid.fees - relayToTreasury), LABEL.RELAY_TO_AUTHORS)
+    dailySupplySideRevenue.addCGToken(CGToken, toToken(assetHubPaid.fees - assetHubPaid.feesFromSplit), LABEL.ASSET_HUB_TO_COLLATORS)
+    if (dapFromBlock) dailyProtocolRevenue.addCGToken(CGToken, toToken(assetHubPaid.feesFromSplit), LABEL.ASSET_HUB_TO_DAP)
+
+    return {
+        dailyFees,
+        dailyRevenue: dailyProtocolRevenue.clone(),
+        dailyProtocolRevenue,
+        dailySupplySideRevenue,
+        dailyHoldersRevenue: options.createBalances(), // no transaction fee is burned on either chain since the migration
+    }
 }
 
 export function subscanFeeAdapter(chain: string) {
@@ -138,6 +226,8 @@ export function subscanFeeAdapter(chain: string) {
         adapter: {
             [chain]: {
                 fetch: async (options: FetchOptions) => {
+                    const assetHubMigration = assetHubMigrationConfigMap[chain]
+                    if (assetHubMigration && options.dateString >= assetHubMigration.start) return fetchAfterAssetHubMigration(chain, options)
 
                     const apikey = getEnv('SUBSCAN_API_KEY')
                     if (!apikey) throw new Error('SUBSCAN_API_KEY is not set')
@@ -167,24 +257,14 @@ export function subscanFeeAdapter(chain: string) {
                         throw new Error(`No data returned from Subscan for chain ${chain} on date ${options.dateString}`)
 
                     dailyFees.addCGToken(CGToken, Number(todaysData.total) / (10 ** decimals))
-                    const relayFees = dailyFees.clone()
-
-                    // Asset Hub fees go to collators / stakers, none is burned
-                    let dailySupplySideRevenue
-                    if (assetHubConfigMap[chain] && options.dateString >= assetHubConfigMap[chain].start) {
-                        dailySupplySideRevenue = options.createBalances()
-                        dailySupplySideRevenue.addCGToken(CGToken, Number(await getAssetHubFees(chain, options)) / (10 ** decimals))
-                        dailyFees.addBalances(dailySupplySideRevenue)
-                    }
 
                     if (config.burnRatio !== undefined && config.burnRatio !== null) {
                         const burnRatio = (chain === CHAIN.MOONBEAM && options.dateString <= '2025-03-13') ? 0.8 : config.burnRatio;
-                        const dailyRevenue = relayFees.clone(burnRatio);
+                        const dailyRevenue = dailyFees.clone(burnRatio);
                         return {
                             dailyFees,
                             dailyRevenue,
-                            dailyHoldersRevenue: dailyRevenue,
-                            ...(dailySupplySideRevenue && { dailySupplySideRevenue }),
+                            dailyHoldersRevenue: dailyRevenue
                         }
                     }
 
@@ -198,11 +278,37 @@ export function subscanFeeAdapter(chain: string) {
         protocolType: ProtocolType.CHAIN
     }
 
-    if (assetHubConfigMap[chain]) adapter.methodology = {
-        Fees: `Transaction fees and tips paid on the relay chain, plus from ${assetHubConfigMap[chain].start} (Asset Hub Migration) the transaction fees and tips paid on Asset Hub, where user transactions moved. Excludes Asset Hub fees paid in assets other than the native token, and XCM delivery fees.`,
-        Revenue: config.burnRatio ? `${config.burnRatio * 100}% of relay chain transaction fees (the burn ratio this helper uses for the chain).` : 'No fees are burned, so revenue is zero.',
-        HoldersRevenue: config.burnRatio ? `${config.burnRatio * 100}% of relay chain transaction fees (the burn ratio this helper uses for the chain).` : 'No fees are burned, so holders revenue is zero.',
-        SupplySideRevenue: 'Asset Hub transaction fees and tips, paid to the collator staking pot (Polkadot from runtime v2.3.0: the DAP staging account, which funds staking rewards). None is burned.',
+    const assetHubMigration = assetHubMigrationConfigMap[chain]
+    if (assetHubMigration) {
+        const { name, start: ahmStart, dapFromBlock } = assetHubMigration
+        const preMigrationRevenue = config.burnRatio ? `${config.burnRatio * 100}% of relay chain transaction fees` : 'no fees'
+        const toDap = dapFromBlock ? `, plus from ${DAP_START} the Asset Hub transaction fees, which the runtime sends to the DAP buffer, a governance-controlled reserve` : ''
+        adapter.methodology = {
+            Fees: `Transaction fees and tips paid on the ${name} relay chain, plus, from the Asset Hub Migration on ${ahmStart}, the transaction fees and tips paid on ${name} Asset Hub, where user transactions moved. Excludes Asset Hub fees paid in other assets and XCM delivery fees.`,
+            Revenue: `Before the Asset Hub Migration on ${ahmStart}, ${preMigrationRevenue}. From then on, the 80% of relay chain transaction fees sent to the treasury${toDap}.`,
+            ProtocolRevenue: `From the Asset Hub Migration on ${ahmStart}, the 80% of relay chain transaction fees sent to the treasury${toDap}.`,
+            HoldersRevenue: config.burnRatio ? `${config.burnRatio * 100}% of relay chain transaction fees before the Asset Hub Migration on ${ahmStart}. No transaction fees are burned after it.` : 'No transaction fees are burned, so holders revenue is zero.',
+            SupplySideRevenue: `From the Asset Hub Migration on ${ahmStart}, the 20% of relay chain transaction fees and all tips paid to block authors, plus the Asset Hub transaction fees and tips paid to the collator staking pot${dapFromBlock ? ` until ${DAP_START}` : ''}.`,
+        }
+        const toDapBreakdown = dapFromBlock ? { [LABEL.ASSET_HUB_TO_DAP]: `Asset Hub transaction fees and tips from ${DAP_START} (runtime v2.3.0), sent to the DAP buffer, a governance-controlled reserve.` } : {}
+        adapter.breakdownMethodology = {
+            Fees: {
+                [LABEL.RELAY_FEES]: `Transaction fees and tips paid on the ${name} relay chain.`,
+                [LABEL.ASSET_HUB_FEES]: `Transaction fees and tips paid in the native token on ${name} Asset Hub, counted from the Asset Hub Migration on ${ahmStart}.`,
+            },
+            Revenue: {
+                [LABEL.RELAY_TO_TREASURY]: '80% of relay chain transaction fees, excluding tips, sent to the treasury.',
+                ...toDapBreakdown,
+            },
+            ProtocolRevenue: {
+                [LABEL.RELAY_TO_TREASURY]: '80% of relay chain transaction fees, excluding tips, sent to the treasury.',
+                ...toDapBreakdown,
+            },
+            SupplySideRevenue: {
+                [LABEL.RELAY_TO_AUTHORS]: '20% of relay chain transaction fees plus all tips, paid to the block author.',
+                [LABEL.ASSET_HUB_TO_COLLATORS]: `Asset Hub transaction fees and tips paid to the collator staking pot${dapFromBlock ? ` until ${DAP_START}` : ''}.`,
+            },
+        }
     }
 
     return adapter
