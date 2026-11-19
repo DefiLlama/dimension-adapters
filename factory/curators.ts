@@ -98,6 +98,9 @@ const configs: Record<string, CuratorConfig> = {
           '0xA2EAaD0D586cF9FD73bb2c09cF6A7E3e187D68cd', // Wintermute USDC Select
           '0x55C1B6e461a6334B567bAF0FEb5D728715446f05', // Pendle Ecosystem USDC
           '0xcf609F8327E68b42AF54F9D529b9f65d68038435', // Pendle Ecosystem High Yield USDC
+          '0x500aE64100D7DbDb640531085C2F5d40cDC8930D', // Wintermute USDT Select
+          '0xBf29043164660C60A2a72Cd15FFe2304e87B6838', // Wintermute USDT Prime
+          '0x3d5EcCb62974178236A768A7ef14D3ce468Fbe91', // Wintermute Confidential WBTC
         ],
       },
     },
