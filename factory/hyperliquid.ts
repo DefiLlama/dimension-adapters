@@ -65,6 +65,21 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through StratiDex, all kept by StratiDex.",
     },
   },
+  "vesper-sypherscore": {
+    // Vesper by SypherScore (https://sypherscore.com/vesper, https://x.com/Vesper_mm), a market-making bot for perpetual
+    // DEXs. Users connect their own exchange account and Vesper quotes both sides of the order book for them. On
+    // Hyperliquid it trades HIP-3 markets; its orders carry this builder code on top of Hyperliquid's own fees.
+    // Verifiable: the builder field of Vesper orders; the public builder_fills archive for this address.
+    addresses: ["0x0ee49cd701e9575d683e409e23750a487e521053"],
+    // first day with fills carrying the code
+    start: "2026-08-27",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (HIP-3 markets) placed by the Vesper market-making bot with its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through Vesper; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
+      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through Vesper, all kept by Vesper.",
+      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through Vesper, all kept by Vesper.",
+    },
+  },
   "bitso-onchain-perps": {
     // onchain.cc (https://onchain.cc, https://x.com/Onchaincc; formerly Bitso Onchain, onchain.bitso.com redirects to it),
     // Bitso's self-custodial trading terminal. Its Hyperliquid perps (HIP-3 stock, index and commodity markets included)
