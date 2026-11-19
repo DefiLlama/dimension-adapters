@@ -2,17 +2,26 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
 
-const KYBER_ROUTER = "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5";
 const BYZANLINK_SOURCE = "dhgh7VRLtcqZXySwtUwRU5CeFopHsZc7"; // Byzanlink source
-
-// DZap router (DZapDiamond), sample Byzanlink swap: https://basescan.org/tx/0x8d706e99ab3244ccffa21ed05dc52612924a830d69138c6a590791df81f7d53d#eventlog
-const DZAP_ROUTER = "0xF708e11A7C94abdE8f6217B13e6fE39C8b9cC0a6";
 // Byzanlink's DZap integrator address, also receives the integrator fee: https://basescan.org/tx/0xc3d74485f5e1f20a032dac84f33f555cfe18dca791f8777e5157e8a04d482be7
 const BYZANLINK_INTEGRATOR = "0x5bf9e1af9eaFe63344FBB3D227503f9EB80D2B17".toLowerCase();
+
+// KyberSwap MetaAggregationRouterV2, the same address on the EVM chains Byzanlink uses
+const KYBER_ROUTER = "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5";
+// DZap router (DZapDiamond), sample Byzanlink swap: https://basescan.org/tx/0x8d706e99ab3244ccffa21ed05dc52612924a830d69138c6a590791df81f7d53d#eventlog
+const DZAP_ROUTER = "0xF708e11A7C94abdE8f6217B13e6fE39C8b9cC0a6";
+
 const DZAP_SWAP_INFO =
   "(string dex, address callTo, address recipient, address fromToken, address toToken, uint256 fromAmount, uint256 returnToAmount)";
 const DZAP_SWAPPED = `event DZapTokenSwapped(bytes32 indexed transactionId, address indexed sender, address indexed integrator, ${DZAP_SWAP_INFO} swapInfo)`;
 const DZAP_BATCH_SWAPPED = `event DZapBatchTokenSwapped(bytes32 indexed transactionId, address indexed sender, address indexed integrator, ${DZAP_SWAP_INFO}[] swapInfo)`;
+
+// One entry per chain. To add a chain: its first day of Byzanlink trades, plus the router of each venue Byzanlink
+// routes through there (leave a venue out if Byzanlink does not use it on that chain).
+const chainConfig: Record<string, { start: string; kyberRouter?: string; dzapRouter?: string }> = {
+  [CHAIN.BASE]: { start: "2026-10-22", kyberRouter: KYBER_ROUTER, dzapRouter: DZAP_ROUTER },
+  [CHAIN.ARBITRUM]: { start: "2026-11-19", kyberRouter: KYBER_ROUTER },
+};
 
 // KyberSwap writes the partner Source in lowercase, so compare the top-level Source field case-insensitively.
 const isByzanlink = (clientData: string) => {
@@ -24,15 +33,15 @@ const isByzanlink = (clientData: string) => {
   }
 };
 
-const addKyberVolume = async (options: FetchOptions, dailyVolume: any) => {
+const addKyberVolume = async (options: FetchOptions, dailyVolume: any, router: string) => {
   const swaps = await options.getLogs({
-    target: KYBER_ROUTER,
+    target: router,
     eventAbi:
       "event Swapped(address sender, address srcToken, address dstToken, address dstReceiver, uint256 spentAmount, uint256 returnAmount)",
     onlyArgs: false,
   });
   const clientData = await options.getLogs({
-    target: KYBER_ROUTER,
+    target: router,
     eventAbi: "event ClientData(bytes clientData)",
     onlyArgs: false,
   });
@@ -68,9 +77,9 @@ const addKyberVolume = async (options: FetchOptions, dailyVolume: any) => {
   }
 };
 
-export const addDzapVolume = async (options: FetchOptions, dailyVolume: any) => {
-  const single = await options.getLogs({ target: DZAP_ROUTER, eventAbi: DZAP_SWAPPED, onlyArgs: true });
-  const batch = await options.getLogs({ target: DZAP_ROUTER, eventAbi: DZAP_BATCH_SWAPPED, onlyArgs: true });
+export const addDzapVolume = async (options: FetchOptions, dailyVolume: any, router: string = DZAP_ROUTER) => {
+  const single = await options.getLogs({ target: router, eventAbi: DZAP_SWAPPED, onlyArgs: true });
+  const batch = await options.getLogs({ target: router, eventAbi: DZAP_BATCH_SWAPPED, onlyArgs: true });
 
   const swapInfos = [
     ...single
@@ -92,16 +101,11 @@ export const addDzapVolume = async (options: FetchOptions, dailyVolume: any) => 
   }
 };
 
-const chainConfig: Record<string, { start: string; dzap: boolean }> = {
-  [CHAIN.BASE]: { start: "2026-10-22", dzap: true },
-  // Byzanlink routes Arbitrum trades through KyberSwap only
-  [CHAIN.ARBITRUM]: { start: "2026-11-19", dzap: false },
-};
-
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  await addKyberVolume(options, dailyVolume);
-  if (chainConfig[options.chain].dzap) await addDzapVolume(options, dailyVolume);
+  const { kyberRouter, dzapRouter } = chainConfig[options.chain];
+  if (kyberRouter) await addKyberVolume(options, dailyVolume, kyberRouter);
+  if (dzapRouter) await addDzapVolume(options, dailyVolume, dzapRouter);
   return { dailyVolume };
 };
 
@@ -112,13 +116,12 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   doublecounted: true, // executed by the KyberSwap and DZap routers
   methodology: {
-    Volume:
-      "Value of token buys and sells made on Byzanlink (tokenized stocks on Base, token swaps on Arbitrum), routed through KyberSwap on Base and Arbitrum or DZap on Base, priced on one side of each swap.",
+    Volume: "Value of token buys and sells made on Byzanlink, routed through KyberSwap or DZap, priced on one side of each swap.",
   },
   breakdownMethodology: {
     Volume: {
-      KyberSwap: "Trades routed through the KyberSwap MetaAggregationRouterV2 with the Byzanlink source, on Base and Arbitrum.",
-      DZap: "Trades routed through the DZap router with the Byzanlink source, on Base.",
+      KyberSwap: "Trades routed through the KyberSwap MetaAggregationRouterV2 with the Byzanlink source.",
+      DZap: "Trades routed through the DZap router with the Byzanlink integrator.",
     },
   },
 };
