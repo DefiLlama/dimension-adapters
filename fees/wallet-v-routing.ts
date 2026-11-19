@@ -1,54 +1,43 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types';
-import { chainConfig } from '../helpers/aggregators/wallet-v/config';
-import { addAmount } from '../helpers/aggregators/wallet-v/evm-data';
-import { readEvmSwaps } from '../helpers/aggregators/wallet-v/evm-swaps';
-import { readSolanaSwaps } from '../helpers/aggregators/wallet-v/solana-swaps';
-import { readRangoBridge } from '../helpers/aggregators/wallet-v/rango-bridges';
+import { addToken, chainConfig, fetchWalletV } from '../helpers/aggregators/wallet-v';
 
-const swapFees = 'Swap Fees';
-const bridgeFees = 'Bridge Affiliate Fees';
-const swapRevenue = 'Swap Fees To Wallet V';
-const bridgeRevenue = 'Bridge Affiliate Fees To Wallet V';
+const SWAP_FEES = 'Swap Fees';
+const BRIDGE_FEES = 'Bridge Affiliate Fees';
+const SWAP_REVENUE = 'Swap Fees To Wallet V';
+const BRIDGE_REVENUE = 'Bridge Affiliate Fees To Wallet V';
 
 async function fetch(options: FetchOptions) {
-  const config = chainConfig[options.chain];
-  const swaps = 'classic' in config ? await readEvmSwaps(options, config) : await readSolanaSwaps(options, config);
-  const bridgePayments = await readRangoBridge(options, 'fees');
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
-  for (const { fees } of swaps) {
-    for (const payment of fees) {
-      addAmount(dailyFees, payment, swapFees);
-      addAmount(dailyRevenue, payment, swapRevenue);
-    }
-  }
-  for (const payment of bridgePayments) {
-    addAmount(dailyFees, payment, bridgeFees);
-    addAmount(dailyRevenue, payment, bridgeRevenue);
+  for (const { kind, token, amount } of await fetchWalletV(options)) {
+    if (kind === 'volume') continue;
+    addToken(dailyFees, token, amount, kind === 'swap' ? SWAP_FEES : BRIDGE_FEES);
+    addToken(dailyRevenue, token, amount, kind === 'swap' ? SWAP_REVENUE : BRIDGE_REVENUE);
   }
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone() };
 }
 
 const revenueBreakdown = {
-  [swapRevenue]: 'Same-chain swap service fees paid to Wallet V.',
-  [bridgeRevenue]: 'Rango bridge affiliate fees paid to Wallet V.',
+  [SWAP_REVENUE]: 'Wallet V service fee on swaps, kept in its fee wallet.',
+  [BRIDGE_REVENUE]: 'Rango affiliate fee on bridges made through Wallet V, kept in its fee wallet.',
 };
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   adapter: chainConfig,
   dependencies: [Dependencies.ALLIUM],
-  doublecounted: true, // Some underlying aggregators include affiliate payments in their own gross fees.
+  doublecounted: true,
   fetch,
   methodology: {
-    Fees: 'Wallet V service fees on supported same-chain swaps and Rango bridge affiliate fees on the source chain, excluding inseparable sponsored gas reimbursements.',
-    Revenue: 'Verified service fees retained by Wallet V from supported swaps and Rango routes.',
-    ProtocolRevenue: 'Swap service fees and Rango affiliate fees sent to Wallet V’s fee accounts.',
+    Fees: 'Service fees users pay Wallet V on swaps routed through 1inch, OKX, KyberSwap, Jupiter and other aggregators, plus its Rango affiliate fee on bridges. Fees on gas-sponsored smart-wallet swaps are included and can also cover the gas Wallet V pays.',
+    Revenue: 'All swap service fees and Rango affiliate fees, kept by Wallet V.',
+    ProtocolRevenue: 'All swap service fees and Rango affiliate fees, sent to Wallet V fee wallets.',
   },
   breakdownMethodology: {
     Fees: {
-      [swapFees]: 'Wallet V’s fee charged on a successful same-chain swap.',
-      [bridgeFees]: 'The Wallet V affiliate share of a supported Rango route.',
+      [SWAP_FEES]: 'Wallet V service fee paid to its fee wallet in the same transaction as an aggregator swap.',
+      [BRIDGE_FEES]: 'Wallet V affiliate fee paid by Rango on bridges made through Wallet V.',
     },
     Revenue: revenueBreakdown,
     ProtocolRevenue: revenueBreakdown,
