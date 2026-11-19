@@ -1,14 +1,17 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { getSolanaReceived } from "../helpers/token"
-import { JUPITER_METRICS, jupTreasuryShare } from "./jupiter";
+import { getJupiter2025Fees, JUP_BUY_BACK_START_TIME, JUPITER_METRICS, jupTreasuryShare } from "./jupiter";
 import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../helpers/jupiter-stats";
 
+// DCA fees received by the legacy fee wallet: from Allium before 2025-02-17, then from the saved Dune query (to 2025-12-31).
 const LEGACY_DCA_FEE_WALLET = 'CpoD6tWAsMDeyvVG2q2rD1JbDY6d4AujnvAn2NdrhZV2'
 const fetchOnchain = async (options: FetchOptions) => {
-  const legacyFees = await getSolanaReceived({ options, targets: [LEGACY_DCA_FEE_WALLET] })
   const dailyFees = options.createBalances();
-  dailyFees.add(legacyFees, JUPITER_METRICS.JupDCAFees);
+  if (options.startOfDay >= JUP_BUY_BACK_START_TIME)
+    dailyFees.addUSDValue((await getJupiter2025Fees(options)).dca_usd, JUPITER_METRICS.JupDCAFees);
+  else
+    dailyFees.add(await getSolanaReceived({ options, targets: [LEGACY_DCA_FEE_WALLET] }), JUPITER_METRICS.JupDCAFees);
   return {
     dailyFees,
     dailyRevenue: dailyFees,
@@ -30,7 +33,7 @@ const fetchFeesSolana = async (options: FetchOptions) =>
 const adapter: SimpleAdapter = {
   version: 1,
   isExpensiveAdapter: true,
-  dependencies: [Dependencies.ALLIUM],
+  dependencies: [Dependencies.ALLIUM, Dependencies.DUNE],
   adapter: {
     [CHAIN.SOLANA]: {
       fetch: fetchFeesSolana,

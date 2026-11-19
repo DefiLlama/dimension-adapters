@@ -1,7 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import { queryAllium } from "../helpers/allium"
-import { queryDuneResult, queryDuneSql } from "../helpers/dune"
+import { queryDuneResult } from "../helpers/dune"
 import { METRIC } from "../helpers/metrics"
 import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../helpers/jupiter-stats"
 
@@ -16,7 +16,7 @@ import { getJupiterStatsRevenue, JUPITER_STATS_API_START_TS } from "../helpers/j
 // Outflows are ignored, so the 134.5M JUP moved out on 2025-11-24 to be burned is not counted twice.
 const JUP_LITTERBOX_ADDRESS = '6tZT9AUcQn4iHMH79YZEXSy55kDLQ4VbA3PMtfLVNsFX'
 const JUP_MINT = 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN'
-const JUP_BUY_BACK_START_TIME = 1739750400; // 2025-02-17, first JUP into the Litterbox
+export const JUP_BUY_BACK_START_TIME = 1739750400; // 2025-02-17, first JUP into the Litterbox
 // Share of revenue kept by the treasury (protocol revenue) on the products that fund the Litterbox (Aggregator, JupiterZ,
 // Limit, DCA, Perps): all of it before 2025-02-17, half since,
 // when the other half started buying back JUP (counted once, on this listing, as holders revenue).
@@ -162,76 +162,22 @@ async function getLegacyFeesUsd(options: FetchOptions) {
   return data.reduce((sum, row) => sum + (row.amount_usd || 0), 0)
 }
 
-// Jupiter Mobile swap fees land in its own collector from 2026-09-15 (in the fee authorities before), in native SOL,
-// wSOL (token account ADKKyzoY8MUtPAMgjuBkuc9Y3BmZaTueeGkbMo7CVrdg) and SPL tokens.
-const MOBILE_COLLECTOR = '6Gfahmxqn1VfJE1rZ3JsDZdztUKMc4F8bjR9pfu1XhWZ'
-const MOBILE_COLLECTOR_START = 1789430400 // 2026-09-15
-// Jupiter's share of positive slippage lands here from 2026-08-17 06:19 UTC (in the fee authorities before).
-const SLIPPAGE_COLLECTOR = 'sobLmyY3kjTYqk2r7Ui18PC6YzHUBDaD2tk6PPNAv4o'
-const SLIPPAGE_COLLECTOR_START = 1786924800 // 2026-08-17
-// Keepers whose order fills also pay into the fee authorities; those fees are counted on the Jupiter Limit and Jupiter DCA listings.
-const JUPITER_LIMIT_KEEPER = 'gasAx5Y917MYdmdnwiomwYDhmDKNGDJnN1MmEbxVdVw' // first fill 2025-10-02
-const JUPITER_DCA_KEEPER = 'gasBidSWW5zmwXs3gn8TG2ijzKkrwpyM7ucwjgDQst6' // first fill 2026-03-25
-// Signers whose transactions are not swap fees: the Baskets keeper (from 2026-11), sweeps and fee conversions by the
-// revenue collector and the Mobile collector, and a 6,250 wSOL Pump cashback on 2026-08-30.
-const EXCLUDED_SIGNERS = [
-  'gasCZBUg3Bh3Cakv5mAWQxkgAeRSEqn6ThD9Gnppih4',
-  '7JQeyNK55fkUPUmEotupBFpiBGpgEQYLe8Ht1VdSfxcP',
-  MOBILE_COLLECTOR,
-  '63THnNJix4sy75MNAZ5uSQWAtTDGiWHQsbntbmxmj6jZ',
-]
-
-// Fees read at swap time since 2025-02-17: the positive token balance change of every account owned by a fee wallet,
-// per transaction. A fee authority is also an intermediate hop on routed swaps, and its balance nets to zero there.
-// Fees in tokens without a Dune price are left out, as Jupiter does. Returns USD per product, split by the signer.
-// Used up to 2025-12-31; it also covers 2026 (within a few percent of the stats API) if the API is ever dropped.
-export async function getJupiterFeeAuthorityFees(options: FetchOptions): Promise<Record<string, number>> {
-  const wallets = [...JUPITER_FEE_AUTHORITIES]
-  if (options.startOfDay >= SLIPPAGE_COLLECTOR_START) wallets.push(SLIPPAGE_COLLECTOR)
-  const mobile = options.startOfDay >= MOBILE_COLLECTOR_START
-  if (mobile) wallets.push(MOBILE_COLLECTOR)
-  const signers = [JUPITER_LIMIT_KEEPER, JUPITER_DCA_KEEPER, ...EXCLUDED_SIGNERS]
-  const list = (addresses: string[]) => addresses.map((a) => `'${a}'`).join(', ')
-  const rows = await queryDuneSql(options, `
-    WITH aa AS (
-      SELECT tx_id, address, signed, token_mint_address, token_balance_change, balance_change
-      FROM solana.account_activity
-      WHERE TIME_RANGE
-        AND tx_success
-        AND ((token_balance_owner IN (${list(wallets)}) AND token_balance_change > 0)
-          ${mobile ? `OR (address = '${MOBILE_COLLECTOR}' AND balance_change > 0 AND NOT signed)` : ''}
-          OR (signed AND address IN (${list(signers)})))
-    ),
-    signer AS (
-      SELECT tx_id, MAX(CASE address WHEN '${JUPITER_LIMIT_KEEPER}' THEN 'limit' WHEN '${JUPITER_DCA_KEEPER}' THEN 'dca' ELSE 'excluded' END) AS product
-      FROM aa
-      WHERE signed AND address IN (${list(signers)})
-      GROUP BY 1
-    ),
-    received AS (
-      SELECT tx_id, token_mint_address AS mint, token_balance_change AS amount FROM aa WHERE token_balance_change > 0
-      UNION ALL
-      -- native SOL into the Mobile collector
-      SELECT tx_id, 'So11111111111111111111111111111111111111112', balance_change / 1e9 FROM aa
-      WHERE address = '${MOBILE_COLLECTOR}' AND balance_change > 0 AND NOT signed
-    )
-    SELECT COALESCE(s.product, 'aggregator') AS product, SUM(r.amount * p.price) AS fees_usd
-    FROM received r
-    LEFT JOIN signer s ON s.tx_id = r.tx_id
-    LEFT JOIN prices.day p ON p.blockchain = 'solana'
-      AND p.timestamp = from_unixtime(${options.startOfDay})
-      AND p.contract_address_varchar = r.mint
-    GROUP BY 1
-  `)
-  const fees = Object.fromEntries(rows.map((row: any) => [row.product, Number(row.fees_usd)]))
-  if (!fees.aggregator) throw new Error(`Jupiter fee authorities: no fees on Dune for ${options.dateString}`)
-  return fees
+// Saved Dune query running helpers/queries/jupiter-2025.sql: Aggregator, Limit and DCA fees per day from 2025-02-17 to
+// 2025-12-31, the Aggregator read at swap time from the fee authorities above. Limit keeper fills (signer
+// gasAx5Y917MYdmdnwiomwYDhmDKNGDJnN1MmEbxVdVw, from 2025-10-02) go to the Jupiter Limit listing.
+// 2026 comes from the stats API; fees then also land in the Jupiter Mobile collector 6Gfahmxqn1VfJE1rZ3JsDZdztUKMc4F8bjR9pfu1XhWZ
+// (from 2026-09-15) and the positive slippage wallet sobLmyY3kjTYqk2r7Ui18PC6YzHUBDaD2tk6PPNAv4o (from 2026-08-17).
+const DUNE_2025_QUERY_ID = '9150296'
+export async function getJupiter2025Fees(options: FetchOptions) {
+  const [row] = await queryDuneResult(options, DUNE_2025_QUERY_ID, `day = '${options.dateString}'`)
+  if (!row) throw new Error(`Jupiter 2025 fees: no row in Dune query ${DUNE_2025_QUERY_ID} for ${options.dateString}`)
+  return row as { aggregator_usd: number, limit_usd: number, limit_v1_usd: number, dca_usd: number }
 }
 
 // From 2026-01-01, Jupiter's stats API, including swaps made in Jupiter Mobile and the Jupiter Extension.
 const getFeesUsd = async (options: FetchOptions) => {
   if (options.startOfDay < JUP_BUY_BACK_START_TIME) return getLegacyFeesUsd(options)
-  if (options.startOfDay < JUPITER_STATS_API_START_TS) return (await getJupiterFeeAuthorityFees(options)).aggregator
+  if (options.startOfDay < JUPITER_STATS_API_START_TS) return (await getJupiter2025Fees(options)).aggregator_usd
   const { dailyFees } = await getJupiterStatsRevenue(options, { aggregator: JUPITER_METRICS.AggSwapFees })
   return dailyFees.getUSDValue()
 }

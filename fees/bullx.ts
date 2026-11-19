@@ -65,6 +65,9 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2024-04-03',
+  // BullX suspended trading in its app from 2026-06-01 (wallet functions only); its fee-sized receipts mostly end by 08:00 UTC that day.
+  // The runner still runs the deadFrom day, so 2026-06-01 is the last day counted.
+  deadFrom: '2026-06-01',
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
   methodology: {

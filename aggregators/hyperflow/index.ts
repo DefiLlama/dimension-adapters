@@ -3,20 +3,28 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
 
-const chainConfig: Record<string, { routerV2: string; routerV21: string; whype: string; start: string }> = {
+const chainConfig: Record<string, { routerV2: string; routersV21: string[]; whype: string; start: string }> = {
   [CHAIN.HYPERLIQUID]: {
     // HyperFlow aggregation router (v2), the router in the hyperflow.fun app config (contractAddresses.aggregationRouter)
     routerV2: "0x980B9271A33c4B31214301fAE584B18dBB9731eC",
-    // HyperFlow partner router (v21, added in PR #4437), e.g. LI.FI routes HyperEVM swaps through it with clientData {"source":"lifi"}
-    routerV21: "0x0fbe14a7cd24adb08575d67bd39d2290a12126b0",
+    routersV21: [
+      // HyperFlow partner router (v21, added in PR #4437), e.g. LI.FI routes HyperEVM swaps through it with clientData {"source":"lifi"}
+      "0x0fbe14a7cd24adb08575d67bd39d2290a12126b0",
+      // HyperFlow v21 router that replaces the one above, same owner (0xbe23a049Af131AbA3627CEf4169797CEBb4667BC) and Swapped event
+      "0xe75f62548f745b4Cc6adF23ae50122E12Ca5111e",
+    ],
     whype: ADDRESSES.hyperliquid.WHYPE,
     start: '2025-06-08',
   },
   [CHAIN.ELYSIUM]: {
     // HyperFlow aggregation router (v2) on Elysium, first swap in block 46494 (2026-10-29)
     routerV2: "0x980B9271A33c4B31214301fAE584B18dBB9731eC",
-    // HyperFlow partner router (v21) on Elysium, same owner as the v2 router, no swaps yet
-    routerV21: "0x995E574059e1dD9528C22627773A397Bbb073A22",
+    routersV21: [
+      // HyperFlow partner router (v21) on Elysium, same owner as the v2 router, no swaps yet
+      "0x995E574059e1dD9528C22627773A397Bbb073A22",
+      // HyperFlow v21 router that replaces the one above, same owner (0xbe23a049Af131AbA3627CEf4169797CEBb4667BC) and Swapped event
+      "0x655197a6728039BAa0bA6161aA3356c291cA0cd9",
+    ],
     whype: ADDRESSES.elysium.WHYPE,
     start: '2026-10-29',
   },
@@ -26,11 +34,11 @@ const SwappedV2 = "event Swapped(address sender, address srcToken, address dstTo
 const SwappedV21 = "event Swapped(address sender, address srcToken, address dstToken, address dstReceiver, uint256 spentAmount, uint256 returnAmount, bytes clientData, uint256 timestamp)";
 
 const fetch = async (options: FetchOptions) => {
-  const { routerV2, routerV21, whype } = chainConfig[options.chain];
+  const { routerV2, routersV21, whype } = chainConfig[options.chain];
   const dailyVolume = options.createBalances();
   const [v2Logs, v21Logs] = await Promise.all([
     options.getLogs({ target: routerV2, eventAbi: SwappedV2 }),
-    options.getLogs({ target: routerV21, eventAbi: SwappedV21 }),
+    options.getLogs({ targets: routersV21, eventAbi: SwappedV21 }),
   ]);
 
   // native HYPE is passed as 0xeeee..., price it as WHYPE

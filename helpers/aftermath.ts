@@ -3,9 +3,9 @@ import coreAssets from "./coreAssets.json";
 
 export const AFTERMATH_API = "https://aftermath.finance/api/perpetuals";
 
-// Production deployment: addresses/environments/production/move-iperps.yml.
+// Production package reported by https://aftermath.finance/api/perpetuals/all-markets.
 // Registry: 0xda0bd7a60182efd662b70e0de99218bbd2b6c4bbe9de23c0bb5a87ec52b37c37.
-const PACKAGE_ID = "0x3ec740df8428aa9c93aaef7f8cc1542ac3194fd014826b51bfe245346d64efc7";
+const PACKAGE_ID = "0xe54757433d663835bda85cfc89c6c44bc8d952e941affa5ae57bba0baa226c1b";
 
 // First daily candle of the relaunched production markets; legacy markets are no longer served.
 export const AFTERMATH_HISTORY_START = "2026-08-18";
