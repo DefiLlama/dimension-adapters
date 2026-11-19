@@ -17,7 +17,7 @@ const adapter: SimpleAdapter = {
   doublecounted: true, // Across and Mayan can report the same routed principal.
   fetch,
   methodology: {
-    Volume: 'Principal deposited into Across from Optimism to Arbitrum and Mayan Swift from Ethereum to Solana through Wallet V, credited to the source chain when the transfer completes.',
+    BridgeVolume: 'Principal deposited into Across from Optimism to Arbitrum and Mayan Swift from Ethereum to Solana through Wallet V, credited to the source chain when the transfer completes.',
   },
 };
 
