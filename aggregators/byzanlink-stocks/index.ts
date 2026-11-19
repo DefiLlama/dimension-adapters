@@ -2,13 +2,10 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
 
-const BYZANLINK_SOURCE = "dhgh7VRLtcqZXySwtUwRU5CeFopHsZc7"; // Byzanlink source
-// Byzanlink's DZap integrator address, also receives the integrator fee: https://basescan.org/tx/0xc3d74485f5e1f20a032dac84f33f555cfe18dca791f8777e5157e8a04d482be7
+const BYZANLINK_SOURCE = "dhgh7VRLtcqZXySwtUwRU5CeFopHsZc7";
 const BYZANLINK_INTEGRATOR = "0x5bf9e1af9eaFe63344FBB3D227503f9EB80D2B17".toLowerCase();
 
-// KyberSwap MetaAggregationRouterV2, the same address on the EVM chains Byzanlink uses
 const KYBER_ROUTER = "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5";
-// DZap router (DZapDiamond), sample Byzanlink swap: https://basescan.org/tx/0x8d706e99ab3244ccffa21ed05dc52612924a830d69138c6a590791df81f7d53d#eventlog
 const DZAP_ROUTER = "0xF708e11A7C94abdE8f6217B13e6fE39C8b9cC0a6";
 
 const DZAP_SWAP_INFO =
@@ -16,14 +13,11 @@ const DZAP_SWAP_INFO =
 const DZAP_SWAPPED = `event DZapTokenSwapped(bytes32 indexed transactionId, address indexed sender, address indexed integrator, ${DZAP_SWAP_INFO} swapInfo)`;
 const DZAP_BATCH_SWAPPED = `event DZapBatchTokenSwapped(bytes32 indexed transactionId, address indexed sender, address indexed integrator, ${DZAP_SWAP_INFO}[] swapInfo)`;
 
-// One entry per chain. To add a chain: its first day of Byzanlink swaps, plus the router of each venue Byzanlink
-// routes through there (leave a venue out if Byzanlink does not use it on that chain).
 const chainConfig: Record<string, { start: string; kyberRouter?: string; dzapRouter?: string }> = {
   [CHAIN.BASE]: { start: "2026-10-22", kyberRouter: KYBER_ROUTER, dzapRouter: DZAP_ROUTER },
   [CHAIN.ARBITRUM]: { start: "2026-11-19", kyberRouter: KYBER_ROUTER },
 };
 
-// KyberSwap writes the partner Source in lowercase, so compare the top-level Source field case-insensitively.
 const isByzanlink = (clientData: string) => {
   try {
     const { Source } = JSON.parse(Buffer.from(clientData.slice(2), "hex").toString());
@@ -52,7 +46,6 @@ const addKyberVolume = async (options: FetchOptions, dailyVolume: any, router: s
     byTx.set(tx, [...(byTx.get(tx) ?? []), log]);
   }
 
-  // the router emits Swapped, then ClientData of the same swap call
   for (const logs of byTx.values()) {
     logs.sort((a, b) => a.logIndex - b.logIndex);
     let pending: any = null;
@@ -62,7 +55,6 @@ const addKyberVolume = async (options: FetchOptions, dailyVolume: any, router: s
         continue;
       }
       if (pending && isByzanlink(log.args.clientData)) {
-        // counted once per swap, on the core-asset leg when there is one
         addOneToken({
           balances: dailyVolume,
           token0: pending.srcToken,
@@ -114,7 +106,7 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   adapter: chainConfig,
-  doublecounted: true, // executed by the KyberSwap and DZap routers
+  doublecounted: true,
   methodology: {
     Volume: "Value of token swaps made on Byzanlink, routed through KyberSwap or DZap, priced on one side of each swap.",
   },
