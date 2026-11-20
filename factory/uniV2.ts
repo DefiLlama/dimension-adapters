@@ -1798,6 +1798,9 @@ const deadFromMap: Record<string, string> = {
   "okcswap": '2025-10-22',
   "bcswap": '2026-10-27',
   "vanillaswap-v2": '2026-11-14',
+  // Meter halted at block 100768776 on 2026-09-24 after an exploit; blocks after 100731417 may not be honored
+  "voltswap-v1": '2026-09-24',
+  "voltswap-v2": '2026-09-24',
 }
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
