@@ -4,10 +4,12 @@ import { CHAIN } from "../helpers/chains";
 import fetchURL, { fetchURLAutoHandleRateLimit } from "../utils/fetchURL";
 import { sleep } from "../utils/utils";
 
-const baseUrl = "https://app.bullbit.ai/api";
+const baseUrl = "https://app.bullbit.ai/services";
 
 const fetch = async (_options: FetchOptions) => {
-  const tickers = await fetchURL(`${baseUrl}/perp/v1/ticker/24hr`);
+  const tickers = await fetchURL(`${baseUrl}/perp/v1/ticker`);
+  if (!Array.isArray(tickers))
+    throw new Error(`bullbit: unexpected ticker response (${typeof tickers}), the API path may have moved again`);
   const symbols: string[] = tickers.map((t: any) => t.symbol);
 
   const { results: oiResponses } = await PromisePool.withConcurrency(3)

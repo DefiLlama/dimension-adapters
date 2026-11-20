@@ -1,6 +1,6 @@
+import { getProvider } from "@defillama/sdk";
 import { EventFragment } from "ethers";
 import { FetchOptions } from "../adapters/types";
-import { getTxReceiptsWithRetry } from "./getTxReceipts";
 import ADDRESSES from "./coreAssets.json";
 
 // Kalos (https://www.kalos.fun) on Kinetiq Elysium: values and logic shared by the Kalos adapters
@@ -96,6 +96,28 @@ async function getRouters(options: FetchOptions, senders: string[]): Promise<Rec
   return routers;
 }
 
+const RECEIPT_ATTEMPTS = 5;
+
+async function getReceipts(chain: string, hashes: string[]): Promise<any[]> {
+  const provider = getProvider(chain);
+  const receipts: any[] = [];
+  for (const hash of hashes) {
+    let receipt: any = null;
+    let lastError: any;
+    for (let attempt = 1; attempt <= RECEIPT_ATTEMPTS && !receipt; attempt++) {
+      if (attempt > 1) await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt - 1)));
+      try {
+        receipt = await provider.getTransactionReceipt(hash);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!receipt) throw lastError ?? new Error(`kalos: receipt ${hash} not found`);
+    receipts.push(receipt);
+  }
+  return receipts;
+}
+
 /**
  * Kalos fees paid by a router inside a trade in the window, with the size of that trade: the transfers to the Kalos
  * revenue splitter sent by a fee router, and from each trade's receipt everything that router received of the fee token
@@ -119,12 +141,9 @@ export async function getKalosTradeFees(options: FetchOptions): Promise<KalosTra
   const hashes = [...new Set(feeLogs.map((log: any) => String(log.transactionHash).toLowerCase()))];
   if (!hashes.length) return [];
 
-  const receipts = await getTxReceiptsWithRetry(options.chain, hashes);
+  const receipts = await getReceipts(options.chain, hashes);
   const receiptByHash: Record<string, any> = {};
-  hashes.forEach((hash, i) => {
-    if (!receipts[i]) throw new Error(`kalos: receipt ${hash} not found`);
-    receiptByHash[hash] = receipts[i];
-  });
+  hashes.forEach((hash, i) => receiptByHash[hash] = receipts[i]);
 
   // Kalos DEX pools come from the factory's own PoolCreated logs, not from a factory() call on each pool: a failed call
   // could not be told from a pool without factory(), and would count a Kalos DEX-only trade as routed volume. They are

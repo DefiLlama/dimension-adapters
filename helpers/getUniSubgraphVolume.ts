@@ -96,16 +96,13 @@ function getChainVolume2({
   hasTotalVolume = true,
   getCustomBlock = undefined,
 }: IGetChainVolumeParams) {
-  const totalVolumeQuery = gql`
-  ${totalVolume.factory}(
-    block: { number: $block }
-    ) {
-      ${totalVolume.field}
-      ${totalFeesField ? totalFeesField : ''}
-    }
-    `;
+  const totalFields = `${totalVolume.field} ${totalFeesField ? totalFeesField : ''}`
+  const graphQueryTotalVolume = gql`query get_total_volume($startBlock: Int, $endBlock: Int) {
+    start: ${totalVolume.factory}(block: { number: $startBlock }) { ${totalFields} }
+    end: ${totalVolume.factory}(block: { number: $endBlock }) { ${totalFields} }
+  }`
 
-  const graphQueryTotalVolume = gql`query get_total_volume($block: Int) { ${totalVolumeQuery} }`
+  const sumField = (factories: any[] | undefined, field: string): any => factories?.reduce((total: number, factory: any) => total + Number(factory[field]), 0)
 
   return (chain: Chain) => {
     return async (options: FetchOptions) => {
@@ -114,13 +111,11 @@ function getChainVolume2({
       const endBlock = (await (getCustomBlock ? getCustomBlock(endTimestamp) : getEndBlock())) ?? undefined;
       const startBlock = (await (getCustomBlock ? getCustomBlock(startTimestamp) : getStartBlock())) ?? undefined;
 
-      const graphResTotal = hasTotalVolume ? await requestWithRetry(graphUrls[chain], graphQueryTotalVolume, { block: endBlock }) : undefined;
-      const total = graphResTotal ? graphResTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalVolume.field]), 0) : undefined;
-      const totalFees = totalFeesField && graphResTotal ? graphResTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalFeesField]), 0) : undefined;
-
-      const graphResPrevTotal = hasTotalVolume ? await requestWithRetry(graphUrls[chain], graphQueryTotalVolume, { block: startBlock }) : undefined;
-      const prevTotal = graphResPrevTotal ? graphResPrevTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalVolume.field]), 0) : undefined;
-      const prevTotalFees = totalFeesField && graphResPrevTotal ? graphResPrevTotal[totalVolume.factory]?.reduce((total: number, factory: any) => total + Number(factory[totalFeesField]), 0) : undefined;
+      const graphRes = hasTotalVolume ? await requestWithRetry(graphUrls[chain], graphQueryTotalVolume, { startBlock, endBlock }) : undefined;
+      const total = graphRes ? sumField(graphRes.end, totalVolume.field) : undefined;
+      const totalFees = totalFeesField && graphRes ? sumField(graphRes.end, totalFeesField) : undefined;
+      const prevTotal = graphRes ? sumField(graphRes.start, totalVolume.field) : undefined;
+      const prevTotalFees = totalFeesField && graphRes ? sumField(graphRes.start, totalFeesField) : undefined;
 
       let dailyVolumeValue = total - prevTotal
 

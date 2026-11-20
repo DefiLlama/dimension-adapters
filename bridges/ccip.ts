@@ -101,7 +101,7 @@ type CcipTx = {
 // one daily snapshot, shared by every chain
 const prefetch = async (options: FetchOptions): Promise<CcipTx[]> => {
   const data = await httpGet(`${API}?date=${options.dateString}`, { headers: { "x-api-key": getEnv("CCIP_API_KEY") } });
-  if (!Array.isArray(data?.transactions)) throw new Error("ccip: unexpected API response");
+  if (!Array.isArray(data?.transactions)) throw new Error(`ccip: no published snapshot for ${options.dateString} yet, API returned ${JSON.stringify(data)?.slice(0, 300)}`);
   return data.transactions;
 };
 

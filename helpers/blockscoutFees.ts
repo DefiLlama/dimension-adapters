@@ -77,7 +77,7 @@ export const chainConfigMap: any = {
   [CHAIN.HASHKEY]: { CGToken: 'hashkey-ecopoints', explorer: 'https://hashkey.blockscout.com', allStatsApi: 'https://stats-hashkey-mainnet.k8s.blockscout.com', start: '2025-03-09' },
   [CHAIN.KARAK]: { CGToken: 'ethereum', explorer: 'https://explorer.karak.network', deadFrom: '2026-09-18' },
   [CHAIN.WINR]: { CGToken: 'winr-protocol', explorer: 'https://explorer.winr.games' },
-  [CHAIN.SOMNIA]: { CGToken: 'somnia', explorer: 'https://explorer.somnia.network', url: 'https://mainnet.somnia.w3us.site/api?module=stats&action=totalfees', start: '2025-07-01', burnRatio: 0.5 },
+  [CHAIN.SOMNIA]: { CGToken: 'somnia', explorer: 'https://explorer.somnia.network', start: '2025-07-01', burnRatio: 0.5 },
   [CHAIN.GOAT]: { CGToken: 'bitcoin', explorer: 'https://explorer.goat.network', start: '2024-12-22', },
   [CHAIN.ASTAR]: { CGToken: 'astar', explorer: 'https://astar.blockscout.com/', start: '2021-12-18', burnRatio: 0.8 },
   [CHAIN.PLUME]: { CGToken: 'plume', explorer: 'https://explorer.plume.org', start: '2025-02-20' },
@@ -242,7 +242,7 @@ export function blockscoutFeeAdapter2(chain: string) {
             todayPrice = bulkStoreCGData[CGToken][dateString]
             if (todayData === undefined) {
               const fees = await httpGet(`${url}&date=${dateString}`, requestConfig)
-              todayData = fees.result / 1e18
+              todayData = (fees.result?.total_fees ?? fees.result) / 1e18
             }
 
             if (todayPrice === undefined || todayData === undefined) {
@@ -272,7 +272,7 @@ export function blockscoutFeeAdapter2(chain: string) {
           const dailyFees = createBalances()
           // statsApiOnly: the legacy endpoint is unreachable, read the stats service txnsFee line directly
           const fees = config.statsApiOnly ? undefined : await httpGet(`${url}&date=${dateString}`)
-          let feesWei: number | undefined = fees?.result ?? undefined
+          let feesWei: number | undefined = fees?.result?.total_fees ?? fees?.result ?? undefined
           if (config.verifyEmptyDays && fees?.status === '1' && fees?.result === null) {
             const indexing = await httpGet(`${explorer}/api/v2/main-page/indexing-status`, requestConfig)
             if (indexing.finished_indexing === true && indexing.finished_indexing_blocks === true) {

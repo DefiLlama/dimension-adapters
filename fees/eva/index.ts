@@ -1,90 +1,44 @@
-import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
-// Envio HyperIndex endpoint used by the eva.markets frontend (gateway.eva.markets/subgraph returns 404).
-// The path segment is a deployment hash and changes on redeploy: re-read it from the eva.markets JS bundle if this 404s.
-const SUBGRAPH_URL = "https://indexer.dev.hyperindex.xyz/e357695/v1/graphql";
+// eva "mastermind" vault registry (proxy), deployed at block 24723487; every vault is registered here.
+// Previously read from the eva indexer (gateway.eva.markets/subgraph, then an Envio HyperIndex URL), which went down twice.
+const MASTERMIND = "0xea2bc9417f776fe5509a1e68cd26e0d76bcd01b2";
+const MASTERMIND_DEPLOY_BLOCK = 24723487;
 
-type VaultSkim = {
-  amount: string;
-  vault: string;
+const abis = {
+  VaultRegistered: "event VaultRegistered(address indexed vault, address indexed underlying, address indexed market)",
+  // Emitted by each vault when excess backing is skimmed: `amount` vault shares (1:1 with the underlying) are minted to the treasury.
+  // e.g. tx 0x548e1561f6f7f8969552599e8682a42e912802b2bd148a453a351481157d11f8
+  Skimmed: "event Skimmed(address indexed treasury, uint256 amount)",
 };
 
-type Vault = {
-  address: string;
-  underlying: string;
-};
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
 
-type VaultSkimsResponse = {
-  VaultSkim: VaultSkim[];
-};
+  const registrations = await options.getLogs({
+    target: MASTERMIND,
+    eventAbi: abis.VaultRegistered,
+    fromBlock: MASTERMIND_DEPLOY_BLOCK,
+    cacheInCloud: true,
+  });
 
-type VaultsResponse = {
-  Vault: Vault[];
-};
+  const underlyingByVault: Record<string, string> = {};
+  registrations.forEach(({ vault, underlying }: any) => {
+    underlyingByVault[vault.toLowerCase()] = underlying;
+  });
+  const vaults = Object.keys(underlyingByVault);
+  if (!vaults.length) throw new Error("eva: no vaults registered on the mastermind");
 
-const skimsQuery = gql`
-  query VaultSkims($start: numeric!, $end: numeric!, $offset: Int!) {
-    VaultSkim(
-      where: { timestamp: { _gte: $start, _lt: $end } }
-      order_by: { timestamp: asc }
-      limit: 1000
-      offset: $offset
-    ) {
-      amount
-      vault
-    }
-  }
-`;
+  const skims = await options.getLogs({
+    targets: vaults,
+    eventAbi: abis.Skimmed,
+    onlyArgs: false,
+  });
 
-const vaultsQuery = gql`
-  query Vaults {
-    Vault(limit: 1000) {
-      address
-      underlying
-    }
-  }
-`;
-
-async function fetchSkims(start: number, end: number) {
-  const skims: VaultSkim[] = [];
-  let offset = 0;
-
-  while (true) {
-    const response = await request<VaultSkimsResponse>(SUBGRAPH_URL, skimsQuery, {
-      start: String(start),
-      end: String(end),
-      offset,
-    });
-
-    skims.push(...response.VaultSkim);
-    if (response.VaultSkim.length < 1000) break;
-    offset += 1000;
-  }
-
-  return skims;
-}
-
-async function fetchVaultUnderlyings() {
-  const response = await request<VaultsResponse>(SUBGRAPH_URL, vaultsQuery);
-
-  return Object.fromEntries(response.Vault.map(({ address, underlying }) => [address.toLowerCase(), underlying]));
-}
-
-const fetch = async ({ createBalances, startTimestamp, endTimestamp }: FetchOptions) => {
-  const dailyFees = createBalances();
-
-  const [skims, vaultUnderlyings] = await Promise.all([
-    fetchSkims(startTimestamp, endTimestamp),
-    fetchVaultUnderlyings(),
-  ]);
-
-  skims.forEach(({ amount, vault }) => {
-    const underlying = vaultUnderlyings[vault.toLowerCase()];
-    if (!underlying) throw new Error(`eva: unmapped vault ${vault}`);
-    dailyFees.add(underlying, amount, METRIC.ASSETS_YIELDS);
+  skims.forEach((log: any) => {
+    dailyFees.add(underlyingByVault[log.address.toLowerCase()], log.args.amount, METRIC.ASSETS_YIELDS);
   });
 
   return {

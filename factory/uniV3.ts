@@ -227,8 +227,11 @@ const configs: Record<string, Record<string, any>> = {
   },
   // migrated off deleted subgraph to on-chain logs; factory from DefiLlama-Adapters registries/uniswapV3.js
   // pancake-v3 style fork: pools emit Swap with protocolFeesToken0/1
+  // noStateReads: filterPools' 277 balanceOf reads failed on every Viction RPC (only drpc keeps past state, rpc.viction.xyz and
+  // thirdweb answer "missing trie node"), and per-pool getLogs trip rpc.viction.xyz's Cloudflare limit (~29 requests, then a
+  // 600 s ban). One topic-only Swap scan per window needs no state and one request.
   "rabbitswap-v3": {
-    [CHAIN.TOMOCHAIN]: { factory: '0x1F09b50e8cbAed8A157fEe28716d13AfE36A77E7', start: '2024-11-12', swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0 },
+    [CHAIN.TOMOCHAIN]: { factory: '0x1F09b50e8cbAed8A157fEe28716d13AfE36A77E7', start: '2024-11-12', swapEvent: protocolFeesSwapEvent, userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, noStateReads: true },
   },
   "ginsengswap": {
     [CHAIN.CONFLUX]: { factory: '0x62aa0294cb42aae39b7772313eadfa5d489146ec' },
@@ -332,7 +335,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.BLAST]: { factory: '0x71b08f13B3c3aF35aAdEb3949AFEb1ded1016127' },
   },
   "vanillaswap-v3": {
-    defichain_evm: { factory: '0x9C444DD15Fb0Ac0bA8E9fbB9dA7b9015F43b4Dc1' },
+    defichain_evm: { factory: '0x9C444DD15Fb0Ac0bA8E9fbB9dA7b9015F43b4Dc1', deadFrom: '2026-11-14' },
   },
   "xtrade": {
     [CHAIN.XLAYER]: { factory: '0x612D9EA08be59479B112D8d400C7F0A2E4aD4172', isAlgebraV3: true, poolCreatedEvent: 'event Pool(address indexed token0,address indexed token1,address pool)' },

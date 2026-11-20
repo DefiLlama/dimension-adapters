@@ -227,11 +227,26 @@ export async function filterPools({ api, pairs, createBalances, maxPairSize = 42
 
 const v2SyncEvent = 'event Sync(uint112 reserve0, uint112 reserve1)'
 
+// Per-pair logs in pairIds order. scanLogsByTopic replaces the getLogs per pair with one scan of the
+// event topic over the window, kept to these pairs (logs from other contracts are dropped).
+async function getPairLogs({ getLogs, pairIds, eventAbi, onlyArgs = true, scanLogsByTopic = false }: { getLogs: FetchOptions['getLogs'], pairIds: string[], eventAbi: string, onlyArgs?: boolean, scanLogsByTopic?: boolean }): Promise<any[][]> {
+  if (!scanLogsByTopic) return getLogs({ targets: pairIds, eventAbi, flatten: false, onlyArgs })
+  const pairIndex: IJSON<number> = {}
+  pairIds.forEach((pair, i) => { pairIndex[pair.toLowerCase()] = i })
+  const pairLogs: any[][] = pairIds.map(() => [])
+  const logs = await getLogs({ noTarget: true, eventAbi, onlyArgs: false })
+  for (const log of logs) {
+    const i = pairIndex[String(log.address).toLowerCase()]
+    if (i !== undefined) pairLogs[i].push(onlyArgs ? log.args : log)
+  }
+  return pairLogs
+}
+
 // filterPools for chains whose public RPCs serve logs but have pruned past state, so the
 // balanceOf calls at the window's block fail. A pair's reserves after its last Sync in the
 // window are its balances at the window end, the same point-in-time value filterPools reads.
 // Every UniV2 swap emits Sync, so a pair with no Sync in the window had no swap to count.
-async function filterPoolsBySyncReserves({ fetchOptions, pairs, maxPairSize = 42, minUSDValue = 200 }: { fetchOptions: FetchOptions, pairs: IJSON<string[]>, maxPairSize?: number, minUSDValue?: number }): Promise<IJSON<number>> {
+async function filterPoolsBySyncReserves({ fetchOptions, pairs, maxPairSize = 42, minUSDValue = 200, scanLogsByTopic }: { fetchOptions: FetchOptions, pairs: IJSON<string[]>, maxPairSize?: number, minUSDValue?: number, scanLogsByTopic?: boolean }): Promise<IJSON<number>> {
   const { chain, createBalances, getLogs } = fetchOptions
   const pairIds = Object.keys(pairs)
   if (!pairIds.length) return {}
@@ -240,7 +255,7 @@ async function filterPoolsBySyncReserves({ fetchOptions, pairs, maxPairSize = 42
   Object.values(pairs).forEach(tokens => tokens.forEach(t => { if (isCoreAsset(chain, t)) coreTokens.add(t.toLowerCase()) }))
   const pricedCoreTokens = await getPricedCoreTokens(chain, [...coreTokens])
 
-  const syncLogs = await getLogs({ targets: pairIds, eventAbi: v2SyncEvent, flatten: false, onlyArgs: false })
+  const syncLogs = await getPairLogs({ getLogs, pairIds, eventAbi: v2SyncEvent, onlyArgs: false, scanLogsByTopic })
   const balances: Balances = createBalances()
   const pairBalances: IJSON<Balances> = {}
   const pairHasPricedCore: IJSON<boolean> = {}
@@ -301,7 +316,7 @@ const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, u
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
 export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
-  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, allowReadPairs, enforceBalanceFailureRatio, useSyncReserves } = v2Config
+  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, allowReadPairs, enforceBalanceFailureRatio, useSyncReserves, scanLogsByTopic } = v2Config
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     let blacklistedAddressesSet: any
@@ -342,7 +357,7 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
     const blacklistPoolsSet = blacklistPools ? new Set(blacklistPools.map(i => i.toLowerCase())) : null
     const pairsToFilter = filterBlacklistedPools(filterBlacklistedTokens(pairObject, blacklistTokens), blacklistPools)
     const filteredPairs = useSyncReserves
-      ? await filterPoolsBySyncReserves({ fetchOptions, pairs: pairsToFilter, maxPairSize })
+      ? await filterPoolsBySyncReserves({ fetchOptions, pairs: pairsToFilter, maxPairSize, scanLogsByTopic })
       : await filterPools({ api, pairs: pairsToFilter, createBalances, maxPairSize, enforceBalanceFailureRatio })
     const pairIds = Object.keys(filteredPairs)
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
@@ -358,7 +373,7 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
       dailyHoldersRevenue: holdersRevenueRatio !== undefined ? 0 : undefined,
     }
 
-    const allLogs = await getLogs({ targets: pairIds, eventAbi: swapEvent, flatten: false })
+    const allLogs = await getPairLogs({ getLogs, pairIds, eventAbi: swapEvent, scanLogsByTopic })
     allLogs.map((logs: any, index) => {
       if (!logs.length) return;
       const pair = pairIds[index]
@@ -727,6 +742,9 @@ type UniV2Config = {
   enforceBalanceFailureRatio?: boolean;
   // value pairs from their Sync reserves instead of balanceOf at the window's block, for chains whose RPCs have no archive state
   useSyncReserves?: boolean;
+  // fetch Sync/Swap logs with one topic scan per window kept to the factory's pairs, not one getLogs per pair:
+  // for quiet chains off the logs indexer whose public RPCs reject a burst of per-pair requests
+  scanLogsByTopic?: boolean;
 }
 
 export interface UniGetRevenueRatioProps {
