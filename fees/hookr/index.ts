@@ -35,7 +35,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ROBINHOOD],
   start: '2026-08-04', // first legacy launchpad fee, block 27767017
-  //pullHourly: true,
+  pullHourly: true,
   doublecounted: true, // Hookr pools are Uniswap v4 pools, and recaptured arbitrage is also in fees/what-the-hook.ts
   allowNegativeValue: true, // protocol revenue is negative on days when fees earned earlier are moved to the burn jar
   methodology: {
