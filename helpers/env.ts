@@ -96,6 +96,9 @@ const DEFAULTS: any = {
   SAGA_WHITELISTED_RPC: 'https://sagaevm-archive.jsonrpc.sagarpc.io',
   CANTO_RPC: 'https://canto.gravitychain.io', // tuber.build/api/eth-rpc now 403s; chain halted 2026-08-10 (no blocks since)
   APTOS_RPC: 'https://fullnode.mainnet.aptoslabs.com', // aptos-mainnet.pontem.network no longer resolves (2026-11)
+  // Viction: canonical Multicall3 is deployed (since block 87169904) but missing from the SDK deployment map, so every call
+  // went out as a single eth_call (rabbitswap-v3: ~5k calls per run). Drop this once the SDK map carries tomochain.
+  TOMOCHAIN_RPC_MULTICALL_V3: '0xcA11bde05977b3631167028862bE2a173976CA11',
   SOLANA_RPC: "https://api.mainnet-beta.solana.com",
   NEAR_RPC: "https://free.rpc.fastnear.com,https://rpc.mainnet.near.org", // near.lava.build answers 410 (discontinued)
   STARKNET_RPC: "https://api.zan.top/public/starknet-mainnet",
