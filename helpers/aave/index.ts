@@ -530,6 +530,7 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
   'fathom-lending': {
     config: {
       [CHAIN.XDC]: {
+        start: "2024-04-03",
         pools: [{
           version: 3,
           lendingPoolProxy: '0x70d8005e3c8c7e383fe35fa40156042f3393449f',
