@@ -147,15 +147,19 @@ const fetch = async (options: FetchOptions) => {
       options.getLogs({ target: cfg.router, eventAbi: ROUTER_SWAPPED }),
       options.getLogs({ target: cfg.router, eventAbi: ROUTER_REFERRAL }),
     ]);
-    const referred: Record<string, bigint> = {};
-    for (const r of referrals) referred[lower(r.currency)] = (referred[lower(r.currency)] ?? 0n) + BigInt(r.amount);
-    const charged: Record<string, bigint> = {};
+    // Sum per currency, then walk the union of fee and referral currencies so no referral is dropped. QFeeRouter emits
+    // Referral in the same transaction as the Swapped it pays out of (same block, so always in the same window), and the
+    // referral share (20%) plus cashback (at most 40%) never exceed the fee, so revenue stays non-negative.
+    const charged: Record<string, bigint> = {}, referred: Record<string, bigint> = {};
     for (const s of swapped) charged[lower(s.feeCurrency)] = (charged[lower(s.feeCurrency)] ?? 0n) + BigInt(s.fee);
-    for (const [currency, fee] of Object.entries(charged)) {
-      const cashback = (fee * CASHBACK_SHARE) / 100n, referral = referred[currency] ?? 0n;
+    for (const r of referrals) referred[lower(r.currency)] = (referred[lower(r.currency)] ?? 0n) + BigInt(r.amount);
+    for (const currency of new Set([...Object.keys(charged), ...Object.keys(referred)])) {
+      const fee = charged[currency] ?? 0n, referral = referred[currency] ?? 0n, cashback = (fee * CASHBACK_SHARE) / 100n;
       const add = (b: any, amount: bigint, label: string) => currency === NATIVE ? b.addGasToken(amount, label) : b.add(currency, amount, label);
-      add(dailyFees, fee, LABEL.terminal);
-      add(dailySupplySideRevenue, cashback, LABEL.cashback);
+      if (fee) {
+        add(dailyFees, fee, LABEL.terminal);
+        add(dailySupplySideRevenue, cashback, LABEL.cashback);
+      }
       if (referral) add(dailySupplySideRevenue, referral, LABEL.referral);
       add(dailyRevenue, fee - cashback - referral, LABEL.terminal);
     }
@@ -166,6 +170,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   adapter: Object.fromEntries(Object.entries(config).map(([chain, c]) => [chain, { start: c.start }])),
   methodology: {
