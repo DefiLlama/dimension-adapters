@@ -527,6 +527,17 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
       },
     },
   },
+  'fathom-lending': {
+    config: {
+      [CHAIN.XDC]: {
+        pools: [{
+          version: 3,
+          lendingPoolProxy: '0x70d8005e3c8c7e383fe35fa40156042f3393449f',
+          dataProvider: '0x7fa488a5C88E9E35B0B86127Ec76B0c1F0933191',
+        }],
+      },
+    },
+  },
   'aave-v1': {
     config: {
       [CHAIN.ETHEREUM]: {

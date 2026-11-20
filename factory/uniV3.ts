@@ -654,6 +654,9 @@ const configs: Record<string, Record<string, any>> = {
   "comet-swap-v3": {
     [CHAIN.ASTAR]: { factory: '0x2C1EEf5f87F4F3194FdAAfa20aE536b1bA49863b', start: '2026-02-05', userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
   },
+  "electroswap-v3": {
+    [CHAIN.ELECTRONEUM]: { factory: '0xbF6Bcbe2be545135391777F3B4698be92E2EB8cA', userFeesRatio: 1, noStateReads: true },
+  },
   "betterswap-v3": {
     [CHAIN.VECHAIN]: { factory: '0xf9f1722f95d036efbd1352d84e3a3755f8027b39', userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, start: "2026-07-20", },
   },
@@ -766,6 +769,11 @@ const configs: Record<string, Record<string, any>> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "electroswap-v3": {
+    Volume: "Swap volume on ElectroSwap V3 pools on Electroneum that hold a major asset.",
+    Fees: "Swap fees paid by traders, at each pool's fee tier.",
+    UserFees: "Swap fees paid by traders, at each pool's fee tier.",
+  },
   "comet-swap-v3": {
     Volume: "Swap volume on CometSwap V3 pools on Astar.",
     Fees: "Swap fees paid by traders, at each pool's fee tier.",
