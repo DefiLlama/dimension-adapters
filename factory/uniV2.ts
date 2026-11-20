@@ -1244,6 +1244,28 @@ const configs: Record<string, Record<string, any>> = {
     // volume only: pair source is not verified, so the swap fee and its split are unknown
     [CHAIN.OP_BNB]: { factory: '0xd50aaE6C73E2486B0Da718D23F35Dcf5aad25911', customLogic: volumeOnly },
   },
+  "lfgswap-arbitrum": {
+    // 3/1000 pair invariant; 1/3 of fees minted to feeTo (rootK.mul(2) denominator), feeTo is set: https://sourcify.dev/server/v2/contract/42161/0xE5552e0318531F9Ec585c83bDc8956C08Bf74b71?fields=all
+    [CHAIN.ARBITRUM]: { factory: '0xE5552e0318531F9Ec585c83bDc8956C08Bf74b71', start: '2023-03-25', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 3, protocolRevenueRatio: 1 / 3 },
+  },
+  "lfgswap-core": {
+    // volume only: pair source is not verified on Core, so the swap fee and its split are unknown
+    [CHAIN.CORE]: { factory: '0xA1ADD165AED06D26fC1110b153ae17a5A5ae389e', customLogic: volumeOnly },
+  },
+  "lfgswap": {
+    // volume only: pair source is not verified on EthereumPoW, so the swap fee and its split are unknown
+    [CHAIN.ETHPOW]: { factory: '0xf66cef53c518659bFA0A9a4Aa07445AF08bf9B3a', useSyncReserves: true, customLogic: volumeOnly },
+  },
+  "newswap": {
+    // volume only: pair source is not verified, so the swap fee and its split are unknown
+    [CHAIN.NEWTON]: { factory: '0x723913136a42684B5e3657e3cD2f67ee3e83A82D', customLogic: volumeOnly },
+  },
+  "youswap": {
+    // 3/1000 pair invariant; 1 / (feeToRate + 1) of fees minted to feeTo: https://sourcify.dev/server/v2/contract/56/0x137f34df5bcdb30f5e858fc77cb7ab60f8f7a09a?fields=all
+    // factory.feeToRate() is 5 on BSC (1/6 to the protocol) and 0 on Ethereum (all fee growth minted to feeTo); feeTo is set on both
+    [CHAIN.BSC]: { factory: '0x137f34df5bcdb30f5e858fc77cb7ab60f8f7a09a', start: '2021-04-27', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+    [CHAIN.ETHEREUM]: { factory: '0xa7028337d3da1f04d638cc3b4dd09411486b49ea', start: '2021-03-26', fees: 0.003, userFeesRatio: 1, revenueRatio: 1, protocolRevenueRatio: 1 },
+  },
   "justmoney": {
     // useSyncReserves: the public BitTorrent RPC is not archival, so pool balances at a past block cannot be read
     [CHAIN.BITTORRENT]: { factory: '0x4dEb2f0976DC3Bf351555524B3A24A4feA4e137E', fees: 0.003, useSyncReserves: true, scanLogsByTopic: true, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
@@ -1260,6 +1282,31 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "lfgswap-arbitrum": {
+    Volume: "Swap volume on LFGSwap pairs on Arbitrum.",
+    Fees: "Traders pay a 0.3% fee on every swap.",
+    UserFees: "Traders pay a 0.3% fee on every swap.",
+    Revenue: "One third of the 0.3% swap fee (0.1% of volume) goes to the LFGSwap fee address.",
+    ProtocolRevenue: "One third of the 0.3% swap fee (0.1% of volume) goes to the LFGSwap fee address.",
+    SupplySideRevenue: "Two thirds of the 0.3% swap fee (0.2% of volume) stay with liquidity providers.",
+  },
+  "lfgswap-core": {
+    Volume: "Swap volume on LFGSwap pairs on Core.",
+  },
+  "lfgswap": {
+    Volume: "Swap volume on LFGSwap pairs on EthereumPoW.",
+  },
+  "newswap": {
+    Volume: "Swap volume on NewSwap pairs on Newton.",
+  },
+  "youswap": {
+    Volume: "Swap volume on YouSwap pairs on BNB Smart Chain and Ethereum. Excludes the Heco deployment.",
+    Fees: "Traders pay a 0.3% fee on every swap.",
+    UserFees: "Traders pay a 0.3% fee on every swap.",
+    Revenue: "The share of the 0.3% swap fee sent to the YouSwap fee address: one sixth on BNB Smart Chain and all of it on Ethereum.",
+    ProtocolRevenue: "The share of the 0.3% swap fee sent to the YouSwap fee address: one sixth on BNB Smart Chain and all of it on Ethereum.",
+    SupplySideRevenue: "Swap fees left to liquidity providers: five sixths on BNB Smart Chain and none on Ethereum.",
+  },
   "plunderswap": {
     Volume: "Swap volume on PlunderSwap V2 pairs on Zilliqa.",
   },

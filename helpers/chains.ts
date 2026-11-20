@@ -449,4 +449,6 @@ export enum CHAIN {
   FETCHHUB = "fetchhub",
   ANUBI = "anubi",
   DUSK = "dusk",
+  ETHPOW = "ethpow",
+  NEWTON = "new",
 }
