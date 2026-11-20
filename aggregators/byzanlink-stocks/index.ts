@@ -62,10 +62,10 @@ const addKyberVolume = async (options: FetchOptions, dailyVolume: any, router: s
       pending = null;
     }
     // skip wash trades
-    const spent = new Set(tagged.map((swap) => swap.srcToken.toLowerCase()));
-    const received = new Set(tagged.map((swap) => swap.dstToken.toLowerCase()));
+    const key = (t: string) => t.toLowerCase();
     for (const swap of tagged) {
-      if (tagged.length > 1 && received.has(swap.srcToken.toLowerCase()) && spent.has(swap.dstToken.toLowerCase())) continue;
+      const isRoundTrip = tagged.some((other) => other !== swap && key(other.srcToken) === key(swap.dstToken) && key(other.dstToken) === key(swap.srcToken));
+      if (isRoundTrip) continue;
       addOneToken({
         balances: dailyVolume,
         token0: swap.srcToken,
