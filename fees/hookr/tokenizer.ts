@@ -1,132 +1,89 @@
-import { FeeAccounting, toBigInt, lowercase, eventTopic, addressTopic } from './common';
-import { BLOCK, CONTRACT } from './config';
+import { BLOCK, CONTRACT, FeeAccounting, addressTopic, eventTopic, lowercase, toBigInt } from './common';
 
-const assetAt =
+const ASSET_AT =
   'function assetAt(uint256) view returns((address currency,uint256 index,uint256 carry,uint128 received,' +
   'uint128 paid,uint128 pendingStream,uint64 streamEnd,uint64 lastRelease))';
+const CLAIMABLE = 'function claimable(address,uint256) view returns(uint256)';
+const INCOME_CLAIMED = 'event IncomeClaimed(address indexed account,uint256 indexed asset,address indexed to,uint256 amount)';
 
-/** The original collector earns as income vests; the newer tokenizer charges when a leg is paid. */
+/** Revenue tokenizer fees: the original earns as income vests, the newer one charges when a payment is delivered. */
 export async function fetchTokenizerFees(accounting: FeeAccounting) {
   await fetchOriginalTokenizerFees(accounting);
   await fetchCurrentTokenizerFees(accounting);
 }
 
-/** Earned income = closing claimable + lifetime claims - the corresponding opening entitlement. */
+/** Hookr's leg collector earns: claimable at window end - claimable at window start + claims in the window. */
 async function fetchOriginalTokenizerFees(accounting: FeeAccounting) {
-  const { options } = accounting;
+  const { api } = accounting.options;
   const minted = await accounting.getLogs(
     [CONTRACT.oldTokenizer],
     'event Tokenized(address indexed token,address indexed creator,uint8 way,address forwarder,address adapter,' +
       'address door,bytes32 familyId,bytes32 marketFamilyId,uint256 supply,uint64 unlockBlock,uint16 legBps)',
     { fromBlock: BLOCK.oldTokenizer, cacheInCloud: true },
   );
-  const feeBearingTokens = minted.filter(log => Number(log.args.legBps) !== 0);
-  const assetCounts = feeBearingTokens.length
-    ? await options.toApi.multiCall({
-        abi: 'uint256:assetCount',
-        calls: feeBearingTokens.map(log => lowercase(log.args.token)),
-      })
-    : [];
-  const assets = feeBearingTokens.flatMap((log, index) =>
-    Array.from({ length: Number(assetCounts[index]) }, (_, index) => ({
-      token: lowercase(log.args.token),
-      index,
-      block: log.blockNumber,
-    })),
-  );
-  const calls = assets.map(asset => ({ target: asset.token, params: [asset.index] }));
-  const assetStates = assets.length ? await options.toApi.multiCall({ abi: assetAt, calls }) : [];
-  const openingAssets = assets.filter(asset => asset.block < accounting.fromBlock);
-  const claimable = 'function claimable(address,uint256) view returns(uint256)';
-  const closingClaimable = assets.length
-    ? await options.toApi.multiCall({
-        abi: claimable,
-        calls: assets.map(asset => ({
-          target: asset.token,
-          params: [CONTRACT.oldLegCollector, asset.index],
-        })),
-      })
-    : [];
-  const openingClaimableAmounts = openingAssets.length
-    ? await accounting.openingApi.multiCall({
-        abi: claimable,
-        calls: openingAssets.map(asset => ({
-          target: asset.token,
-          params: [CONTRACT.oldLegCollector, asset.index],
-        })),
-      })
-    : [];
-  const openingClaimable = new Map(
-    openingAssets.map((asset, index) => [
-      `${asset.token}:${asset.index}`,
-      toBigInt(openingClaimableAmounts[index]),
-    ]),
-  );
-  const eventAbi =
-    'event IncomeClaimed(address indexed account,uint256 indexed asset,address indexed to,uint256 amount)';
-  const collectorClaims = await accounting.getLogs(
-    feeBearingTokens.map(log => lowercase(log.args.token)),
-    eventAbi,
-    {
-      fromBlock: BLOCK.oldTokenizer,
-      topics: [eventTopic(eventAbi), addressTopic(CONTRACT.oldLegCollector)],
-    },
-  );
-  assets.forEach((asset, index) => {
-    const assetClaims = collectorClaims.filter(
-      log => log.address === asset.token && Number(log.args.asset) === asset.index,
-    );
-    const totalClaimed = assetClaims.reduce((sum, log) => sum + toBigInt(log.args.amount), 0n);
-    const previouslyClaimed = assetClaims
-      .filter(log => log.blockNumber < accounting.fromBlock)
-      .reduce((sum, log) => sum + toBigInt(log.args.amount), 0n);
-    const earnedEnd = toBigInt(closingClaimable[index]) + totalClaimed;
-    const earnedStart = (openingClaimable.get(`${asset.token}:${asset.index}`) ?? 0n) + previouslyClaimed;
-    const gross = earnedEnd - earnedStart;
-    // Original tokenizer terms: WTH is owed one point of the 5% collector leg, i.e. 20%.
+  const tokens = minted.filter(log => Number(log.args.legBps) !== 0).map(log => lowercase(log.args.token));
+  const existing = minted
+    .filter(log => Number(log.args.legBps) !== 0 && log.blockNumber < accounting.fromBlock)
+    .map(log => lowercase(log.args.token));
+
+  // A token can add assets during the window; those start with nothing claimable.
+  const closingCounts = await api.multiCall({ abi: 'uint256:assetCount', calls: tokens });
+  const openingCounts = await accounting.openingApi.multiCall({ abi: 'uint256:assetCount', calls: existing });
+  const listAssets = (list: string[], counts: any[]) =>
+    list.flatMap((token, i) => Array.from({ length: Number(counts[i]) }, (_, index) => ({ token, index })));
+  const assets = listAssets(tokens, closingCounts);
+  const openingAssets = listAssets(existing, openingCounts);
+  const toCall = ({ token, index }: { token: string; index: number }) => ({
+    target: token,
+    params: [CONTRACT.oldLegCollector, index],
+  });
+
+  const states = await api.multiCall({
+    abi: ASSET_AT,
+    calls: assets.map(({ token, index }) => ({ target: token, params: [index] })),
+  });
+  const closing = await api.multiCall({ abi: CLAIMABLE, calls: assets.map(toCall) });
+  const opening = await accounting.openingApi.multiCall({ abi: CLAIMABLE, calls: openingAssets.map(toCall) });
+  const openingClaimable = new Map(openingAssets.map(({ token, index }, i) => [`${token}:${index}`, toBigInt(opening[i])]));
+
+  const claimed = new Map<string, bigint>();
+  for (const log of await accounting.getLogs(tokens, INCOME_CLAIMED, {
+    topics: [eventTopic(INCOME_CLAIMED), addressTopic(CONTRACT.oldLegCollector)],
+  })) {
+    const key = `${log.address}:${Number(log.args.asset)}`;
+    claimed.set(key, (claimed.get(key) ?? 0n) + toBigInt(log.args.amount));
+  }
+
+  assets.forEach(({ token, index }, i) => {
+    const key = `${token}:${index}`;
+    const gross = toBigInt(closing[i]) - (openingClaimable.get(key) ?? 0n) + (claimed.get(key) ?? 0n);
+    // What The Hook is owed one point of the 5% collector leg, i.e. 20% of it.
     // https://github.com/Hookr-fun/hookr-contracts/blob/main/hookr-1/revenue-tokenizer/README.md#fees
-    // Difference of cumulative entitlements keeps integer rounding additive across hourly pulls.
-    const partner = earnedEnd / 5n - earnedStart / 5n;
-    accounting.recordFees('tokenizer', assetStates[index].currency, gross, gross - partner);
+    accounting.recordFees('tokenizer', states[i].currency, gross, gross - gross / 5n);
   });
 }
 
-/** Count token-emitted LegPaid once; the forwarding door describes the same delivery. */
+/** LegPaid is the delivery fee on each payment; the forwarding door's event describes the same payment. */
 async function fetchCurrentTokenizerFees(accounting: FeeAccounting) {
-  const { options } = accounting;
-  const currentMints = await accounting.getLogs(
+  const minted = await accounting.getLogs(
     [CONTRACT.newTokenizer],
-    'event Tokenized(address indexed token,address indexed creator,uint256 supply,address streamManager,' +
-      'bool openStreams)',
+    'event Tokenized(address indexed token,address indexed creator,uint256 supply,address streamManager,bool openStreams)',
     { fromBlock: BLOCK.newTokenizer, cacheInCloud: true },
   );
-  const tokens = currentMints.map(log => lowercase(log.args.token));
-  const legPayments = await accounting.getLogs(
-    tokens,
+  const payments = await accounting.getLogs(
+    minted.map(log => lowercase(log.args.token)),
     'event LegPaid(uint256 indexed door,uint256 indexed asset,uint256 amount)',
   );
-  // Resolve each distinct token/asset once; repeated payments use the same currency.
-  const assetKey = (log: { address: string; args: Record<string, any> }) =>
-    `${log.address}:${log.args.asset}`;
-  const paidAssets = [...new Map(legPayments.map(log => [assetKey(log), log])).values()];
-  const assetStates = paidAssets.length
-    ? await options.toApi.multiCall({
-        abi: assetAt,
-        calls: paidAssets.map(log => ({ target: log.address, params: [log.args.asset] })),
-      })
-    : [];
-  const currencies = new Map(
-    paidAssets.map((log, index) => [assetKey(log), lowercase(assetStates[index].currency)]),
-  );
+  const assetKey = (log: { address: string; args: Record<string, any> }) => `${log.address}:${log.args.asset}`;
+  const paidAssets = [...new Map(payments.map(log => [assetKey(log), log])).values()];
+  const states = await accounting.options.api.multiCall({
+    abi: ASSET_AT,
+    calls: paidAssets.map(log => ({ target: log.address, params: [log.args.asset] })),
+  });
+  const currencies = new Map(paidAssets.map((log, i) => [assetKey(log), lowercase(states[i].currency)]));
 
-  // New tokenizer fees are actual per-door delivery charges, not the old supply-share model.
-  // Count the revenue-token event once; forwarding-door events describe the same payment.
-  for (const log of legPayments) {
-    accounting.recordFees(
-      'tokenizer',
-      currencies.get(assetKey(log))!,
-      toBigInt(log.args.amount),
-      toBigInt(log.args.amount),
-    );
+  for (const log of payments) {
+    const amount = toBigInt(log.args.amount);
+    accounting.recordFees('tokenizer', currencies.get(assetKey(log))!, amount, amount);
   }
 }

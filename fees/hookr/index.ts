@@ -1,102 +1,71 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
-import { FeeAccounting, SOURCES, RETAINED, HOLDERS, FeeSource, toBigInt } from './common';
-import { CONTRACT, NATIVE } from './config';
-import { discoverPools } from './discovery';
-import { fetchTradingFees, fetchAdditionalLpFees } from './trading';
-import { fetchLegacyFees } from './legacy';
-import { fetchTokenizerFees } from './tokenizer';
+import { FeeAccounting, HOLDERS, RETAINED, SOURCES } from './common';
 import { fetchHolderRevenue } from './holders';
-import { fetchVaultFees } from './vault';
+import { fetchLegacyFees } from './legacy';
+import { fetchPoolFees } from './pools';
+import { fetchTokenizerFees } from './tokenizer';
 
-// Earn operating revenue first, then attribute its verified burn funding and actual holder payouts.
+// Hookr lets pool creators add Hook Blocks (custom rules) to Uniswap v4 pools on Robinhood Chain.
+// Every amount is read from on-chain events or contract state and returned in raw token units.
 const fetch = async (options: FetchOptions) => {
   const accounting = new FeeAccounting(options, await options.getFromBlock(), await options.getToBlock());
-  await fetchLegacyFees(accounting);
-  const discovery = await discoverPools(accounting);
-  await fetchTradingFees(accounting, discovery);
-  await fetchAdditionalLpFees(accounting, new Map([...discovery.current, ...discovery.modular]));
-
-  for (const [address, eventAbi] of [
-    [CONTRACT.launcher, 'event LaunchFeePaid(bytes32 indexed familyId,address indexed target,uint256 fee)'],
-    [CONTRACT.rootFactory, 'event DeployFeePaid(address indexed root,address indexed target,uint256 fee)'],
-  ]) {
-    for (const log of await accounting.getLogs([address], eventAbi)) {
-      accounting.recordFees('launch', NATIVE, toBigInt(log.args.fee), toBigInt(log.args.fee));
-    }
-  }
-
+  await fetchPoolFees(accounting);
   await fetchTokenizerFees(accounting);
-  await fetchVaultFees(accounting);
+  await fetchLegacyFees(accounting);
   await fetchHolderRevenue(accounting);
-
   return accounting.balances;
 };
 
-/** Build each metric's breakdown from the labels that its fee sources actually emit. */
-function sourceMethodology(destination: 'fees' | 'revenue' | 'supplySide') {
-  return Object.fromEntries(
-    Object.values(SOURCES).flatMap((source: FeeSource) =>
-      source[destination] ? [[source[destination], source.description]] : [],
-    ),
+const sourceLabels = (destination: 'fees' | 'revenue' | 'supplySide') =>
+  Object.fromEntries(
+    Object.values(SOURCES).flatMap(source => (destination in source ? [[(source as any)[destination], source.description]] : [])),
   );
-}
-
-const breakdownMethodology = {
-  Fees: sourceMethodology('fees'),
-  Revenue: sourceMethodology('revenue'),
-  SupplySideRevenue: sourceMethodology('supplySide'),
-  ProtocolRevenue: {
-    [RETAINED]:
-      'Earned Hookr income net of documented supplier obligations, dedicated legacy flywheel credits and ' +
-      'fee-split payments into the burn jar; allocations can spend revenue earned in earlier periods. ' +
-      'Unattributed voluntary wallet donations to buyback contracts are not reclassified as protocol spending.',
-  },
-  HoldersRevenue: {
-    [HOLDERS.jar]:
-      'Previously recorded fee-split assets exchanged when a jar redemption burns HOOKR; native and token input ' +
-      'costs are replayed in event order, excluding unattributed donations and without counting jar funding ' +
-      'again.',
-    [HOLDERS.legacy]:
-      'Actual ETH spent by the verified legacy flywheel burner to buy and retire HOOKR, including purchases ' +
-      'funded by voluntary deposits.',
-    [HOLDERS.openzaps]:
-      'Actual ETH spent by the two reviewed OpenZaps campaigns, matched to HOOKR transfers to the dead address; ' +
-      'this external income is excluded from Hookr operating fees and revenue.',
-    [HOLDERS.direct]:
-      'User fee amounts denominated in HOOKR and burned by the measured current, modular or legacy pool fee ' +
-      'mechanism; excludes voluntary inventory transfers.',
-  },
-};
 
 const adapter: SimpleAdapter = {
   version: 2,
   fetch,
   chains: [CHAIN.ROBINHOOD],
-  start: '2026-08-04', // First verified legacy launchpad fee, block 27767017.
+  start: '2026-08-04', // first legacy launchpad fee, block 27767017
   pullHourly: true,
-  doublecounted: true, // Underlying Uniswap v4 fees and WTH recaptures are also tracked in their own listings.
-  allowNegativeValue: true, // Retained protocol income can be negative when older earned fees are allocated to the burn jar.
+  doublecounted: true, // Hookr pools are Uniswap v4 pools, and recaptured arbitrage is also in fees/what-the-hook.ts
+  allowNegativeValue: true, // protocol revenue is negative on days when fees earned earlier are moved to the burn jar
   methodology: {
     Fees:
-      'Hookr launch, trading, additional LP, tax, tokenizer and arbitrage fees on Robinhood, including supplier ' +
-      'shares and booked legacy LP fees; excludes modern pools’ ordinary Uniswap base fees and external OpenZaps ' +
-      'buybacks.',
+      'Fees charged by Hookr on Robinhood Chain: Hook Block swap charges, token taxes, recaptured arbitrage, revenue ' +
+      'token fees, launch fees, liquidity vault fees and fees of the earlier Hookr launchpads. Excludes Uniswap LP ' +
+      'fees, including the extra LP fees some Hook Blocks set (tracked under Uniswap v4), and the share of arbitrage ' +
+      'that What The Hook keeps.',
     Revenue:
-      'Hookr’s retained share of launch, trading, tax, tokenizer and recaptured-arbitrage fees after creator, ' +
-      'LP, trader, advisory, integrator and execution-partner allocations; excludes external OpenZaps income.',
+      "Hookr's share of the fees, after pool creators, integrators, advisory contracts, traders, LPs and partners are paid.",
     SupplySideRevenue:
-      'Included Hookr fees allocated to creators, LPs, traders, advisories, integrators, subject-token burns and ' +
-      'execution partners, including additional fees retained inside Uniswap.',
+      'The part of the fees paid to pool creators, integrators, advisory contracts, traders, LPs and partners, or ' +
+      "burned in a pool's own token.",
     ProtocolRevenue:
-      'Earned Hookr fee income after supplier obligations and verified allocations to dedicated burn mechanisms, ' +
-      'measured at allocation rather than burn; excludes unproven voluntary-wallet funding reclassifications.',
+      "Hookr's share of the fees minus what is set aside for HOOKR burns (the burn jar and the earlier flywheel). " +
+      'Negative on days when fees earned earlier are moved to the burn jar.',
     HoldersRevenue:
-      'Fee assets exchanged when jar redemptions burn HOOKR, actual legacy and OpenZaps-funded market buybacks, ' +
-      'and user fees burned directly in HOOKR; excludes arbitrary inventory burns and burns of other launched ' +
-      'tokens.',
+      'Value spent to burn HOOKR: fee assets the burn jar hands out for burned HOOKR, ETH spent by the earlier ' +
+      'flywheel and by OpenZaps campaigns to buy and burn HOOKR, and fees taken in HOOKR and burned.',
   },
-  breakdownMethodology,
+  breakdownMethodology: {
+    Fees: sourceLabels('fees'),
+    Revenue: sourceLabels('revenue'),
+    SupplySideRevenue: sourceLabels('supplySide'),
+    ProtocolRevenue: {
+      [RETAINED]:
+        "Hookr's share of the fees, minus fee assets moved to the burn jar and flywheel charges sent to the HOOKR " +
+        'buy-and-burn contract.',
+    },
+    HoldersRevenue: {
+      [HOLDERS.jar]: 'Fee assets the burn jar hands out to whoever burns the required HOOKR.',
+      [HOLDERS.legacy]: 'ETH the earlier flywheel contract spent buying HOOKR to burn.',
+      [HOLDERS.openzaps]:
+        'ETH OpenZaps campaigns spent buying HOOKR that they burned in the same transaction. Paid by OpenZaps, not ' +
+        'by Hookr fees.',
+      [HOLDERS.direct]: 'Fees taken in HOOKR in HOOKR pools and burned.',
+    },
+  },
 };
 
 export default adapter;

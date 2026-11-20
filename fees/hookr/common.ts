@@ -1,148 +1,137 @@
+import ADDRESSES from '../../helpers/coreAssets.json';
 import { Balances, ChainApi } from '@defillama/sdk';
 import { EventFragment, zeroPadValue } from 'ethers';
 import { FetchGetLogsOptions, FetchOptions } from '../../adapters/types';
 import { toPositionedLogArgs } from '../../helpers/logs';
-import { CONTRACT } from './config';
 
-export const lowercase = (value: any): string => String(value).toLowerCase();
+// Verified sources and deployment records: https://github.com/Hookr-fun/hookr-contracts
+// Earlier releases: https://hookr.fun/docs/previous-releases
+export const NATIVE = ADDRESSES.null;
+export const DEAD = '0x000000000000000000000000000000000000dead';
 
-export const toBigInt = (value: any): bigint => BigInt(value.toString());
-
-export type HookrLog = {
-  args: Record<string, any>;
-  address: string;
-  transactionHash: string;
-  blockNumber: number;
-  logIndex: number;
+// Deployment blocks, used as the start of history scans.
+export const BLOCK = {
+  registry: 82269732,
+  root: 82270270,
+  oldTokenizer: 92671598,
+  newTokenizer: 107699158,
+  jar: 102155576,
+  split: 102155618,
 };
 
-/** Preserve same-transaction ordering when replaying fee changes, funding and burns. */
-export const compareLogPosition = (firstLog: HookrLog, secondLog: HookrLog) =>
-  firstLog.blockNumber - secondLog.blockNumber || firstLog.logIndex - secondLog.logIndex;
-
-export const addressTopic = (address: string) => zeroPadValue(address, 32);
-
-export const eventTopic = (eventAbi: string) => EventFragment.from(eventAbi).topicHash;
-
-export const ABI = {
-  swap:
-    'event Swap(bytes32 indexed id,address indexed sender,int128 amount0,int128 amount1,uint160 sqrtPriceX96,' +
-    'uint128 liquidity,int24 tick,uint24 fee)',
-  transfer: 'event Transfer(address indexed from,address indexed to,uint256 value)',
-  allocated:
-    'event FeesAllocated(bytes32 indexed id,address indexed quote,uint256 protocol,uint256 royalty,' +
-    'uint256 refund,address advisoryRecipient,uint256 advisoryFee)',
-  recapture:
-    'event RecaptureSplit(bytes32 indexed id,address indexed trader,uint256 traderAmount,uint256 lp,' +
-    'uint256 pot,uint256 protocol,address currency,uint256 reportedProfit)',
-  correction:
-    'event CorrectionSucceeded(bytes32 indexed id,uint8 indexed phase,address indexed trader,' +
-    'uint256 reportedProfit,uint256 pushed,address currency)',
-  partner:
-    'event ProfitRecaptured(bytes32 indexed poolId,address indexed currency,uint256 treasuryAmount,' +
-    'uint256 hookAmount)',
-  oldPartner:
-    'event ArbitrageProfitSplit(address indexed profitCurrency,address indexed trader,address indexed creator,' +
-    'uint256 totalProfit,uint256 traderAmount,uint256 creatorAmount,uint256 triggerPoolAmount,' +
-    'uint256 wthProtocolAmount,uint256 hookrProtocolAmount)',
+export const CONTRACT = {
+  hookr: '0x18e674231a58c239dc7daedcffe15ec3a24cff5c', // HOOKR token
+  root: '0x89c9fb50d1f03192230ffb1c279bb6e7d3fe6acc', // first Hookr 1 root
+  registry: '0x463c82bea1a52f4cc05ca0741a24f0ad24ba4602', // registers every later Hookr 1 root
+  treasury: '0x2242f7fc75606500503075f29ea8cda684efb4a9', // treasury forwarder, protocolRecipient of Hookr's Rules
+  split: '0xe50df7069cac7b4f1ca63d79d26940dba35e5abb', // 50/50 revenue split (Safe + burn jar), treasury target since 2026-10-31
+  jar: '0xb4c20b8245440a3c489991a01a306d33b09047ca', // burn jar
+  releaser: '0xd4a9faaaabf5baf38390852627bd980782d83e75', // releases jar assets against burned HOOKR
+  launcher: '0x1cf2748a6670572425eabf9ab9e5bc4eb2eb8ef4',
+  rootFactory: '0xa6c2a401597301dff57a59bc8f70a9622499f3ec',
+  liquidityVault: '0xa408923ef811945ef119bc700b1950dab65467fc',
+  oldTokenizer: '0xfb3c1501c727f30883cd7b36ec380381af7412ef',
+  oldLegCollector: '0x7d79010cf29e548b55224f0ceedaed2275d65781', // Hookr's fee leg on original revenue tokens
+  newTokenizer: '0x08de138e558a9258c6b4077e8bdeb9ad1fb46a4b',
+  v2Registry: '0x5b7f1a117a83aaac15b0698aa4eb9d53fe5f5ba3', // earlier modular release
+  mechanics: '0xd700492b504ba5a72d7de28dde11cd7985a7f1ae', // earlier modular release fee module
+  legacyHook: '0xe7c3461a4c762ff9db4f91bee3cf8deaafc2e8cc', // generation-5 hook (flywheel charge)
+  legacyBurner: '0x8cee20fa000af3266ac2cd2cbeefbcd19d98fd89', // flywheel HOOKR buy-and-burn
+  poolManager: '0x8366a39cc670b4001a1121b8f6a443a643e40951', // Uniswap v4
 };
 
-export type FeeSource = {
-  fees: string;
-  revenue?: string;
-  supplySide?: string;
-  description: string;
-};
+// Roots of the earlier modular release; its pools count only when hosted by one of these.
+export const OLD_ROOTS = [
+  '0xb3ca29cf721380cee8b8e4755f3865ebc68fe8cc',
+  '0xb914f955294799de4b891bd2ea8af628fa1c68cc',
+  '0xc7c516cd5546bcb2592fe3f8aa91c2a4ba3768cc',
+  '0xa99902a2922014bbe2bf2dcf15742ac5104828cc',
+  '0xe5429db8f63912e632e86733905667aaeb6ea8cc',
+];
 
-// A missing destination means this source never pays it. These same labels generate the methodology.
+// Executors of the Hookr arbitrage integration that emit ArbitrageProfitSplit (also in fees/what-the-hook.ts).
+// All 4,080 splits they emitted between 2026-09-01 and 2026-11-20 pair with a successful correction on an OLD_ROOTS root.
+export const ARB_EXECUTORS = [
+  '0xc356cf51134e0df02bfe880115dd8c66ead45803',
+  '0x8d18dddedd529b7f9d90e65e75408ba2290ab276', // 2026-09-11 pilot
+  '0x45dce9f6e01478dc2d5edcf093eae0c0adb043bc', // 2026-09-12 pilot
+  '0x4650eeeb8093de5412246a4fbd7d08798fd0ec22', // listed by What The Hook, no splits yet
+];
+
+type FeeSource = { fees: string; revenue?: string; supplySide?: string; description: string };
+
+// Each fee source's labels. A missing destination means the source never pays it.
 export const SOURCES = {
-  direct: {
+  swap: {
     fees: 'Hook Swap Charges',
     revenue: 'Hook Swap Charges To Hookr',
-    supplySide: 'Hook Swap Charges To Creators And Advisories',
+    supplySide: 'Hook Swap Charges To Creators, Integrators And Advisories',
     description:
-      'Hookr quote charges allocated to the protocol, creators, integrators and advisories; refundable amounts ' +
-      'and tax-queue credits awaiting settlement are excluded.',
-  },
-  recapture: {
-    fees: 'Recaptured Arbitrage',
-    revenue: 'Recaptured Arbitrage To Hookr',
-    supplySide: 'Recaptured Arbitrage To Traders, LPs And Executors',
-    description:
-      'Realized arbitrage distributed through authenticated Hookr corrections, including the executor’s ' +
-      'separately retained leg in its actual payment currency.',
+      'Fees that Hook Blocks charge on swaps in Hookr pools, shared between Hookr, the pool creator, integrator apps ' +
+      'and advisory contracts. Token taxes are counted when they settle, under Tax And Conversion.',
   },
   tax: {
     fees: 'Tax And Conversion Settlements',
     revenue: 'Tax And Conversion To Hookr',
     supplySide: 'Tax And Conversion To Creators',
-    description:
-      'Directional-tax income when its queue books a settlement or pays ERC-6909 claims; the earlier credit and ' +
-      'later collection are not counted again.',
+    description: 'Buy and sell taxes collected by the Tax + Conversion Hook Block, counted once when they are settled.',
   },
-  lp: {
-    fees: 'Additional LP Swap Fees',
-    supplySide: 'Additional Swap Fees To LPs And Uniswap',
+  recapture: {
+    fees: 'Recaptured Arbitrage',
+    revenue: 'Recaptured Arbitrage To Hookr',
+    supplySide: 'Recaptured Arbitrage To Traders, LPs And Creators',
     description:
-      'Hookr-added LP fee components attributed from realized swap inputs and fee rates above each pool’s frozen ' +
-      'ordinary base fee, accounting for Uniswap protocol fees; excludes ordinary base LP fees.',
+      'Arbitrage profit captured in Hookr pools by the What The Hook integration and shared with traders, LPs, pool ' +
+      'creators and Hookr. The share What The Hook keeps is excluded; it is counted in its own listing.',
   },
   subject: {
     fees: 'Subject Token Burn Charges',
     supplySide: 'Subject Token Burns For Pool Participants',
-    description:
-      'Current and modular subject-token Auto Burn charges and legacy collected LP subject fees burned for that ' +
-      'pool’s participants, excluding HOOKR itself.',
+    description: "Fees taken in a pool's own launched token and burned, which benefits that token's holders.",
   },
-  directBurn: {
+  hookrBurn: {
     fees: 'HOOKR Token Burn Charges',
     revenue: 'HOOKR Token Fees Burned For Holders',
-    description:
-      'Fees charged and burned directly in HOOKR, benefiting this protocol’s holders; arbitrary inventory burns ' +
-      'are excluded.',
-  },
-  legacy: {
-    fees: 'Legacy Launch And Trading Fees',
-    revenue: 'Legacy Launch And Trading Fees To Hookr',
-    supplySide: 'Legacy Trading Fees To Creators',
-    description:
-      'Generation 3–5 creation and curve charges and legacy LP fees when booked; retained income is the change ' +
-      'in protocol fee balances plus withdrawals, including guard withholding.',
-  },
-  v2: {
-    fees: 'Modular Hook Charges',
-    revenue: 'Modular Hook Charges To Hookr',
-    supplySide: 'Modular Hook Charges To Creators And Pool Participants',
-    description:
-      'Modular native-mechanics protocol accruals and supplier quote allocations; net subject-token burns are ' +
-      'measured separately in the actual subject currency.',
+    description: 'Fees taken in HOOKR in HOOKR pools and burned.',
   },
   launch: {
     fees: 'Launch And Root Deployment Fees',
     revenue: 'Launch And Deployment Fees To Hookr',
-    description: 'Fees actually paid to launch pools and deploy owned roots.',
+    description: 'Fees paid to launch a pool or deploy an owned root.',
+  },
+  vault: {
+    fees: 'Liquidity Vault Performance Fees',
+    revenue: 'Liquidity Vault Performance Fees To Hookr',
+    description: 'Performance fee taken from the LP fees earned by the liquidity vault.',
   },
   tokenizer: {
     fees: 'Revenue Tokenizer Fees',
     revenue: 'Revenue Tokenizer Fees To Hookr',
     supplySide: 'Revenue Tokenizer Fees To Execution Partner',
     description:
-      'Original tokenizer collector income as it vests, with the documented 20% execution-partner obligation ' +
-      'deducted, plus actual delivery fees from the newer tokenizer.',
+      "Hookr's fee on income paid to revenue tokens. On the original tokenizer 20% of it is owed to What The Hook, " +
+      'the execution partner.',
+  },
+  modular: {
+    fees: 'Modular Hook Charges',
+    revenue: 'Modular Hook Charges To Hookr',
+    supplySide: 'Modular Hook Charges To Creators And Pool Participants',
+    description: 'Swap fees charged by pools of the earlier modular Hookr release.',
+  },
+  legacy: {
+    fees: 'Legacy Launch And Trading Fees',
+    revenue: 'Legacy Launch And Trading Fees To Hookr',
+    supplySide: 'Legacy Trading Fees To Creators',
+    description:
+      'Launch fees, bonding-curve trading fees and pool fees of the generation 3 to 5 Hookr launchpads, shared ' +
+      'between Hookr and token creators.',
   },
   flywheel: {
     fees: 'Legacy Flywheel Charges',
     revenue: 'Legacy Flywheel Charges For HOOKR Burns',
-    description:
-      'Generation-5 user charges irrevocably credited to the dedicated HOOKR market-buyback burner.',
+    description: 'Generation 5 swap charge sent to the HOOKR buy-and-burn contract.',
   },
-  vault: {
-    fees: 'Liquidity Vault Performance Fees',
-    revenue: 'Liquidity Vault Performance Fees To Hookr',
-    description:
-      'Performance fees charged on realized liquidity-vault earnings, excluding deposited principal.',
-  },
-} as const satisfies Record<string, FeeSource>;
+} satisfies Record<string, FeeSource>;
 
 export type Source = keyof typeof SOURCES;
 
@@ -152,116 +141,87 @@ export const HOLDERS = {
   jar: 'Fee Assets Exchanged For HOOKR Burns',
   legacy: 'Legacy HOOKR Market Buybacks',
   openzaps: 'OpenZaps Funded HOOKR Market Buybacks',
-  direct: 'HOOKR Token Fees Burned For Holders',
+  direct: SOURCES.hookrBurn.revenue,
 };
 
-/** Keep raw token units; the zero address denotes native ETH, not an ERC-20. */
+export type HookrLog = {
+  args: Record<string, any>;
+  address: string;
+  transactionHash: string;
+  blockNumber: number;
+  logIndex: number;
+};
+
+export const lowercase = (value: any): string => String(value).toLowerCase();
+export const toBigInt = (value: any): bigint => BigInt(value.toString());
+export const byPosition = (a: HookrLog, b: HookrLog) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex;
+export const eventTopic = (eventAbi: string) => EventFragment.from(eventAbi).topicHash;
+export const addressTopic = (address: string) => zeroPadValue(address, 32);
+
+/** Raw token units; the zero address is native ETH. */
 export function addCurrency(balance: Balances, currency: string, amount: bigint, label: string) {
-  // SDK Balances accepts the zero address for native ETH as well as ERC-20 addresses.
-  if (amount !== 0n) {
-    balance.add(lowercase(currency), amount.toString(), label);
-  }
+  if (amount !== 0n) balance.add(lowercase(currency), amount.toString(), label);
 }
 
-/** Share the five metric balances and their allocation rules across Hookr's fee sources. */
 export class FeeAccounting {
-  // This is also the fetch result; pricing remains the runner's responsibility.
-  readonly balances = {
-    dailyFees: this.options.createBalances(),
-    dailyRevenue: this.options.createBalances(),
-    dailySupplySideRevenue: this.options.createBalances(),
-    dailyProtocolRevenue: this.options.createBalances(),
-    dailyHoldersRevenue: this.options.createBalances(),
-  };
-  openingApi: ChainApi;
+  readonly balances: Record<
+    'dailyFees' | 'dailyRevenue' | 'dailySupplySideRevenue' | 'dailyProtocolRevenue' | 'dailyHoldersRevenue',
+    Balances
+  >;
+  readonly openingApi: ChainApi; // state just before the window, for counters read at both ends
 
-  constructor(
-    public options: FetchOptions,
-    public fromBlock: number,
-    public toBlock: number,
-  ) {
-    // getFromBlock is the first INCLUDED block. fromApi is pinned to that block too,
-    // so a cumulative-counter opening snapshot must explicitly read the preceding block.
+  constructor(readonly options: FetchOptions, readonly fromBlock: number, readonly toBlock: number) {
+    this.balances = {
+      dailyFees: options.createBalances(),
+      dailyRevenue: options.createBalances(),
+      dailySupplySideRevenue: options.createBalances(),
+      dailyProtocolRevenue: options.createBalances(),
+      dailyHoldersRevenue: options.createBalances(),
+    };
     this.openingApi = new ChainApi({ chain: options.chain, block: fromBlock - 1 });
   }
 
-  /** Book gross fees once, splitting the same token amount between Hookr and suppliers. */
+  /** Book a fee once: `revenue` of it is Hookr's, the rest goes to the source's supply side. */
   recordFees(source: Source, currency: string, gross: bigint, revenue: bigint) {
-    if (gross < 0n || revenue < 0n || revenue > gross) {
-      throw new Error(`Hookr: invalid ${source} allocation`);
-    }
-
+    if (gross < 0n || revenue < 0n || revenue > gross) throw new Error(`Hookr: invalid ${source} split`);
     const labels: FeeSource = SOURCES[source];
-    const supplierAmount = gross - revenue;
-    if ((revenue > 0n && !labels.revenue) || (supplierAmount > 0n && !labels.supplySide)) {
-      throw new Error(`Hookr: unexpected destination for ${source}`);
-    }
     addCurrency(this.balances.dailyFees, currency, gross, labels.fees);
-    if (labels.revenue) {
-      addCurrency(this.balances.dailyRevenue, currency, revenue, labels.revenue);
-    }
-    if (labels.supplySide) {
-      addCurrency(this.balances.dailySupplySideRevenue, currency, supplierAmount, labels.supplySide);
-    }
+    if (labels.revenue) addCurrency(this.balances.dailyRevenue, currency, revenue, labels.revenue);
+    if (labels.supplySide) addCurrency(this.balances.dailySupplySideRevenue, currency, gross - revenue, labels.supplySide);
     addCurrency(this.balances.dailyProtocolRevenue, currency, revenue, RETAINED);
   }
 
-  /** Remove fee-funded burn allocations from retained income; holder income waits for the burn. */
-  recordBurnFunding(currency: string, amount: bigint) {
-    if (amount < 0n) {
-      throw new Error('Hookr: negative burn allocation');
-    }
-
-    // Net capital allocations against the SAME retained-income label, not a negative expense row.
+  /** Fee income set aside for HOOKR burns leaves protocol revenue now and becomes holders revenue at the burn. */
+  setAsideForBurns(currency: string, amount: bigint) {
     addCurrency(this.balances.dailyProtocolRevenue, currency, -amount, RETAINED);
   }
 
-  /** Classify fee burns by whose token is retired: HOOKR holders or another pool's participants. */
-  recordSubjectBurn(currency: string, amount: bigint) {
-    if (lowercase(currency) !== CONTRACT.hookr) {
-      return this.recordFees('subject', currency, amount, 0n);
-    }
-
-    // A fee burned in HOOKR itself benefits this protocol's holders, unlike other launched subjects.
-    this.recordFees('directBurn', currency, amount, amount);
-    this.recordBurnFunding(currency, amount);
-    addCurrency(this.balances.dailyHoldersRevenue, currency, amount, HOLDERS.direct);
+  /** A fee taken in the pool's own token and burned: HOOKR burns benefit HOOKR holders, other burns that token's. */
+  recordTokenBurn(token: string, amount: bigint) {
+    if (lowercase(token) !== CONTRACT.hookr) return this.recordFees('subject', token, amount, 0n);
+    this.recordFees('hookrBurn', token, amount, amount);
+    this.setAsideForBurns(token, amount);
+    addCurrency(this.balances.dailyHoldersRevenue, token, amount, HOLDERS.direct);
   }
 
-  /** Fetch targeted logs with the position, emitter and transaction needed for provenance checks. */
+  /** Window logs (or from `extra.fromBlock`) with emitter, tx hash and position, in on-chain order. */
   async getLogs(targets: string[], eventAbi: string, extra: FetchGetLogsOptions = {}): Promise<HookrLog[]> {
     const fromBlock = extra.fromBlock ?? this.fromBlock;
-    if (!targets.length || fromBlock > this.toBlock) {
-      return [];
-    }
-
+    if (!targets.length || fromBlock > this.toBlock) return [];
     const logs = await this.options.getLogs({
       targets,
       eventAbi,
       onlyArgs: false,
-      fromBlock,
       toBlock: this.toBlock,
       ...extra,
+      fromBlock,
     });
-    const allowed = new Set(targets.map(lowercase));
-
     return logs
-      .map(log => {
-        // Reuse the repository's position validation, retaining the transaction and emitter too.
+      .map((log: any) => {
         const { blockNumber, logIndex } = toPositionedLogArgs(log);
         const transactionHash = lowercase(log.transactionHash ?? log.transaction_hash);
-        if (!allowed.has(lowercase(log.address)) || !/^0x[0-9a-f]{64}$/.test(transactionHash)) {
-          throw new Error('Hookr: malformed or unscoped event');
-        }
-
-        return {
-          args: log.args,
-          address: lowercase(log.address),
-          transactionHash,
-          blockNumber,
-          logIndex,
-        };
+        return { args: log.args, address: lowercase(log.address), transactionHash, blockNumber, logIndex };
       })
-      .sort(compareLogPosition);
+      .sort(byPosition);
   }
 }
