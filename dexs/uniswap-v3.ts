@@ -7,6 +7,7 @@ import { addOneToken } from "../helpers/prices";
 import { queryDune } from "../helpers/dune";
 import { httpPost } from "../utils/fetchURL";
 import { DUNE_DEX_BLACKLIST_TABLE, getDexTokensBlacklisted } from "../helpers/lists";
+import { METRIC } from "../helpers/metrics";
 import {
   getEstablishedTokens, getUniV3LogAdapter, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES,
   WASH_MIN_USD, WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
@@ -57,7 +58,7 @@ async function fetchHoldersRevenue(options: FetchOptions) {
   if (!releaseLogs.length || !threshold) return dailyHoldersRevenue
 
   const amount = Number(releaseLogs.length) * Number(threshold) / 1e18
-  dailyHoldersRevenue.addCGToken("uniswap", amount)
+  dailyHoldersRevenue.addCGToken("uniswap", amount, 'Fees Used To Burn UNI')
   return dailyHoldersRevenue
 }
 
@@ -206,18 +207,18 @@ async function fetchFromDune(options: FetchOptions) {
     // one priceable side = swap volume (mirrors the on-chain adapter)
     addOneToken({ chain: options.chain, balances: dailyVolume, token0, token1, amount0, amount1 });
     const fee = poolFees[i] ? Number(poolFees[i]) / 1e6 : 0;
-    if (fee) addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: Number(amount0) * fee, amount1: Number(amount1) * fee });
+    if (fee) addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: Number(amount0) * fee, amount1: Number(amount1) * fee, label: METRIC.SWAP_FEES });
   });
 
   const dailyHoldersRevenue = await fetchHoldersRevenue(options);
-  const dailyRevenue = await dailyHoldersRevenue.getUSDValue();
-  const dailySupplySideRevenue = (await dailyFees.getUSDValue()) - dailyRevenue;
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addUSDValue((await dailyFees.getUSDValue()) - (await dailyHoldersRevenue.getUSDValue()), 'Swap Fees To Liquidity Providers');
 
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue,
+    dailyRevenue: dailyHoldersRevenue,
     dailyProtocolRevenue: 0,
     dailyHoldersRevenue,
     dailySupplySideRevenue,
@@ -240,16 +241,19 @@ async function fetchFromOku(options: FetchOptions) {
   if (!Array.isArray(response)) return {};
 
   const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
-  const dailyFees = response.reduce((acc, item) => acc + item.fees, 0);
+  const fees = response.reduce((acc, item) => acc + item.fees, 0);
+  const dailyFees = options.createBalances();
+  dailyFees.addUSDValue(fees, METRIC.SWAP_FEES);
   const dailyHoldersRevenue = await fetchHoldersRevenue(options);
-  const dailyRevenue = await dailyHoldersRevenue.getUSDValue();
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addUSDValue(fees - (await dailyHoldersRevenue.getUSDValue()), 'Swap Fees To Liquidity Providers');
 
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees - dailyRevenue,
-    dailyRevenue,
+    dailySupplySideRevenue,
+    dailyRevenue: dailyHoldersRevenue,
     dailyProtocolRevenue: 0,
     dailyHoldersRevenue,
   }
@@ -272,7 +276,7 @@ async function fetchFromLogs(options: FetchOptions) {
     throw new Error(`uniswap-v3: factory not found for chain ${options.chain}`);
   }
 
-  const { dailyVolume, dailyFees, dailyUserFees } = await getUniV3LogAdapter({
+  const { dailyVolume, dailyFees } = await getUniV3LogAdapter({
     factory,
     userFeesRatio: 1,
     revenueRatio: 0,
@@ -284,12 +288,12 @@ async function fetchFromLogs(options: FetchOptions) {
   const dailyHoldersRevenue = await fetchHoldersRevenue(options);
   const feesToLps = (await dailyFees.getUSDValue()) - (await dailyHoldersRevenue.getUSDValue());
   const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addUSDValue(feesToLps, "LP fees");
+  dailySupplySideRevenue.addUSDValue(feesToLps, 'Swap Fees To Liquidity Providers');
 
   return {
     dailyVolume,
     dailyFees,
-    dailyUserFees,
+    dailyUserFees: dailyFees,
     dailyRevenue: dailyHoldersRevenue,
     dailyProtocolRevenue: 0,
     dailyHoldersRevenue,
@@ -359,10 +363,29 @@ const methodology = {
   HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood, From 5 Oct 2026, on Arc',
 }
 
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: 'Swap fees paid by users.',
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: 'Swap fees paid by users.',
+  },
+  Revenue: {
+    'Fees Used To Burn UNI': 'Share of Uniswap v2, v3 and v4 swap fees collected by the fee switch, released to whoever burns UNI at the Firepit, valued as the UNI burned.',
+  },
+  SupplySideRevenue: {
+    'Swap Fees To Liquidity Providers': 'v3 swap fees minus the fee switch share of v2, v3 and v4, can be negative when the buyback exceeds v3 fees.',
+  },
+  HoldersRevenue: {
+    'Fees Used To Burn UNI': 'Share of Uniswap v2, v3 and v4 swap fees collected by the fee switch, released to whoever burns UNI at the Firepit, valued as the UNI burned.',
+  },
+}
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   methodology,
+  breakdownMethodology,
   adapter: chainConfig,
   prefetch,
   // supply side can be negative on days revenue (v2+v3 buyback) exceeds v3 fees

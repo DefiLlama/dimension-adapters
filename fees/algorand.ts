@@ -15,11 +15,16 @@ const toMicroAlgos = (value: any, field: string, round: number): number => {
   return value;
 };
 
-// Fee share of the proposer payout in every block of the window. An eligible proposer gets
-// bonus + 50% of fees-collected out of the fee sink, an ineligible one gets nothing (no proposer-payout field).
-const getProposerFees = async (startDate: string, endDate: string) => {
+// Block headers of the window: round range plus the fee share of the proposer payout in every block.
+// An eligible proposer gets bonus + 50% of fees-collected out of the fee sink, an ineligible one gets nothing (no proposer-payout field).
+// block-headers filters on each block's own timestamp; the transactions endpoint turns after/before-time into a round bound
+// that drops a block sharing its second with the previous one at the window edge (round 67086699 at 2026-11-18T23:59:56Z, same second as 67086698).
+const getBlockHeaders = async (startDate: string, endDate: string) => {
   let proposerFees = 0;
   let feesCollected = 0;
+  let minRound = Infinity;
+  let maxRound = -Infinity;
+  let blockCount = 0;
   let nextToken: string | undefined = undefined;
   let requestCount = 0;
   const MAX_REQUESTS = 100;
@@ -36,6 +41,9 @@ const getProposerFees = async (startDate: string, endDate: string) => {
     }
 
     for (const block of blocks) {
+      minRound = Math.min(minRound, block.round);
+      maxRound = Math.max(maxRound, block.round);
+      blockCount++;
       const blockFees = toMicroAlgos(block['fees-collected'], 'fees-collected', block.round);
       feesCollected += blockFees;
       const payout = toMicroAlgos(block['proposer-payout'], 'proposer-payout', block.round);
@@ -52,7 +60,9 @@ const getProposerFees = async (startDate: string, endDate: string) => {
     if (!blocks.length) break;
   } while (nextToken);
 
-  return { proposerFees, feesCollected };
+  if (!blockCount) throw new Error(`algorand: no block headers between ${startDate} and ${endDate}`);
+  if (maxRound - minRound + 1 !== blockCount) throw new Error(`algorand: ${blockCount} block headers for rounds ${minRound}-${maxRound} between ${startDate} and ${endDate}`);
+  return { proposerFees, feesCollected, minRound, maxRound };
 };
 
 const innerTxnFees = (txn: any): number =>
@@ -67,18 +77,20 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  // Convert to ISO format for the API
+  // Convert to ISO format for the API; after-time and before-time are both exclusive
   const startDate = new Date((options.startTimestamp - 1) * 1000).toISOString();
   const endDate = new Date(options.endTimestamp * 1000).toISOString();
+
+  const { proposerFees, feesCollected, minRound, maxRound } = await getBlockHeaders(startDate, endDate);
 
   let totalFees = 0;
   let nextToken: string | undefined = undefined;
   let requestCount = 0;
   const MAX_REQUESTS = 1000;
 
-  // Query transactions from AlgoNode public indexer (more reliable)
+  // Query transactions of the window's rounds (min-round and max-round are inclusive) from AlgoNode public indexer
   do {
-    let url = `https://mainnet-idx.algonode.cloud/v2/transactions?after-time=${startDate}&before-time=${endDate}&limit=1000`;
+    let url = `https://mainnet-idx.algonode.cloud/v2/transactions?min-round=${minRound}&max-round=${maxRound}&limit=1000`;
     if (nextToken) {
       url += `&next=${nextToken}`;
     }
@@ -105,7 +117,6 @@ const fetch = async (options: FetchOptions) => {
     }
   } while (nextToken);
 
-  const { proposerFees, feesCollected } = options.endTimestamp > PAYOUTS_START ? await getProposerFees(startDate, endDate) : { proposerFees: 0, feesCollected: 0 };
   // headers carry fees-collected only after the upgrade; it must match the transaction scan, or the two indexer reads saw different blocks
   if (options.startTimestamp >= PAYOUTS_START && feesCollected !== totalFees) {
     throw new Error(`algorand: block headers collected ${feesCollected} in fees but transactions paid ${totalFees} between ${startDate} and ${endDate}`);

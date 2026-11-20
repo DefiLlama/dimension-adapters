@@ -35,6 +35,8 @@ export const RainCoordinatorContracts: Record<string, { address: string; start: 
   [CHAIN.OPTIMISM]: { address: "0x0bbB2e4C8F159406ADD28506F33D20Fbec4E57F4", start: 1793750400 },
   // https://repo.sourcify.dev/43114/0x0bbB2e4C8F159406ADD28506F33D20Fbec4E57F4
   [CHAIN.AVAX]: { address: "0x0bbB2e4C8F159406ADD28506F33D20Fbec4E57F4", start: 1793750400 },
+  // same address and bytecode as Optimism; first Liquidation in block 96786407 (2026-11-05)
+  [CHAIN.POLYGON]: { address: "0x0bbB2e4C8F159406ADD28506F33D20Fbec4E57F4", start: 1793750400 },
 };
 
 export interface RainCardChainConfig {

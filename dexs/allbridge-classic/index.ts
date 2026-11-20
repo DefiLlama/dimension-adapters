@@ -1,7 +1,7 @@
-import { Dependencies, FetchOptions, SimpleAdapter } from '../../adapters/types';
-import { queryAllium } from '../../helpers/allium';
+import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import ADDRESSES from '../../helpers/coreAssets.json';
+import { fetchURLAutoHandleRateLimit } from '../../utils/fetchURL';
 
 const EVM_BRIDGE = '0xBBbD1BbB4f9b936C3604906D7592A644071dE884'
 // emitted by lock()/lockBase(); amount is what gets bridged after the fee, in the local token's decimals
@@ -13,6 +13,8 @@ const ZERO_ADDRESS = ADDRESSES.null
 
 // current Stacks bridge (deployed 2024-02-19) and the legacy one it replaced
 const STACKS_BRIDGES = ['SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.bridge', 'SP31MH65V85NDTM30FJBKP4JNC39HR1ZX3CRW9Z97.bridge']
+const HIRO_API = 'https://api.hiro.so/extended'
+const HIRO_PAGE_SIZE = 50 // largest page /v1/tx serves
 
 const chainConfig: Record<string, { start: string }> = {
   [CHAIN.ETHEREUM]: { start: '2021-11-13' },
@@ -89,50 +91,40 @@ async function fetchEvmSends(options: FetchOptions) {
 async function fetchStacksSends(options: FetchOptions) {
   const volume = options.createBalances()
   const fees = options.createBalances()
-  const bridges = STACKS_BRIDGES.map((bridge) => `'${bridge}'`).join(', ')
+  const { startTimestamp, endTimestamp } = options
+
+  const tip = await fetchURLAutoHandleRateLimit(`${HIRO_API}/v2/blocks?limit=1`)
+  const tipTime = tip?.results?.[0]?.block_time
+  if (typeof tipTime !== 'number') throw new Error('allbridge-classic: unexpected Hiro blocks response')
+  if (tipTime < endTimestamp) throw new Error(`allbridge-classic: Hiro has no Stacks block after ${endTimestamp} yet (tip ${tipTime})`)
+
+  const lockTxIds = new Set<string>()
+  for (const bridge of STACKS_BRIDGES) {
+    for (let offset = 0; ; offset += HIRO_PAGE_SIZE) {
+      const res = await fetchURLAutoHandleRateLimit(`${HIRO_API}/v1/tx?contract_id=${bridge}&function_name=lock&start_time=${startTimestamp - 6 * 3600}&end_time=${endTimestamp + 2 * 3600}&limit=${HIRO_PAGE_SIZE}&offset=${offset}`)
+      if (!Array.isArray(res?.results) || typeof res.total !== 'number') throw new Error(`allbridge-classic: unexpected Hiro tx list response for ${bridge}`)
+      for (const tx of res.results) {
+        if (tx.tx_status === 'success' && tx.block_time >= startTimestamp && tx.block_time < endTimestamp) lockTxIds.add(tx.tx_id)
+      }
+      if (offset + HIRO_PAGE_SIZE >= res.total) break
+    }
+  }
 
   // lock() moves the fee from the user to the fee collector and the rest to the bridge (wrapped tokens burn on that transfer)
-  // later_txs guards against Allium ingestion lag: an empty window only counts once later Stacks transactions are indexed
-  const rows: { later_txs: number; token: string | null; kind: string | null; amount: string | null }[] = await queryAllium(`
-    WITH lock_events AS (
-      SELECT
-        SPLIT_PART(e.event_contents:asset:asset_id::string, '::', 1) AS token,
-        CASE
-          WHEN e.event_contents:asset:asset_event_type::string = 'burn'
-            OR e.event_contents:asset:recipient::string IN (${bridges}) THEN 'locked'
-          WHEN e.event_contents:asset:asset_event_type::string = 'transfer' THEN 'fee'
-        END AS kind,
-        e.event_contents:asset:amount::number AS amount
-      FROM stacks.raw.events e
-      JOIN stacks.raw.transactions t ON e.tx_id = t.tx_id
-      WHERE e.burn_block_time >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-        AND e.burn_block_time < TO_TIMESTAMP_NTZ(${options.endTimestamp})
-        AND t.burn_block_time >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
-        AND t.burn_block_time < TO_TIMESTAMP_NTZ(${options.endTimestamp})
-        AND t.tx_status = 'success'
-        AND t.canonical
-        AND t.tx_contents:contract_call:contract_id::string IN (${bridges})
-        AND t.tx_contents:contract_call:function_name::string = 'lock'
-        AND e.event_type = 'fungible_token_asset'
-    ),
-    ingested AS (
-      SELECT COUNT(*) AS later_txs
-      FROM stacks.raw.transactions
-      WHERE burn_block_time >= TO_TIMESTAMP_NTZ(${options.endTimestamp})
-        AND burn_block_time < TO_TIMESTAMP_NTZ(${options.endTimestamp + 6 * 3600})
-    )
-    SELECT i.later_txs, l.token, l.kind, SUM(l.amount)::string AS amount
-    FROM ingested i
-    LEFT JOIN lock_events l ON l.kind IS NOT NULL
-    GROUP BY 1, 2, 3
-  `)
-
-  if (!rows.length || !Number(rows[0].later_txs)) throw new Error(`allbridge-classic: Allium has no Stacks transactions after ${options.endTimestamp} yet`)
-
-  for (const { token, kind, amount } of rows) {
-    if (!token || !amount) continue
-    if (kind === 'locked') volume.add(token, amount)
-    else fees.add(token, amount)
+  const txIds = [...lockTxIds]
+  for (let i = 0; i < txIds.length; i += 20) {
+    const batch = txIds.slice(i, i + 20)
+    const res = await fetchURLAutoHandleRateLimit(`${HIRO_API}/v1/tx/multiple?${batch.map((id) => `tx_id=${id}`).join('&')}&event_limit=50`)
+    for (const txId of batch) {
+      const tx = res?.[txId]?.found ? res[txId].result : undefined
+      if (!Array.isArray(tx?.events) || tx.events.length < tx.event_count) throw new Error(`allbridge-classic: missing Hiro events for Stacks tx ${txId}`)
+      for (const { event_type, asset } of tx.events) {
+        if (event_type !== 'fungible_token_asset') continue
+        const token = asset.asset_id.split('::')[0]
+        if (asset.asset_event_type === 'burn' || STACKS_BRIDGES.includes(asset.recipient)) volume.add(token, asset.amount)
+        else if (asset.asset_event_type === 'transfer') fees.add(token, asset.amount)
+      }
+    }
   }
 
   return { volume, fees }
@@ -178,7 +170,6 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   adapter: chainConfig,
-  dependencies: [Dependencies.ALLIUM],
   methodology,
   breakdownMethodology,
 }

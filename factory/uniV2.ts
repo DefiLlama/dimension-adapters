@@ -28,6 +28,14 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "plunderswap": {
+    // PlunderSwap V2. Factory from the plunderswap TVL adapter (DefiLlama-Adapters registries/uniswapV2.js); verified PlunderFactory/PlunderPair
+    // source charges 35/10000 per swap: https://zilliqa.blockscout.com/address/0xf42d1058f233329185A36B04B7f96105afa1adD2?tab=contract
+    // replaces the static.plunderswap.com/volume-history API, which returns 404
+    // start: api.zilliqa.com returns null for blocks before 4,770,089 (2025-06-25 09:14 UTC), so earlier days cannot be read
+    // volume only: the listing has no fees adapter
+    [CHAIN.ZILLIQA]: { factory: '0xf42d1058f233329185A36B04B7f96105afa1adD2', start: '2025-06-26', fees: 0.0035, customLogic: volumeOnly },
+  },
   "wemix.fi": {
     // factory from the wemix-fi TVL adapter (DefiLlama-Adapters registries/uniswapV2.js), deployed block 207061 (2022-10-22)
     // volume only: pair source unverified, fee split unknown
@@ -1238,7 +1246,7 @@ const configs: Record<string, Record<string, any>> = {
   },
   "justmoney": {
     // useSyncReserves: the public BitTorrent RPC is not archival, so pool balances at a past block cannot be read
-    [CHAIN.BITTORRENT]: { factory: '0x4dEb2f0976DC3Bf351555524B3A24A4feA4e137E', fees: 0.003, useSyncReserves: true, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+    [CHAIN.BITTORRENT]: { factory: '0x4dEb2f0976DC3Bf351555524B3A24A4feA4e137E', fees: 0.003, useSyncReserves: true, scanLogsByTopic: true, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
     [CHAIN.BSC]: { factory: '0xF2Fb1b5Be475E7E1b3C31082C958e781f73a1712', start: '2021-09-21', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
     [CHAIN.ETHEREUM]: { factory: '0xd36Aba9Ec96523b0A89886c76065852aDFE2Eb39', start: '2021-10-07', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
     [CHAIN.POLYGON]: { factory: '0xD36ABA9EC96523B0A89886C76065852ADFE2EB39', start: '2021-12-02', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
@@ -1252,6 +1260,9 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "plunderswap": {
+    Volume: "Swap volume on PlunderSwap V2 pairs on Zilliqa.",
+  },
   "sumswap": {
     Volume: "Swap volume on Sumswap pairs on Ethereum.",
     Fees: "Traders pay a 0.3% fee on every swap.",
@@ -1786,10 +1797,10 @@ const deadFromMap: Record<string, string> = {
   "jswap": '2023-03-03',
   "okcswap": '2025-10-22',
   "bcswap": '2026-10-27',
-  // Meter halted at block 100768776 on 2026-09-24 and rpc.meter.io now returns HTTP 530 (Cloudflare 1033);
-  // last recorded volume on both adapters was 2026-09-24 ($4,501 and $13,269).
-  "voltswap-v1": '2026-09-25',
-  "voltswap-v2": '2026-09-25',
+  "vanillaswap-v2": '2026-11-14',
+  // Meter halted at block 100768776 on 2026-09-24 after an exploit; blocks after 100731417 may not be honored
+  "voltswap-v1": '2026-09-24',
+  "voltswap-v2": '2026-09-24',
 }
 
 // Fees-specific configs (same protocol name may have different config for fees vs dexs)
@@ -2370,6 +2381,17 @@ protocols['reddex'].adapter[CHAIN.REDBELLY].fetch = async (options: FetchOptions
     },
   })
 
+// For RPCs that cannot serve one getLogs per pair: scan the window once by Swap topic in maxBlockRange-block chunks
+// and hand each pair its own logs, in the per-target shape getUniV2LogAdapter expects.
+const getLogsByTopicScan = (options: FetchOptions, maxBlockRange: number) =>
+  async ({ targets, flatten = true, onlyArgs = true, ...params }: any) => {
+    const logs = await options.getLogs({ ...params, noTarget: true, onlyArgs: false, maxBlockRange })
+    const byPair: Record<string, any[]> = {}
+    for (const log of logs) (byPair[log.address.toLowerCase()] ??= []).push(onlyArgs ? log.args : log)
+    const results = targets.map((pair: string) => byPair[pair.toLowerCase()] ?? [])
+    return flatten ? results.flat() : results
+  }
+
 // ENI RPCs allow about 10 eth_getLogs per 10 s per IP, shared across hosts, so one call per pool (~42 per hourly
 // window) 429s. They also answer a range with only the logs of its first 2,000 blocks and no error (a 3,500-block
 // hourly window lost about half its swaps). Instead, scan the window once by Swap topic in 1,800-block chunks
@@ -2377,16 +2399,11 @@ protocols['reddex'].adapter[CHAIN.REDBELLY].fetch = async (options: FetchOptions
 // only 8 contracts emitted this Swap topic chain-wide, so the scan returns little beyond the factory's pairs.
 const ENI_LOG_CHUNK_BLOCKS = 1800
 protocols['daoaas-swap'].adapter[CHAIN.ENI].fetch = async (options: FetchOptions) =>
-  getUniV2LogAdapter(configs['daoaas-swap'][CHAIN.ENI])({
-    ...options,
-    getLogs: async ({ targets, flatten = true, onlyArgs = true, ...params }: any) => {
-      const logs = await options.getLogs({ ...params, noTarget: true, onlyArgs: false, maxBlockRange: ENI_LOG_CHUNK_BLOCKS })
-      const byPair: Record<string, any[]> = {}
-      for (const log of logs) (byPair[log.address.toLowerCase()] ??= []).push(onlyArgs ? log.args : log)
-      const results = targets.map((pair: string) => byPair[pair.toLowerCase()] ?? [])
-      return flatten ? results.flat() : results
-    },
-  })
+  getUniV2LogAdapter(configs['daoaas-swap'][CHAIN.ENI])({ ...options, getLogs: getLogsByTopicScan(options, ENI_LOG_CHUNK_BLOCKS) })
+
+const ZILLIQA_LOG_CHUNK_BLOCKS = 30
+protocols['plunderswap'].adapter[CHAIN.ZILLIQA].fetch = async (options: FetchOptions) =>
+  getUniV2LogAdapter(configs['plunderswap'][CHAIN.ZILLIQA])({ ...options, getLogs: getLogsByTopicScan(options, ZILLIQA_LOG_CHUNK_BLOCKS) })
 
 // This contract's same-transaction round trips through this pool produce no net DAI trade.
 protocols['rocketswap-anubis'].adapter[CHAIN.ANUBI].fetch = async (options: FetchOptions) =>

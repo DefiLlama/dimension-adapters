@@ -98,6 +98,9 @@ const configs: Record<string, CuratorConfig> = {
           '0xA2EAaD0D586cF9FD73bb2c09cF6A7E3e187D68cd', // Wintermute USDC Select
           '0x55C1B6e461a6334B567bAF0FEb5D728715446f05', // Pendle Ecosystem USDC
           '0xcf609F8327E68b42AF54F9D529b9f65d68038435', // Pendle Ecosystem High Yield USDC
+          '0x500aE64100D7DbDb640531085C2F5d40cDC8930D', // Wintermute USDT Select
+          '0xBf29043164660C60A2a72Cd15FFe2304e87B6838', // Wintermute USDT Prime
+          '0x3d5EcCb62974178236A768A7ef14D3ce468Fbe91', // Wintermute Confidential WBTC
         ],
       },
     },
@@ -236,6 +239,9 @@ const configs: Record<string, CuratorConfig> = {
     vaults: {
       [CHAIN.HYPERLIQUID]: {
         morpho: ['0x835febf893c6dddee5cf762b0f8e31c5b06938ab', '0xfc5126377f0efc0041c0969ef9ba903ce67d151e', '0x9c59a9389d8f72de2cdaf1126f36ea4790e2275e', '0x2900ABd73631b2f60747e687095537B673c06A76', '0x9896a8605763106e57A51aa0a97Fe8099E806bb3', '0x66c71204B70aE27BE6dC3eb41F9aF5868E68fDb6', '0x8A862fD6c12f9ad34C9c2ff45AB2b6712e8CEa27', '0x207ccaE51Ad2E1C240C4Ab4c94b670D438d2201C', '0x808F72b6Ff632fba005C88b49C2a76AB01CAB545', '0x274f854b2042DB1aA4d6C6E45af73588BEd4Fc9D'],
+        // Morpho V2 vaults: Felix USDC V2, Felix USDT0 V2 and Felix HYPE V2 all have 0xDd00...8f6c as the
+        // owner in their CreateVaultV2 event. The TVL side already resolves them through the same owner.
+        morphoVaultV2Owners: ['0xDd00059904ddF45e30b4131345957f76F26b8f6c'],
       },
     },
   },
@@ -681,6 +687,9 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.ARBITRUM]: {
         morphoVaultOwners: ['0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8'],
         morphoVaultV2Owners: ['0x0b1aA22117E38f260e0F3aB3b0F12a22c2691ffC'],
+        // Steakhouse USDG Pro: its CreateVaultV2 owner is the deployer contract 0x8581f3a7 (block 512247107),
+        // so owner discovery misses it. Listed as Steakhouse Financial on api.morpho.org.
+        morphoV2: ['0xbeeFf72B77e7584a450E887125F25E8D8819016a'],
         start: '2025-07-17',
       },
       [CHAIN.KATANA]: {
@@ -692,6 +701,9 @@ const configs: Record<string, CuratorConfig> = {
       [CHAIN.MONAD]: {
         morphoVaultOwners: ['0x0000aeB716a0DF7A9A1AAd119b772644Bc089dA8'],
         morphoVaultV2Owners: ['0xD546Dc0dB55c28860176147b2D0FEFcc533eCf08'],
+        // Steakhouse Prime ETH: its CreateVaultV2 owner is 0x2b1d7d0c (block 48733591), not the owner above.
+        // Listed as Steakhouse Financial on api.morpho.org.
+        morphoV2: ['0xbeef04b01e0275D4ac2e2986256BB14E3Ff6ef42'],
         start: '2025-12-15',
       },
       [CHAIN.ROBINHOOD]: {

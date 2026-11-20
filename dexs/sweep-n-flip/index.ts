@@ -54,22 +54,27 @@ const chainConfig: any = {
     subgraph: 'https://api.goldsky.com/api/public/project_cmoiys0pk3brg01un76ukdj5r/subgraphs/snf-hyperevm/2.0.0/gn',
     start: '2025-08-23'
   },
-  [CHAIN.APECHAIN]: {
-    subgraph: 'https://api.goldsky.com/api/public/project_cmnyu0s049bde01vr754rehxg/subgraphs/snf-apechain/2.0.0/gn',
-    start: '2026-04-28'
-  },
-  [CHAIN.BERACHAIN]: {
-    subgraph: 'https://api.goldsky.com/api/public/project_cmejhyc7rqen501wed6sxgbn3/subgraphs/snf-berachain/2.0.0/gn',
-    start: '2026-04-28'
-  },
+  // ApeChain + Berachain disabled 2026-11-19: snf-apechain/snf-berachain 2.0.0 deleted on Goldsky (404 under both
+  // project ids, including the one app.sweepnflip.io still points at). Factory 0x85039B2e95558aDdCCf4379728b8433C447E37bE
+  // has 2 pairs per chain, one empty; the other last synced 2026-05-07 (ApeChain) / 2026-05-22 (Berachain).
+  // [CHAIN.APECHAIN]: {
+  //   subgraph: 'https://api.goldsky.com/api/public/project_cmnyu0s049bde01vr754rehxg/subgraphs/snf-apechain/2.0.0/gn',
+  //   start: '2026-04-28'
+  // },
+  // [CHAIN.BERACHAIN]: {
+  //   subgraph: 'https://api.goldsky.com/api/public/project_cmejhyc7rqen501wed6sxgbn3/subgraphs/snf-berachain/2.0.0/gn',
+  //   start: '2026-04-28'
+  // },
   [CHAIN.MONAD]: {
     subgraph: 'https://api.goldsky.com/api/public/project_cmngb5qq6d79v01wba5bi7hdg/subgraphs/snf-monad/2.0.0/gn',
     start: '2026-03-30'
   },
-  [CHAIN.ABSTRACT]: {
-    subgraph: 'https://api.goldsky.com/api/public/project_cmejhyc7rqen501wed6sxgbn3/subgraphs/snf-abstract/2.0.0/gn',
-    start: '2026-06-15'
-  },
+  // Abstract disabled 2026-11-19: snf-abstract subgraph deleted on Goldsky (404) and the chain is no longer in the
+  // app.sweepnflip.io front-end config.
+  // [CHAIN.ABSTRACT]: {
+  //   subgraph: 'https://api.goldsky.com/api/public/project_cmejhyc7rqen501wed6sxgbn3/subgraphs/snf-abstract/2.0.0/gn',
+  //   start: '2026-06-15'
+  // },
   [CHAIN.RONIN]: {
     subgraph: 'https://api.goldsky.com/api/public/project_cmo0byz6wpdci01vt2k7p3l2q/subgraphs/snf-ronin/2.0.0/gn',
     start: '2026-06-15'

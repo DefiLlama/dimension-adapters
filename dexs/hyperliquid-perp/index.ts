@@ -9,10 +9,10 @@ import { queryHyperliquidIndexerV2 } from "../../helpers/hyperliquid-v2";
 
 const methodology = {
   Volume: "Track trading volume on all perps markets (including HIP-3 markets), excluding all spot markets volume.",
-  Fees: "Include perps trading fees on crypto and HIP-3 deployed markets + builders fees, plus Hyperliquid's 90% share of cost-adjusted reserve yield from AQAv2 stablecoin deployers since 27 Aug 2026, excluding all spot fees.",
-  Revenue: "99% of fees go to Assistance Fund for buying HYPE tokens, excluding builders fees, plus Hyperliquid's 90% share of AQAv2 stablecoin reserve yield since 27 Aug 2026.",
+  Fees: "Include perps trading fees on crypto and HIP-3 deployed markets + builders fees, plus Hyperliquid's 90% share of cost-adjusted reserve yield from AQAv2 stablecoin deployers since 27 Aug 2026, plus HYPE order priority fees since 13 Apr 2026 and gossip priority fees since 20 Apr 2026 (network-level, not specific to perps), excluding all spot fees.",
+  Revenue: "99% of fees go to Assistance Fund for buying HYPE tokens, excluding builders fees, plus Hyperliquid's 90% share of AQAv2 stablecoin reserve yield since 27 Aug 2026, plus all priority fees, which are burned.",
   ProtocolRevenue: "Protocol doesn't keep any fees.",
-  HoldersRevenue: "99% of fees go to Assistance Fund for buying HYPE tokens, excluding builders fees, plus Hyperliquid's 90% share of AQAv2 stablecoin reserve yield since 27 Aug 2026.",
+  HoldersRevenue: "99% of fees go to Assistance Fund for buying HYPE tokens, excluding builders fees, plus Hyperliquid's 90% share of AQAv2 stablecoin reserve yield since 27 Aug 2026, plus all priority fees, which are burned.",
   SupplySideRevenue: "1% of fees go to HLP Vault suppliers, before 30 Aug 2025 it was 3% + fees for builders.",
 }
 
@@ -20,12 +20,14 @@ const breakdownMethodology = {
   Fees: {
     'Perp Fees': 'Perp trade fees collected as revenue, excluding spot fee.',
     'Builder Code Fees': 'Fees added on top by other platforms building on top of Hyperliquid.',
-    'Priority Fees': 'Fees from priority orders paid.',
+    'Order Priority Fees': 'HYPE paid by IOC orders for write priority, almost all on perps (HIP-3 included).',
+    'Gossip Priority Fees': 'HYPE paid in auctions for node data read priority. Network-level, not tied to perps or any market.',
     'AQAv2 - USDC Yields': 'Hyperliquid gets 90% of cost-adjusted reserve yield revenue from stablecoin deployers',
   },
   Revenue: {
     'Perp Fees': '99% of perp trade fees, excluding spot fees and builders fees.',
-    'Priority Fees': 'Fees from priority orders paid.',
+    'Order Priority Fees': 'All order priority fees, burned.',
+    'Gossip Priority Fees': 'All gossip priority fees, burned.',
     'AQAv2 - USDC Yields': 'Hyperliquid gets 90% of cost-adjusted reserve yield revenue from stablecoin deployers',
   },
   SupplySideRevenue: {
@@ -36,7 +38,8 @@ const breakdownMethodology = {
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]: "99% of perp trade fees (excluding spot fees and builders fees) for buy back HYPE tokens.",
-    'HYPE Burn From Priority Fees': 'All prioroty fees will be used to buy and burn HYPE.',
+    'HYPE Burn From Order Priority Fees': 'All order priority fees are paid in HYPE and burned.',
+    'HYPE Burn From Gossip Priority Fees': 'All gossip priority fees are paid in HYPE and burned.',
     'AQAv2 - USDC Yields': 'Hyperliquid gets 90% of cost-adjusted reserve yield revenue from stablecoin deployers',
   },
 }
@@ -82,7 +85,6 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     dailyFees.add(result.dailyPerpFees, 'Perp Fees') // = hyperliquid fees + deployer fees + perp builder fees
     dailyFees.add(result.dailyPerpBuildersFees.clone(-1), 'Perp Fees')
     dailyFees.add(result.dailyPerpBuildersFees, 'Builder Code Fees')
-    // dailyFees.add(result.dailyPriorityFeesUsd, 'Priority Fees')
     dailyFees.add(aqav2Interest, 'AQAv2 - USDC Yields')
 
     dailySupplySideRevenue.add(result.dailyHyperliquidRevenue.clone(hlpShare), 'HLP')
@@ -93,12 +95,23 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     // 99% of revenue
     dailyRevenue.add(result.dailyHyperliquidRevenue.clone(holdersShare), 'Perp Fees')
     dailyRevenue.add(aqav2Interest, 'AQAv2 - USDC Yields')
-    // dailyRevenue.add(result.dailyPriorityFeesUsd, 'Priority Fees')
 
     dailyHoldersRevenue.add(result.dailyHyperliquidRevenue.clone(holdersShare), METRIC.TOKEN_BUY_BACK)
-    // dailyHoldersRevenue.add(result.dailyPriorityFeesUsd, 'HYPE Burn From Priority Fees')
     dailyHoldersRevenue.add(aqav2Interest, 'AQAv2 - USDC Yields')
 
+    // priority fees, all burned
+    if (result.dailyWritePriorityFees) {
+      dailyFees.add(result.dailyWritePriorityFees, 'Order Priority Fees')
+      dailyRevenue.add(result.dailyWritePriorityFees, 'Order Priority Fees')
+      dailyHoldersRevenue.add(result.dailyWritePriorityFees, 'HYPE Burn From Order Priority Fees')
+    }
+    // gossip priority buys node data read priority, network-level and not tied to perps or any market
+    if (result.dailyReadPriorityFees) {
+      dailyFees.add(result.dailyReadPriorityFees, 'Gossip Priority Fees')
+      dailyRevenue.add(result.dailyReadPriorityFees, 'Gossip Priority Fees')
+      dailyHoldersRevenue.add(result.dailyReadPriorityFees, 'HYPE Burn From Gossip Priority Fees')
+    }
+    
     return {
       dailyVolume,
       dailyFees,

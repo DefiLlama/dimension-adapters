@@ -3,6 +3,7 @@
 
 import { CHAIN } from '../helpers/chains'
 import { FetchOptions } from '../adapters/types'
+import { METRIC } from '../helpers/metrics'
 
 const abi = {
   "TokenPurchase": "event TokenPurchase(address indexed buyer, uint256 indexed eth_sold, uint256 indexed tokens_bought)",
@@ -42,9 +43,10 @@ export default {
           dailyVolume.addGasToken(log.parsedLog.args.eth_bought)
         })
 
-        const dailyFees = dailyVolume.clone(0.3 / 100)
+        const dailyFees = dailyVolume.clone(0.3 / 100, METRIC.SWAP_FEES)
+        const dailySupplySideRevenue = dailyFees.clone(1, 'Swap Fees To Liquidity Providers')
 
-        return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailySupplySideRevenue: dailyFees, dailyRevenue: 0, dailyProtocolRevenue: 0, dailyHoldersRevenue: 0 }
+        return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailySupplySideRevenue, dailyRevenue: 0, dailyProtocolRevenue: 0, dailyHoldersRevenue: 0 }
       },
     },
   },
@@ -55,5 +57,16 @@ export default {
     ProtocolRevenue: 'Protocol makes no revenue.',
     SupplySideRevenue: 'All fees are distributed to LPs.',
     HoldersRevenue: 'No revenue for UNI holders.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SWAP_FEES]: 'User pays 0.3% fees on each swap.',
+    },
+    UserFees: {
+      [METRIC.SWAP_FEES]: 'User pays 0.3% fees on each swap.',
+    },
+    SupplySideRevenue: {
+      'Swap Fees To Liquidity Providers': 'All swap fees are distributed to LPs.',
+    },
   },
 }

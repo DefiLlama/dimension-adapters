@@ -142,8 +142,9 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  // v1: one full-day Allium query per day. Hourly slices ran minutes after each hour closed, before Allium had
+  // indexed past it (10-40 min lag), so most hourly runs threw the lag check and re-queried; a daily run needs 1-2 tries
+  version: 1,
   fetch,
   chains: [CHAIN.SOLANA],
   start: START,
