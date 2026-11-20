@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
-import { FeeAccounting, HOLDERS, RETAINED, SOURCES } from './common';
+import { Context, HOLDERS, RETAINED, SOURCES } from './common';
 import { fetchLegacyFees } from './legacy';
 import { fetchPoolFees } from './pools';
 import { fetchTokenizerFees } from './tokenizer';
@@ -8,11 +8,21 @@ import { fetchTokenizerFees } from './tokenizer';
 // Hookr lets pool creators add Hook Blocks (custom rules) to Uniswap v4 pools on Robinhood Chain.
 // Every amount is read from on-chain events or contract state and returned in raw token units.
 const fetch = async (options: FetchOptions) => {
-  const accounting = new FeeAccounting(options, await options.getFromBlock(), await options.getToBlock());
-  await fetchPoolFees(accounting);
-  await fetchTokenizerFees(accounting);
-  await fetchLegacyFees(accounting);
-  return accounting.balances;
+  const ctx: Context = {
+    options,
+    fromBlock: await options.getFromBlock(),
+    toBlock: await options.getToBlock(),
+    dailyFees: options.createBalances(),
+    dailyRevenue: options.createBalances(),
+    dailySupplySideRevenue: options.createBalances(),
+    dailyProtocolRevenue: options.createBalances(),
+    dailyHoldersRevenue: options.createBalances(),
+  };
+  await fetchPoolFees(ctx);
+  await fetchTokenizerFees(ctx);
+  await fetchLegacyFees(ctx);
+  const { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue } = ctx;
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
 };
 
 const sourceLabels = (destination: 'fees' | 'revenue' | 'supplySide') =>
@@ -25,7 +35,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.ROBINHOOD],
   start: '2026-08-04', // first legacy launchpad fee, block 27767017
-  pullHourly: true,
+  //pullHourly: true,
   doublecounted: true, // Hookr pools are Uniswap v4 pools, and recaptured arbitrage is also in fees/what-the-hook.ts
   allowNegativeValue: true, // protocol revenue is negative on days when fees earned earlier are moved to the burn jar
   methodology: {

@@ -1,5 +1,6 @@
 import ADDRESSES from '../../helpers/coreAssets.json';
-import { Balances, ChainApi } from '@defillama/sdk';
+import * as sdk from '@defillama/sdk';
+import { Balances } from '@defillama/sdk';
 import { EventFragment, zeroPadValue } from 'ethers';
 import { FetchGetLogsOptions, FetchOptions } from '../../adapters/types';
 import { toPositionedLogArgs } from '../../helpers/logs';
@@ -157,65 +158,58 @@ export function addCurrency(balance: Balances, currency: string, amount: bigint,
   if (amount !== 0n) balance.add(lowercase(currency), amount.toString(), label);
 }
 
-export class FeeAccounting {
-  readonly balances: Record<
-    'dailyFees' | 'dailyRevenue' | 'dailySupplySideRevenue' | 'dailyProtocolRevenue' | 'dailyHoldersRevenue',
-    Balances
-  >;
-  readonly openingApi: ChainApi; // state just before the window, for counters read at both ends
+export type Context = {
+  options: FetchOptions;
+  fromBlock: number;
+  toBlock: number;
+  dailyFees: Balances;
+  dailyRevenue: Balances;
+  dailySupplySideRevenue: Balances;
+  dailyProtocolRevenue: Balances;
+  dailyHoldersRevenue: Balances;
+};
 
-  constructor(readonly options: FetchOptions, readonly fromBlock: number, readonly toBlock: number) {
-    this.balances = {
-      dailyFees: options.createBalances(),
-      dailyRevenue: options.createBalances(),
-      dailySupplySideRevenue: options.createBalances(),
-      dailyProtocolRevenue: options.createBalances(),
-      dailyHoldersRevenue: options.createBalances(),
-    };
-    this.openingApi = new ChainApi({ chain: options.chain, block: fromBlock - 1 });
-  }
-
-  /** Book a fee once: `revenue` of it is Hookr's, the rest goes to the source's supply side. */
-  recordFees(source: Source, currency: string, gross: bigint, revenue: bigint) {
-    if (gross < 0n || revenue < 0n || revenue > gross) throw new Error(`Hookr: invalid ${source} split`);
-    const labels: FeeSource = SOURCES[source];
-    addCurrency(this.balances.dailyFees, currency, gross, labels.fees);
-    if (labels.revenue) addCurrency(this.balances.dailyRevenue, currency, revenue, labels.revenue);
-    if (labels.supplySide) addCurrency(this.balances.dailySupplySideRevenue, currency, gross - revenue, labels.supplySide);
-    addCurrency(this.balances.dailyProtocolRevenue, currency, revenue, RETAINED);
-  }
-
-  /** Fee income allocated to HOOKR burns moves from protocol revenue to holders revenue. */
-  toHolders(currency: string, amount: bigint, label: string) {
-    addCurrency(this.balances.dailyProtocolRevenue, currency, -amount, RETAINED);
-    addCurrency(this.balances.dailyHoldersRevenue, currency, amount, label);
-  }
-
-  /** A fee taken in the pool's own token and burned: HOOKR burns benefit HOOKR holders, other burns that token's. */
-  recordTokenBurn(token: string, amount: bigint) {
-    if (lowercase(token) !== CONTRACT.hookr) return this.recordFees('subject', token, amount, 0n);
-    this.recordFees('hookrBurn', token, amount, amount);
-    this.toHolders(token, amount, HOLDERS.direct);
-  }
-
-  /** Window logs (or from `extra.fromBlock`) with emitter, tx hash and position, in on-chain order. */
-  async getLogs(targets: string[], eventAbi: string, extra: FetchGetLogsOptions = {}): Promise<HookrLog[]> {
-    const fromBlock = extra.fromBlock ?? this.fromBlock;
-    if (!targets.length || fromBlock > this.toBlock) return [];
-    const logs = await this.options.getLogs({
-      targets,
-      eventAbi,
-      onlyArgs: false,
-      toBlock: this.toBlock,
-      ...extra,
-      fromBlock,
-    });
-    return logs
-      .map((log: any) => {
-        const { blockNumber, logIndex } = toPositionedLogArgs(log);
-        const transactionHash = lowercase(log.transactionHash ?? log.transaction_hash);
-        return { args: log.args, address: lowercase(log.address), transactionHash, blockNumber, logIndex };
-      })
-      .sort(byPosition);
-  }
+/** Book a fee once: `revenue` of it is Hookr's, the rest goes to the source's supply side. */
+export function recordFees(ctx: Context, source: Source, currency: string, gross: bigint, revenue: bigint) {
+  if (gross < 0n || revenue < 0n || revenue > gross) throw new Error(`Hookr: invalid ${source} split`);
+  const labels: FeeSource = SOURCES[source];
+  addCurrency(ctx.dailyFees, currency, gross, labels.fees);
+  if (labels.revenue) addCurrency(ctx.dailyRevenue, currency, revenue, labels.revenue);
+  if (labels.supplySide) addCurrency(ctx.dailySupplySideRevenue, currency, gross - revenue, labels.supplySide);
+  addCurrency(ctx.dailyProtocolRevenue, currency, revenue, RETAINED);
 }
+
+/** Fee income allocated to HOOKR burns moves from protocol revenue to holders revenue. */
+export function toHolders(ctx: Context, currency: string, amount: bigint, label: string) {
+  addCurrency(ctx.dailyProtocolRevenue, currency, -amount, RETAINED);
+  addCurrency(ctx.dailyHoldersRevenue, currency, amount, label);
+}
+
+/** A fee taken in the pool's own token and burned: HOOKR burns benefit HOOKR holders, other burns that token's. */
+export function recordTokenBurn(ctx: Context, token: string, amount: bigint) {
+  if (lowercase(token) !== CONTRACT.hookr) return recordFees(ctx, 'subject', token, amount, 0n);
+  recordFees(ctx, 'hookrBurn', token, amount, amount);
+  toHolders(ctx, token, amount, HOLDERS.direct);
+}
+
+/** Window logs (or from `extra.fromBlock`) with emitter, tx hash and position, in on-chain order. */
+export async function getLogs(
+  ctx: Context,
+  targets: string[],
+  eventAbi: string,
+  extra: FetchGetLogsOptions = {},
+): Promise<HookrLog[]> {
+  const fromBlock = extra.fromBlock ?? ctx.fromBlock;
+  if (!targets.length || fromBlock > ctx.toBlock) return [];
+  const logs = await ctx.options.getLogs({ targets, eventAbi, onlyArgs: false, toBlock: ctx.toBlock, ...extra, fromBlock });
+  return logs
+    .map((log: any) => {
+      const { blockNumber, logIndex } = toPositionedLogArgs(log);
+      const transactionHash = lowercase(log.transactionHash ?? log.transaction_hash);
+      return { args: log.args, address: lowercase(log.address), transactionHash, blockNumber, logIndex };
+    })
+    .sort(byPosition);
+}
+
+export const openingMultiCall = (ctx: Context, params: { abi: string; calls: any[]; target?: string }) =>
+  sdk.api2.abi.multiCall({ ...params, chain: ctx.options.chain, block: ctx.fromBlock - 1 });
