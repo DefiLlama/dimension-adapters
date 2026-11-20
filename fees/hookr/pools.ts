@@ -1,4 +1,4 @@
-import { BLOCK, CONTRACT, FeeAccounting, NATIVE, eventTopic, lowercase, toBigInt } from './common';
+import { BLOCK, CONTRACT, FeeAccounting, HOLDERS, NATIVE, eventTopic, lowercase, toBigInt } from './common';
 
 type Pool = { root: string; rules: string; subject: string; quote: string };
 
@@ -14,7 +14,7 @@ const TAX_BLOCKS = ['0x99012422e1acbdf53c42bb378eb2f4e468005d3c', '0xe73fad0d773
 
 /** Hookr 1 pools on registered roots whose Rules pay Hookr's treasury, and the tax queues bound to them. */
 async function discoverPools(accounting: FeeAccounting) {
-  const history = { fromBlock: BLOCK.registry, cacheInCloud: true };
+  const history = { fromBlock: BLOCK.registry, cacheInCloud: true }; // registry deployed just before the first root
   const roots = new Set<string>([CONTRACT.root]);
   for (const eventAbi of [
     'event RootRegistered(address indexed root)',
@@ -130,6 +130,18 @@ export async function fetchPoolFees(accounting: FeeAccounting) {
   ]) {
     for (const log of await accounting.getLogs([target], eventAbi)) {
       accounting.recordFees('launch', NATIVE, toBigInt(log.args.fee), toBigInt(log.args.fee));
+    }
+  }
+
+  // Since 2026-10-31 the treasury pays Hookr's fees into a 50/50 split: half to the Safe, half to the burn jar.
+  // The jar's claims move that half from protocol revenue to holders revenue.
+  for (const log of await accounting.getLogs(
+    [CONTRACT.split],
+    'event RevenueClaimed(address indexed currency,address indexed account,address indexed to,uint256 amount)',
+  )) {
+    const { currency, account, to, amount } = log.args;
+    if (lowercase(account) === CONTRACT.jar && lowercase(to) === CONTRACT.jar) {
+      accounting.toHolders(currency, toBigInt(amount), HOLDERS.jar);
     }
   }
 

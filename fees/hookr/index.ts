@@ -1,7 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types';
 import { CHAIN } from '../../helpers/chains';
 import { FeeAccounting, HOLDERS, RETAINED, SOURCES } from './common';
-import { fetchHolderRevenue } from './holders';
 import { fetchLegacyFees } from './legacy';
 import { fetchPoolFees } from './pools';
 import { fetchTokenizerFees } from './tokenizer';
@@ -13,7 +12,6 @@ const fetch = async (options: FetchOptions) => {
   await fetchPoolFees(accounting);
   await fetchTokenizerFees(accounting);
   await fetchLegacyFees(accounting);
-  await fetchHolderRevenue(accounting);
   return accounting.balances;
 };
 
@@ -42,27 +40,24 @@ const adapter: SimpleAdapter = {
       'The part of the fees paid to pool creators, integrators, advisory contracts, traders, LPs and partners, or ' +
       "burned in a pool's own token.",
     ProtocolRevenue:
-      "Hookr's share of the fees minus what is set aside for HOOKR burns (the burn jar and the earlier flywheel). " +
-      'Negative on days when fees earned earlier are moved to the burn jar.',
+      "Hookr's share of the fees minus the part allocated to HOOKR burns. Can be negative on a day the burn jar " +
+      'claims fees earned earlier.',
     HoldersRevenue:
-      'Value spent to burn HOOKR: fee assets the burn jar hands out for burned HOOKR, ETH spent by the earlier ' +
-      'flywheel and by OpenZaps campaigns to buy and burn HOOKR, and fees taken in HOOKR and burned.',
+      "Hookr's fee income allocated to burning HOOKR, counted when it is allocated: half of the treasury's income " +
+      'since 2026-10-31 (claimed by the burn jar), the earlier flywheel charge, and fees taken in HOOKR and burned. ' +
+      'Excludes HOOKR buy-and-burns paid for by other projects.',
   },
   breakdownMethodology: {
     Fees: sourceLabels('fees'),
     Revenue: sourceLabels('revenue'),
     SupplySideRevenue: sourceLabels('supplySide'),
     ProtocolRevenue: {
-      [RETAINED]:
-        "Hookr's share of the fees, minus fee assets moved to the burn jar and flywheel charges sent to the HOOKR " +
-        'buy-and-burn contract.',
+      [RETAINED]: "Hookr's share of the fees, minus the part allocated to HOOKR burns.",
     },
     HoldersRevenue: {
-      [HOLDERS.jar]: 'Fee assets the burn jar hands out to whoever burns the required HOOKR.',
-      [HOLDERS.legacy]: 'ETH the earlier flywheel contract spent buying HOOKR to burn.',
-      [HOLDERS.openzaps]:
-        'ETH OpenZaps campaigns spent buying HOOKR that they burned in the same transaction. Paid by OpenZaps, not ' +
-        'by Hookr fees.',
+      [HOLDERS.jar]:
+        "Half of the treasury's fee income, claimed by the burn jar, which hands it to whoever burns the required HOOKR.",
+      [HOLDERS.flywheel]: 'Generation 5 swap charge credited to the HOOKR buy-and-burn contract.',
       [HOLDERS.direct]: 'Fees taken in HOOKR in HOOKR pools and burned.',
     },
   },

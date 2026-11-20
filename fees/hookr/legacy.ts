@@ -1,4 +1,15 @@
-import { ARB_EXECUTORS, CONTRACT, FeeAccounting, HookrLog, NATIVE, OLD_ROOTS, byPosition, lowercase, toBigInt } from './common';
+import {
+  ARB_EXECUTORS,
+  CONTRACT,
+  FeeAccounting,
+  HOLDERS,
+  HookrLog,
+  NATIVE,
+  OLD_ROOTS,
+  byPosition,
+  lowercase,
+  toBigInt,
+} from './common';
 
 // Generation 3 to 5 launchpads (https://github.com/Hookr-fun/hookr-contracts/tree/main/legacy).
 // Generations 3 and 4 share the bonding-curve launch struct; generation 5 uses auctions.
@@ -64,7 +75,8 @@ export async function fetchLegacyFees(accounting: FeeAccounting) {
   )) {
     const amount = toBigInt(log.args.amountWei);
     accounting.recordFees('flywheel', NATIVE, amount, amount);
-    accounting.setAsideForBurns(NATIVE, amount); // the hook credits it to the HOOKR buy-and-burn contract
+    // The hook credits it to the HOOKR buy-and-burn contract (0x8cee20fa000af3266ac2cd2cbeefbcd19d98fd89).
+    accounting.toHolders(NATIVE, amount, HOLDERS.flywheel);
   }
 
   // Arbitrage the Hookr integration ran on its own account. wthProtocolAmount is What The Hook's revenue,

@@ -7,16 +7,12 @@ import { toPositionedLogArgs } from '../../helpers/logs';
 // Verified sources and deployment records: https://github.com/Hookr-fun/hookr-contracts
 // Earlier releases: https://hookr.fun/docs/previous-releases
 export const NATIVE = ADDRESSES.null;
-export const DEAD = '0x000000000000000000000000000000000000dead';
 
 // Deployment blocks, used as the start of history scans.
 export const BLOCK = {
   registry: 82269732,
-  root: 82270270,
   oldTokenizer: 92671598,
   newTokenizer: 107699158,
-  jar: 102155576,
-  split: 102155618,
 };
 
 export const CONTRACT = {
@@ -25,8 +21,7 @@ export const CONTRACT = {
   registry: '0x463c82bea1a52f4cc05ca0741a24f0ad24ba4602', // registers every later Hookr 1 root
   treasury: '0x2242f7fc75606500503075f29ea8cda684efb4a9', // treasury forwarder, protocolRecipient of Hookr's Rules
   split: '0xe50df7069cac7b4f1ca63d79d26940dba35e5abb', // 50/50 revenue split (Safe + burn jar), treasury target since 2026-10-31
-  jar: '0xb4c20b8245440a3c489991a01a306d33b09047ca', // burn jar
-  releaser: '0xd4a9faaaabf5baf38390852627bd980782d83e75', // releases jar assets against burned HOOKR
+  jar: '0xb4c20b8245440a3c489991a01a306d33b09047ca', // burn jar: hands its assets to whoever burns the required HOOKR
   launcher: '0x1cf2748a6670572425eabf9ab9e5bc4eb2eb8ef4',
   rootFactory: '0xa6c2a401597301dff57a59bc8f70a9622499f3ec',
   liquidityVault: '0xa408923ef811945ef119bc700b1950dab65467fc',
@@ -36,7 +31,6 @@ export const CONTRACT = {
   v2Registry: '0x5b7f1a117a83aaac15b0698aa4eb9d53fe5f5ba3', // earlier modular release
   mechanics: '0xd700492b504ba5a72d7de28dde11cd7985a7f1ae', // earlier modular release fee module
   legacyHook: '0xe7c3461a4c762ff9db4f91bee3cf8deaafc2e8cc', // generation-5 hook (flywheel charge)
-  legacyBurner: '0x8cee20fa000af3266ac2cd2cbeefbcd19d98fd89', // flywheel HOOKR buy-and-burn
   poolManager: '0x8366a39cc670b4001a1121b8f6a443a643e40951', // Uniswap v4
 };
 
@@ -137,10 +131,10 @@ export type Source = keyof typeof SOURCES;
 
 export const RETAINED = 'Hookr Retained Fee Income';
 
+// Holders revenue is only Hookr fee income allocated to HOOKR burns, counted when allocated (at the fee source).
 export const HOLDERS = {
-  jar: 'Fee Assets Exchanged For HOOKR Burns',
-  legacy: 'Legacy HOOKR Market Buybacks',
-  openzaps: 'OpenZaps Funded HOOKR Market Buybacks',
+  jar: 'Fees Allocated To HOOKR Burn Jar',
+  flywheel: SOURCES.flywheel.revenue,
   direct: SOURCES.hookrBurn.revenue,
 };
 
@@ -191,17 +185,17 @@ export class FeeAccounting {
     addCurrency(this.balances.dailyProtocolRevenue, currency, revenue, RETAINED);
   }
 
-  /** Fee income set aside for HOOKR burns leaves protocol revenue now and becomes holders revenue at the burn. */
-  setAsideForBurns(currency: string, amount: bigint) {
+  /** Fee income allocated to HOOKR burns moves from protocol revenue to holders revenue. */
+  toHolders(currency: string, amount: bigint, label: string) {
     addCurrency(this.balances.dailyProtocolRevenue, currency, -amount, RETAINED);
+    addCurrency(this.balances.dailyHoldersRevenue, currency, amount, label);
   }
 
   /** A fee taken in the pool's own token and burned: HOOKR burns benefit HOOKR holders, other burns that token's. */
   recordTokenBurn(token: string, amount: bigint) {
     if (lowercase(token) !== CONTRACT.hookr) return this.recordFees('subject', token, amount, 0n);
     this.recordFees('hookrBurn', token, amount, amount);
-    this.setAsideForBurns(token, amount);
-    addCurrency(this.balances.dailyHoldersRevenue, token, amount, HOLDERS.direct);
+    this.toHolders(token, amount, HOLDERS.direct);
   }
 
   /** Window logs (or from `extra.fromBlock`) with emitter, tx hash and position, in on-chain order. */
