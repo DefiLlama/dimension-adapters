@@ -16,6 +16,9 @@ const DZAP_BATCH_SWAPPED = `event DZapBatchTokenSwapped(bytes32 indexed transact
 const chainConfig: Record<string, { start: string; kyberRouter?: string; dzapRouter?: string }> = {
   [CHAIN.BASE]: { start: "2026-10-22", kyberRouter: KYBER_ROUTER, dzapRouter: DZAP_ROUTER },
   [CHAIN.ARBITRUM]: { start: "2026-11-19", kyberRouter: KYBER_ROUTER },
+  [CHAIN.ROBINHOOD]: { start: "2026-11-19", kyberRouter: KYBER_ROUTER },
+  [CHAIN.OPTIMISM]: { start: "2026-11-19", kyberRouter: KYBER_ROUTER },
+  [CHAIN.POLYGON]: { start: "2026-11-19", kyberRouter: KYBER_ROUTER },
 };
 
 const isByzanlink = (clientData: string) => {
