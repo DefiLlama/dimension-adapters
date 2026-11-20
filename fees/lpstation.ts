@@ -53,12 +53,13 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   dailyRevenue.addBalances(fees, METRIC.SERVICE_FEES);
 
-  return { dailyFees, dailyRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
 const methodology = {
   Fees: "Fees users pay on zaps, rebalances and swaps through LPStation, if any: ERC20 transfers into the LPStation fee wallet made inside a Hub execution.",
-  Revenue: "Fees received by LPStation.",
+  Revenue: "All the fees users pay on zaps, rebalances and swaps through LPStation are retained by LPStation.",
+  ProtocolRevenue: "All the fees users pay on zaps, rebalances and swaps through LPStation are retained by LPStation.",
 };
 
 const breakdownMethodology = {
@@ -67,6 +68,9 @@ const breakdownMethodology = {
   },
   Revenue: {
     [METRIC.SERVICE_FEES]: "Fees on zaps, rebalances and swaps through LPStation.",
+  },
+  ProtocolRevenue: {
+    [METRIC.SERVICE_FEES]: "All the fees users pay on zaps, rebalances and swaps through LPStation are retained by LPStation.",
   },
 };
 
