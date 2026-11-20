@@ -9,10 +9,34 @@ const METRIC = {
   LP_REVENUE: 'Swap Fees To Liquidity Providers',
 }
 
+type Deployment = {
+  clPoolManager: string
+  binPoolManager: string
+  fromBlock: number
+}
+
 // SquadSwap Thanos is SquadSwap's v4, both CLAMM (CLPoolManager) and LBAMM (BinPoolManager) launched together.
-const config: any = {
-  [CHAIN.BSC]: { clPoolManager: '0x9d3b119eff69cd81d324f654062b6ffa3dd7f405', binPoolManager: '0xd7a5a9df1719ee83a4d10749019caabf137debac', fromBlock: 74380131, start: '2026-01-07' },
-  [CHAIN.BASE]: { clPoolManager: '0xbb07a7bdfc50829ce932adccc0498f0e29f49f50', binPoolManager: '0xd243e0c2fc2a91eace239e0c54023559a47c5f04', fromBlock: 40500004, start: '2026-01-07' },
+const config: Record<string, { start: string, deployments: Deployment[] }> = {
+  [CHAIN.BSC]: {
+    start: '2026-01-07',
+    deployments: [
+      { clPoolManager: '0x9d3b119eff69cd81d324f654062b6ffa3dd7f405', binPoolManager: '0xd7a5a9df1719ee83a4d10749019caabf137debac', fromBlock: 74380131 },
+      { clPoolManager: '0xb9a52e6b7e98bf7e80e0bdc8cbee97d7e1314f22', binPoolManager: '0x7f8e5a02f9007b19408ef731982adbba7ae08eb1', fromBlock: 122889520 },
+    ],
+  },
+  [CHAIN.BASE]: {
+    start: '2026-01-07',
+    deployments: [
+      { clPoolManager: '0xbb07a7bdfc50829ce932adccc0498f0e29f49f50', binPoolManager: '0xd243e0c2fc2a91eace239e0c54023559a47c5f04', fromBlock: 40500004 },
+      { clPoolManager: '0xfeb042bababeb8a669897a499d51a8a07f2b260a', binPoolManager: '0xd5727d30bc1dbb98dc74e34ed535fc570b17ad27', fromBlock: 51536527 },
+    ],
+  },
+  [CHAIN.ETHEREUM]: {
+    start: '2026-11-05',
+    deployments: [
+      { clPoolManager: '0xb930ed3581aae632bb1788b28777c50bf2c6a85d', binPoolManager: '0xa61093c554d58ee0b0108ad71cdc57c396f04313', fromBlock: 26354460 },
+    ],
+  },
 }
 
 const adapter: SimpleAdapter = {
@@ -97,13 +121,13 @@ async function trackPoolManager({ getLogs, chain, target, fromBlock, initializeA
 
 async function fetch(options: FetchOptions) {
   const { getLogs, createBalances, chain } = options
-  const { clPoolManager, binPoolManager, fromBlock } = config[chain]
+  const { deployments } = config[chain]
   const blacklistTokens = await getDexTokensBlacklisted(options)
   const dailyVolume = createBalances()
   const swapFees = createBalances()
   const revenue = createBalances()
 
-  await Promise.all([
+  await Promise.all(deployments.flatMap(({ clPoolManager, binPoolManager, fromBlock }) => [
     trackPoolManager({
       getLogs, chain, fromBlock, blacklistTokens,
       target: clPoolManager,
@@ -118,7 +142,7 @@ async function fetch(options: FetchOptions) {
       swapAbi: 'event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint24 activeId, uint24 fee, uint16 protocolFee)',
       dailyVolume, swapFees, revenue,
     }),
-  ])
+  ]))
 
   const dailyFees = swapFees.clone(1, METRIC.SWAP_FEES);
   const dailySupplySideRevenue = createBalances()
