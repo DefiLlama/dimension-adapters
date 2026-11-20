@@ -51,27 +51,29 @@ const addKyberVolume = async (options: FetchOptions, dailyVolume: any, router: s
 
   for (const logs of byTx.values()) {
     logs.sort((a, b) => a.logIndex - b.logIndex);
-    // skip wash trades
-    const txSwaps = logs.filter((log) => log.args.spentAmount !== undefined).map((log) => log.args);
-    const received = new Set(txSwaps.map((swap) => swap.dstToken.toLowerCase()));
-    if (txSwaps.length > 1 && txSwaps.every((swap) => received.has(swap.srcToken.toLowerCase()))) continue;
+    const tagged: any[] = [];
     let pending: any = null;
     for (const log of logs) {
       if (log.args.spentAmount !== undefined) {
         pending = log.args;
         continue;
       }
-      if (pending && isByzanlink(log.args.clientData)) {
-        addOneToken({
-          balances: dailyVolume,
-          token0: pending.srcToken,
-          amount0: pending.spentAmount,
-          token1: pending.dstToken,
-          amount1: pending.returnAmount,
-          label: "KyberSwap",
-        });
-      }
+      if (pending && isByzanlink(log.args.clientData)) tagged.push(pending);
       pending = null;
+    }
+    // skip wash trades
+    const spent = new Set(tagged.map((swap) => swap.srcToken.toLowerCase()));
+    const received = new Set(tagged.map((swap) => swap.dstToken.toLowerCase()));
+    for (const swap of tagged) {
+      if (tagged.length > 1 && received.has(swap.srcToken.toLowerCase()) && spent.has(swap.dstToken.toLowerCase())) continue;
+      addOneToken({
+        balances: dailyVolume,
+        token0: swap.srcToken,
+        amount0: swap.spentAmount,
+        token1: swap.dstToken,
+        amount1: swap.returnAmount,
+        label: "KyberSwap",
+      });
     }
   }
 };
