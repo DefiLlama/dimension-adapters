@@ -29,6 +29,7 @@ const evmChains: Record<string, { chainId: number, start: string }> = {
   [CHAIN.BASE]: { chainId: 8453, start: '2026-09-19' },
   [CHAIN.SONIC]: { chainId: 146, start: '2026-10-07' },
   [CHAIN.ETHEREUM]: { chainId: 1, start: '2026-10-12' },
+  [CHAIN.ARBITRUM]: { chainId: 42161, start: '2026-11-11' },
 }
 
 const query = gql`
