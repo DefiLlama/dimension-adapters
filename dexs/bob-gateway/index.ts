@@ -1,6 +1,8 @@
+import { Interface } from "ethers";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { CHAIN } from "../../helpers/chains";
+import { getTransactionsWithRetry } from "../../helpers/getTxReceipts";
 
 // BOB Gateway swaps native BTC <-> USDT through an intents protocol: a solver fills orders from its
 // own inventory and settles them on Ethereum, whichever chain the user started from (the routers on
@@ -40,27 +42,58 @@ const EVENTS = {
   onrampV7:
     "event OnrampExecuted(bytes32 indexed orderId, bytes32 indexed recipient, uint256 tokenAmountOut, uint256 protocolFeesAmount, uint256 affiliateFeesAmount, uint256 relayerEthFee, uint256 excessEth, bool strategySkipped)",
   onrampV8: "event OnrampExecuted(bytes32 indexed orderId, bytes32 indexed recipient, uint256 tokenAmountOut)",
+  onrampV8FeesPaid: "event FeesPaid(bytes32 indexed orderId)",
   offrampProcessed:
     "event OrderProcessed(uint256 orderId, uint256 amountForSolver, uint256 amountForProtocol, uint256 totalAmountForAffiliates, uint256 btcAmount, address token)",
 };
 
+// V8 pays an order's fees in USDT straight from the solver to each recipient and emits FeesPaid
+// without amounts; the amounts are in the calldata of the call that emitted it.
+// Source: https://github.com/bob-collective/bob-gateway/blob/master/contracts/src/GatewayOnrampV8.sol
+const onrampV8Interface = new Interface([
+  "function payFees(bytes32 _orderId, (uint256 amount, address recipient)[] _affiliateFees, uint256 _protocolFeeAmount)",
+  "function releaseFundsAndCallStrategyAndPayFees(bytes32 _orderId, (uint256 tokenFillAmount, address strategy, uint256 tokenWithheldForGasAmount, bytes32 recipient, bytes strategyExtraData) _args, (uint256 amount, address recipient)[] _affiliateFees, uint256 _protocolFeeAmount)",
+]);
+
+const getOnrampV8Fees = async (options: FetchOptions) => {
+  const feesPaid = await options.getLogs({ targets: ONRAMPS.v8, eventAbi: EVENTS.onrampV8FeesPaid, entireLog: true });
+  const txHashes = [...new Set(feesPaid.map((log: any) => log.transactionHash as string))];
+  const txs = await getTransactionsWithRetry(options.chain, txHashes);
+
+  let fees = 0n;
+  txs.forEach((tx: any, i: number) => {
+    if (!tx) throw new Error(`bob-gateway: missing FeesPaid transaction ${txHashes[i]}`);
+    const target = String(tx.to).toLowerCase();
+    if (!ONRAMPS.v8.some((onramp) => onramp.toLowerCase() === target)) {
+      throw new Error(`bob-gateway: FeesPaid in ${txHashes[i]} was not a direct onramp call; calldata cannot be decoded`);
+    }
+    const call = onrampV8Interface.parseTransaction({ data: tx.data });
+    if (!call) throw new Error(`bob-gateway: unknown onramp call in ${txHashes[i]}`);
+    for (const affiliateFee of call.args._affiliateFees) fees += affiliateFee.amount;
+    fees += call.args._protocolFeeAmount;
+  });
+  return fees;
+};
+
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
+  const usdt = ADDRESSES.ethereum.USDT;
 
-  const [onrampV6, onrampV7, onrampV8, offramps] = await Promise.all([
-    options.getLogs({ targets: ONRAMPS.v6, eventAbi: EVENTS.onrampV6 }),
-    options.getLogs({ targets: ONRAMPS.v7, eventAbi: EVENTS.onrampV7 }),
-    options.getLogs({ targets: ONRAMPS.v8, eventAbi: EVENTS.onrampV8 }),
-    options.getLogs({ targets: OFFRAMP_REGISTRIES, eventAbi: EVENTS.offrampProcessed }),
-  ]);
-
-  for (const log of [...onrampV6, ...onrampV7, ...onrampV8]) {
-    dailyVolume.add(ADDRESSES.ethereum.USDT, log.tokenAmountOut, "Onramp (BTC to USDT)");
+  // Onramp volume is the gross USDT value of the fill: payout to the user plus protocol and affiliate fees.
+  const onrampV6 = await options.getLogs({ targets: ONRAMPS.v6, eventAbi: EVENTS.onrampV6 });
+  const onrampV7 = await options.getLogs({ targets: ONRAMPS.v7, eventAbi: EVENTS.onrampV7 });
+  for (const log of [...onrampV6, ...onrampV7]) {
+    dailyVolume.add(usdt, log.tokenAmountOut + log.protocolFeesAmount + log.affiliateFeesAmount);
   }
 
+  const onrampV8 = await options.getLogs({ targets: ONRAMPS.v8, eventAbi: EVENTS.onrampV8 });
+  for (const log of onrampV8) dailyVolume.add(usdt, log.tokenAmountOut);
+  dailyVolume.add(usdt, await getOnrampV8Fees(options));
+
+  // Offramp volume is the total the user locked, which already includes protocol and affiliate fees.
+  const offramps = await options.getLogs({ targets: OFFRAMP_REGISTRIES, eventAbi: EVENTS.offrampProcessed });
   for (const log of offramps) {
-    const tokensLocked = log.amountForSolver + log.amountForProtocol + log.totalAmountForAffiliates;
-    dailyVolume.add(log.token, tokensLocked, "Offramp (USDT to BTC)");
+    dailyVolume.add(log.token, log.amountForSolver + log.amountForProtocol + log.totalAmountForAffiliates);
   }
 
   return { dailyVolume };
@@ -74,13 +107,7 @@ const adapter: SimpleAdapter = {
   start: "2026-05-05", // first Ethereum onramp and offramp deployments
   methodology: {
     Volume:
-      "Completed BTC <-> USDT swaps settled by the BOB Gateway contracts on Ethereum. Onramps (BTC to USDT) count the USDT released to the user, net of fees, from OnrampExecuted events. Offramps (USDT to BTC) count the tokens the user locked, from OrderProcessed events, which fire only after the solver's Bitcoin payment is proven on-chain. Refunded orders are not counted.",
-  },
-  breakdownMethodology: {
-    Volume: {
-      "Onramp (BTC to USDT)": "USDT released to users who sent BTC, net of protocol and affiliate fees.",
-      "Offramp (USDT to BTC)": "Tokens locked by users whose BTC payout was proven on-chain, including fees.",
-    },
+      "Completed BTC <-> USDT swaps settled by the BOB Gateway contracts on Ethereum, gross of fees. Onramps (BTC to USDT) count the USDT released to the user plus the protocol and affiliate fees: from OnrampExecuted on V6/V7, and on V8 from OnrampExecuted plus the fee amounts in the calls that emit FeesPaid. Offramps (USDT to BTC) count the tokens the user locked, from OrderProcessed events, which fire only after the solver's Bitcoin payment is proven on-chain. Refunded orders are not counted.",
   },
 };
 
