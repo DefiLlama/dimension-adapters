@@ -9,7 +9,6 @@ const event0_swap_remote =
 
 const contract_address: Record<string, string[]> = {
   [CHAIN.ETHEREUM]: [
-    "0x101816545f6bd2b1076434b54383a1e633390a2e",
     "0x101816545F6bd2b1076434B54383a1E633390A2E",
     "0xdf0770dF86a8034b3EFEf0A1Bb3c889B8332FF56",
     "0x38ea452219524bb87e18de1c24d3bb59510bd783",
