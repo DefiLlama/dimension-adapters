@@ -24,7 +24,7 @@ import fetchURL from "../utils/fetchURL";
  * on-chain where a referral/copy share recorded it, else the tier above) and
  * the referral / copy-trade shares paid out of that fee.
  *
- * Perps (Hyperliquid builder code) are tracked separately in `fees/lockin-perps.ts`.
+ * Perps (Hyperliquid builder code) are tracked separately as `lockin-perps` in `factory/hyperliquid.ts`.
  */
 const API = "https://npwofniytuzvjedgutgo.supabase.co/functions/v1/defillama";
 

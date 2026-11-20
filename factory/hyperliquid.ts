@@ -32,6 +32,18 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "lockin-perps": {
+    // lockin (https://lockin.cash, https://x.com/tradeonlockin) charges a 0.1% builder fee on perps; the builder is also its EVM fee wallet
+    addresses: ["0xe1ba8be268f91c011040ac2b44efc9201a52d988"],
+    start: "2026-10-23",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades placed through lockin with its builder code.",
+      Fees: "0.1% builder code fee paid by users on Hyperliquid perpetual trades placed through lockin; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through lockin, all kept by lockin.",
+      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through lockin, all kept by lockin.",
+    },
+    breakdownFees: true,
+  },
   "liqwall": {
     // Liqwall (https://liqwall.com, https://x.com/liqwall), a crypto trading terminal (https://liqwall.com/chart) with
     // liquidation maps, order-book walls and Hyperliquid whale positions. Users who connect a Hyperliquid wallet approve
