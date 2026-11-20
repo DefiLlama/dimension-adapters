@@ -13,15 +13,12 @@ const ROUTER = "0x2384EFffE80523aAe945d996257810282D4E25eB";
 // address are counted as HelmSwap fees. Volume counts every swap routed through the router.
 const HELM_TREASURY = "0xf0932924bfefb6405823d27fc1e53af0986ef237";
 
-// The router uses this sentinel for the chain's native coin.
-const NATIVE_SENTINEL = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
-
 const SwapWithFeeEvent =
   "event SwapWithFee(address indexed user, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOutNet, uint256 feeAmount, uint16 feeBps, address treasury, address referrer, uint256 referrerShare)";
 const SurplusSharedEvent =
   "event SurplusShared(address indexed user, address indexed tokenOut, uint256 quotedOutNet, uint256 surplus, uint256 operatorShare, uint16 surplusShareBps)";
 
-const normalize = (token: string) => (token.toLowerCase() === NATIVE_SENTINEL ? ADDRESSES.null : token);
+const normalize = (token: string) => (token.toLowerCase() === ADDRESSES.GAS_TOKEN_2 ? ADDRESSES.null : token);
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
