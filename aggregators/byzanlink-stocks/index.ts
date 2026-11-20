@@ -51,6 +51,10 @@ const addKyberVolume = async (options: FetchOptions, dailyVolume: any, router: s
 
   for (const logs of byTx.values()) {
     logs.sort((a, b) => a.logIndex - b.logIndex);
+    // skip wash trades
+    const txSwaps = logs.filter((log) => log.args.spentAmount !== undefined).map((log) => log.args);
+    const received = new Set(txSwaps.map((swap) => swap.dstToken.toLowerCase()));
+    if (txSwaps.length > 1 && txSwaps.every((swap) => received.has(swap.srcToken.toLowerCase()))) continue;
     let pending: any = null;
     for (const log of logs) {
       if (log.args.spentAmount !== undefined) {
@@ -111,11 +115,11 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   doublecounted: true,
   methodology: {
-    Volume: "Value of token swaps made on Byzanlink, routed through KyberSwap or DZap, priced on one side of each swap.",
+    Volume: "Value of token swaps made on Byzanlink, routed through KyberSwap or DZap, priced on one side of each swap. Wash trades through KyberSwap are excluded.",
   },
   breakdownMethodology: {
     Volume: {
-      KyberSwap: "Swaps routed through the KyberSwap MetaAggregationRouterV2 with the Byzanlink source.",
+      KyberSwap: "Swaps routed through the KyberSwap MetaAggregationRouterV2 with the Byzanlink source, excluding wash trades.",
       DZap: "Swaps routed through the DZap router with the Byzanlink integrator.",
     },
   },
