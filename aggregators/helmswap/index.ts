@@ -124,22 +124,21 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  chains: [
-    CHAIN.BASE,
-    CHAIN.BSC,
-    CHAIN.ETHEREUM,
-    CHAIN.ROBINHOOD,
-    CHAIN.INK,
+  adapter: {
+    // Router v1.3 was deployed on 2026-11-19 (UTC) on the first five chains, e.g. Base block 59380078,
+    // Ethereum https://etherscan.io/address/0x2384EFffE80523aAe945d996257810282D4E25eB,
+    // Ink https://explorer.inkonchain.com/tx/0x68fd4e8413b4a1ec0bcd696d39ec7af6eaca92974762c35ebe1b29997cc0830c
+    [CHAIN.BASE]: { start: "2026-11-19" },
+    [CHAIN.BSC]: { start: "2026-11-19" },
+    [CHAIN.ETHEREUM]: { start: "2026-11-19" },
+    [CHAIN.ROBINHOOD]: { start: "2026-11-19" },
+    [CHAIN.INK]: { start: "2026-11-19" },
     // Deployed 2026-11-20 (UTC): HyperEVM block 51777333, Elysium block 8754212
     // (tx 0x7181f965ccb50e4ffe8bec25e37a77b605f59e87a2a5face164883c95b348bd3), Arc block 32237786.
-    [CHAIN.HYPERLIQUID, { start: "2026-11-20" }],
-    [CHAIN.ELYSIUM, { start: "2026-11-20" }],
-    [CHAIN.ARC, { start: "2026-11-20" }],
-  ],
-  // Router v1.3 was deployed on 2026-11-19 (UTC) on the first five chains, e.g. Base block 59380078,
-  // Ethereum https://etherscan.io/address/0x2384EFffE80523aAe945d996257810282D4E25eB,
-  // Ink https://explorer.inkonchain.com/tx/0x68fd4e8413b4a1ec0bcd696d39ec7af6eaca92974762c35ebe1b29997cc0830c
-  start: "2026-11-19",
+    [CHAIN.HYPERLIQUID]: { start: "2026-11-20" },
+    [CHAIN.ELYSIUM]: { start: "2026-11-20" },
+    [CHAIN.ARC]: { start: "2026-11-20" },
+  },
   methodology,
   breakdownMethodology,
 };
