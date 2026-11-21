@@ -61,13 +61,8 @@ const fetchGrvt = async () => {
   const response = await httpGet("https://incentives.miracletrade.com/v2/metrics?dex=grvt", {
     headers: { "X-Api-Key": getEnv("MIRACLETRADE_API_KEY") },
   });
-  const { volume, grossRevenue } = response.data ?? {};
-  if (
-    typeof volume !== 'number' || !Number.isFinite(volume) || volume < 0 ||
-    typeof grossRevenue !== 'number' || !Number.isFinite(grossRevenue) || grossRevenue < 0
-  ) {
-    throw new Error('Invalid Miracle GRVT snapshot metrics');
-  }
+  const { volume, grossRevenue } = response.data;
+
   return {
     dailyVolume: volume,
     dailyFees: grossRevenue,
