@@ -320,6 +320,11 @@ const configs: Record<string, Record<string, any>> = {
     // start: swaps begin 2022-12-14 but WOAS has no price before 2022-12-15, so that day would store $0
     [CHAIN.OAS]: { factory: '0x5200000000000000000000000000000000000018', start: '2022-12-15', fees: 0.005 },
   },
+  "defi-swap": {
+    // Crypto.com DeFi Swap; replaces the subgraph read, whose cumulative totalVolumeUSD differed between runs from 2025-03-20
+    // factory: pair 0x3aa370aacf4cb08c7e1e7aa8e8ff9418d73c7e0f returns it from factory(); totalFeeBasisPoint() returns 30 (0.3%)
+    [CHAIN.ETHEREUM]: { factory: '0x9DEB29c9a4c7A88a3C0257393b7f3335338D9A9D', start: '2021-09-21', fees: 0.003 },
+  },
   "warpx-v2": {
     [CHAIN.MEGAETH]: { factory: '0xB3Ae00A68F09E8b8a003B7669e2E84544cC4a385' },
   },
@@ -1383,6 +1388,10 @@ const methodologyMap: Record<string, any> = {
     Volume: "Swap volume from all Tealswap V2 pairs deployed by the Tealswap factory on Oasys.",
     Fees: "Users pay a 0.5% fee on every swap.",
   },
+  "defi-swap": {
+    Volume: "Swap volume from all Crypto.com DeFi Swap pairs deployed by the DeFi Swap factory on Ethereum.",
+    Fees: "Users pay a 0.3% fee on every swap.",
+  },
   "melegaswap": {
     Volume: 'Swap volume from MelegaSwap V2 liquidity pairs on BNB Smart Chain.',
     Fees: 'A 0.3% fee is charged on each swap.',
@@ -2145,17 +2154,6 @@ const subgraphConfigs: Record<string, SubgraphProtocolConfig> = {
   //   },
   //   start: '2021-11-01',
   // },
-  "defi-swap": {
-    endpoints: {
-      [CHAIN.ETHEREUM]: sdk.graph.modifyEndpoint('G7W3G1JGcFbWseucNkHHvQorxyjQLEQt7vt9yPN97hri'),
-    },
-    factoriesName: "factories",
-    totalVolume: "totalVolumeUSD",
-    feeConfig: {
-      totalFees: 0.003,
-    },
-    start: '2021-09-21',
-  },
   "pulsex-v2": {
     endpoints: {
       [CHAIN.PULSECHAIN]: "https://graph.pulsechain.com/subgraphs/name/pulsechain/pulsexv2",
@@ -2486,6 +2484,10 @@ protocols['rocketswap-anubis'].adapter[CHAIN.ANUBI].fetch = async (options: Fetc
 
 protocols['tealswap'].breakdownMethodology = {
   Fees: { 'Token Swap Fees': methodologyMap['tealswap'].Fees },
+}
+
+protocols['defi-swap'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': methodologyMap['defi-swap'].Fees },
 }
 
 protocols['bitblocks-finance-v2'].breakdownMethodology = {
