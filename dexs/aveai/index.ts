@@ -4,7 +4,7 @@ import ADDRESSES from "../../helpers/coreAssets.json";
 import { queryDuneSql } from "../../helpers/dune";
 import { isCoreAsset } from "../../helpers/prices";
 
-const chainConfig: Record<string, { start: string; routers: string[]; swapEvent?: string }> = {
+const chainConfig: Record<string, { start: string; routers: string[]; swapEvent?: string; orderRouters?: string[]; orderRoutersStart?: string }> = {
   [CHAIN.BASE]: {
     start: "2025-07-03",
     // The first router stopped emitting around 2026-07-24; the others are its redeployments.
@@ -15,6 +15,7 @@ const chainConfig: Record<string, { start: string; routers: string[]; swapEvent?
       "0x5028b3b07a254cee0767f6ba2e2bd459c5efc64f",
     ],
     swapEvent: "event Swap(address trader, address tokenIn, address tokenOut, address recipient, uint256 amountIn, uint256 amountOut)",
+    orderRouters: ["0xaae8a5bad1824a87d8132313027478b505da471a"],
   },
   [CHAIN.BSC]: {
     start: "2025-07-03",
@@ -25,6 +26,14 @@ const chainConfig: Record<string, { start: string; routers: string[]; swapEvent?
       "0x34a61953419751a99fca665dbea6670d532d64ad",
     ],
     swapEvent: "event Swap(address trader, address tokenIn, address tokenOut, address recipient, uint256 amountIn, uint256 amountOut)",
+    // Limit-order routers, listed in fees/aveai with the same ProxyAdmin and owner: they emit an order-filled event, not Swap.
+    orderRouters: [
+      "0xeef1138334c4f7f5b058002b81219048e04f7a2c",
+      "0xe21c2cf3e3ce95974afbfece42100ecb7e14ad37",
+      "0x8cd019facde1b3d4abb48ce84446d68ee1bcf894",
+    ],
+    // Until 2025-08-21 0xe21c2cf3.. emitted an older layout of the event without amountIn.
+    orderRoutersStart: "2025-08-22",
   },
   [CHAIN.ETHEREUM]: {
     start: "2025-07-15",
@@ -34,6 +43,7 @@ const chainConfig: Record<string, { start: string; routers: string[]; swapEvent?
       "0xe8b8373f80a534cc30680570163301c37d3aaeb1",
     ],
     swapEvent: "event Swap(address trader, address tokenIn, address tokenOut, address recipient, uint256 amountIn, uint256 amountOut)",
+    orderRouters: ["0x72cb924a78b9335d547e6896bbcc6b94744927f6"],
   },
   [CHAIN.HYPERLIQUID]: {
     start: "2025-05-31",
@@ -44,16 +54,19 @@ const chainConfig: Record<string, { start: string; routers: string[]; swapEvent?
     start: "2026-06-25",
     routers: ["0xc2402c8453f39e97113f094e3402fbbdd7e0ede3"],
     swapEvent: "event Swap(address trader, address tokenIn, address tokenOut, address recipient, uint256 amountIn, uint256 amountOut)",
+    orderRouters: ["0x78db03b357f4262c591f305f86a16dacff540c2b"],
   },
   [CHAIN.ROBINHOOD]: {
     start: "2026-07-03",
     routers: ["0x81DA6BCd98AE46621A1E9743a3F51B10B7e16D97", "0x31ba053698e5dd483ddc90e671fa99bf699baa14"],
     swapEvent: "event Swap(address trader, address tokenIn, address tokenOut, address recipient, uint256 amountIn, uint256 amountOut)",
+    orderRouters: ["0x17ba2bb7ade691f2c115f9385383ff617df9dae7"],
   },
   [CHAIN.ARC]: {
     start: "2026-07-25",
     routers: ["0x81DA6BCd98AE46621A1E9743a3F51B10B7e16D97"],
     swapEvent: "event Swap(address trader, address tokenIn, address tokenOut, address recipient, uint256 amountIn, uint256 amountOut)",
+    orderRouters: ["0x991303c0d4c5e27d161052c75f123e6b466b5628"],
   },
   [CHAIN.SOLANA]: {
     start: "2025-01-17",
@@ -61,9 +74,11 @@ const chainConfig: Record<string, { start: string; routers: string[]; swapEvent?
   },
 };
 
+const ORDER_FILLED_TOPIC = "0x01a51532428af9a5568aeedb8ea45eccb10821f0e9033de01cd4126033f5deff";
+
 const fetchEVM = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances();
-  const { routers, swapEvent } = chainConfig[options.chain];
+  const { routers, swapEvent, orderRouters, orderRoutersStart } = chainConfig[options.chain];
 
   const logs = await options.getLogs({
     targets: routers,
@@ -77,10 +92,25 @@ const fetchEVM = async (options: FetchOptions): Promise<FetchResult> => {
     else dailyVolume.add(token, amount);
   };
 
-  logs.forEach((log) => {
-    if (isNative(log.tokenIn) || isCoreAsset(options.chain, log.tokenIn)) addSide(log.tokenIn, log.amountIn);
-    else addSide(log.tokenOut, log.amountOut);
-  });
+  const addSwap = (tokenIn: string, amountIn: any, tokenOut: string, amountOut: any) => {
+    if (isNative(tokenIn) || isCoreAsset(options.chain, tokenIn)) addSide(tokenIn, amountIn);
+    else addSide(tokenOut, amountOut);
+  };
+
+  logs.forEach((log) => addSwap(log.tokenIn, log.amountIn, log.tokenOut, log.amountOut));
+
+  if (orderRouters && !(orderRoutersStart && options.startTimestamp < Date.parse(orderRoutersStart) / 1e3)) {
+    // The implementations are unverified, so the event is read by topic. Data: (bytes32 id, uint256 amountOut, bytes order),
+    // where order starts (address keeper, uint256, offset 0x80, offset, address tokenIn, address tokenOut, uint256 amountIn, ...).
+    const fills = await options.getLogs({ targets: orderRouters, topics: [ORDER_FILLED_TOPIC], onlyArgs: false, flatten: true });
+    fills.forEach((log: any) => {
+      const word = (i: number) => "0x" + log.data.slice(2 + 64 * i, 2 + 64 * (i + 1));
+      const amountIn = BigInt(word(10));
+      if (Number(word(2)) !== 0x60 || Number(word(6)) !== 0x80 || amountIn >= 2n ** 128n) throw new Error(`aveai: unexpected order-filled layout in ${log.transactionHash}`);
+      const address = (i: number) => "0x" + word(i).slice(26);
+      addSwap(address(8), amountIn, address(9), BigInt(word(1)));
+    });
+  }
 
   return { dailyVolume };
 };
@@ -132,7 +162,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 };
 
 const methodology = {
-  Volume: "Total USD value of the swaps ave.ai routes through underlying DEXs, valued on EVM chains by the native-token, stablecoin or major-token side of each swap. Double-counted, since those same swaps are also reported by the DEXs that actually execute them.",
+  Volume: "Total USD value of the swaps ave.ai routes through underlying DEXs, including filled limit orders, valued on EVM chains by the native-token, stablecoin or major-token side of each swap. Double-counted, since those same swaps are also reported by the DEXs that actually execute them.",
 };
 
 const adapter: SimpleAdapter = {
