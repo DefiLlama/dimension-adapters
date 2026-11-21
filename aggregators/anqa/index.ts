@@ -33,8 +33,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
             1082197246,1082197771,1082189106,1082188929
           )
           AND e.tx_success = TRUE
-          AND e.block_date >= from_unixtime(${options.startTimestamp})
-          AND e.block_date <= from_unixtime(${options.endTimestamp})
+          AND e.block_time >= from_unixtime(${options.startTimestamp})
+          AND e.block_time < from_unixtime(${options.endTimestamp})
     )
     SELECT
         SUM(tx_value_usd) AS total_volume

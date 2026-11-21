@@ -1,3 +1,6 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 // import { FetchOptions, SimpleAdapter } from "../adapters/types";
 // import { httpGet } from "../utils/fetchURL";
 
@@ -57,10 +60,11 @@ import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from '../helpers/coreAssets.json';
 import { queryDune } from "../helpers/dune";
-import { getDefaultDexTokensBlacklisted } from "../helpers/lists";
+import { getDexTokensBlacklisted } from "../helpers/lists";
+import { METRIC } from "../helpers/metrics";
 import { isCoreAsset } from "../helpers/prices";
 import {
-  getEstablishedTokens, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES, WASH_MIN_USD,
+  getEstablishedTokens, getPhantomSwapKeys, phantomSwapKey, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES, WASH_MIN_USD,
   WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
 } from "../helpers/uniswap";
 import { formatAddress } from "../utils/utils";
@@ -81,6 +85,7 @@ interface IPool {
 }
 
 const SwapEvent = 'event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)';
+const ModifyLiquidityEvent = 'event ModifyLiquidity(bytes32 indexed id, address indexed sender, int24 tickLower, int24 tickUpper, int256 liquidityDelta, bytes32 salt)';
 const FunctionPoolKeys = 'function poolKeys(bytes25) view returns(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks)';
 
 const Configs: Record<string, IUniswapConfig> = {
@@ -204,6 +209,18 @@ const Configs: Record<string, IUniswapConfig> = {
     source: 'LOGS',
     start: '2026-01-01',
   },
+  [CHAIN.ARC]: {
+    poolManager: '0x8366a39cc670b4001a1121b8f6a443a643e40951',
+    positionManager: '0x6049c9a0e26405c0985f9e3685c87d0ae917f82b',
+    source: 'LOGS',
+    start: '2026-05-28',
+  },
+  [CHAIN.ELYSIUM]: {
+    poolManager: '0xE2e105d3F7209A9DA11f83cCf3E7398a753823F1',
+    positionManager: '0x1d1C51b9d07fD27d36412A2b66CC23D19Eb3E518',
+    source: 'LOGS',
+    start: '2026-11-03',
+  },
 }
 
 // export const UNISWAP_V4_DUNE_QUERY = (fromTime: number, toTime: number) => {
@@ -289,6 +306,7 @@ const DUNE_CHAIN: Record<string, string> = {
   [CHAIN.MONAD]: 'monad',
   [CHAIN.TEMPO]: 'tempo',
   [CHAIN.ROBINHOOD]: 'robinhood',
+  [CHAIN.ARC]: 'arc',
 };
 
 // Counts come from raw Swap events because dex.trades misses ~7% of pool-days
@@ -350,15 +368,19 @@ async function fetch(options: FetchOptions) {
   }
 
   if (config.source === 'LOGS') {
-    const events = await sdk.getEventLogs({
+    const logParams = {
       chain: options.chain,
       target: config.poolManager,
-      eventAbi: SwapEvent,
-      fromBlock: Number(options.fromApi.block),
+      fromBlock: Number(await options.getFromBlock()),
       toBlock: Number(options.toApi.block),
       maxBlockRange: 10000,
-      onlyArgs: true,
-    });
+      onlyArgs: false, // tx hash needed to group a tx's swaps per pool
+    };
+    const swapLogs = await sdk.getEventLogs({ ...logParams, eventAbi: SwapEvent });
+    const liquidityLogs = await sdk.getEventLogs({ ...logParams, eventAbi: ModifyLiquidityEvent });
+    // swaps the singleton settled with no tokens changing hands - see getPhantomSwapKeys
+    const phantom = getPhantomSwapKeys(swapLogs, liquidityLogs);
+    const events = swapLogs.filter(log => !phantom.has(phantomSwapKey(log))).map(log => log.args);
 
     if (events.length > 0) {
       const skipPools = new Set((config.blacklistPoolIds ?? []).map(i => i.toLowerCase()))
@@ -402,7 +424,7 @@ async function fetch(options: FetchOptions) {
         }
       }
 
-      const blacklistTokens = new Set(getDefaultDexTokensBlacklisted(options.chain))
+      const blacklistTokens = new Set(await getDexTokensBlacklisted(options))
       const washPools = options.preFetchedResults?.washPools?.[DUNE_CHAIN[options.chain]]
       // flagged pools whose sides are all established (core or CG-listed) are
       // spared - one batched price lookup, see getEstablishedTokens
@@ -432,7 +454,7 @@ async function fetch(options: FetchOptions) {
           const useToken0 = currency0 === ADDRESSES.null || isCoreAsset(options.chain, currency0) || !isCoreAsset(options.chain, currency1)
           const token = useToken0 ? currency0 : currency1
           const amount = Math.abs(Number(useToken0 ? event.amount0 : event.amount1))
-          dailyFees.add(token, amount * (Number(event.fee) / 1e6))
+          dailyFees.add(token, amount * (Number(event.fee) / 1e6), METRIC.SWAP_FEES)
           dailyVolume.add(token, amount)
         }
       }
@@ -443,7 +465,7 @@ async function fetch(options: FetchOptions) {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees,
+    dailySupplySideRevenue: dailyFees.clone(1, 'Swap Fees To Liquidity Providers'),
     dailyRevenue: 0, // tracked in uniswap-v3 adapter
     dailyProtocolRevenue: 0,
     dailyHoldersRevenue: 0, // tracked in uniswap-v3 adapter
@@ -456,13 +478,24 @@ const adapter: SimpleAdapter = {
   adapter: {},
   prefetch,
   methodology: {
-    Volume: 'Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed.',
-    Fees: 'Swap fees paid by users.',
-    UserFees: 'Swap fees paid by users.',
+    Volume: 'Swap volume, excluding wash trading and swaps settled with no tokens changing hands.',
+    Fees: 'Swap fees paid by users, excluding wash trading and swaps settled with no tokens changing hands.',
+    UserFees: 'Swap fees paid by users, excluding wash trading and swaps settled with no tokens changing hands.',
     Revenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
     ProtocolRevenue: 'Protocol makes no revenue.',
     SupplySideRevenue: 'Part of fees distributed to LPs after protocol cut. (It was 100% of fees before fee switch(27 Jul 2026)).',
     HoldersRevenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SWAP_FEES]: 'Swap fees paid by users, excluding wash trading and swaps settled with no tokens changing hands.',
+    },
+    UserFees: {
+      [METRIC.SWAP_FEES]: 'Swap fees paid by users, excluding wash trading and swaps settled with no tokens changing hands.',
+    },
+    SupplySideRevenue: {
+      'Swap Fees To Liquidity Providers': 'Swap fees distributed to LPs, the fee switch share is subtracted in uniswap-v3 adapter.',
+    },
   },
   fetch,
 };

@@ -45,17 +45,18 @@ const fetch = async (options: FetchOptions) => {
     shortOpenInterestAtEnd = Number(
       tradingStats.tradingStat.shortOpenInterest || 0
     );
-    openInterestAtEnd = longOpenInterestAtEnd + shortOpenInterestAtEnd;
+    // pool venue with no single-sided field: average the two sides instead of summing them
+    openInterestAtEnd = (longOpenInterestAtEnd + shortOpenInterestAtEnd) / 2;
   }
 
   const DECIMALS = 30;
 
   return {
     longOpenInterestAtEnd: longOpenInterestAtEnd
-      ? String(longOpenInterestAtEnd * 10 ** -DECIMALS)
+      ? String((longOpenInterestAtEnd / 2) * 10 ** -DECIMALS)
       : undefined,
     shortOpenInterestAtEnd: shortOpenInterestAtEnd
-      ? String(shortOpenInterestAtEnd * 10 ** -DECIMALS)
+      ? String((shortOpenInterestAtEnd / 2) * 10 ** -DECIMALS)
       : undefined,
     openInterestAtEnd: openInterestAtEnd
       ? String(openInterestAtEnd * 10 ** -DECIMALS)

@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter, Dependencies } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -6,7 +7,7 @@ const fetch = async (options: FetchOptions) => {
   const openInterestAtEnd = options.createBalances();
 
   // USDC balance in these wallets
-  const token = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174'; // USDC token
+  const token = ADDRESSES.polygon.USDC; // USDC token
   const wallets: Array<string> = [
     '0x4D97DCd97eC945f40cF65F87097ACe5EA0476045',
     '0x3A3BD7bb9528E159577F7C2e685CC81A765002E2',

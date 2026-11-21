@@ -1,6 +1,9 @@
 import chains from "./chains"
 import routers from "./routers/index"
 import compoundV2 from "./compound-v2";
+import alliumUsers from "./alliumUsers";
+import duneUsers from "./duneUsers";
+import tokenUsers from "./tokenUsers";
 import { Adapter, FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { parseNewUserResponse, parseUserResponse } from "./utils/countUsers";
@@ -22,9 +25,16 @@ const activeUserProtocols: Record<string, SimpleAdapter> = {};
 const newUserProtocols: Record<string, SimpleAdapter> = {};
 
 routers.concat(chains as any[]).concat(compoundV2 as any[]).forEach((item: any) => {
-  if (item.activeUsersAdapter) activeUserProtocols[item.id ?? item.name] = item.activeUsersAdapter;
-  if (item.newUsersAdapter) newUserProtocols[item.id ?? item.name] = item.newUsersAdapter;
+  const id = item.id ?? item.name;
+  if (item.activeUsersAdapter) activeUserProtocols[id] = item.activeUsersAdapter;
+  if (item.newUsersAdapter) newUserProtocols[id] = item.newUsersAdapter;
 })
+
+alliumUsers.concat(duneUsers).concat(tokenUsers)
+  .forEach(({ id, adapter }) => {
+    if (activeUserProtocols[id]) throw new Error(`${id} has both a query-engine config and an address list, remove the address list entry`);
+    activeUserProtocols[id] = adapter;
+  })
 
 export const { protocolList, getAdapter } = createFactoryExports(activeUserProtocols);
 export const newUsers = createFactoryExports(newUserProtocols);

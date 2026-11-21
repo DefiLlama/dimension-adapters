@@ -84,6 +84,8 @@ const adapter: Adapter = {
   start: "2025-06-01",
   methodology,
   breakdownMethodology,
+  allowNegativeValue: true,
+  pullHourly: true,
 }
 
 export default adapter

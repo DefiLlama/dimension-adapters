@@ -19,6 +19,7 @@ export const CometAddresses: {[key: string]: Array<string>} = {
     '0x3D0bb1ccaB520A66e607822fC55BC921738fAFE3',
     '0x5D409e56D886231aDAf00c8775665AD0f9897b56',
     '0xe85Dc543813B8c2CFEaAc371517b925a166a9293',
+    '0x207158a267CBD2598BB3d611D8CBdEE2709F2F8C', // Institutional USDC, deployed 2026-09-01
   ],
   [CHAIN.POLYGON]: [
     '0xF25212E676D1F7F89Cd72fFEe66158f541246445',
@@ -150,6 +151,7 @@ const adapter: SimpleAdapter = {
     },
   },
   version: 2,
+  pullHourly: true,
   methodology: {
     Fees: 'Total borrow interest paid by borrowers across Compound V3 markets.',
     Revenue: 'Spread between borrow interest paid by borrowers and supply interest distributed to lenders. Accumulates as protocol reserves on each Comet contract, withdrawable to the Compound DAO Treasury via Governance.',

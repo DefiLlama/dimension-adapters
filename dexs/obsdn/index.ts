@@ -29,6 +29,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  deadFrom: '2026-08-01',
   pullHourly: true,
   chains: [CHAIN.MONAD],
   fetch,

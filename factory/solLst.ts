@@ -18,6 +18,7 @@
  *   - crypto-com-lst (multi-chain with EVM logic on Cronos)
  *   - hylo-lst (queries two separate stake pools)
  *   - bonk-staked-sol (custom metrics)
+ *   - doublezero-staked-sol (dzSOL valued at the stake pool exchange rate from 2026-10-19)
  */
 
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
@@ -167,6 +168,35 @@ function getBreakdownMethodology(config: SolLstConfig): Record<string, Record<st
   return Object.keys(breakdown).length > 0 ? breakdown : undefined;
 }
 
+// --- Jito MEV tips (the dailyMevRewards row of sol-lst.sql) ---
+// Tips claimed by the pool's stake accounts raise SOL per LST like inflation rewards, and the stake pool program charges its
+// epoch fee on every lamport the pool gains, so they are split like staking rewards. Where a config labels its staking
+// rewards, the tips are booked under METRIC.MEV_REWARDS.
+
+const MEV_TIPS = "Jito MEV tips claimed by the pool's stake accounts";
+const pct = (ratio: number) => +(ratio * 100).toFixed(1);
+
+function withMevMethodology(methodology: Record<string, string>): Record<string, string> {
+  return { ...methodology, Fees: `${methodology.Fees.replace(/\.$/, "")}. Also counts the ${MEV_TIPS}` };
+}
+
+function withMevBreakdown(config: SolLstConfig, breakdown?: Record<string, Record<string, string>>) {
+  if (!breakdown) return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [dimension, labels] of Object.entries(breakdown)) out[dimension] = { ...labels };
+  if (config.fees.metric)
+    out.Fees = { ...out.Fees, [METRIC.MEV_REWARDS]: MEV_TIPS };
+  if (config.supplySide.enabled && config.supplySide.metric)
+    out.SupplySideRevenue = { ...out.SupplySideRevenue, [METRIC.MEV_REWARDS]: `${pct(config.supplySide.ratio)}% of the ${MEV_TIPS} go to stakers` };
+  if (config.stakingRevenue.enabled && config.stakingRevenue.metric) {
+    const share = `${pct(config.stakingRevenue.ratio)}% of the ${MEV_TIPS} are collected as fees`;
+    out.Revenue = { ...out.Revenue, [METRIC.MEV_REWARDS]: share };
+    if (config.returnDailyProtocolRevenue !== false)
+      out.ProtocolRevenue = { ...out.ProtocolRevenue, [METRIC.MEV_REWARDS]: share };
+  }
+  return out;
+}
+
 function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
   const fetch = async (options: FetchOptions) => {
     const lstFeeTokenAccount = config.lstFeeTokenAccountSwitcher
@@ -190,10 +220,11 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
     const dailySupplySideRevenue = config.supplySide.enabled ? options.createBalances() : undefined;
 
     results.forEach((row: any) => {
-      if (row.metric_type === "dailyFees") {
-        // Staking rewards always go to dailyFees as SOL
+      if (row.metric_type === "dailyFees" || row.metric_type === "dailyMevRewards") {
+        // Staking rewards always go to dailyFees as SOL; Jito MEV tips (dailyMevRewards) are split the same way, under their own label
+        const label = (metric: string) => row.metric_type === "dailyMevRewards" ? METRIC.MEV_REWARDS : metric;
         if (config.fees.metric) {
-          dailyFees.addCGToken("solana", row.amount || 0, config.fees.metric);
+          dailyFees.addCGToken("solana", row.amount || 0, label(config.fees.metric));
         } else {
           dailyFees.addCGToken("solana", row.amount || 0);
         }
@@ -202,7 +233,7 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
         if (config.supplySide.enabled && dailySupplySideRevenue) {
           const supplySideAmount = Number(row.amount) * config.supplySide.ratio || 0;
           if (config.supplySide.metric) {
-            dailySupplySideRevenue.addCGToken("solana", supplySideAmount, config.supplySide.metric);
+            dailySupplySideRevenue.addCGToken("solana", supplySideAmount, label(config.supplySide.metric));
           } else {
             dailySupplySideRevenue.addCGToken("solana", supplySideAmount);
           }
@@ -212,7 +243,7 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
         if (config.stakingRevenue.enabled) {
           const stakingRevenueAmount = Number(row.amount) * config.stakingRevenue.ratio || 0;
           if (config.stakingRevenue.metric) {
-            dailyRevenue.addCGToken("solana", stakingRevenueAmount, config.stakingRevenue.metric);
+            dailyRevenue.addCGToken("solana", stakingRevenueAmount, label(config.stakingRevenue.metric));
           } else {
             dailyRevenue.addCGToken("solana", stakingRevenueAmount);
           }
@@ -288,8 +319,8 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
     return result;
   };
 
-  const methodology = getMethodology(config);
-  const breakdownMethodology = getBreakdownMethodology(config);
+  const methodology = withMevMethodology(getMethodology(config));
+  const breakdownMethodology = withMevBreakdown(config, getBreakdownMethodology(config));
 
   const adapter: SimpleAdapter = {
     version: 1,
@@ -311,7 +342,7 @@ function createSolLstAdapter(config: SolLstConfig): SimpleAdapter {
 
 function simpleConfig(overrides: Partial<SolLstConfig> & Pick<SolLstConfig, "stakePoolReserveAccount" | "stakePoolWithdrawAuthority" | "lstFeeTokenAccount" | "lstMint" | "start">): SolLstConfig {
   return {
-    fees: {},
+    fees: { metric: METRIC.STAKING_REWARDS },
     supplySide: { enabled: false, ratio: 0 },
     stakingRevenue: { enabled: false, ratio: 0 },
     revenue: { type: "add", mint: overrides.lstMint },
@@ -530,24 +561,6 @@ const configs: Record<string, SolLstConfig> = {
       Fees: "Staking rewards from staked SOL on Defi Development Fund staked solana",
       Revenue: "Includes withdrawal fees and management fees collected by fee collector",
       ProtocolRevenue: "Revenue going to treasury/team",
-    },
-  }),
-
-  "doublezero-staked-sol": simpleConfig({
-    stakePoolReserveAccount: "FFtERWBSCkScg8spA2mNB9zN5SdH16NqQywXw3bbB1aJ",
-    stakePoolWithdrawAuthority: "4cpnpiwgBfUgELVwNYiecwGti45YHSH3R72CPkFTiwJt",
-    lstFeeTokenAccount: "GhN6PpyP6Ln4ycWcyvqsNcowLfYjpUcA9uWKAcFBjj2D",
-    lstMint: "Gekfj7SL2fVpTDxJZmeC46cTYxinjB6gkAnb6EGT6mnn",
-    start: "2025-07-25",
-    // doublezero uses addCGToken with a conditional cgId based on timestamp
-    revenue: { type: "addCGToken", cgId: "doublezero-staked-sol" },
-    revenueFeedback: { addToFees: false },
-    returnDailyHoldersRevenue: 0,
-    methodology: {
-      Fees: "Staking rewards from staked SOL on doublezero staked solana, plus the withdrawal fees users pay on their principal",
-      Revenue: "Includes withdrawal fees and management fees collected by fee collector",
-      ProtocolRevenue: "Revenue going to treasury/team",
-      HoldersRevenue: "No revenue share to 2Z token holders.",
     },
   }),
 
@@ -799,6 +812,43 @@ const configs: Record<string, SolLstConfig> = {
     },
   }),
 
+  "phase-delegation": {
+    stakePoolReserveAccount: "aeroivis36SwDvAJpzQCDX9Y7cCLXBdv9vTn1DtDnVC",
+    stakePoolWithdrawAuthority: "AKJt3m2xJ6ANda9adBGqb5BMrheKJSwxyCfYkLuZNmjn",
+    lstFeeTokenAccount: "55Kw1KRAVTjqzNf1ZXoYAJk3o7Q2NifpPh3VtGeiyMpo",
+    lstMint: "aeroXvCT6tjGVNyTvZy86tFDwE4sYsKCh7FbNDcrcxF",
+    start: "2024-06-09",
+    fees: { metric: METRIC.STAKING_REWARDS },
+    revenue: { type: "add", mint: "aeroXvCT6tjGVNyTvZy86tFDwE4sYsKCh7FbNDcrcxF", metric: METRIC.DEPOSIT_WITHDRAW_FEES },
+    revenueFeedback: { addToFees: true, feesMetric: METRIC.DEPOSIT_WITHDRAW_FEES },
+    supplySide: { enabled: true, ratio: 0.95, metric: METRIC.STAKING_REWARDS },
+    stakingRevenue: { enabled: true, ratio: 0.05, metric: METRIC.STAKING_REWARDS },
+    excludeMintsForRevenue: true,
+    methodology: {
+      Fees: "Staking rewards from staked SOL on phase delegation staked solana, plus withdrawal fees",
+      Revenue: "5% epoch fee on staking rewards plus 0.05% withdrawal fees collected by the fee collector",
+      ProtocolRevenue: "Revenue going to treasury/team",
+      SupplySideRevenue: "95% of the staking rewards go to stakers",
+    },
+    breakdownMethodology: {
+      Fees: {
+        [METRIC.STAKING_REWARDS]: "Staking rewards from staked SOL on Phase Delegation",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.05% withdrawal fee",
+      },
+      Revenue: {
+        [METRIC.STAKING_REWARDS]: "5% of staking rewards are collected as fees",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.05% withdrawal fee",
+      },
+      ProtocolRevenue: {
+        [METRIC.STAKING_REWARDS]: "5% of staking rewards are collected as fees",
+        [METRIC.DEPOSIT_WITHDRAW_FEES]: "Includes 0.05% withdrawal fee",
+      },
+      SupplySideRevenue: {
+        [METRIC.STAKING_REWARDS]: "95% of the staking rewards are distributed to pdSOL",
+      },
+    },
+  },
+
   "pico-staked-sol": simpleConfig({
     stakePoolReserveAccount: "2ArodFTZhNqVWJT92qEGDxigAvouSo1kfgfEcC3KEWUK",
     stakePoolWithdrawAuthority: "4At8nQXanWgRvjbrVXmxMBBdfz39txWVm4SiXEoP1kGh",
@@ -812,18 +862,20 @@ const configs: Record<string, SolLstConfig> = {
     },
   }),
 
-  "save-staked-sol": simpleConfig({
-    stakePoolReserveAccount: "FL2AsvZPTW33QdmBgQx15ZdtaSbmuwY3oBCJMj63u9W1",
-    stakePoolWithdrawAuthority: "9yWcz4S27nXKpsVmWqaimphCUnFo441JUvwkzmvRWys3",
-    lstFeeTokenAccount: "5VyLWq6nGg8mkAsHUwn6KqnaTni6hFZHb6dGiV7dCtGz",
-    lstMint: "SAVEDpx3nFNdzG3ymJfShYnrBuYy7LtQEABZQ3qtTFt",
-    start: "2025-03-31",
-    methodology: {
-      Fees: "Staking rewards from staked SOL on save staked solana",
-      Revenue: "Includes withdrawal fees and management fees collected by fee collector",
-      ProtocolRevenue: "Revenue going to treasury/team",
-    },
-  }),
+  // moved to fees/save-staked-sol/index.ts, the pool has a 0% epoch fee and saveSOL has no price feed,
+  // so withdrawal fees need to be converted to SOL at the pool exchange rate
+  // "save-staked-sol": simpleConfig({
+  //   stakePoolReserveAccount: "FL2AsvZPTW33QdmBgQx15ZdtaSbmuwY3oBCJMj63u9W1",
+  //   stakePoolWithdrawAuthority: "9yWcz4S27nXKpsVmWqaimphCUnFo441JUvwkzmvRWys3",
+  //   lstFeeTokenAccount: "5VyLWq6nGg8mkAsHUwn6KqnaTni6hFZHb6dGiV7dCtGz",
+  //   lstMint: "SAVEDpx3nFNdzG3ymJfShYnrBuYy7LtQEABZQ3qtTFt",
+  //   start: "2025-03-31",
+  //   methodology: {
+  //     Fees: "Staking rewards from staked SOL on save staked solana",
+  //     Revenue: "Includes withdrawal fees and management fees collected by fee collector",
+  //     ProtocolRevenue: "Revenue going to treasury/team",
+  //   },
+  // }),
 
   "solayer-staked-sol": simpleConfig({
     stakePoolReserveAccount: "Brh9rB6npnjM1vDXyCXtzkXVGRnsh6KHqmBz26tVACg9",
@@ -894,62 +946,7 @@ const configs: Record<string, SolLstConfig> = {
   }),
 };
 
-// --- Special handling for doublezero and jito ---
-
-// doublezero-staked-sol: has a conditional revenue cgId based on timestamp
-// We need to override the generated fetch to handle this
-const doublezeroOriginalConfig = configs["doublezero-staked-sol"];
-const doublezeroAdapter = (() => {
-  const baseCfg = { ...doublezeroOriginalConfig };
-
-  const fetch = async (options: FetchOptions) => {
-    const revenueToken = options.startTimestamp > 1759735276 ? "doublezero-staked-sol" : "solana";
-
-    const query = getSqlFromFile("helpers/queries/sol-lst.sql", {
-      start: options.startTimestamp,
-      end: options.endTimestamp,
-      stake_pool_reserve_account: baseCfg.stakePoolReserveAccount,
-      stake_pool_withdraw_authority: baseCfg.stakePoolWithdrawAuthority,
-      lst_fee_token_account: baseCfg.lstFeeTokenAccount,
-      lst_mint: baseCfg.lstMint,
-      exclude_mints_filter: baseCfg.excludeMintsForRevenue ? "AND action!='mint'" : "",
-    });
-
-    const results = await queryDuneSql(options, query);
-
-    const dailyFees = options.createBalances();
-    const dailyRevenue = options.createBalances();
-
-    results.forEach((row: any) => {
-      if (row.metric_type === "dailyFees") {
-        dailyFees.addCGToken("solana", row.amount || 0);
-      } else if (row.metric_type === "dailyRevenue") {
-        dailyRevenue.addCGToken(revenueToken, row.amount || 0);
-      } else if (row.metric_type === "dailyUserFees") {
-        dailyFees.addCGToken(revenueToken, row.amount || 0);
-      }
-    });
-
-    return {
-      dailyFees,
-      dailyRevenue,
-      dailyProtocolRevenue: dailyRevenue,
-      dailyHoldersRevenue: 0,
-    };
-  };
-
-  const adapter: SimpleAdapter = {
-    version: 1,
-    methodology: baseCfg.methodology,
-    fetch,
-    dependencies: [Dependencies.DUNE],
-    chains: [CHAIN.SOLANA],
-    start: baseCfg.start,
-    isExpensiveAdapter: true,
-  };
-
-  return adapter;
-})();
+// --- Special handling for jito ---
 
 // jito-staked-sol: has commented-out revenue logic, only returns dailyFees + dailySupplySideRevenue
 /* const jitoAdapter = (() => {
@@ -1010,12 +1007,11 @@ const protocols: Record<string, SimpleAdapter> = {};
 
 for (const [name, config] of Object.entries(configs)) {
   // Skip adapters with custom implementations
-  if (name === "doublezero-staked-sol" || name === "jito-staked-sol") continue;
+  if (name === "jito-staked-sol") continue;
   protocols[name] = createSolLstAdapter(config);
 }
 
 // Add custom adapters
-protocols["doublezero-staked-sol"] = doublezeroAdapter;
 // protocols["jito-staked-sol"] = jitoAdapter;
 
 // Export factory interface

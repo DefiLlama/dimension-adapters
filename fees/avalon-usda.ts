@@ -103,6 +103,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
 	version: 2,
+	pullHourly: true,
 	adapter: Object.fromEntries(
 		Object.entries(configs).map(([chain, config]) => [
 			chain,

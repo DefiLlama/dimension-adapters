@@ -62,6 +62,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     chains: [CHAIN.ETHEREUM],
     fetch,
     start: "2026-03-24", // first full UTC day after block 24718738, Mar-23-2026 07:30:59 AM UTC

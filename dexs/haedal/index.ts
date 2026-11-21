@@ -16,6 +16,7 @@ const fetchData = () => {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     adapter: {
         [CHAIN.SUI]: {
             fetch: fetchData(),

@@ -3,7 +3,7 @@ import { queryAllium } from "./allium"
 import { CHAIN } from "./chains"
 
 
-export function alliumSolanaDexExport(dex_id: string, protocol: string, start: string) {
+export function alliumSolanaDexExport(dex_id: string, protocol: string, start: string, deadFrom?: string) {
   const fetch = async (options: FetchOptions) => {
     const query = `
       SELECT 
@@ -12,7 +12,7 @@ export function alliumSolanaDexExport(dex_id: string, protocol: string, start: s
       WHERE project = '${dex_id}'
         AND protocol = '${protocol}'
         AND block_timestamp >= TO_TIMESTAMP_NTZ('${options.startTimestamp}')
-        AND block_timestamp <= TO_TIMESTAMP_NTZ('${options.endTimestamp}')
+        AND block_timestamp < TO_TIMESTAMP_NTZ('${options.endTimestamp}')
       `
     const data = await queryAllium(query)
     return {
@@ -26,6 +26,7 @@ export function alliumSolanaDexExport(dex_id: string, protocol: string, start: s
     fetch,
     chains: [CHAIN.SOLANA],
     start,
+    ...(deadFrom ? { deadFrom } : {}),
     dependencies: [Dependencies.ALLIUM],
   }
 }

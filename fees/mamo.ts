@@ -6,6 +6,7 @@ import { METRIC } from "../helpers/metrics";
 
 const MAMO_MULTI_REWARDS = "0x7855B0821401Ab078f6Cf457dEAFae775fF6c7A3";
 const MAMO_TOKEN = "0x7300B37DfdfAb110d83290A29DfB31B1740219fE";
+const REWARDS_DISTRIBUTOR = "0xfE2ff8927EF602DDac27E314A199D16BE6177860";
 
 const fetch = async (options: FetchOptions) => {
 
@@ -14,6 +15,7 @@ const fetch = async (options: FetchOptions) => {
         options,
         targets: [MAMO_MULTI_REWARDS],
         tokens: [MAMO_TOKEN, ADDRESSES.base.cbBTC],
+        fromAddressFilter: REWARDS_DISTRIBUTOR,
     });
 
     const dailyFees = stakingRewards.clone(1, METRIC.STAKING_REWARDS);

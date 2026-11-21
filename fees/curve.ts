@@ -1,3 +1,6 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 import { BaseAdapter, FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
@@ -20,7 +23,13 @@ const fetchBribesRevenue = async (options: FetchOptions) => {
     return dailyBribesRevenue;
   }
 
-  const stats = await fetchURL(`https://storage.googleapis.com/crvhub_cloudbuild/data/bounties/stats.json`)
+  // Source swapped 2026-08: the crvhub bounties file stopped updating on
+  // 2026-07-11, so every day since reads as a zero delta. CurveDEX publishes
+  // the same schema, rebuilt 4x/day from Votemarket (on-chain campaigns) and
+  // Votium. Basis note: it counts incentives ADDED rather than claimed - field
+  // names keep crvhub's spelling for compatibility, and the root carries
+  // `basis` / `granularity` / `disclaimer` spelling that out.
+  const stats = await fetchURL(`https://llama.box/curvedex/api/bribes/stats.json`)
   const daily: any[] = stats.claimsLast365Days?.claims ?? []
   const inception: any[] = stats.claimsSinceInception?.claims ?? []
 
@@ -86,7 +95,7 @@ const fetch = async (options: FetchOptions) => {
 // https://resources.curve.finance/pools/overview/#pool-fees
 const adapter: SimpleAdapter = {
   version: 2,
-  // pullHourly: true, // curve api doesn't support hourly pull
+  pullHourly: false, // bribes come from a once-a-day cumulative stats JSON
   adapter: Object.keys(baseDexAdapter).reduce((all, chain) => {
     all[chain] = {
       fetch,

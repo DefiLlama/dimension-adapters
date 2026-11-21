@@ -46,4 +46,5 @@ export default {
     [CHAIN.METIS]: adapter,
   },
   version: 2,
+  pullHourly: true,
 };

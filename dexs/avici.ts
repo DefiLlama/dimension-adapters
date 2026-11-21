@@ -2,7 +2,7 @@ import { CHAIN } from "../helpers/chains";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { httpGet } from "../utils/fetchURL";
 
-const OVERVIEW_API = "https://www.endbanks.org/api/relay-swaps/overview?timePeriod=all";
+const OVERVIEW_API = "https://avici.org/api/relay-swaps/overview?timePeriod=all";
 // Source: https://dune.com/queries/7336077/11261155
 // Float yield is excluded because the 50% yield share is an estimate and can be wrong.
 // Card issuing fees are excluded because there are not enough reliable sources to track them.
@@ -36,7 +36,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "Total USD value of Relay swaps routed through Avici, sourced from the endbanks.org overview API.",
+  Volume: "Total USD value of Relay swaps routed through Avici, sourced from the avici.org metrics overview API.",
   Fees: "Includes interchange fees, calculated as 1.25% of Avici card spend.",
   Revenue: "Revenue is the full interchange amount retained by Avici.",
   ProtocolRevenue: "Protocol revenue is the full interchange amount retained by Avici.",

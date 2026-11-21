@@ -124,6 +124,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
+  doublecounted: true,
   methodology,
   breakdownMethodology,
   pullHourly: true,

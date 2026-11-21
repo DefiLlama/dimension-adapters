@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { SimpleAdapter, FetchOptions } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
 import * as sdk from "@defillama/sdk"

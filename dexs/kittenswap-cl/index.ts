@@ -33,6 +33,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     fromBlock: 2033100,
     eventAbi: eventAbis.event_poolCreated,
     skipIndexer: true,
+    cacheInCloud: true,
   });
   const _pools = rawPools.map((i: any) => i.pool.toLowerCase());
   const fees = await options.api.multiCall({ abi: abis.fee, calls: _pools });

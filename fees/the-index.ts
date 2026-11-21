@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { ChainApi, getProvider } from "@defillama/sdk";
@@ -30,7 +31,7 @@ const REWARD_V1_START_BLOCK = 15_904_781;
 
 // First Index Treasury factory deployment: https://robinhoodchain.blockscout.com/block/23570628
 const EARLIEST_DEPLOY_BLOCK = 23_570_628;
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ADDRESSES.null;
 
 const abi = {
   TreasuryDeployed:

@@ -25,10 +25,13 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances()
 
   const feesUsd = parseFloat(data.dailyFees) || 0
-  const protocolRevenueUsd = parseFloat(data.dailyProtocolRevenue) || 0
-  const holdersRevenueUsd = parseFloat(data.dailyHoldersRevenue) || 0
   const meteoraFeeUsd = parseFloat(data.meteoraFee) || 0
-  const lpFeeUsd = (parseFloat(data.dailySupplySideRevenue) || 0) - meteoraFeeUsd
+  const supplySideUsd = parseFloat(data.dailySupplySideRevenue)
+  // upstream returns supply side 0 with inflated revenue on some days (#9277); rebuild the split from the two fields that stay consistent
+  const rebuildSplit = supplySideUsd === 0
+  const protocolRevenueUsd = rebuildSplit ? feesUsd - meteoraFeeUsd : parseFloat(data.dailyProtocolRevenue) || 0
+  const holdersRevenueUsd = rebuildSplit ? 0 : parseFloat(data.dailyHoldersRevenue) || 0
+  const lpFeeUsd = rebuildSplit ? 0 : (supplySideUsd || 0) - meteoraFeeUsd
 
   if (feesUsd > 0) dailyFees.addUSDValue(feesUsd, "Swap Fees")
   if (protocolRevenueUsd > 0) dailyProtocolRevenue.addUSDValue(protocolRevenueUsd, "Swap Fees To Treasury")

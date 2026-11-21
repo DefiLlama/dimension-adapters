@@ -26,8 +26,9 @@ const methodology = {
     SupplySideRevenue: 'The Portion of interest earned by lenders'
 }
 
-const fetchNAVIStats = async ({ startTimestamp, createBalances }: FetchOptions) => {
-    const url = `${naviApiURL}?fromTimestamp=${startTimestamp}&cf_pass=b35f13a110a4`
+// the API floors fromTimestamp to the UTC day; server v1 runs pass startTimestamp = (D-1) 23:59:59, so key off startOfDay
+const fetchNAVIStats = async ({ startOfDay, createBalances }: FetchOptions) => {
+    const url = `${naviApiURL}?fromTimestamp=${startOfDay}&cf_pass=b35f13a110a4`
     const stats: DailyStats = (await fetchURL(url)).data;
 
     const dailyFees = createBalances();
@@ -55,7 +56,7 @@ const fetchNAVIStats = async ({ startTimestamp, createBalances }: FetchOptions) 
 };
 
 const adapter: Adapter = {
-    version: 2,
+    version: 1, // API returns whole days
     adapter: {
         [CHAIN.SUI]: {
             fetch: fetchNAVIStats,

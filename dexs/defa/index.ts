@@ -1,95 +1,64 @@
 import { CHAIN } from "../../helpers/chains";
-import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { queryDuneSql } from "../../helpers/dune";
+import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { addTokensReceived } from "../../helpers/token";
 import ADDRESSES from "../../helpers/coreAssets.json";
-// DeFa — daily USDC inflow (capital deployed) into DeFa's real-world-credit pools.
-//
-// - Invoice financing on Stellar / ZigChain / Starknet: the on-chain TVL loggers expose a
-//   cumulative "raised" figure. Stellar/Soroban RPC can't serve historical state, so these
-//   are snapshotted daily into Dune (dune.defa_im.raised_daily) and we take the day-over-day
-//   increase. (Requested by maintainer: Dune only for the chains where historical is hard.)
-// - PSP/PayFi lending on Ethereum: read on-chain directly — USDC Transfer logs into the
-//   DeFa PayFi address = that day's inflow. No Dune dependency.
-//
-// DefiLlama accumulates the dailies into cumulative volume (monotonic).
 
-const DEFA_ETH = "0x182D16434faa044B9216A490CF0955B04AE16904";
+const USDC = ADDRESSES[CHAIN.ETHEREUM].USDC;
+const USDT = ADDRESSES[CHAIN.ETHEREUM].USDT;
 
-// Stellar / ZigChain / Starknet — one Dune query for all Dune-backed chains.
+// Approved prefunding routes: (lending Safe -> borrower payout wallet, token).
 //
-// Fallback reference (in case Dune is ever unavailable): each chain's cumulative "raised"
-// comes from an on-chain TVL logger contract that our snapshotter reads daily into Dune.
-// The raw on-chain values can be read directly from these, no Dune needed:
-//   Stellar (Soroban) : CDVVH3KWXWLVUO5OLLBBZSCZICV46PDKYA2G2HYBTWH4A6EJWTBRIXRK
-//                       fn get_tvl() -> raised_in_overall_pools, 7 decimals
-//   ZigChain (CosmWasm): zig19pp9rxhqktgpf2yqkwwx6yekmgvnu3hvj0c4e5rlpw88l0shh3qs9qcdyg
-//                       query {tvl:{}} -> raised_in_overall_pools, 6 decimals
-//   Starknet (Cairo)  : 0x0595a45952ef488d49342cd4fdf062482ab51c0718fcd8c11ff6614034b0939d
-//                       fn get_tvl_snapshot() -> total_deposited (1st field), 6 decimals
-const prefetch = async (options: FetchOptions) => {
-  const query = `
-    WITH daily AS (
-      SELECT chain, date, MAX(raised_usd) AS raised_usd     -- dedup re-runs: latest per day
-      FROM dune.defa_im.raised_daily
-      WHERE chain != 'ethereum'                             -- Ethereum is read on-chain below
-      GROUP BY chain, date
-    ),
-    delta AS (
-      SELECT chain, date,
-             COALESCE(raised_usd - LAG(raised_usd) OVER (PARTITION BY chain ORDER BY date), raised_usd) AS daily_raised
-      FROM daily
-    )
-    SELECT chain, COALESCE(SUM(daily_raised), 0) AS daily_raised
-    FROM delta
-    -- 'date' is a unix-seconds bigint (not a SQL DATE), so compare directly to the unix bounds
-    WHERE date >= ${options.startTimestamp} AND date < ${options.endTimestamp}
-    GROUP BY chain
-  `;
-  return queryDuneSql(options, query);
-};
+// Source: each entry is a DeFa-operated lending Safe paired with the payout wallet
+// of the borrower that Safe funds. A route is added only once DeFa has approved it,
+// and the resulting total is published on DeFa's public dashboard at
+// https://dune.com/defa_im/defa-by-invoicemate, which is generated from this same
+// pair list. The borrower names below are labels for that pairing, not its source.
+//
+// Matching the pair rather than the Safe alone keeps stablecoin that leaves a Safe
+// for an operational relay, for rebalancing, or back to lenders out of the total.
+const ROUTES = [
+  { safe: "0x182d16434faa044b9216a490cf0955b04ae16904", borrower: "0x6ccf7374dd59f3642633ce2161e02cf670773034", token: USDC }, // A Express
+  { safe: "0x6357c870970775d63847d31be3161093a21736db", borrower: "0x8a0dd7159093f1847bf9b467cabb9926e26fa653", token: USDC }, // Menden/Mansa
+  { safe: "0x6357c870970775d63847d31be3161093a21736db", borrower: "0x8a0dd7159093f1847bf9b467cabb9926e26fa653", token: USDT }, // Menden/Mansa
+];
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-
-  // Ethereum (PSP/PayFi): daily USDC inflow from on-chain Transfer logs into the DeFa address.
-  if (options.chain === CHAIN.ETHEREUM) {
-    await addTokensReceived({
-      target: DEFA_ETH,
-      options,
-      token: ADDRESSES[CHAIN.ETHEREUM].USDC,
-      balances: dailyVolume,
-    });
-    return { dailyVolume };
-  }
-
-  // Stellar / ZigChain / Starknet: from the daily Dune snapshot (prefetched).
-  // A day with no snapshot row = no recorded inflow that day = 0 volume (not an error).
-  // The delta is a LAG over whichever days exist, so a later snapshot still captures any
-  // inflow from a skipped day — cumulative volume stays correct with no gaps in the series.
-  const rows: { chain: string; daily_raised: number }[] = options.preFetchedResults || [];
-  const row = rows.find((r) => r.chain === options.chain);
-  if (row) dailyVolume.addUSDValue(Number(row.daily_raised));
+  // One pass per route. `target` filters the indexed `to` topic and
+  // `fromAddressFilter` the indexed `from`, so each pass matches only that
+  // Safe -> borrower pair for that token. `tokens` is explicit: with a
+  // from-filter the helper has no address to enumerate holdings for.
+  await Promise.all(
+    ROUTES.map((route) =>
+      addTokensReceived({
+        target: route.borrower,
+        fromAddressFilter: route.safe,
+        tokens: [route.token],
+        options,
+        balances: dailyVolume,
+      })
+    )
+  );
   return { dailyVolume };
 };
 
 const methodology = {
   Volume:
-    "Daily USDC inflow into DeFa's real-world-credit pools. Invoice financing on Stellar, ZigChain and Starknet: from the on-chain TVL loggers (snapshotted daily to Dune, day-over-day delta). PSP/PayFi lending on Ethereum: USDC Transfer logs into the DeFa PayFi address, read on-chain. DefiLlama accumulates into cumulative volume (monotonic).",
+    "Gross capital disbursed to borrowers through DeFa's PayFi facility. Each approved route is a lending Safe, a borrower payout wallet and a stablecoin; volume is the USDC and USDT Transfer events on Ethereum whose sender is the Safe and whose recipient is that borrower's payout wallet, read from on-chain logs. Restricting to the pair excludes operational relays, rebalancing and transfers back to lenders, so only first-leg origination counts. Repayments are a separate reverse-direction flow and are not subtracted: this is lifetime gross disbursement, and redraws count each time. One row per Transfer log, so a transaction carrying several disbursements counts each. DefiLlama accumulates the daily figures into cumulative volume.",
 };
 
 const adapter: SimpleAdapter = {
-  version: 1,
-  prefetch,
-  dependencies: [Dependencies.DUNE],
-  isExpensiveAdapter: true,
+  version: 2,
+  pullHourly: true,
   methodology,
   fetch,
   adapter: {
-    [CHAIN.ETHEREUM]: { start: "2026-04-11" }, // first PSP inflow — backfills full history
-    [CHAIN.STELLAR]: { start: "2026-07-04" },
-    [CHAIN.STARKNET]: { start: "2026-07-04" },
-    zigchain: { start: "2026-07-04" },
+    [CHAIN.ETHEREUM]: { start: "2026-04-11" },
+    // Disabled: these chains recorded no volume on the previous Dune-backed path.
+    // Re-enable when a prefunding route goes live on them.
+    // [CHAIN.STELLAR]: { start: "2026-07-04" },
+    // [CHAIN.STARKNET]: { start: "2026-07-04" },
+    // zigchain: { start: "2026-07-04" },
   },
 };
 

@@ -1,10 +1,11 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 
 // Gacha Pull main contract on Abstract (pack purchases & buyback events)
 // https://abscan.org/address/0x268031de8363401d61b6a256bea009bb57277619
 const CONTRACT = '0x268031de8363401d61b6a256bea009bb57277619'
-const USDC_E = '0x84a71ccd554cc1b02749b35d22f684cc8ec987e1'
+const USDC_E = ADDRESSES.abstract.USDC
 
 const PURCHASE_TOPIC = '0x7f13db84050d22dfb1e745ac7a5505f8d3cbbc4513e28555749286e28fc90d60'
 const BUYBACK_TOPIC = '0xc6d5275a2e779159157ae9621600816f3af8d899854cc629c70530785f781bb1'

@@ -113,7 +113,6 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
     const fees: ChainFees = {};
     const sameChainVolume: ChainFees = {};
     let currentPage = 1;
-    let insideDateRange = false;
     let shouldContinue = true;
 
     while (shouldContinue) {
@@ -134,33 +133,40 @@ async function fetchTransactionsInDateRange(startTimestamp: number, endTimestamp
             break;
         }
 
+        // Pages are newest-first, so a stale first row means paging further is
+        // pointless and would publish the same silent zeros as an empty feed.
+        if (currentPage === 1) {
+            const newestTimestamp = new Date(response.result.data[0].created_at).getTime() / 1000;
+            if (newestTimestamp < startTimestamp) {
+                throw new Error(
+                    `garden fees: freshest completed order (${response.result.data[0].created_at}) predates the requested window — the orders feed looks stale, not zero`
+                );
+            }
+        }
+
         for (const tx of response.result.data) {
             const txTimestamp = new Date(tx.created_at).getTime() / 1000;
-
-            if (!insideDateRange && txTimestamp > endTimestamp) continue;
-
-            if (txTimestamp <= endTimestamp && txTimestamp >= startTimestamp) {
-                insideDateRange = true;
-                const { source_swap, destination_swap } = tx;
-                const sourceChain = source_swap.chain;
-                const destChain = destination_swap.chain;
-
-                if (Number(destination_swap.filled_amount) === 0) continue;
-                const sourceUSD = getUSDValue(source_swap);
-                const destUSD = getUSDValue(destination_swap);
-                if (sourceUSD === 0 || destUSD === 0) continue;
-                const fee = sourceUSD - destUSD;
-                const chain = source_swap.chain;
-                fees[chain] = (fees[chain] ?? 0) + fee;
-
-                if (sourceChain === destChain) {
-                    sameChainVolume[sourceChain] = (sameChainVolume[sourceChain] ?? 0) + sourceUSD;
-                }
-            }
-
-            if (insideDateRange && txTimestamp < startTimestamp) {
+            if (txTimestamp >= endTimestamp) continue;
+            // newest-first feed: the first row older than the window ends the walk,
+            // even when the window had no orders (otherwise an empty hour pages all history)
+            if (txTimestamp < startTimestamp) {
                 shouldContinue = false;
                 break;
+            }
+
+            const { source_swap, destination_swap } = tx;
+            const sourceChain = source_swap.chain;
+            const destChain = destination_swap.chain;
+
+            if (Number(destination_swap.filled_amount) === 0) continue;
+            const sourceUSD = getUSDValue(source_swap);
+            const destUSD = getUSDValue(destination_swap);
+            if (sourceUSD === 0 || destUSD === 0) continue;
+            const fee = sourceUSD - destUSD;
+            fees[sourceChain] = (fees[sourceChain] ?? 0) + fee;
+
+            if (sourceChain === destChain) {
+                sameChainVolume[sourceChain] = (sameChainVolume[sourceChain] ?? 0) + sourceUSD;
             }
         }
 
@@ -212,6 +218,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: true,
     fetch,
     methodology,
     adapter: chainMapper,

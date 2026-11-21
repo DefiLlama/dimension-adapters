@@ -1,16 +1,25 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryAllium } from "../../helpers/allium";
+import { assertJupiterStatsPublished, getJupiterStatsRevenue } from "../../helpers/jupiter-stats";
 
 // Jupiter Gacha settles through Collector Crypt's shared wallet; jupiter-* memos
 // isolate Jupiter activity. https://solscan.io/account/GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3
 const GACHA_ADDRESS = "GachaNgyXTU3zFogQ8Z5jR2BLXs8215X2AtEH18VxJq3";
+// Phygitals settles Jupiter pack purchases through its own wallet, using the same jupiter-
+// memo convention. Two differences from Collector Crypt: the memo carries no :action suffix,
+// and the buyback leg is not memo-tagged, so only the purchase side is attributable to
+// Jupiter. It therefore contributes volume and nothing else.
+// https://solscan.io/account/62Q9eeDY3eM8A5CnprBGYMPShdBjAzdpBdr71QHsS8dS
+const PHYGITALS_ADDRESS = "62Q9eeDY3eM8A5CnprBGYMPShdBjAzdpBdr71QHsS8dS";
 // Canonical USDC mint on Solana.
-const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const USDC_MINT = ADDRESSES.solana.USDC;
 // Listed Jupiter Gacha pack prices; future/non-standard prices remain visible
 // under Other Gacha Pack Sales. https://jup.ag/gacha
 const GACHA_TIERS = new Set([25, 50, 100, 250, 1000, 2500]);
-
+const REVENUE_LABEL = "Gacha Fees To Jupiter";
+const SUPPLY_SIDE_LABEL = "Gacha Fees To Partners";
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
@@ -28,6 +37,7 @@ const fetch = async (options: FetchOptions) => {
         AND (
           to_address = '${GACHA_ADDRESS}'
           OR from_address = '${GACHA_ADDRESS}'
+          OR to_address = '${PHYGITALS_ADDRESS}'
         )
         AND ${timeRange}
     ),
@@ -35,7 +45,8 @@ const fetch = async (options: FetchOptions) => {
       SELECT
         txn_id,
         REGEXP_SUBSTR(
-          array_join(log_messages, '||'),
+          -- the guard stops "Left argument of string is not an array" on non-array log_messages rows
+          ARRAY_TO_STRING(IFF(IS_ARRAY(log_messages::variant), log_messages, NULL), '||'),
           'Memo \\\\(len [0-9]+\\\\): "([^"]+)"',
           1, 1, 'e', 1
         ) AS memo
@@ -62,6 +73,12 @@ const fetch = async (options: FetchOptions) => {
         AND to_address = '${GACHA_ADDRESS}'
       GROUP BY amount
     ),
+    phygitals_sales AS (
+      SELECT
+        COALESCE(SUM(amount), 0) AS total
+      FROM events
+      WHERE to_address = '${PHYGITALS_ADDRESS}'
+    ),
     buybacks AS (
       SELECT
         COALESCE(SUM(amount), 0) AS total
@@ -80,8 +97,15 @@ const fetch = async (options: FetchOptions) => {
       NULL AS amount,
       total
     FROM buybacks
+    UNION ALL
+    SELECT
+      'phygitals' AS action,
+      NULL AS amount,
+      total
+    FROM phygitals_sales
   `;
 
+  await assertJupiterStatsPublished(options);
   const rows = await queryAllium(query);
 
   for (const row of rows) {
@@ -97,28 +121,36 @@ const fetch = async (options: FetchOptions) => {
       dailyFees.addUSDValue(total, label);
     } else if (row.action === "buyback") {
       dailyFees.addUSDValue(-total, "Pack Buyback Spends");
+    } else if (row.action === "phygitals") {
+      // Volume only: the Phygitals buyback leg carries no jupiter- memo, so there is
+      // nothing to net these sales against.
+      dailyVolume.addUSDValue(total);
     }
   }
+
+  // Jupiter's share is set by confidential terms with Collector Crypt and Phygitals, so it comes from Jupiter's stats API.
+  // The partners keep the rest and pay the card buybacks.
+  const { dailyRevenue } = await getJupiterStatsRevenue(options, { gacha: REVENUE_LABEL });
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addUSDValue(await dailyFees.getUSDValue() - await dailyRevenue.getUSDValue(), SUPPLY_SIDE_LABEL);
 
   return {
     dailyVolume,
     dailyFees,
-    dailyRevenue: 0,
     dailyUserFees: dailyFees,
-    dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: 0,
-    dailySupplySideRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue,
   };
 };
 
 const methodology = {
-  Volume: "Gross USDC spent on Jupiter Gacha packs.",
-  Fees: "Jupiter Gacha pack sales minus card buyback payouts.",
-  Revenue: "Jupiter doesn't retain any revenue, all the revenue belongs to Collector Crypt.",
-  UserFees: "Net amount paid by users after card buybacks.",
-  ProtocolRevenue: "Jupiter doesn't retain any revenue, all the revenue belongs to Collector Crypt.",
-  HoldersRevenue: "No holders revenue.",
-  SupplySideRevenue: "All the revenue from pack sales minus buybacks belongs to Collector Crypt."
+  Volume: "USDC spent on Jupiter Gacha packs, on Collector Crypt and Phygitals.",
+  Fees: "Pack sales minus the USDC paid to users who sell their cards back.",
+  UserFees: "Pack sales minus the USDC paid to users who sell their cards back.",
+  Revenue: "Jupiter's share of gacha fees, negative on days when buybacks exceed sales.",
+  ProtocolRevenue: "All of Jupiter's share, kept by Jupiter. Not used for JUP buybacks.",
+  SupplySideRevenue: "Gacha fees not kept by Jupiter, kept by Collector Crypt and Phygitals.",
 };
 
 const financialBreakdown = {
@@ -133,9 +165,8 @@ const financialBreakdown = {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1,
   fetch,
-  pullHourly: true,
   start: "2026-07-01",
   chains: [CHAIN.SOLANA],
   dependencies: [Dependencies.ALLIUM],
@@ -144,9 +175,11 @@ const adapter: SimpleAdapter = {
   breakdownMethodology: {
     Fees: financialBreakdown,
     UserFees: financialBreakdown,
-    SupplySideRevenue: financialBreakdown,
+    Revenue: { [REVENUE_LABEL]: "Jupiter's share of gacha fees (pack sales minus buybacks)." },
+    ProtocolRevenue: { [REVENUE_LABEL]: "All of Jupiter's share of gacha fees, kept by Jupiter." },
+    SupplySideRevenue: { [SUPPLY_SIDE_LABEL]: "Gacha fees not kept by Jupiter, kept by Collector Crypt and Phygitals." },
   },
-  allowNegativeValue: true, // hourly buyback payouts can exceed pack sales in the same interval
+  allowNegativeValue: true, // buyback payouts can exceed pack sales on a day
   doublecounted: true, // Jupiter Gacha activity overlaps with Collector Crypt
 };
 

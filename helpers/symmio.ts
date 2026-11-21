@@ -75,11 +75,15 @@ export const fetchBuilderSymmioPerps = (builderAddresses: string[]) => {
     let dailyRevenue = 0;
     let openInterestAtEnd = 0;
 
-    const { dailyHistories = [] } = await request(endpoint, dailyByDayAndAccounts, { day, accounts })
+    const res = await request(endpoint, dailyByDayAndAccounts, { day, accounts })
       .catch((error) => {
         console.error(`Symmio builder daily histories graph request failed on ${options.chain} (${endpoint})`, error);
-        return { dailyHistories: [] };
-      }) as { dailyHistories: DailyHistory[] };
+        return null;
+      }) as { dailyHistories?: DailyHistory[] } | null;
+    // a failed request is missing data, not a zero day: return nothing for this chain, like the affiliate lookup
+    // below does, instead of storing 0 volume, fees and open interest
+    if (!res) return {};
+    const { dailyHistories = [] } = res;
 
     dailyHistories.forEach(({ platformFee, symmioShare, tradeVolume, openInterest }) => {
       const fee = Number(platformFee) / 1e18;

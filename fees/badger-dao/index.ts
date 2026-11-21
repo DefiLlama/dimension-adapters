@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -16,7 +17,7 @@ const vaults = [
 ]
 
 const getPricePerFullShareAbi = "function getPricePerFullShare() public view returns (uint256)";
-const stETH = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
+const stETH = ADDRESSES.ethereum.STETH;
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()

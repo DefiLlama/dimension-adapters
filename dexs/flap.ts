@@ -6,22 +6,40 @@ import { queryClickhouse } from "../helpers/indexer";
 import { addTokensReceived } from "../helpers/token";
 
 const NATIVE_TOKEN = ADDRESSES.null;
+const TAX_SENT_TO_BENEFICIARY_TOPIC = "0x94d400e2b2f0030dfd4795c238b520a1a9e2b6f32579af88b97b84e8ebf83ff5";
+const DISPATCH_EXECUTED_TOPIC = "0x172485312163eefa9f05b438339dc7c596fbb24af0cb3e35b9130c68453a0d88";
+
 const TREASURY_RECEIVED = "Treasury Received";
+const TAX_TO_BENEFICIARY = "Token Tax to Beneficiary";
+const TAX_TO_MARKET = "Token Tax to Market";
+const TAX_TO_DIVIDENDS = "Token Tax to Dividends";
 
 // Source: https://docs.flap.sh/flap/developers/deployed-contract-addresses
-const chainConfig: Record<string, { start: string; portal: string; fromBlock: number; useIndexer?: boolean, safe: string }> = {
+const chainConfig: Record<string, {
+  start: string;
+  portal: string;
+  fromBlock: number;
+  useIndexer?: boolean;
+  safe: string;
+  wrappedNative: string;
+  // Direct Pool Launch portal. Its quote allowlist is FlapLaunchQuoteConfigSet, not TokenQuoteSet.
+  directPortal?: string;
+}> = {
   [CHAIN.BSC]: {
     start: "2024-06-27",
     portal: "0xe2cE6ab80874Fa9Fa2aAE65D277Dd6B8e65C9De0",
     fromBlock: 39980228,
     useIndexer: true,
     safe: "0x8a08D98CBB218fceB318Ecf3aBc1BA43D8A7aB0E",
+    wrappedNative: ADDRESSES.bsc.WBNB,
+    directPortal: "0x000042108465206185a077edc3f3fd2b49060000",
   },
   [CHAIN.ROBINHOOD]: {
     start: "2026-07-08",
     portal: "0x26605f322f7fF986f381bB9A6e3f5DAb0bEaEb09",
     fromBlock: 4180724,
     safe: "0xa4A727E0918cf9B39639Fc4cB7D742d39C5352a4",
+    wrappedNative: ADDRESSES.robinhood.WETH,
   },
   [CHAIN.XLAYER]: {
     start: "2025-08-18",
@@ -29,6 +47,7 @@ const chainConfig: Record<string, { start: string; portal: string; fromBlock: nu
     fromBlock: 31165559,
     useIndexer: true,
     safe: "0xAC4f9Ba4E48cAafBa17164FBCb078091651Ae361",
+    wrappedNative: ADDRESSES.xlayer.WOKB,
   },
   [CHAIN.MONAD]: {
     start: "2025-10-30",
@@ -36,6 +55,7 @@ const chainConfig: Record<string, { start: string; portal: string; fromBlock: nu
     fromBlock: 32284042,
     useIndexer: true,
     safe: "0xA77dc19CF7CB7ab50b661Ce5AB6D37954F8022f4",
+    wrappedNative: ADDRESSES.monad.WMON,
   },
 };
 
@@ -43,21 +63,41 @@ const eventAbis = {
   tokenBought: "event TokenBought(uint256 ts, address token, address buyer, uint256 amount, uint256 eth, uint256 fee, uint256 postPrice)",
   tokenSold: "event TokenSold(uint256 ts, address token, address seller, uint256 amount, uint256 eth, uint256 fee, uint256 postPrice)",
   tokenQuoteSet: "event TokenQuoteSet(address token, address quoteToken)",
+  transfer: "event Transfer(address indexed from, address indexed to, uint256 value)",
   safeReceived: "event SafeReceived(address indexed sender, uint256 value)",
+  taxSentToBeneficiary: "event TaxSentToBeneficiary(address beneficiary, uint256 amount)",
+  dispatchExecuted: "event FlapTaxProcessorDispatchExecuted(address indexed taxToken, uint256 feeAmount, uint256 marketAmount, uint256 dividendAmount)",
 };
 
 const TOKEN_BOUGHT_TOPIC0 = "0xa800a2038683844fac66747f771bfdfae862eb28b16bcfa387afa9fbacce8ff7";
 const TOKEN_SOLD_TOPIC0 = "0x03a4693e592f5e75dc7c136acb39b146d2b4966c0e509c34f362dee02b3b861a";
 const TOKEN_QUOTE_SET_TOPIC0 = "0x3ceb902d3c555c21c3415b6aa839104b18e4825b2f8324011ff979089a507a8c";
+// FlapDirectLaunched(address,uint8,address,bytes32,bytes). The deployed BSC portal emits this with no
+// indexed fields (topic0 only). quoteToken is word 10 of data: 4 head words + bytes offset + bytes
+// length + tuple offset (the launch struct has strings, so abi.encode prefixes 0x20) + nonce + ts +
+// tokenVersion. ClickHouse substring is 1-based and data is 0x-prefixed, so the address starts at
+// 10*64+27. Sample launch: 0xf3b18a0435fedb0c12e846a13fb3876a59b4bcc42ab7aa0a7dde7ef913c72e20.
+const FLAP_DIRECT_LAUNCHED_TOPIC0 = "0x1cd955dcdd7a83382ee57896bcbc339565a84f9c8a35d2f70cf6c797bcce3aad";
+const DIRECT_QUOTE_SUBSTRING_AT = 10 * 64 + 27;
 const TRANSFER_TOPIC0 = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const SAFE_RECEIVED_TOPIC0 = "0x3d0ce9bfc3ed7d6862dbb28b2dea94561fe714a1b4d019aa8af39730d1ad7c3d";
 
 // The portal is an upgradeable proxy; getTokenV8Safe is the version-safe lens
 // over token state (enums returned as uint8, works for tokens of every version).
 const getTokenV8SafeAbi = "function getTokenV8Safe(address) view returns ((uint8 status, uint256 reserve, uint256 circulatingSupply, uint256 price, uint8 tokenVersion, uint256 r, uint256 h, uint256 k, uint256 dexSupplyThresh, address quoteTokenAddress, bool nativeToQuoteSwapEnabled, bytes32 extensionID, uint256 buyTaxRate, uint256 sellTaxRate, address pool, uint256 progress, uint8 lpFeeProfile, uint8 dexId))";
+// PortalLaunchLens.LaunchTokenState. Reverts LaunchTokenNotFound for tokens this portal did not launch.
+const getLaunchTokenAbi = "function getLaunchToken(address) view returns ((uint8 kind, uint8 tokenVersion, uint8 externalVenue, uint8 dexId, uint8 quoteTokenType, address quoteTokenAddress, uint8 status, uint256 circulatingSupply, uint256 pendingRemainder, address pool, uint8 poolType, bytes venueData, uint256 totalSupply))";
 
 const shortAddrOf = (addr: string) => addr.substring(0, 10).toLowerCase();
 const padAddress = (addr: string) => "0x" + "0".repeat(24) + addr.slice(2).toLowerCase();
+const uniqueLower = (addresses: string[]) =>
+  [...new Set(addresses.map((a) => a.toLowerCase()).filter((a) => a && a !== NATIVE_TOKEN))];
+
+const logAddress = (log: any) =>
+  String(log.address ?? log.source ?? log.contractAddress ?? "").toLowerCase();
+
+const logTxHash = (log: any) =>
+  String(log.transactionHash ?? log.transaction_hash ?? "").toLowerCase();
 
 const BLOCKS_PER_BATCH = 10000;
 
@@ -66,6 +106,17 @@ type TradeTotals = {
   quoteByToken: Record<string, string>;
   // every quote token ever configured, for tracking fee-safe inflows
   quoteTokens: string[];
+};
+
+const resolveQuoteToken = (
+  taxToken: string,
+  quoteTokens: Record<string, string>,
+  wrappedNative: string,
+): string | null => {
+  const quote = quoteTokens[taxToken.toLowerCase()];
+  if (quote === undefined) return null;
+  if (!quote || quote === NATIVE_TOKEN) return wrappedNative.toLowerCase();
+  return quote.toLowerCase();
 };
 
 // ClickHouse path: aggregate the day's trades per token server-side, then map
@@ -129,6 +180,82 @@ const getTradesFromIndexer = async (options: FetchOptions, portal: string): Prom
   }
 
   return { volumeByToken, quoteByToken, quoteTokens };
+};
+
+// taxToken → quoteToken for the given tokens only. TokenQuoteSet is emitted once at creation, so no
+// time filter is needed; scanning the whole portal history instead returns millions of rows per slice.
+const getQuoteMapForTokens = async (options: FetchOptions, portal: string, tokens: string[]): Promise<Record<string, string>> => {
+  const chainId = Number(options.api.chainId);
+  const target = portal.toLowerCase();
+  const quoteByToken: Record<string, string> = {};
+  const unique = uniqueLower(tokens);
+  const CHUNK = 10000;
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const tokenList = unique.slice(i, i + CHUNK).map((token) => `'${token.slice(2)}'`).join(",");
+    const rows = await queryClickhouse<any>(`
+      SELECT
+        concat('0x', substring(data, 27, 40)) AS token,
+        concat('0x', substring(data, 91, 40)) AS quote
+      FROM evm_indexer.logs
+      PREWHERE chain = ${chainId}
+        AND short_address = '${shortAddrOf(target)}'
+        AND short_topic0 = '${TOKEN_QUOTE_SET_TOPIC0.substring(0, 10)}'
+        AND address = '${target}'
+        AND topic0 = '${TOKEN_QUOTE_SET_TOPIC0}'
+        AND substring(data, 27, 40) IN (${tokenList})
+    `, undefined, { max_query_size: 4194304 });
+    rows.forEach((row: any) => { quoteByToken[row.token] = row.quote; });
+  }
+  return quoteByToken;
+};
+
+// Quotes used by Direct launches. FlapLaunchQuoteConfigSet is not on the deployed portal's logs;
+// the quote is inside FlapDirectLaunched.data. Native (address 0) is dropped by uniqueLower.
+const getDirectQuoteTokens = async (options: FetchOptions, directPortal: string): Promise<string[]> => {
+  const target = directPortal.toLowerCase();
+  const rows = await queryClickhouse<any>(`
+    SELECT DISTINCT concat('0x', substring(data, ${DIRECT_QUOTE_SUBSTRING_AT}, 40)) AS quote
+    FROM evm_indexer.logs
+    PREWHERE chain = ${Number(options.api.chainId)}
+      AND short_address = '${shortAddrOf(target)}'
+      AND short_topic0 = '${FLAP_DIRECT_LAUNCHED_TOPIC0.substring(0, 10)}'
+      AND address = '${target}'
+      AND topic0 = '${FLAP_DIRECT_LAUNCHED_TOPIC0}'
+  `);
+  return uniqueLower(rows.map((row: any) => row.quote));
+};
+
+// Curve TokenQuoteSet does not exist for Direct tokens. getLaunchToken reverts for everyone else.
+const getDirectLaunchQuotes = async (options: FetchOptions, directPortal: string, tokens: string[]): Promise<Record<string, string>> => {
+  const quoteByToken: Record<string, string> = {};
+  const CHUNK = 100;
+  for (let i = 0; i < tokens.length; i += CHUNK) {
+    const batch = tokens.slice(i, i + CHUNK);
+    const states = await options.api.multiCall({
+      target: directPortal,
+      abi: getLaunchTokenAbi,
+      calls: batch,
+      permitFailure: true,
+    });
+    batch.forEach((token, j) => {
+      const quote = states[j]?.quoteTokenAddress;
+      if (!quote) return;
+      quoteByToken[token] = String(quote).toLowerCase();
+    });
+  }
+  return quoteByToken;
+};
+
+const resolveSupplyQuotes = async (
+  options: FetchOptions,
+  config: (typeof chainConfig)[string],
+  taxTokens: string[],
+): Promise<Record<string, string>> => {
+  const fromCurve = await getQuoteMapForTokens(options, config.portal, taxTokens);
+  if (!config.directPortal) return fromCurve;
+  const missing = uniqueLower(taxTokens).filter((token) => fromCurve[token] === undefined);
+  if (!missing.length) return fromCurve;
+  return { ...fromCurve, ...(await getDirectLaunchQuotes(options, config.directPortal, missing)) };
 };
 
 const getTradesFromLogs = async (options: FetchOptions, portal: string): Promise<TradeTotals> => {
@@ -230,10 +357,182 @@ const addSafeInflowsFromIndexer = async (options: FetchOptions, safe: string, er
   if (native.length && native[0].amount !== "0") balances.addGasToken(native[0].amount, TREASURY_RECEIVED);
 };
 
+// Same filter as the getLogs in fetchSupplySide (quote-token Transfers sent by the splitters),
+// run on ClickHouse: the indexer /logs endpoint resets the connection on ~475 hot quote-token
+// targets (WBNB, USDT, ...). Returns per-token buckets aligned with erc20Quotes, like flatten: false.
+const getSplitterTransfersFromIndexer = async (options: FetchOptions, erc20Quotes: string[], splitters: string[]) => {
+  const [fromBlock, toBlock] = await Promise.all([
+    options.getFromBlock(),
+    options.getToBlock(),
+  ]);
+  const shortList = [...new Set(erc20Quotes.map(shortAddrOf))].map((a) => `'${a}'`).join(",");
+  const addressList = erc20Quotes.map((a) => `'${a}'`).join(",");
+  const fromList = splitters.map((a) => `'${padAddress(a)}'`).join(",");
+  const rows = await queryClickhouse<any>(`
+    SELECT
+      address AS token,
+      transaction_hash AS transactionHash,
+      concat('0x', substring(topic1, 27, 40)) AS "from",
+      concat('0x', substring(topic2, 27, 40)) AS "to",
+      toString(reinterpretAsUInt256(reverse(unhex(substring(data, 3, 64))))) AS value
+    FROM evm_indexer.logs
+    PREWHERE chain = ${Number(options.api.chainId)}
+      AND short_address IN (${shortList})
+      AND short_topic0 = '${TRANSFER_TOPIC0.substring(0, 10)}'
+      AND address IN (${addressList})
+      AND topic0 = '${TRANSFER_TOPIC0}'
+      AND topic1 IN (${fromList})
+      AND block_number >= ${fromBlock}
+      AND block_number <= ${toBlock}
+  `);
+  return erc20Quotes.map((token) => rows.filter((row: any) => row.token === token));
+};
+
+// DispatchExecuted market/dividend amounts summed per tax token server-side, instead of decoding
+// thousands of logs per hour on BSC. taxToken is topic1; data: feeAmount | marketAmount | dividendAmount
+const getDispatchTotalsFromIndexer = async (options: FetchOptions) => {
+  const [fromBlock, toBlock] = await Promise.all([
+    options.getFromBlock(),
+    options.getToBlock(),
+  ]);
+  return queryClickhouse<any>(`
+    SELECT
+      concat('0x', substring(topic1, 27, 40)) AS taxToken,
+      toString(SUM(reinterpretAsUInt256(reverse(unhex(substring(data, 67, 64)))))) AS marketAmount,
+      toString(SUM(reinterpretAsUInt256(reverse(unhex(substring(data, 131, 64)))))) AS dividendAmount
+    FROM evm_indexer.logs
+    PREWHERE chain = ${Number(options.api.chainId)}
+      AND short_topic0 = '${DISPATCH_EXECUTED_TOPIC.substring(0, 10)}'
+      AND topic0 = '${DISPATCH_EXECUTED_TOPIC}'
+      AND block_number >= ${fromBlock}
+      AND block_number <= ${toBlock}
+    GROUP BY taxToken
+  `);
+};
+
+const fetchSupplySide = async (
+  options: FetchOptions,
+  config: (typeof chainConfig)[string],
+  params: {
+    erc20Quotes: string[];
+    quoteTokens: Record<string, string>;
+    // Indexer chains: quotes for the window's tax tokens are looked up on demand.
+    resolveQuotes?: (taxTokens: string[]) => Promise<Record<string, string>>;
+    dailyFees: ReturnType<FetchOptions["createBalances"]>;
+    dailySupplySideRevenue: ReturnType<FetchOptions["createBalances"]>;
+  },
+) => {
+  const { erc20Quotes, quoteTokens, resolveQuotes, dailyFees, dailySupplySideRevenue } = params;
+  const { wrappedNative, useIndexer } = config;
+
+  const addSupplySide = (token: string, amount: any, label: string) => {
+    if (token === NATIVE_TOKEN) {
+      dailySupplySideRevenue.addGasToken(amount, label);
+      dailyFees.addGasToken(amount, label);
+    } else {
+      dailySupplySideRevenue.add(token, amount, label);
+      dailyFees.add(token, amount, label);
+    }
+  };
+
+  // Day-window topic scans only (same window as r5 data_start).
+  const [beneficiaryLogs, dispatchLogs] = await Promise.all([
+    options.getLogs({
+      noTarget: true,
+      eventAbi: eventAbis.taxSentToBeneficiary,
+      topics: [TAX_SENT_TO_BENEFICIARY_TOPIC],
+      entireLog: true,
+      parseLog: true,
+    }),
+    useIndexer
+      ? getDispatchTotalsFromIndexer(options)
+      : options.getLogs({
+        noTarget: true,
+        eventAbi: eventAbis.dispatchExecuted,
+        topics: [DISPATCH_EXECUTED_TOPIC],
+        entireLog: true,
+        parseLog: true,
+      }),
+  ]);
+
+  if (beneficiaryLogs.length) {
+    const splitters = uniqueLower(beneficiaryLogs.map(logAddress));
+    const transferByKey = new Map<string, string>();
+
+    if (splitters.length && erc20Quotes.length) {
+      const fromTopic = splitters.length === 1 ? padAddress(splitters[0]) : splitters.map(padAddress);
+      const transferLogs = useIndexer
+        ? await getSplitterTransfersFromIndexer(options, erc20Quotes, splitters)
+        : await options.getLogs({
+          targets: erc20Quotes,
+          eventAbi: eventAbis.transfer,
+          topics: [TRANSFER_TOPIC0, fromTopic as any, null],
+          flatten: false,
+          // need transactionHash to join payouts to their token, args alone is not enough
+          onlyArgs: false,
+        });
+
+      transferLogs.forEach((tokenLogs: any[], i: number) => {
+        const token = erc20Quotes[i];
+        (tokenLogs || []).forEach((log: any) => {
+          const tx = logTxHash(log);
+          const from = String(log.from ?? log.args?.from ?? "").toLowerCase();
+          const to = String(log.to ?? log.args?.to ?? "").toLowerCase();
+          const value = log.value ?? log.args?.value;
+          if (!tx || !from || !to || value === undefined) return;
+          transferByKey.set(`${tx}:${from}:${to}:${BigInt(value).toString()}`, token);
+        });
+      });
+    }
+
+    beneficiaryLogs.forEach((log: any) => {
+      const tx = logTxHash(log);
+      const splitter = logAddress(log);
+      const args = log.args ?? log;
+      const beneficiary = String(args.beneficiary ?? "").toLowerCase();
+      const amount = args.amount;
+      if (!tx || !splitter || !beneficiary || amount === undefined) return;
+
+      const token = transferByKey.get(`${tx}:${splitter}:${beneficiary}:${BigInt(amount).toString()}`);
+      // No same-tx ERC20 Transfer → native payout (r5 ELSE → WBNB price).
+      if (token) addSupplySide(token, amount, TAX_TO_BENEFICIARY);
+      else addSupplySide(NATIVE_TOKEN, amount, TAX_TO_BENEFICIARY);
+    });
+  }
+
+  let supplyQuotes = quoteTokens;
+  if (resolveQuotes && dispatchLogs.length) {
+    const taxTokens = dispatchLogs
+      .map((log: any) => String((log.args ?? log).taxToken ?? "").toLowerCase())
+      .filter(Boolean);
+    supplyQuotes = { ...quoteTokens, ...(await resolveQuotes(taxTokens)) };
+  }
+
+  dispatchLogs.forEach((log: any) => {
+    const args = log.args ?? log;
+    const taxToken = String(args.taxToken ?? "").toLowerCase();
+    if (!taxToken) return;
+    const quote = resolveQuoteToken(taxToken, supplyQuotes, wrappedNative);
+    if (!quote) return;
+    const marketAmount = args.marketAmount;
+    const dividendAmount = args.dividendAmount;
+    if (marketAmount !== undefined && BigInt(marketAmount) > 0n) {
+      addSupplySide(quote, marketAmount, TAX_TO_MARKET);
+    }
+    if (dividendAmount !== undefined && BigInt(dividendAmount) > 0n) {
+      addSupplySide(quote, dividendAmount, TAX_TO_DIVIDENDS);
+    }
+  });
+};
+
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
-  const { portal, useIndexer, safe } = chainConfig[options.chain];
+  const config = chainConfig[options.chain];
+  const { portal, useIndexer, safe, wrappedNative, directPortal } = config;
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
   const { volumeByToken, quoteByToken, quoteTokens } = useIndexer
     ? await getTradesFromIndexer(options, portal)
@@ -246,10 +545,15 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     else dailyVolume.add(quoteToken, volumeByToken[token]);
   });
 
-  // Fees: every quote-token inflow to the Flap fee Safe, from any sender
-  // bonding-curve fees, token-tax payouts, graduation fees and LP fee claims
-  // all settle there.
-  const erc20Quotes = quoteTokens.filter((token) => token !== NATIVE_TOKEN);
+  // Fees/Revenue: every quote-token inflow to the Flap fee Safe, from any sender.
+  // Union wrappedNative so TaxProcessor WBNB→Safe settles are included.
+  // Direct quotes are not in the curve TokenQuoteSet, so Safe transfers of those tokens would be missed.
+  const directQuotes = directPortal && useIndexer ? await getDirectQuoteTokens(options, directPortal) : [];
+  const erc20Quotes = uniqueLower([
+    ...quoteTokens.filter((token) => token !== NATIVE_TOKEN),
+    ...directQuotes,
+    wrappedNative,
+  ]);
   if (useIndexer) {
     await addSafeInflowsFromIndexer(options, safe, erc20Quotes, dailyFees);
   } else {
@@ -259,29 +563,60 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     nativeLogs.forEach((log: any) => dailyFees.addGasToken(log.value, TREASURY_RECEIVED));
   }
 
-  return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+  // Revenue = Safe inflows only (before SupplySide is added to dailyFees).
+  dailyRevenue.addBalances(dailyFees);
+  dailyProtocolRevenue.addBalances(dailyFees);
+
+  await fetchSupplySide(options, config, {
+    erc20Quotes,
+    quoteTokens: quoteByToken,
+    resolveQuotes: useIndexer ? (taxTokens) => resolveSupplyQuotes(options, config, taxTokens) : undefined,
+    dailyFees,
+    dailySupplySideRevenue,
+  });
+
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue,
+    dailySupplySideRevenue,
+  };
 };
 
 const methodology = {
   Volume: "Buy and sell volume on Flap bonding curves before tokens move to a DEX.",
-  Fees: "All quote tokens received by the Flap fee Safe, from any sender. Includes bonding-curve fees, token-tax payouts, graduation fees, and other quote inflows such as airdrops.",
-  UserFees: "Same as Fees — all quote inflows to the fee Safe.",
-  Revenue: "All quote tokens received by the Flap fee Safe, from any sender.",
-  ProtocolRevenue: "All quote tokens received by the Flap fee Safe, from any sender.",
+  Fees: "Protocol revenue (quote tokens received by the Flap fee Safe, including wrapped-native transfers such as WBNB) plus token-tax amounts routed to marketing/vault recipients and token-holder dividends.",
+  UserFees: "Same as Fees — all fees paid by traders and token-tax participants.",
+  Revenue: "All quote tokens received by the Flap fee Safe, from any sender. Includes native SafeReceived and configured ERC20 quote transfers, plus wrapped-native (e.g. WBNB) transfers from TaxProcessor fee settlement.",
+  ProtocolRevenue: "Same as Revenue — all quote inflows to the Flap fee Safe.",
+  SupplySideRevenue: "Token tax routed outside the protocol Safe: V1 TaxSplitter beneficiary payouts, plus V2/V3 TaxProcessor market and dividend buckets.",
 };
 
 const breakdownMethodology = {
   Fees: {
     [TREASURY_RECEIVED]: "Quote tokens transferred to the Flap fee Safe (native SafeReceived and ERC20 Transfer to the Safe), with no sender filter.",
+    [TAX_TO_BENEFICIARY]: "V1 token tax paid to TaxSplitter beneficiary addresses (TaxSentToBeneficiary).",
+    [TAX_TO_MARKET]: "V2/V3 token tax market/vault bucket from TaxProcessor dispatch (marketAmount).",
+    [TAX_TO_DIVIDENDS]: "V2/V3 token tax holder dividend bucket from TaxProcessor dispatch (dividendAmount).",
   },
   UserFees: {
     [TREASURY_RECEIVED]: "Quote tokens transferred to the Flap fee Safe (native SafeReceived and ERC20 Transfer to the Safe), with no sender filter.",
+    [TAX_TO_BENEFICIARY]: "V1 token tax paid to TaxSplitter beneficiary addresses (TaxSentToBeneficiary).",
+    [TAX_TO_MARKET]: "V2/V3 token tax market/vault bucket from TaxProcessor dispatch (marketAmount).",
+    [TAX_TO_DIVIDENDS]: "V2/V3 token tax holder dividend bucket from TaxProcessor dispatch (dividendAmount).",
   },
   Revenue: {
     [TREASURY_RECEIVED]: "Quote tokens received by the Flap fee Safe.",
   },
   ProtocolRevenue: {
     [TREASURY_RECEIVED]: "Quote tokens received by the Flap fee Safe.",
+  },
+  SupplySideRevenue: {
+    [TAX_TO_BENEFICIARY]: "V1 TaxSplitter payouts to configured beneficiary addresses.",
+    [TAX_TO_MARKET]: "V2/V3 TaxProcessor market/vault payouts (DispatchExecuted.marketAmount).",
+    [TAX_TO_DIVIDENDS]: "V2/V3 TaxProcessor holder dividends (DispatchExecuted.dividendAmount).",
   },
 };
 

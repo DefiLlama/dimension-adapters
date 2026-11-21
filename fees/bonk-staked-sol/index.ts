@@ -25,9 +25,10 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances()
 
   results.forEach((row: any) => {
-    if (row.metric_type === 'dailyFees') {
+    // dailyMevRewards: Jito MEV tips claimed by the pool's stake accounts, charged the same epoch fee as staking rewards
+    if (row.metric_type === 'dailyFees' || row.metric_type === 'dailyMevRewards') {
         const amount = Number(row.amount) || 0
-        dailyFees.addCGToken("solana", amount, "BonkSOL Staking Rewards");
+        dailyFees.addCGToken("solana", amount, row.metric_type === 'dailyFees' ? "BonkSOL Staking Rewards" : "BonkSOL MEV Rewards");
         dailySupplySideRevenue.addCGToken("solana", amount * 0.95, "BonkSOL Staking Rewards to Stakers")
         dailySupplySideRevenue.addCGToken("solana", amount * 0.025, "BonkSOL Staking Rewards to Sanctum")
         dailyRevenue.addCGToken("solana", amount * 0.025, "BonkSOL Staking Rewards to Bonk")
@@ -47,9 +48,9 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: 'Staking rewards from staked SOL on Bonk staked solana and withdrawal fees',
+  Fees: 'Staking rewards (inflation and Jito MEV tips) from staked SOL on Bonk staked solana and withdrawal fees',
   Revenue: 'Includes withdrawal fees and management fees collected by fee collector',
-  SupplySideRevenue: 'Includes 95% of the staking rewards that go to bonkSOL and 2.5% to Sanctum',
+  SupplySideRevenue: 'Includes 95% of the staking rewards and MEV tips that go to bonkSOL and 2.5% to Sanctum',
   ProtocolRevenue: 'Revenue going to treasury/team',
 }
 
@@ -64,19 +65,20 @@ export default {
     breakdownMethodology: {
       Fees: {
         "BonkSOL Staking Rewards": "Staking rewards from staked SOL on Bonk.",
+        "BonkSOL MEV Rewards": "Jito MEV tips claimed by the pool's stake accounts.",
         "BonkSOL Withdrawal Fees": "Includes 0.1% withdrawal fee.",
       },
       Revenue: {
-        "BonkSOL Staking Rewards to Bonk": "2.5% of the staking rewards go to Bonk.",
+        "BonkSOL Staking Rewards to Bonk": "2.5% of the staking rewards and MEV tips go to Bonk.",
         "BonkSOL Withdrawal Fees": "All the withdrawal fees are revenue"
       },
       ProtocolRevenue: {
-        "BonkSOL Staking Rewards to Bonk": "2.5% of the staking rewards go to Bonk.",
+        "BonkSOL Staking Rewards to Bonk": "2.5% of the staking rewards and MEV tips go to Bonk.",
         "BonkSOL Withdrawal Fees": "All the withdrawal fees are revenue"
       },
       SupplySideRevenue: {
-        "BonkSOL Staking Rewards to Stakers": "95% of the staking rewards are distributed to bonkSOL.",
-        "BonkSOL Staking Rewards to Sanctum": "2.5% of the staking rewards go to Sanctum"
+        "BonkSOL Staking Rewards to Stakers": "95% of the staking rewards and MEV tips are distributed to bonkSOL.",
+        "BonkSOL Staking Rewards to Sanctum": "2.5% of the staking rewards and MEV tips go to Sanctum"
       },
     },
 };

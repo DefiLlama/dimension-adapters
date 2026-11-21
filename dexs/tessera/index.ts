@@ -3,8 +3,11 @@
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { queryDuneSql } from "../../helpers/dune"
+import { assertDuneSolanaIndexed } from "../../helpers/duneSolanaDex"
 
 const fetchSolana = async (options: FetchOptions) => {
+  assertDuneSolanaIndexed(options)
+
   const query = `
     select 
       sum(amount_usd) as daily_volume
@@ -55,6 +58,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.BSC]: {
       fetch: fetchEvm,
       start: '2025-11-13',
+    },
+    [CHAIN.ROBINHOOD]: {
+      fetch: fetchEvm,
+      start: '2026-09-10',
     },
   },
   dependencies: [Dependencies.DUNE],

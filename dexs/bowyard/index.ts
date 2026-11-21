@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
@@ -9,7 +10,7 @@ import { CHAIN } from "../../helpers/chains";
 //
 // Public integration registry: https://bowyard.fun/integrations
 // Contract registry: https://bowyard.fun/api/v1/contracts
-const USDG = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168";
+const USDG = ADDRESSES.robinhood.USDG;
 const LAUNCHPAD = "0x0F724aED8961C0446Cf73E9C45be562BEB22e774";
 const DEX_FACTORY = "0x27275079932d9a5cBA34Cb40Bf86084bDdD89241";
 const AGENT_LAUNCHPAD_V2 = "0xc5e8ee1D72f08a29CCEB465BeFf0B4b830D63750";

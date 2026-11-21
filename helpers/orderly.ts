@@ -30,10 +30,13 @@ export function getBuilderExports({ broker_id, start, revenueRatio = 1, protocol
       return dateDataMap
     })
 
-    const data = (await statsCache[broker_id])[dateString]
+    const dateDataMap = await statsCache[broker_id]
 
-    if (!data)
-      throw new Error('Data missing for date: ' + dateString)
+    if (!Object.keys(dateDataMap).length)
+      throw new Error('No daily stats returned for broker: ' + broker_id)
+
+    // the API omits days with no trading activity - a missing date is zero volume, not an error
+    const data = dateDataMap[dateString] ?? { takerVolume: 0, makerVolume: 0, builderFee: 0 }
 
     const dailyVolume = +data.takerVolume + +data.makerVolume
     const dailyFees = +data.builderFee

@@ -28,13 +28,24 @@ const swapActions = [
 const coinPattern = /^(\d+)(.+)$/;
 const txSearchPageSize = 100;
 
+async function txSearch(params: string): Promise<any> {
+  let lastError: unknown;
+  for (const rpc of config.rpcs) {
+    try {
+      return await fetchURL(`${rpc}/tx_search?${params}`);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
+
 async function getSwapTxs(action: string, fromBlock: number, toBlock: number): Promise<any[]> {
   const query = `message.action='${action}' AND tx.height>=${fromBlock} AND tx.height<=${toBlock}`;
   const txs: any[] = [];
   let page = 1;
   while (true) {
-    const url = `${config.rpcs[0]}/tx_search?query=${encodeURIComponent('"' + query + '"')}&page=${page}&per_page=${txSearchPageSize}&order_by=${encodeURIComponent('"asc"')}`;
-    const res = await fetchURL(url);
+    const res = await txSearch(`query=${encodeURIComponent('"' + query + '"')}&page=${page}&per_page=${txSearchPageSize}&order_by=${encodeURIComponent('"asc"')}`);
     if (res?.error || !Array.isArray(res?.result?.txs) || res?.result?.total_count === undefined) {
       throw new Error(`kava-swap: bad tx_search response for ${action} page ${page}`);
     }

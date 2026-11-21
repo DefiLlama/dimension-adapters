@@ -33,7 +33,8 @@ const chainConfig: Record<Chain, { chainId: number, start: string }> = {
   [CHAIN.PLASMA]: { chainId: 100000028, start: '2025-09-25' },
   [CHAIN.INJECTIVE]: { chainId: 100000029, start: '2025-11-11' },
   [CHAIN.MONAD]: { chainId: 100000030, start: '2025-11-24' },
-  [CHAIN.CRONOS]: { chainId: 100000019, start: '2025-12-17' }
+  [CHAIN.CRONOS]: { chainId: 100000019, start: '2025-12-17' },
+  [CHAIN.ROBINHOOD]: { chainId: 4663, start: '2026-07-13' }
 }
 
 function pad(s: number) {

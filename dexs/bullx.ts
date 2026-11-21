@@ -74,6 +74,9 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   dependencies: [Dependencies.DUNE],
   isExpensiveAdapter: true,
+  // BullX suspended trading in its app from 2026-06-01 (wallet functions only); its fee-sized receipts mostly end by 08:00 UTC that day.
+  // The runner still runs the deadFrom day, so 2026-06-01 is the last day counted.
+  deadFrom: '2026-06-01',
   methodology: {
     Volume: "Total swap volume traded on BullX.",
   },

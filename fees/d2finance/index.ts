@@ -152,6 +152,7 @@ export default {
   methodology: info.methodology,
   breakdownMethodology,
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.ARBITRUM]: { start: "2024-01-20" },
     [CHAIN.ETHEREUM]: { start: "2025-01-09" },

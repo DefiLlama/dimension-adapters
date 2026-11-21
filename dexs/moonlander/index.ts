@@ -90,9 +90,10 @@ const getOpenInterest = async ({
   });
 
   return {
-    longOpenInterestAtEnd: totalLongOIUsd,
-    shortOpenInterestAtEnd: totalShortOIUsd,
-    openInterestAtEnd: totalLongOIUsd + totalShortOIUsd,
+    longOpenInterestAtEnd: totalLongOIUsd / 2,
+    shortOpenInterestAtEnd: totalShortOIUsd / 2,
+    // pool venue with no single-sided field: average the two sides instead of summing them
+    openInterestAtEnd: (totalLongOIUsd + totalShortOIUsd) / 2,
   };
 };
 
@@ -139,6 +140,7 @@ async function fetch({
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: false, // returns openInterestAtEnd, a snapshot; the server sums hourly slices, which would store 24x OI
   adapter: Object.fromEntries(
     Object.entries(CONFIG).map(([chain, config]) => [
       chain,

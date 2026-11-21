@@ -2,6 +2,7 @@ import { FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import CoreAssets from "../helpers/coreAssets.json";
 import { getBlock } from "../helpers/getBlock";
+import { getPositionedLogArgs } from "../helpers/logs";
 import { METRIC } from "../helpers/metrics";
 
 type Deployment = {
@@ -126,13 +127,13 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
         target: systemVariables,
         abi: 'function feeRates() view returns (uint256 ecosystemFeeRate, uint256 protocolFeeRate)',
       }),
-      options.getLogs({
+      getPositionedLogArgs(options, {
         target: systemVariables,
         eventAbi: PerformanceFeeUpdatedEvent,
         fromBlock: factoryStartBlock,
         cacheInCloud: true,
       }),
-      options.getLogs({
+      getPositionedLogArgs(options, {
         target: systemVariables,
         eventAbi: FeeRatesUpdatedEvent,
         fromBlock: factoryStartBlock,
@@ -152,7 +153,7 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
     // 3. Fetch FeesOwedIncreased logs across the lookback window (3 epochs back).
     // Each log represents one epoch's worth of interest, which we spread evenly
     // across the epoch and attribute the overlap with [windowStart, windowEnd].
-    const feeLogs = await options.getLogs({
+    const feeLogs = await getPositionedLogArgs(options, {
       targets: pools,
       eventAbi: FeesOwedIncreasedEvent,
       fromBlock: lookbackFromBlock,

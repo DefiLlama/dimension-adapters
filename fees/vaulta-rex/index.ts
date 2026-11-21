@@ -1,14 +1,20 @@
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
+import { httpGet } from "../../utils/fetchURL";
 
 const STATS_URL = "https://eosauthority.com/api/spa/rex/communityfunds?network=eos";
+// eosauthority WAF blocks the default axios user-agent; a browser UA passes
+const HEADERS = { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36" };
 
 async function fetch(options: FetchOptions): Promise<FetchResult> {
     const dailyFees = options.createBalances();
     const unixTodayInMs = options.startOfDay * 1000;
 
-    const { chartSeries } = await fetchURL(STATS_URL);
+    const { chartSeries } = await httpGet(STATS_URL, { headers: HEADERS });
+    // Outside the endpoint's rolling window a day has no entry, not a zero
+    if (!chartSeries.some((chart: any) => chart.data.some((entry: any) => entry[0] === unixTodayInMs))) {
+        throw new Error(`eosauthority has no ${options.dateString}, serving ${chartSeries[0]?.data?.length ?? 0} days`);
+    }
     chartSeries.forEach((chart: any) => {
         const feeType = chart.name;
         const feeToday = chart.data.find((entry: any) => entry[0] === unixTodayInMs);
@@ -19,15 +25,15 @@ async function fetch(options: FetchOptions): Promise<FetchResult> {
 
     return {
         dailyFees,
-        dailyRevenue: dailyFees,
+        dailyRevenue: 0,
         dailySupplySideRevenue: dailyFees,
     }
 }
 
 const methodology = {
     Fees: "Includes income from bidnames,ramfee,cpuloan , netloan and powerup",
-    Revenue: "All the fees are revenue",
-    SupplySideRevenue: "All the fees goes to supplyside"
+    Revenue: "No revenue, every stream is channeled to the REX pool",
+    SupplySideRevenue: "All the fees are channeled to the REX pool, where they accrue to REX lenders"
 };
 
 const breakdownMethodology = {

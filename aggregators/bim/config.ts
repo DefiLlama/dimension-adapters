@@ -88,8 +88,40 @@ export const BIM_NEW_API_CHAINS: Array<string> = [
   CHAIN.AVAX,
   CHAIN.BERACHAIN,
   CHAIN.BSC,
-  CHAIN.PLUME
+  CHAIN.PLUME,
+  CHAIN.CITREA,
+  CHAIN.ROBINHOOD,
+  CHAIN.ARC
 ];
+
+// First day bim is live on chains added after the API migration (others start 2026-01-13)
+export const BIM_CHAIN_START: { [chain: string]: string } = {
+  [CHAIN.CITREA]: '2026-09-18',
+  [CHAIN.ROBINHOOD]: '2026-10-01',
+  [CHAIN.ARC]: '2026-10-01',
+};
+
+// Chains bim is live on that Dune does not index. Their volume and fees are read
+// straight from the chain's RPC instead of the Dune prefetch - same contracts and
+// same fee wallet, only the data source differs. Add a chain here (on top of
+// BIM_NEW_API_CHAINS) as soon as bim deploys on it, without waiting for Dune to
+// pick it up; remove it again once Dune indexes the chain and the numbers will
+// come from the prefetch instead.
+export const BIM_RPC_CHAINS: { [chain: string]: BimRpcChainConfig } = {
+  [CHAIN.CITREA]: {
+    maxBlockRange: 900,
+  },
+  [CHAIN.ROBINHOOD]: {},
+};
+
+export type BimRpcChainConfig = {
+  maxBlockRange?: number
+}
+
+export const isRpcChain = (chain: string): boolean => !!BIM_RPC_CHAINS[chain];
+
+// new API chains Dune does index - the only ones the prefetch queries for
+export const BIM_DUNE_CHAINS: Array<string> = BIM_NEW_API_CHAINS.filter((chain) => !isRpcChain(chain));
 
 // legacy chains (for refills of pre-June-24 days) + new API chains
 export const bimAdapterChains: Array<string> = [...new Set([...fetchBimChains(), ...BIM_NEW_API_CHAINS])];
@@ -103,7 +135,7 @@ const DUNE_CHAIN_MAP: { [key: string]: string } = {
 };
 
 export const getDuneChain = (chain: string) => DUNE_CHAIN_MAP[chain] ?? chain;
-export const duneChains = BIM_NEW_API_CHAINS.map((chain) => `'${getDuneChain(chain)}'`).join(', ');
+export const duneChains = BIM_DUNE_CHAINS.map((chain) => `'${getDuneChain(chain)}'`).join(', ');
 
 // All bim txs on the new API: emit RequestExecuted from OpenRouter, enter directly
 // or through AllowanceHolder.exec (inner calldata starts at byte 197), and carry

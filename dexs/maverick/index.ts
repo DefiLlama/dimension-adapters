@@ -5,6 +5,7 @@ import { fetchVolumeV1, maverickV1Factories } from "./maverick-v1";
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.BSC]: {
       fetch: fetchVolumeV1(),

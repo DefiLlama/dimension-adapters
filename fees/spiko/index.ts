@@ -1,10 +1,12 @@
 // https://docs.spiko.xyz/spiko-mmfs/fees
 import * as sdk from "@defillama/sdk";
-import { Adapter, FetchOptions, FetchResultV2 } from "../../adapters/types";
+import { Adapter, Dependencies, FetchOptions, FetchResultV2 } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getBlock } from "../../helpers/getBlock";
 import { METRIC } from "../../helpers/metrics";
+import { getEnv } from "../../helpers/env";
 import { httpPost } from "../../utils/fetchURL";
+import { queryAllium } from "../../helpers/allium";
 
 const ORACLE_PRICE_ABI =
   "function latestRoundData() view returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)";
@@ -130,8 +132,23 @@ const STARKNET_TOKENS: Record<string, string> = {
   chfSAFO: "0x06723dcb428eddb160c5adfc2d0a5e5adc184bf6a7298780c3cbf3fa764f709b",
 };
 
+// Solana Token-2022 mints, from the "Solana contracts" section of
+// https://docs.spiko.io/documentation/tokenization/addresses (all 5 decimals).
+const SOLANA_TOKENS: Record<string, string> = {
+  USTBL: "3E2qphMMBQtH3HZH2ZSg7CkbF8gSLePuoy7yVpkDxHGn",
+  EUTBL: "6rS8E5CQHLHmLenNNevUdJ9APzKNairr1kfWAM3EhDX3",
+  UKTBL: "DEtiguzuMC72hRkMHETcsXeKrJ6Djb6tMebQqjZoBSgt",
+  SPKCC: "14Rg7TaptSo1Ndkz1ngBw2rE4EuFhQd2PzCrkyjGdsL1",
+  eurSPKCC: "H99pu9fKt15asYk3Mcs8rajaRX3aYx3kDwXy6pY3n6My",
+  SAFO: "BYwEFWHUQp7Biqye6TvcjSF1ZYbL1StE5BuFRkKejexo",
+  eurSAFO: "6ALgseJyDVHbXVep9hcqEB92xNUZJFLQ66PWoHbGu4P7",
+  gbpSAFO: "7fnYygJyxQ2RsFJymjnRRa4wptPhUkfo6RT2j4BU4qhP",
+  chfSAFO: "6Gst8o3L5uNtkUvhEg23HpDLpYRdNQTgdn1Bc7jnCM5c",
+};
+
+const SOLANA_MINTS_CREATED = "2026-06-25";
+
 const STELLAR_RPC = "https://soroban-rpc.creit.tech/";
-const STARKNET_RPC = "https://rpc.starknet.lava.build";
 const STARKNET_TOTAL_SUPPLY_SELECTOR =
   "0x01557182e4359a1f0c6301278e8f5b35a776ab58d39892581e357578fb287836";
 
@@ -198,7 +215,7 @@ async function getStellarSupply(contract: string): Promise<number> {
 }
 
 async function getStarknetSupply(contract: string): Promise<number> {
-  const res = await httpPost(STARKNET_RPC, {
+  const res = await httpPost(getEnv("STARKNET_RPC"), {
     jsonrpc: "2.0",
     id: 1,
     method: "starknet_call",
@@ -214,6 +231,38 @@ async function getStarknetSupply(contract: string): Promise<number> {
   return Number(supply) / 10 ** TOKEN_DECIMALS;
 }
 
+async function getSolanaSupplies(endTimestamp: number): Promise<Record<string, number>> {
+  const mints = Object.values(SOLANA_TOKENS).map((mint) => `'${mint}'`).join(", ");
+  const rows = await queryAllium(`
+    WITH checks AS (
+      SELECT EXISTS (SELECT 1 FROM solana.assets.balances
+        WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${endTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${endTimestamp + 900})) AS indexed
+    ),
+    latest AS (
+      SELECT mint, raw_balance_str
+      FROM solana.assets.balances
+      WHERE mint IN (${mints})
+        AND block_timestamp >= '${SOLANA_MINTS_CREATED}'
+        AND block_timestamp < TO_TIMESTAMP_NTZ(${endTimestamp})
+      QUALIFY ROW_NUMBER() OVER (PARTITION BY token_account ORDER BY block_slot DESC, txn_index DESC) = 1
+    ),
+    supplies AS (
+      SELECT mint, SUM(raw_balance_str::NUMBER(38, 0))::VARCHAR AS supply_raw FROM latest GROUP BY mint
+    )
+    SELECT c.indexed, s.mint, s.supply_raw
+    FROM checks c
+    LEFT JOIN supplies s ON TRUE
+  `);
+  if (!rows[0]?.indexed)
+    throw new Error(`Spiko: Allium has not indexed Solana balances past ${new Date(endTimestamp * 1e3).toISOString()} yet`);
+  const rawByMint: Record<string, string> = {};
+  for (const row of rows) if (row.mint) rawByMint[row.mint] = row.supply_raw;
+  const out: Record<string, number> = {};
+  for (const [fund, mint] of Object.entries(SOLANA_TOKENS)) out[fund] = Number(rawByMint[mint] ?? 0) / 10 ** TOKEN_DECIMALS;
+  return out;
+}
+
 // Resolve each fund's token supply (in whole shares) for the given chain.
 async function getSupplies(options: FetchOptions): Promise<Record<string, number>> {
   const { chain } = options;
@@ -222,17 +271,17 @@ async function getSupplies(options: FetchOptions): Promise<Record<string, number
   if (chain === CHAIN.STELLAR || chain === CHAIN.STARKNET) {
     const tokenMap = chain === CHAIN.STELLAR ? STELLAR_TOKENS : STARKNET_TOKENS;
     const read = chain === CHAIN.STELLAR ? getStellarSupply : getStarknetSupply;
-    await Promise.all(
-      Object.entries(tokenMap).map(async ([fund, contract]) => {
-        const supply = await read(contract).catch((e) => {
-          console.log(`Spiko: failed to read ${fund} supply on ${chain}: ${e.message}`);
-          return undefined;
-        });
-        if (supply !== undefined) out[fund] = supply;
-      })
-    );
+    for (const [fund, contract] of Object.entries(tokenMap)) {
+      const supply = await read(contract).catch((e) => {
+        console.log(`Spiko: failed to read ${fund} supply on ${chain}: ${e.message}`);
+        return undefined;
+      });
+      if (supply !== undefined) out[fund] = supply;
+    }
     return out;
   }
+
+  if (chain === CHAIN.SOLANA) return getSolanaSupplies(options.endTimestamp);
 
   const tokenMap = TOKENS[chain];
   const fundKeys = Object.keys(tokenMap);
@@ -395,6 +444,7 @@ const adapter: Adapter = {
   // NAV oracles publish once per day, so hourly granularity adds no signal.
   pullHourly: false,
   fetch,
+  dependencies: [Dependencies.ALLIUM],
   adapter: {
     [CHAIN.ETHEREUM]: { start: '2024-05-01' },
     [CHAIN.POLYGON]: { start: '2024-04-20' },
@@ -403,6 +453,7 @@ const adapter: Adapter = {
     [CHAIN.ETHERLINK]: { start: '2025-02-12' },
     [CHAIN.STARKNET]: { start: '2024-11-26', runAtCurrTime: true },
     [CHAIN.STELLAR]: { start: '2025-10-01', runAtCurrTime: true },
+    [CHAIN.SOLANA]: { start: '2026-07-23' },
   },
 };
 

@@ -164,7 +164,7 @@ const fetch = async (options: FetchOptions) => {
     options.getLogs({
       targets: [L2_BASE_TOKEN],
       eventAbi: TRANSFER_EVENT,
-      topics: [TRANSFER_TOPIC, null as any, padAddress(HEY_TREASURY)],
+      topics: [TRANSFER_TOPIC, null, padAddress(HEY_TREASURY)],
     }),
   ]);
 

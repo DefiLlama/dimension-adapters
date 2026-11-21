@@ -1,15 +1,14 @@
-import { CHAIN } from "../helpers/chains";
-import { fetchBuilderCodeRevenue, fetchHIP3DeployerData } from "../helpers/hyperliquid";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { fetchHIP3DeployerData } from "../helpers/hyperliquid";
 
+// Kinetiq's HIP-3 markets only. Builder-code volume and fees from the Kinetiq Markets interface
+// are tracked separately in dexs/kinetiq-interface.ts.
 const KINETIQ_MARKETS_LEGACY_END_DATE = "2026-06-20";
 
 const fetch = async (options: FetchOptions) => {
   const deployerId = options.dateString > KINETIQ_MARKETS_LEGACY_END_DATE ? 'mkts' : 'km';
-  const { dailyVolume: builderVolume, dailyFees: builderFees } = await fetchBuilderCodeRevenue({
-    options,
-    builder_address: '0x42f3226007290b02c5a0b15bccbb1ba6df04f992',
-  });
+
   const { dailyPerpVolume: hip3Volume, dailyPerpFee: hip3Fees, dailyDeployerFee: hip3DeployerFee } = await fetchHIP3DeployerData({
     options,
     hip3DeployerId: deployerId,
@@ -20,12 +19,7 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  dailyVolume.add(builderVolume);
   dailyVolume.add(hip3Volume);
-
-  // Builder-code fees are retained entirely by Kinetiq.
-  dailyFees.add(builderFees, 'Hyperliquid Builder Code Fees');
-  dailyRevenue.add(builderFees, 'Builder Code Fees To Kinetiq');
 
   // On HIP-3 markets Kinetiq only keeps its deployer-fee cut; the rest is paid through to Hyperliquid.
   dailyFees.add(hip3Fees, 'Hyperliquid HIP-3 Markets Fees');
@@ -49,22 +43,20 @@ const adapter: SimpleAdapter = {
   start: '2025-12-16',
   doublecounted: true,
   methodology: {
-    Fees: "Trading fees paid by users on Hyperliquid via Kinetiq's builder code and its HIP-3 markets.",
-    Revenue: "Builder-code fees (retained by Kinetiq) plus Kinetiq's deployer-fee cut of its HIP-3 market fees.",
-    ProtocolRevenue: "Same as Revenue — retained by Kinetiq.",
+    Volume: "Trading volume on Kinetiq's HIP-3 markets on Hyperliquid. Builder-code volume from the Kinetiq Markets interface is tracked in Kinetiq Interface.",
+    Fees: "Trading fees paid by users on Kinetiq's HIP-3 markets on Hyperliquid.",
+    Revenue: "Kinetiq's deployer-fee cut of its HIP-3 market fees.",
+    ProtocolRevenue: "Same as Revenue - retained by Kinetiq.",
     SupplySideRevenue: "The remainder of HIP-3 market fees, paid through to Hyperliquid.",
   },
   breakdownMethodology: {
     Fees: {
-      'Hyperliquid Builder Code Fees': 'All perps trading fees using Hyperliquid builder code.',
       'Hyperliquid HIP-3 Markets Fees': 'All perps trading fees from Hyperliquid HIP-3 markets.',
     },
     Revenue: {
-      'Builder Code Fees To Kinetiq': 'Builder-code fees retained by Kinetiq.',
       'HIP-3 Deployer Fees To Kinetiq': "Kinetiq's deployer-fee cut of HIP-3 market fees.",
     },
     ProtocolRevenue: {
-      'Builder Code Fees To Kinetiq': 'Builder-code fees retained by Kinetiq.',
       'HIP-3 Deployer Fees To Kinetiq': "Kinetiq's deployer-fee cut of HIP-3 market fees.",
     },
     SupplySideRevenue: {

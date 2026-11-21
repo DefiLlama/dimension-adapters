@@ -43,6 +43,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
     version: 2,
+    pullHourly: true,
     methodology: {
       Fees: "HYPE liquid staking rewards.",
       Revenue: "No staking rewards commission for Hyperbeat.",

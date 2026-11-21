@@ -47,6 +47,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: false, // passes the window, needs DEFIAPP_API_KEY to verify hourly
   adapter: Object.fromEntries(
     Object.entries(defiAppChainIdMap).map(([chain, config]) => [
       chain,

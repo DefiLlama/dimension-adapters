@@ -5,7 +5,7 @@ import { CHAIN } from "./chains";
 import { getBlock } from "./getBlock";
 import { METRIC } from "./metrics";
 
-type RpcSender = {
+export type RpcSender = {
   url?: string;
   send: (method: string, params: any[]) => Promise<any>;
 };
@@ -26,6 +26,7 @@ type TransactionLike = {
   hash?: string;
   maxFeePerGas?: bigint | number | string | { toString: () => string };
   maxPriorityFeePerGas?: bigint | number | string | { toString: () => string };
+  nonce?: bigint | number | string | { toString: () => string };
   type?: bigint | number | string | { toString: () => string };
 };
 
@@ -57,11 +58,17 @@ export type EvmChainMetricConfig = {
   txReceiptConcurrency?: number;
   rpcTimeoutMs?: number;
   batchConcurrency?: number;
+  // For fast chains whose blocks are mostly empty: screen the window with eth_feeHistory (gasUsedRatio for up to this
+  // many blocks per call) and read receipts only for blocks that used gas
+  feeHistoryScreenSize?: number;
 };
 
 export type EvmChainFeesConfig = EvmChainMetricConfig & {
   revenueShare: number;
   supplySideRevenueShare?: number;
+  holdersRevenueShare?: number;
+  protocolRevenueShare?: number;
+  CGToken?: string; // price fees via this coingecko id when the sdk has no gas token mapping for the chain
 };
 
 type BlockRange = {
@@ -72,6 +79,8 @@ type BlockRange = {
 const BLOCK_RECEIPTS_METHOD = "eth_getBlockReceipts";
 const CHAIN_REVENUE_LABEL = "Transaction Gas Fees To Chain";
 const SUPPLY_SIDE_REVENUE_LABEL = "Transaction Gas Fees To Supply Side";
+const HOLDERS_REVENUE_LABEL = "Transaction Gas Fees Burned";
+const PROTOCOL_REVENUE_LABEL = "Transaction Gas Fees To Treasury";
 const DEFAULT_BLOCK_CHUNK_SIZE = 500;
 const DEFAULT_BLOCK_CONCURRENCY = 8;
 const DEFAULT_TX_RECEIPT_CONCURRENCY = 20;
@@ -90,7 +99,7 @@ const failedRpcSenders: Record<string, Set<string> | undefined> = {};
  */
 export const EVM_CHAIN_METRIC_CONFIGS: Record<string, EvmChainFeesConfig> = {
   core: { chain: CHAIN.CORE, start: "2023-04-19", blockChunkSize: 500, revenueShare: 1 },
-  merlin: { chain: CHAIN.MERLIN, start: "2024-04-01", blockChunkSize: 250, rpcTimeoutMs: 20_000, revenueShare: 1 },
+  "bifrost-network": { chain: CHAIN.BFC, start: "2026-10-18", blockChunkSize: 500, revenueShare: 1, holdersRevenueShare: 0.5, protocolRevenueShare: 0.5 },
 };
 
 const baseMethodology = {
@@ -169,7 +178,8 @@ function getReceiptMetricsAccumulator(receipts: Array<ReceiptLike | null | undef
   for (const receipt of receipts) {
     if (!receipt) continue;
     const gasUsed = toBigInt(receipt.gasUsed, "gasUsed");
-    const gasPrice = toBigInt(receipt.effectiveGasPrice ?? receipt.gasPrice, "effectiveGasPrice");
+    // a receipt that used no gas paid no fee, so its price is never fetched (see needsTransactionData)
+    const gasPrice = gasUsed === 0n ? 0n : toBigInt(receipt.effectiveGasPrice ?? receipt.gasPrice, "effectiveGasPrice");
 
     transactionCount += 1;
     totalGasUsed += gasUsed;
@@ -193,14 +203,16 @@ function getReceiptMetricsAccumulator(receipts: Array<ReceiptLike | null | undef
  */
 export async function fetchEvmChainMetrics(config: EvmChainMetricConfig & BlockRange): Promise<EvmChainMetrics> {
   assertValidBlockRange(config.chain, config.fromBlock, config.toBlock);
-  const chunks = makeBlockChunks(config.fromBlock, config.toBlock, config.blockChunkSize);
+  const chunks = config.feeHistoryScreenSize
+    ? chunkBlocks(await getBlocksWithGasUsed(config, config.fromBlock, config.toBlock), config.blockChunkSize ?? DEFAULT_BLOCK_CHUNK_SIZE)
+    : makeBlockChunks(config.fromBlock, config.toBlock, config.blockChunkSize).map(({ fromBlock, toBlock }) => blockList(fromBlock, toBlock));
   const totals = emptyMetricsAccumulator();
 
   const { results, errors } = await PromisePool
     .withConcurrency(config.batchConcurrency ?? DEFAULT_BATCH_CONCURRENCY)
     .for(chunks)
-    .process(async (chunk) => {
-      const receipts = await getBlockRangeReceipts(config, chunk);
+    .process(async (blocks) => {
+      const receipts = await getBlocksReceipts(config, blocks);
       return getReceiptMetricsAccumulator(receipts);
     });
 
@@ -210,12 +222,53 @@ export async function fetchEvmChainMetrics(config: EvmChainMetricConfig & BlockR
   return toPublicMetrics(totals);
 }
 
-/**
- * Retrieves all receipts for a block chunk using the fastest safe RPC path.
- */
-async function getBlockRangeReceipts(config: EvmChainMetricConfig, chunk: BlockRange): Promise<ReceiptLike[]> {
+function blockList(fromBlock: number, toBlock: number): number[] {
   const blocks: number[] = [];
-  for (let block = chunk.fromBlock; block <= chunk.toBlock; block++) blocks.push(block);
+  for (let block = fromBlock; block <= toBlock; block++) blocks.push(block);
+  return blocks;
+}
+
+function chunkBlocks(blocks: number[], chunkSize: number): number[][] {
+  return makeBlockChunks(0, blocks.length - 1, chunkSize).map(({ fromBlock, toBlock }) => blocks.slice(fromBlock, toBlock + 1));
+}
+
+/**
+ * Lists the blocks of an inclusive range that used any gas, from eth_feeHistory gasUsedRatio.
+ * A block with an EVM transaction always uses gas (21,000 at least), so the skipped blocks hold no receipts.
+ */
+async function getBlocksWithGasUsed(config: EvmChainMetricConfig, fromBlock: number, toBlock: number): Promise<number[]> {
+  const windowSize = config.feeHistoryScreenSize!;
+  const windows: { newest: number; count: number }[] = [];
+  for (let newest = toBlock; newest >= fromBlock; newest -= windowSize)
+    windows.push({ newest, count: Math.min(windowSize, newest - fromBlock + 1) });
+
+  const histories = await sendRpcBatchInChunks(
+    config,
+    "eth_feeHistory",
+    windows.map(({ newest, count }) => [toHex(count), toHex(newest), []]),
+    config.blockChunkSize ?? DEFAULT_RPC_BATCH_SIZE,
+  );
+
+  const blocks: number[] = [];
+  histories.forEach((history, index) => {
+    const { newest, count } = windows[index];
+    const oldest = newest - count + 1;
+    // a node caps the block count per call or lacks part of the range: never read a short window as empty blocks
+    if (Number(history?.oldestBlock) !== oldest || history?.gasUsedRatio?.length !== count)
+      throw new Error(`${config.chain}: eth_feeHistory returned ${history?.gasUsedRatio?.length} blocks from ${history?.oldestBlock} for blocks ${oldest}-${newest}`);
+    history.gasUsedRatio.forEach((ratio: number, offset: number) => {
+      if (ratio > 0) blocks.push(oldest + offset);
+    });
+  });
+
+  return blocks.sort((left, right) => left - right);
+}
+
+/**
+ * Retrieves all receipts for a list of blocks using the fastest safe RPC path.
+ */
+async function getBlocksReceipts(config: EvmChainMetricConfig, blocks: number[]): Promise<ReceiptLike[]> {
+  if (!blocks.length) return [];
 
   if (hasAvailableBlockReceiptsSender(config)) {
     try {
@@ -293,7 +346,7 @@ async function getBlockTransactionHashesBatch(config: EvmChainMetricConfig, bloc
  * Hydrates missing sender or fee-price receipt fields using batched transaction lookups.
  */
 async function hydrateReceiptsBatchIfNeeded(config: EvmChainMetricConfig, receipts: ReceiptLike[]): Promise<ReceiptLike[]> {
-  if (receipts.every((receipt) => receipt?.from && hasFeePrice(receipt))) return receipts;
+  if (receipts.every((receipt) => receipt && !needsTransactionData(receipt))) return receipts;
 
   const txHashes = receipts
     .filter(needsTransactionData)
@@ -317,8 +370,15 @@ async function hydrateReceiptsBatchIfNeeded(config: EvmChainMetricConfig, receip
  */
 export async function fetchEvmChainMetricsFromOptions(options: FetchOptions, config: EvmChainMetricConfig): Promise<EvmChainMetrics> {
   const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
-  assertValidBlockRange(config.chain, fromBlock, toBlock);
-  return fetchEvmChainMetrics({ ...config, fromBlock, toBlock });
+  const range = getWindowBlockRange(config.chain, fromBlock, toBlock);
+  if (!range) return toPublicMetrics(emptyMetricsAccumulator());
+  return fetchEvmChainMetrics({ ...config, ...range });
+}
+
+function getWindowBlockRange(chain: string, fromBlock: any, toBlock: any): BlockRange | undefined {
+  assertValidBlockRange(chain, fromBlock, toBlock);
+  if (fromBlock === toBlock) return undefined;
+  return { fromBlock: fromBlock + 1, toBlock };
 }
 
 /**
@@ -329,6 +389,7 @@ export function createEvmChainFeesAdapter(config: EvmChainFeesConfig): SimpleAda
 
   return {
     version: 2,
+    pullHourly: true,
     protocolType: ProtocolType.CHAIN,
     isExpensiveAdapter: true,
     chains: [config.chain],
@@ -340,8 +401,8 @@ export function createEvmChainFeesAdapter(config: EvmChainFeesConfig): SimpleAda
       const dailyFees = options.createBalances();
       const dailyRevenue = options.createBalances();
 
-      dailyFees.addGasToken(metrics.totalFeesWei, METRIC.TRANSACTION_GAS_FEES);
-      addGasFeeShare(dailyRevenue, metrics.totalFeesWei, config.revenueShare, CHAIN_REVENUE_LABEL);
+      addGasFeeShare(dailyFees, metrics.totalFeesWei, 1, METRIC.TRANSACTION_GAS_FEES, config.CGToken);
+      addGasFeeShare(dailyRevenue, metrics.totalFeesWei, config.revenueShare, CHAIN_REVENUE_LABEL, config.CGToken);
       const response: Record<string, any> = {
         dailyFees,
         dailyRevenue,
@@ -351,8 +412,20 @@ export function createEvmChainFeesAdapter(config: EvmChainFeesConfig): SimpleAda
 
       if (isPositiveShare(config.supplySideRevenueShare)) {
         const dailySupplySideRevenue = options.createBalances();
-        addGasFeeShare(dailySupplySideRevenue, metrics.totalFeesWei, config.supplySideRevenueShare, SUPPLY_SIDE_REVENUE_LABEL);
+        addGasFeeShare(dailySupplySideRevenue, metrics.totalFeesWei, config.supplySideRevenueShare, SUPPLY_SIDE_REVENUE_LABEL, config.CGToken);
         response.dailySupplySideRevenue = dailySupplySideRevenue;
+      }
+
+      if (isPositiveShare(config.holdersRevenueShare)) {
+        const dailyHoldersRevenue = options.createBalances();
+        addGasFeeShare(dailyHoldersRevenue, metrics.totalFeesWei, config.holdersRevenueShare, HOLDERS_REVENUE_LABEL, config.CGToken);
+        response.dailyHoldersRevenue = dailyHoldersRevenue;
+      }
+
+      if (isPositiveShare(config.protocolRevenueShare)) {
+        const dailyProtocolRevenue = options.createBalances();
+        addGasFeeShare(dailyProtocolRevenue, metrics.totalFeesWei, config.protocolRevenueShare, PROTOCOL_REVENUE_LABEL, config.CGToken);
+        response.dailyProtocolRevenue = dailyProtocolRevenue;
       }
 
       return response;
@@ -365,6 +438,12 @@ function getMethodology(config: EvmChainFeesConfig) {
 
   if (isPositiveShare(config.supplySideRevenueShare)) {
     methodology.SupplySideRevenue = `Configured ${formatShare(config.supplySideRevenueShare)} share of transaction gas fees paid to supply-side participants.`;
+  }
+  if (isPositiveShare(config.holdersRevenueShare)) {
+    methodology.HoldersRevenue = `${formatShare(config.holdersRevenueShare)} of transaction gas fees paid by users, burned.`;
+  }
+  if (isPositiveShare(config.protocolRevenueShare)) {
+    methodology.ProtocolRevenue = `${formatShare(config.protocolRevenueShare)} of transaction gas fees paid by users, sent to the chain treasury.`;
   }
 
   return methodology;
@@ -381,6 +460,16 @@ function getBreakdownMethodology(config: EvmChainFeesConfig) {
       [SUPPLY_SIDE_REVENUE_LABEL]: "Configured share of transaction gas fees paid to supply-side participants.",
     };
   }
+  if (isPositiveShare(config.holdersRevenueShare)) {
+    breakdownMethodology.HoldersRevenue = {
+      [HOLDERS_REVENUE_LABEL]: "Configured share of transaction gas fees burned.",
+    };
+  }
+  if (isPositiveShare(config.protocolRevenueShare)) {
+    breakdownMethodology.ProtocolRevenue = {
+      [PROTOCOL_REVENUE_LABEL]: "Configured share of transaction gas fees sent to the chain treasury.",
+    };
+  }
 
   return breakdownMethodology;
 }
@@ -389,8 +478,10 @@ function formatShare(share: number) {
   return `${Number((share * 100).toFixed(4))}%`;
 }
 
-function addGasFeeShare(balances: ReturnType<FetchOptions["createBalances"]>, totalFeesWei: bigint, share: number, label: string) {
-  balances.addGasToken(applyShare(totalFeesWei, share), label);
+function addGasFeeShare(balances: ReturnType<FetchOptions["createBalances"]>, totalFeesWei: bigint, share: number, label: string, CGToken?: string) {
+  const amount = applyShare(totalFeesWei, share);
+  if (CGToken) balances.addCGToken(CGToken, Number(amount) / 1e18, label);
+  else balances.addGasToken(amount, label);
 }
 
 function applyShare(amount: bigint, share: number) {
@@ -415,13 +506,46 @@ export function createEvmChainUsersFetcher(config: EvmChainMetricConfig) {
       getBlock(endTimestamp - 1, config.chain),
     ]);
 
-    assertValidBlockRange(config.chain, fromBlock, toBlock);
-
-    const metrics = await fetchEvmChainMetrics({ ...config, fromBlock, toBlock });
+    const range = getWindowBlockRange(config.chain, fromBlock, toBlock);
+    const metrics = range ? await fetchEvmChainMetrics({ ...config, ...range }) : toPublicMetrics(emptyMetricsAccumulator());
     return [{
       usercount: metrics.activeUsers,
       txcount: metrics.transactionCount,
     }];
+  };
+}
+
+/**
+ * Creates a new-users fetcher counting distinct senders whose first transaction (nonce 0) lands in the window.
+ * Receipts carry no nonce, so this scans full blocks instead of reusing the receipt metrics.
+ */
+export function createEvmChainNewUsersFetcher(config: EvmChainMetricConfig) {
+  return async (startTimestamp: number, endTimestamp: number) => {
+    const [fromBlock, toBlock] = await Promise.all([
+      getBlock(startTimestamp, config.chain),
+      getBlock(endTimestamp - 1, config.chain),
+    ]);
+
+    const range = getWindowBlockRange(config.chain, fromBlock, toBlock);
+    const newUsers = new Set<string>();
+    const { errors } = await PromisePool
+      .withConcurrency(config.batchConcurrency ?? DEFAULT_BATCH_CONCURRENCY)
+      .for(range ? makeBlockChunks(range.fromBlock, range.toBlock, config.blockChunkSize) : [])
+      .process(async (chunk) => {
+        const blocks: number[] = [];
+        for (let block = chunk.fromBlock; block <= chunk.toBlock; block++) blocks.push(block);
+
+        const rpcBlocks = await sendFirstRpcBatch(config, "eth_getBlockByNumber", blocks.map((block) => [toHex(block), true]));
+        rpcBlocks.forEach((rpcBlock, index) => {
+          for (const tx of getBlockTransactions(config, blocks[index], rpcBlock)) {
+            if (typeof tx === "string") throw new Error(`${config.chain}: eth_getBlockByNumber returned hashes instead of transactions for block ${blocks[index]}`);
+            if (tx.from && toBigInt(tx.nonce, "nonce") === 0n) newUsers.add(tx.from.toLowerCase());
+          }
+        });
+      });
+
+    if (errors.length) throw getPoolError(errors);
+    return [{ usercount: newUsers.size }];
   };
 }
 
@@ -489,7 +613,7 @@ function getBlockTransactionHashesFromBlock(config: EvmChainMetricConfig, block:
  * Hydrates receipts for a single block when the receipt payload is missing sender or fee price.
  */
 async function hydrateReceiptsIfNeeded(config: EvmChainMetricConfig, block: number, receipts: ReceiptLike[]): Promise<ReceiptLike[]> {
-  if (receipts.every((receipt) => receipt?.from && hasFeePrice(receipt))) return receipts;
+  if (receipts.every((receipt) => receipt && !needsTransactionData(receipt))) return receipts;
   const rpcBlock = await sendFirstRpc(config, "eth_getBlockByNumber", [toHex(block), true]);
   const hydratedReceipts = hydrateReceiptsWithTransactions(
     receipts,
@@ -729,7 +853,7 @@ async function sendHttpRpcBatch(config: EvmChainMetricConfig, sender: RpcSender,
 /**
  * Sends the HTTP request for a JSON-RPC batch with timeout and JSON validation.
  */
-async function postJsonRpcBatch(url: string, requests: any[], timeoutMs: number, label: string): Promise<any> {
+async function postJsonRpcBatch(url: string, requests: any[] | Record<string, any>, timeoutMs: number, label: string): Promise<any> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -777,6 +901,21 @@ function createRpcBatchError(url: string, method: string, error: any) {
  */
 function getMetricProvider(config: EvmChainMetricConfig): ProviderLike {
   return config.provider ?? getProvider(config.chain);
+}
+
+/**
+ * Builds JSON-RPC senders for fixed endpoints, for chains whose SDK RPC list holds pruned nodes that answer
+ * historical receipt calls with an empty list instead of an error.
+ */
+export function createUrlRpcSenders(urls: string[], timeoutMs = DEFAULT_RPC_TIMEOUT_MS): RpcSender[] {
+  return urls.map((url) => ({
+    url,
+    send: async (method: string, params: any[]) => {
+      const payload = await postJsonRpcBatch(url, { jsonrpc: "2.0", id: 1, method, params }, timeoutMs, method);
+      if (payload?.error) throw createRpcBatchError(url, method, payload.error);
+      return payload?.result;
+    },
+  }));
 }
 
 /**
@@ -932,6 +1071,15 @@ function assertValidRevenueAllocation(config: EvmChainFeesConfig) {
   if (toShareUnits(config.revenueShare) + toShareUnits(config.supplySideRevenueShare ?? 0) > SHARE_PRECISION) {
     throw new Error(`${config.chain}: revenueShare and supplySideRevenueShare cannot exceed 1`);
   }
+  for (const key of ["holdersRevenueShare", "protocolRevenueShare"] as const) {
+    const share = config[key];
+    if (share !== undefined && (!Number.isFinite(share) || share < 0 || share > 1)) {
+      throw new Error(`${config.chain}: ${key} must be a number between 0 and 1`);
+    }
+  }
+  if (toShareUnits(config.holdersRevenueShare ?? 0) + toShareUnits(config.protocolRevenueShare ?? 0) > toShareUnits(config.revenueShare)) {
+    throw new Error(`${config.chain}: holdersRevenueShare and protocolRevenueShare cannot exceed revenueShare`);
+  }
 }
 
 /**
@@ -962,7 +1110,13 @@ function getLegacyTransactionGasPrice(receipt: ReceiptLike, transaction: Transac
  * Checks whether receipt hydration needs transaction data.
  */
 function needsTransactionData(receipt: ReceiptLike): boolean {
-  return !receipt.from || !hasFeePrice(receipt);
+  // zero-gas receipts pay no fee whatever their price; Viction's ~10 masternode signing txs per block are all gasUsed 0
+  // and carry no price on the receipt, so hydrating them cost one eth_getTransactionByHash each
+  return !receipt.from || (!hasFeePrice(receipt) && !isZeroGasUsed(receipt));
+}
+
+function isZeroGasUsed(receipt: ReceiptLike): boolean {
+  return receipt.gasUsed !== undefined && receipt.gasUsed !== null && toBigInt(receipt.gasUsed, "gasUsed") === 0n;
 }
 
 /**

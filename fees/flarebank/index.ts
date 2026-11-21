@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
@@ -16,7 +17,7 @@ import { METRIC } from "../../helpers/metrics";
 // ═══════════════════════════════════════════════════════════════════════
 
 const FLAREBANK_ADDRESS = "0x194726F6C2aE988f1Ab5e1C943c17e591a6f6059";
-const WFLR_ADDRESS = "0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d";
+const WFLR_ADDRESS = ADDRESSES.flare.WFLR;
 
 // LP pool addresses for swap detection
 const LP_ADDRESSES = [
@@ -75,7 +76,7 @@ const fetch = async (options: FetchOptions) => {
   // Addresses to exclude (internal protocol transfers, not user activity)
   const excludeAddresses = [
     FLAREBANK_ADDRESS.toLowerCase(),
-    "0x0000000000000000000000000000000000000000",
+    ADDRESSES.null,
   ];
 
   transferLogs.forEach((log: any) => {

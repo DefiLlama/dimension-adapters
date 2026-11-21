@@ -139,6 +139,7 @@ const breakdownMethodology = {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: false, // subgraph deployment gone, daily run fails 2026-11, unverified
   adapter: {
     [CHAIN.BSC]: { start: '2024-05-13' },
     [CHAIN.SONIC]: { start: '2024-12-30' }

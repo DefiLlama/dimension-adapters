@@ -2,6 +2,8 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived, getETHReceived } from "../helpers/token";
+import { getAlliumChain, queryAllium } from "../helpers/allium";
+import { METRIC } from "../helpers/metrics";
 
 const chains = [
   CHAIN.ETHEREUM,
@@ -40,7 +42,6 @@ const targets: any = {
     '0x19cd4F3820E7BBed45762a30BFA37dFC6c9C145b'
   ],
   [CHAIN.BASE]: [
-    "0xaD01C20d5886137e056775af56915de824c8fCe5",
     "0xaD01C20d5886137e056775af56915de824c8fCe5",
     "0x19cd4F3820E7BBed45762a30BFA37dFC6c9C145b"
   ],
@@ -155,15 +156,50 @@ const fromAdddesses: any = {
   ],
 }
 
+// Swaps that Trust Wallet routes through CoW Swap carry a 70 bps partner fee: app data appCode "Trust wallet",
+// partnerFee { volumeBps: 70, recipient: 0xea5B...334ec }, e.g.
+// https://explorer.cow.fi/orders/0x911c3a9f99e1d25a4010eb1bdbdb4b795757b036236fbbbe0f096f634c92d42a5d0875aab555bb3a604e2ce8e12e7d336ec123316ae528a8?tab=overview
+// CoW Protocol pays it out weekly, in the native token, from its "Solver payouts" Safe 0xa03be496...
+// (https://docs.cow.fi/governance/multisigs) and, on Arbitrum and Polygon, from 0x66331f0b..., a Safe that
+// shares its owners. First payout 2026-05-20, e.g. https://bscscan.com/tx/0xd5c1caf85bacca4125e8bdf3f4f6d3f39591e5c435f0b14435bff89f59cfd0a1
+// The payouts are internal value transfers (Safe.execTransaction), so they are read from Allium.
+const COW_PARTNER_FEE_RECIPIENT = '0xea5b5991f761ced44ffa99beacb72d691ee334ec'
+const COW_PARTNER_FEE_PAYERS = [
+  '0xa03be496e67ec29bc62f01a428683d7f9c204930',
+  '0x66331f0b9cb30d38779c786bda5a3d57d12fba50',
+]
+const COW_PARTNER_FEES_FROM = 1779235200 // 2026-05-20, the first payout
+const COW_PARTNER_FEES = 'CoW Swap Partner Fees'
+
+// 0x92f980a7 is the Ethereum alias of THORName t1. It also receives USDC from two other swap routes:
+// - NEAR Intents' Ethereum treasury, about every 2h since 2025-09-26: withdrawals by one NEAR account, e.g.
+//   https://nearblocks.io/txns/4M4f7yJa2iiVSVQTM8L6kvCe23V35tz7jj2ht3g28Eoc landing as
+//   https://etherscan.io/tx/0xea22146b662657689df18f0b20a54c39362e5b9642c64556ee3e7d26e9d71120. Swaps with referral 1click-swapkit
+//   credit that account 70 bps, e.g. https://nearblocks.io/txns/4Ph2aGJgz5vS45g9fRLckdUqGdrxr2xCafw8dqyPQDzU
+// - Chainflip's Ethereum vault, about once a day near 00:02 UTC since 2026-07-07,
+//   e.g. https://etherscan.io/tx/0x9f9c88406ce0ece1dcc5e8093224dc443954e8f9b3fbc055c7b381a35be88fb1
+// Read into this Safe only: the same senders' rare lump transfers into other collectors were not traced to swap fees.
+const SWAPKIT_SAFE = '0x92f980a7aae3574cfe45e30a21d6aa14d08f7c7d'
+const SWAPKIT_ROUTE_PAYERS = [
+  '0x2CfF890f0378a11913B6129B2E97417a2c302680', // NEAR Intents
+  '0xF5e10380213880111522dd0efD3dbb45b9f62Bcc', // Chainflip
+]
+// The Safe's USDC sweeps split between 0x2f410732 and 0x2d4f7282, the Ethereum alias of SwapKit's THORName sk: 10.34% of the $15.89M swept
+// 2025-07-18..2026-10-12 went to sk, exactly 10.00% on six sweeps, e.g. https://etherscan.io/tx/0x00e2a400b24e4e771bd6538f7489d7303e4d6595d12aa605e0a6d9b56db09fd4
+// The rate is measured from these sweeps; no document states it.
+const SWAPKIT_SHARE = 0.1
+const SWAPKIT_SHARE_LABEL = 'Swap Fees To SwapKit'
+
 const fetchFees = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
+  const swapFees = options.createBalances()
   await addTokensReceived({
     options,
     targets: targets[options.chain],
     tokens: tokens[options.chain],
     toAddressFilter: targets[options.chain],
-    fromAddressFilter: fromAdddesses[options.chain] ?? [],
-    balances: dailyFees,
+    fromAdddesses: fromAdddesses[options.chain] ?? [],
+    balances: swapFees,
   });
   const fees_percet = options.createBalances()
   if (targets_type_percent[options.chain]) {
@@ -172,12 +208,12 @@ const fetchFees = async (options: FetchOptions) => {
       targets: targets_type_percent[options.chain] ?? [],
       tokens: tokens_type_percent[options.chain] ?? [],
       toAddressFilter: targets_type_percent[options.chain] ?? [],
-      fromAddressFilter: fromAdddesses_type_percent[options.chain] ?? [],
+      fromAdddesses: fromAdddesses_type_percent[options.chain] ?? [],
       balances: fees_percet,
     });
   }
   fees_percet.resizeBy(0.01)
-  dailyFees.addBalances(fees_percet)
+  swapFees.addBalances(fees_percet)
 
   // Native gas-token fees. When a user swap is paid in the chain's native token
   // (ETH / BNB / POL / AVAX / etc.), 0x Settler (Trust Wallet's documented swap router
@@ -189,12 +225,54 @@ const fetchFees = async (options: FetchOptions) => {
   await getETHReceived({
     options,
     targets: targets[options.chain],
-    balances: dailyFees,
+    balances: swapFees,
   });
+
+  const safeFees = options.createBalances()
+  if (options.chain === CHAIN.ETHEREUM) {
+    const routeFees = options.createBalances()
+    await addTokensReceived({
+      options,
+      target: SWAPKIT_SAFE,
+      tokens: tokens[options.chain],
+      fromAdddesses: SWAPKIT_ROUTE_PAYERS,
+      balances: routeFees,
+    });
+    swapFees.addBalances(routeFees)
+    safeFees.addBalances(routeFees)
+    await addTokensReceived({
+      options,
+      target: SWAPKIT_SAFE,
+      tokens: tokens[options.chain],
+      fromAdddesses: fromAdddesses[options.chain],
+      balances: safeFees,
+    });
+  }
+
+  dailyFees.addBalances(swapFees, METRIC.SWAP_FEES)
+
+  if (options.endTimestamp > COW_PARTNER_FEES_FROM) {
+    const [{ amount }] = await queryAllium(`
+      SELECT COALESCE(SUM(raw_amount), 0) AS amount
+      FROM ${getAlliumChain(options.chain)}.assets.native_token_transfers
+      WHERE to_address = '${COW_PARTNER_FEE_RECIPIENT}'
+        AND from_address IN (${COW_PARTNER_FEE_PAYERS.map((a) => `'${a}'`).join(', ')})
+        AND transfer_type = 'value_transfer'
+        AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    `)
+    dailyFees.addGasToken(amount, COW_PARTNER_FEES)
+  }
+
+  const swapkitShare = safeFees.clone(SWAPKIT_SHARE)
+  const dailyRevenue = dailyFees.clone()
+  dailyRevenue.subtract(swapkitShare, METRIC.SWAP_FEES)
 
   return {
     dailyFees,
-    dailyRevenue: dailyFees,
+    dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
+    dailySupplySideRevenue: swapkitShare.clone(1, SWAPKIT_SHARE_LABEL),
   };
 };
 
@@ -212,10 +290,28 @@ const adapter: SimpleAdapter = {
     };
   }, {}),
   methodology: {
-    Fees: 'All fees paid by users for swapping, bridging in Trust Wallet. Captured both from ERC20 Transfer events into the fee collectors (USDC and 1%-scaled USDT) and from native gas-token internal transfers forwarded by the 0x Settler integrator.',
-    Revenue: 'Fees collected by Trust Wallet.',
-    ProtocolRevenue: 'Fees collected by Trust Wallet.',
-  }
+    Fees: 'All fees paid by users for swapping, bridging in Trust Wallet. Captured from ERC20 Transfer events into the fee collectors (USDC and 1%-scaled USDT), including the USDC NEAR Intents and Chainflip pay out to the Safe 0x92f980a7, from native gas-token internal transfers forwarded by the 0x Settler integrator, and from the CoW Swap partner fee that CoW Protocol pays out to Trust Wallet each week.',
+    Revenue: 'Fees collected by Trust Wallet, less the share of the Safe 0x92f980a7 that its sweeps send to SwapKit.',
+    ProtocolRevenue: 'Fees collected by Trust Wallet, less the share of the Safe 0x92f980a7 that its sweeps send to SwapKit.',
+    SupplySideRevenue: "SwapKit's share of the USDC the Safe 0x92f980a7 receives from the tracked senders, 10% as measured from the Safe's sweeps.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SWAP_FEES]: 'Swap and bridge fees received by the Trust Wallet fee collectors: ERC20 transfers (USDC, and 1%-scaled USDT) and native gas-token fees forwarded by the 0x Settler integrator.',
+      [COW_PARTNER_FEES]: 'Partner fee on CoW Swap orders with the Trust wallet app code, paid out weekly in native coin by CoW Protocol to the Trust Wallet partner-fee address.',
+    },
+    Revenue: {
+      [METRIC.SWAP_FEES]: 'Swap and bridge fees kept by Trust Wallet.',
+      [COW_PARTNER_FEES]: 'CoW Swap partner fee paid out to Trust Wallet.',
+    },
+    ProtocolRevenue: {
+      [METRIC.SWAP_FEES]: 'Swap and bridge fees kept by Trust Wallet.',
+      [COW_PARTNER_FEES]: 'CoW Swap partner fee paid out to Trust Wallet.',
+    },
+    SupplySideRevenue: {
+      [SWAPKIT_SHARE_LABEL]: "SwapKit's share of the USDC the Safe 0x92f980a7 receives from the tracked senders, 10% as measured from the Safe's sweeps.",
+    },
+  },
 };
 
 export default adapter;

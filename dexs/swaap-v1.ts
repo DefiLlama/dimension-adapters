@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -9,9 +10,9 @@ const getSwapFeeAbi = "function getSwapFee() external view returns (uint256)";
 const PRICE_DECIMALS = 8;
 
 const TOKEN_DECIMALS: { [key: string]: number } = {
-  "0x2791bca1f2de4661ed88a30c99a7a9449aa84174": 6,  // USDC.e
-  "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619": 18, // WETH
-  "0x1bfd67037b42cf73acf2047067bd4f2c47d9bfd6": 8,  // WBTC
+  [ADDRESSES.polygon.USDC]: 6,  // USDC.e
+  [ADDRESSES.polygon.WETH_1]: 18, // WETH
+  [ADDRESSES.polygon.WBTC]: 8,  // WBTC
 };
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {

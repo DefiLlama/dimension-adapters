@@ -38,34 +38,27 @@ const getDailyTokenMetrics = async (timestamp: number): Promise<DailyTokenMetric
  * @returns An object containing the total SDEX burnt and daily token metrics.
  */
 const getMetricsFromSubgraph = async (timestamp: number) => {
-  try {
-    const dailyGlobalMetricsQuery = `{
-      dailyGlobalMetrics_collection (where: {
-        id: "${timestamp}"
-      }) {
-        totalSdexBurnt
-      }
-    }`;
+  const dailyGlobalMetricsQuery = `{
+    dailyGlobalMetrics_collection (where: {
+      id: "${timestamp}"
+    }) {
+      totalSdexBurnt
+    }
+  }`;
 
-    const dailyGlobalMetrics = (await request(subgraphUrl, dailyGlobalMetricsQuery, {}, headers))
-      .dailyGlobalMetrics_collection[0];
+  const dailyGlobalMetrics = (await request(subgraphUrl, dailyGlobalMetricsQuery, {}, headers))
+    .dailyGlobalMetrics_collection[0];
 
-    const dailyTokenMetrics = await getDailyTokenMetrics(timestamp);
+  const dailyTokenMetrics = await getDailyTokenMetrics(timestamp);
 
-    return {
-      totalSdexBurnt: dailyGlobalMetrics?.totalSdexBurnt || 0,
-      dailyTokenMetrics: dailyTokenMetrics.map((token) => ({
-        // Token id is in the form <timestamp>-<tokenId>
-        id: token.id.split("-")[1],
-        totalInterestPaid: parseFloat(token.totalInterestPaid),
-      })),
-    };
-  } catch (error) {
-    return {
-      totalSdexBurnt: 0,
-      dailyTokenMetrics: [],
-    };
-  }
+  return {
+    totalSdexBurnt: dailyGlobalMetrics?.totalSdexBurnt || 0,
+    dailyTokenMetrics: dailyTokenMetrics.map((token) => ({
+      // Token id is in the form <timestamp>-<tokenId>
+      id: token.id.split("-")[1],
+      totalInterestPaid: parseFloat(token.totalInterestPaid),
+    })),
+  };
 };
 
 const fetch = async ({ startOfDay, createBalances }: FetchOptions): Promise<FetchResult> => {

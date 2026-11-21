@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -94,7 +95,7 @@ const fetch = async (options: FetchOptions) => {
     if (!parsed) continue;
     const amount = parsed.args.gasFeeAmount || parsed.args.nativeGasAmount;
     if (!amount) continue;
-    const gasToken = parsed.args.gasToken || "0x0000000000000000000000000000000000000000";
+    const gasToken = parsed.args.gasToken || ADDRESSES.null;
     dailyFees.add(gasToken, amount.toString(), METRIC.TRANSACTION_GAS_FEES);
   }
 
@@ -105,7 +106,7 @@ const fetch = async (options: FetchOptions) => {
     const refundedAmount = new BigNumber(parsed.args.amount || 0);
     totalRefunded = totalRefunded.plus(refundedAmount);
 
-    const token = parsed?.args.token || "0x0000000000000000000000000000000000000000";
+    const token = parsed?.args.token || ADDRESSES.null;
     dailyFees.add(token, `-${refundedAmount.toString()}`, "Gas Refunds");
   }
 

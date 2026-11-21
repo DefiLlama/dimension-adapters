@@ -57,6 +57,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'routescan',
     'hyperliquid:validatorFees',
     'hyperliquid',
+    'lighter',
     'symmio',
     'compoundV2',
     'orderly',
@@ -70,10 +71,12 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'curve',
     'subscan',
     'polymarket:fees',
+    'papertrade:fees',
   ],
   'dexs': [
     'injectiveBigQuery',
     'helpers/crypto-card',
+    'helpers/rainCard',
     'helpers/balancer',
     'uniV2',
     'uniV3',
@@ -81,6 +84,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'uniV2:fees',
     'uniV3:fees',
     'hyperliquid',
+    'lighter',
     'symmio',
     'orderly',
     'azverse',
@@ -91,6 +95,7 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'duneSolanaDex',
     'joeLiquidityBook',
     'curve',
+    // 'papertrade', // builder volume is not listed yet, see factory/papertrade.ts
   ],
   'aggregators': [],
   'open-interest': [
@@ -114,6 +119,12 @@ const factoriesByAdapterType: { [adapterType: string]: string[] } = {
     'aaveLiquidations',
     'compoundV2:liquidations',
     'gmxV1:liquidations',
+    'helpers/liquity:liquidations',
+  ],
+  'bridges': [
+    'evmBridges',
+    'opStackBridges',
+    'arbitrumBridges',
   ],
 };
 

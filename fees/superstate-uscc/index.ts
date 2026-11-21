@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getTokenSupply } from "../../helpers/solana";
@@ -5,7 +6,7 @@ import * as sdk from "@defillama/sdk";
 
 const USCC: Record<string, string> = {
     [CHAIN.ETHEREUM]: "0x14d60e7fdc0d71d8611742720e4c50e7a974020c",
-    [CHAIN.PLUME]: "0x4c21b7577c8fe8b0b0669165ee7c8f67fa1454cf",
+    [CHAIN.PLUME]: ADDRESSES.plume_mainnet.USCC,
     [CHAIN.SOLANA]: "BTRR3sj1Bn2ZjuemgbeQ6SCtf84iXS81CS7UDTSxUCaK",
 };
 const USCC_CHAINLINK_ORACLE = "0xAfFd8F5578E8590665de561bdE9E7BAdb99300d9";
@@ -56,8 +57,11 @@ const methodology = {
     Revenue: "0.75% Annual Management fee collected by Bitwise",
 };
 
+// no pullHourly: NAV comes from a once-a-day oracle print and negative prints are clamped to 0 per
+// window, so hourly windows cannot net intra-day drops and overcount fees ~12% vs daily
 const adapter: SimpleAdapter = {
     version: 2,
+    pullHourly: false,
     methodology,
     fetch,
     chains: [CHAIN.ETHEREUM, CHAIN.PLUME, CHAIN.SOLANA],

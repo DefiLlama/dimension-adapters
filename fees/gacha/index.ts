@@ -66,6 +66,11 @@ const fetch: FetchV2 = async ({ api, getLogs, createBalances, fromApi, toApi, }:
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  // Gacha Markets wound down: last TicketsPurchased/ClaimSettled at block 66485170 (2026-05-31 16:46 UTC);
+  // proxy upgraded to a withdraw-only implementation 0x2b00c83275826b7bb5d6450431f02984433ab4ee at block 66818801
+  // (2026-06-01 18:30 UTC, tx 0x75f3c253cd7cfb61b6d979c5b79367613c49bfe1ce0137aa76f2a766a8feedd6), tokens swept to the
+  // owner, getConfig() reverts since. The team's live product is Gacha TCG (dexs/gacha-tcg).
+  deadFrom: '2026-06-01',
   methodology: {
     Volume:
       "Volume is calculated as the sum of TicketsPurchased volume (amount multiplied by the ticket price from the corresponding pool) plus any payout volume from ClaimSettled events.",

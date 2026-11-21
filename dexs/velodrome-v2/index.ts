@@ -1,8 +1,13 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { cache } from "@defillama/sdk"
 import { CHAIN } from "../../helpers/chains"
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { addOneToken } from "../../helpers/prices"
 import { filterPools } from "../../helpers/uniswap"
+import { bribesEnded, legacyRevenueExports, LOCKED_GAUGE_FEES } from "../aerodrome/utils"
 
 const swapEvent = 'event Swap(address indexed sender, address indexed to, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out)'
 const notifyRewardFull = 'event NotifyReward(address indexed from, address indexed reward, uint256 indexed epoch, uint256 amount)'
@@ -14,7 +19,7 @@ const OP_FACTORY = '0xF1046053aa5682b4F9a81b5481394DA16BE5FF5a'
 const OP_VOTER = '0x41C914ee0c7E1A5edCD0295623e6dC557B5aBf3C'
 const LEAF_FACTORY = '0x31832f2a97Fd20664D76Cc421207669b55CE4BC0'
 const LEAF_VOTER = '0x97cDBCe21B6fd0585d29E539B1B99dAd328a1123'
-const ZERO = '0x0000000000000000000000000000000000000000'
+const ZERO = ADDRESSES.null
 
 type GaugeCreatedSrc = { voter: string; fromBlock: number; abi: string; bribeField: string }
 type ChainCfg = {
@@ -23,7 +28,8 @@ type ChainCfg = {
   maxPairSize?: number
   gaugeCreated?: GaugeCreatedSrc
   badToken?: string
-}
+  deadFrom?: string
+  }
 // Bob/Mode beta gauges are plain Synthetix stakers (no feesVotingReward), so no
 // swap fees reach voters. Bob has no leaf Voter — all its fees stay supply-side.
 
@@ -61,6 +67,14 @@ const config: Record<string, ChainCfg> = {
     factory: LEAF_FACTORY, start: '2025-02-22',
     gaugeCreated: { voter: LEAF_VOTER, fromBlock: 9387000, abi: leafGaugeCreated, bribeField: 'incentiveVotingReward' },
   },
+  [CHAIN.SWELLCHAIN]: {
+    factory: LEAF_FACTORY, start: '2025-02-21', deadFrom: '2026-06-30', // swellchain stopped operations
+    gaugeCreated: { voter: LEAF_VOTER, fromBlock: 3717934, abi: leafGaugeCreated, bribeField: 'incentiveVotingReward' },
+  },
+  [CHAIN.CELO]: {
+    factory: LEAF_FACTORY, start: '2025-04-01',
+    gaugeCreated: { voter: LEAF_VOTER, fromBlock: 31609112, abi: leafGaugeCreated, bribeField: 'incentiveVotingReward' },
+  },
 }
 
 // Map pool -> gauge(s) for the staked share, and collect external bribes.
@@ -79,14 +93,15 @@ const collectGaugesAndBribes = async (options: FetchOptions, cfg: ChainCfg) => {
   const bribeContracts = new Set<string>()
   gaugeLogs.forEach((e: any) => {
     if (e.poolFactory.toLowerCase() !== factory) return
-    const gauge = e.gauge?.toLowerCase()
-    if (gauge && gauge !== ZERO) {
+    const gauge = e.gauge.toLowerCase()
+    if (gauge !== ZERO) {
       const pool = e.pool.toLowerCase()
         ; (poolToGauges[pool] = poolToGauges[pool] || new Set()).add(gauge)
     }
-    if (e[bribeField] && e[bribeField] !== ZERO) bribeContracts.add(e[bribeField].toLowerCase())
+    if (e[bribeField] !== ZERO) bribeContracts.add(e[bribeField].toLowerCase())
   })
-  if (bribeContracts.size > 0) {
+  // voting ended with the Aero upgrade, so bribes deposited afterwards cannot be earned
+  if (bribeContracts.size > 0 && !bribesEnded(options)) {
     const logs = await getLogs({ targets: [...bribeContracts], eventAbi: notifyRewardFull })
     logs.forEach((e: any) => dailyBribes.add(e.reward, e.amount))
   }
@@ -156,19 +171,19 @@ const fetch = async (options: FetchOptions) => {
   }
 
   const totalFees = createBalances()
-  const totalHoldersRevenue = createBalances()
+  const totalUserFees = createBalances()
   const totalSupplySide = createBalances()
   totalFees.add(dailyFees, 'Token Swap Fees')
   totalFees.add(dailyBribes, 'External Bribes Rewards')
-  totalHoldersRevenue.add(dailyHoldersFees, 'Staked-LP Swap Fees')
-  totalHoldersRevenue.add(dailyBribes, 'External Bribes Revenue')
+  // bribes are deposited by third parties, not charged to traders, so they stay out of UserFees
+  totalUserFees.add(dailyFees, 'Token Swap Fees')
   totalSupplySide.add(dailySupplySideRevenue, 'Unstaked-LP Swap Fees')
 
   return {
     dailyVolume,
     dailyFees: totalFees,
-    dailyRevenue: totalHoldersRevenue,
-    dailyHoldersRevenue: totalHoldersRevenue,
+    dailyUserFees: totalUserFees,
+    ...legacyRevenueExports(options, dailyHoldersFees, 'Staked-LP Swap Fees', dailyBribes, 'External Bribes Revenue'),
     dailySupplySideRevenue: totalSupplySide,
   }
 }
@@ -176,12 +191,15 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: Object.fromEntries(Object.entries(config).map(([chain, c]) => [chain, { fetch, start: c.start }])),
+  fetch,
+  adapter: config,
   methodology: {
     Volume: 'Swap volume across Velodrome v2 (non-CL) pools, counted once per swap from the core-asset side.',
     Fees: 'Per-pool swap fee read from PoolFactory.getFee (default vAMM 0.30% / sAMM 0.05%, customizable per pool) applied to each swap, plus external bribes deposited by third parties to voter-incentive contracts.',
-    Revenue: 'veVELO voters’ take: staked-LP swap fees forwarded to voters plus external bribes. Equals HoldersRevenue — Velodrome keeps no treasury cut of swap fees.',
-    HoldersRevenue: 'Swap fees from staked LPs (fee × pool.balanceOf(gauge) / pool.totalSupply), forwarded to veVELO voters, plus external bribes.',
+    UserFees: 'Swap fees paid by traders only. External bribes are deposited by third parties to influence votes, so they are excluded here even though they count towards Fees.',
+    Revenue: 'Swap fees earned by liquidity staked in gauges and bribes, paid to veVELO voters, plus the staked-liquidity fees locked in the gauges since their last fee distribution ahead of the Aero upgrade (2026-10-15 on Optimism and Ink, earlier on the other chains).',
+    HoldersRevenue: 'Swap fees earned by liquidity staked in gauges until the gauges last distributed fees ahead of the Aero upgrade (2026-10-15 on Optimism and Ink, earlier on the other chains), plus bribes until voting ended on 2026-10-22, all paid to veVELO voters.',
+    ProtocolRevenue: 'Swap fees earned by liquidity staked in gauges since their last fee distribution ahead of the Aero upgrade, locked in the gauges until the Aero Foundation reclaims them. Zero before.',
     SupplySideRevenue: 'Swap fees kept by unstaked LPs (fee × (1 − stakedShare)). LPs who stake in the gauge forgo these fees in exchange for VELO emissions.',
   },
   breakdownMethodology: {
@@ -189,13 +207,20 @@ const adapter: SimpleAdapter = {
       'Token Swap Fees': 'Swap fees paid by traders, per-pool rate from PoolFactory.getFee applied to each swap amount.',
       'External Bribes Rewards': 'External incentives deposited by third parties to the voter bribe/incentive contracts (NotifyReward events).',
     },
+    UserFees: {
+      'Token Swap Fees': 'Swap fees paid by traders, per-pool rate from PoolFactory.getFee applied to each swap amount.',
+    },
     Revenue: {
-      'Staked-LP Swap Fees': 'Staked-LP share of swap fees, forwarded to veVELO voters.',
-      'External Bribes Revenue': 'External incentives deposited by third parties, claimable by veVELO voters.',
+      'Staked-LP Swap Fees': 'Staked-LP share of swap fees, forwarded to veVELO voters until the gauges last distributed fees ahead of the Aero upgrade.',
+      'External Bribes Revenue': 'External incentives deposited by third parties, claimable by veVELO voters until voting ended on 2026-10-22.',
+      [LOCKED_GAUGE_FEES]: 'Staked-LP share of swap fees since the gauges last distributed fees, locked in the gauges until the Aero Foundation reclaims them.',
     },
     HoldersRevenue: {
-      'Staked-LP Swap Fees': 'Staked-LP share of swap fees, forwarded to veVELO voters.',
-      'External Bribes Revenue': 'External incentives deposited by third parties, claimable by veVELO voters.',
+      'Staked-LP Swap Fees': 'Staked-LP share of swap fees, forwarded to veVELO voters until the gauges last distributed fees ahead of the Aero upgrade.',
+      'External Bribes Revenue': 'External incentives deposited by third parties, claimable by veVELO voters until voting ended on 2026-10-22.',
+    },
+    ProtocolRevenue: {
+      [LOCKED_GAUGE_FEES]: 'Staked-LP share of swap fees since the gauges last distributed fees, locked in the gauges until the Aero Foundation reclaims them.',
     },
     SupplySideRevenue: {
       'Unstaked-LP Swap Fees': 'Unstaked-LP share of swap fees, claimable directly from the pool.',

@@ -1,6 +1,11 @@
 import { ethers } from "ethers";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import {
+  FetchGetLogsOptions,
+  FetchOptions,
+  SimpleAdapter,
+} from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { AQUA_SHIPPED_ABI, getAquaFills } from "../helpers/oneinchAqua";
 
 // 1inch Aqua (https://github.com/1inch/aqua): LPs quote from their own wallets;
 // swap fees are encoded per position as SwapVM fee instructions. At fill time
@@ -11,9 +16,10 @@ import { CHAIN } from "../helpers/chains";
 // This adapter decodes each position's fee rates from the strategy bytecode
 // registered on-chain at ship time (Shipped event), then prices every fill of
 // the day:
-//   total swap fee        = pushedAmount * flatFeeUnits / 1e9
 //   DAO share (revenue)   = pushedAmount * protocolFeeUnits / 1e9
-//   LP-retained (supply)  = total - DAO share
+//   LP-retained (supply)  = netAmount * (flatFeeUnits - protocolFeeUnits) / 1e9
+// where netAmount is the pushed amount after netting a maker's own strategies
+// traded against each other in the same transaction (helpers/oneinchAqua.ts).
 // Fee units are uint32 with 1e9 = 100% (SwapVM Fee.sol). The protocol fee is
 // 1/4 of the LP fee on low tiers (below ~0.1225%) and 1/6 above, encoded at
 // position build time; positions created before the DAO fee launch carry
@@ -25,11 +31,6 @@ import { CHAIN } from "../helpers/chains";
 // computation - matching this adapter's start date, before which no DAO fee
 // existed anyway.
 const AQUA_ROUTER = "0x1111113ccf1426a8e30e2bff5e005d929bf6a90a";
-
-const PUSHED_ABI =
-  "event Pushed(address maker, address app, bytes32 strategyHash, address token, uint256 amount)";
-const SHIPPED_ABI =
-  "event Shipped(address maker, address app, bytes32 strategyHash, bytes strategy)";
 
 // The Shipped strategy bytes are an ABI-encoded SwapVM order; its data field
 // is the program: repeated [opcodeIndex (1 byte), argsLength (1 byte), args].
@@ -95,16 +96,11 @@ const chainConfig: Record<
   [CHAIN.ERA]: { start: "2026-07-19", routerDeployBlock: 71209109 },
   [CHAIN.BSC]: { start: "2026-07-21", routerDeployBlock: 110591523 },
   [CHAIN.ROBINHOOD]: { start: "2026-07-21", routerDeployBlock: 12461295 },
+  [CHAIN.ARC]: { start: "2026-09-02", routerDeployBlock: 18825813 },
 };
 
 const LABEL_LP = "Aqua LP Swap Fees";
 const LABEL_DAO = "1inch DAO Fee Share";
-
-const logIndexOf = (log: any) => Number(log.logIndex ?? log.index);
-const positionOf = (log: any) =>
-  `${log.address.toLowerCase()}-${log.transactionHash.toLowerCase()}-${logIndexOf(log)}`;
-const strategyOf = (log: any) =>
-  `${log.args.maker}-${log.args.app}-${log.args.strategyHash}`.toLowerCase();
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -112,73 +108,57 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  // Full-history Shipped scan (cached): every fee rate lives in the strategy
-  // registered at ship time. Also used below to exclude ship-registration
-  // Pushed runs from the day's fills - same separation as the volume adapter.
-  const [shippedLogs, pushedLogs] = await Promise.all([
-    options.getLogs({
-      target: AQUA_ROUTER,
-      eventAbi: SHIPPED_ABI,
-      fromBlock: chainConfig[options.chain].routerDeployBlock,
-      cacheInCloud: true,
-      entireLog: true,
-      parseLog: true,
-    }),
-    options.getLogs({
-      target: AQUA_ROUTER,
-      eventAbi: PUSHED_ABI,
-      entireLog: true,
-      parseLog: true,
-    }),
-  ]);
+  // Same fills as the volume adapter: strategy-registration pushes excluded,
+  // and a maker's own strategies traded against each other in one transaction
+  // netted (netAmount).
+  const fills = await getAquaFills(options, [AQUA_ROUTER]);
+  if (!fills.length)
+    return {
+      dailyFees,
+      dailySupplySideRevenue,
+      dailyRevenue,
+      dailyProtocolRevenue,
+    };
 
+  const filledStrategyHashes = new Set<string>(
+    fills.map(({ strategyHash }) => strategyHash),
+  );
   const feeByStrategyHash = new Map<
     string,
     { flat: bigint; protocol: bigint }
   >();
-  shippedLogs.forEach((log: any) => {
-    const fees = decodeStrategyFees(log.args.strategy);
-    if (fees)
-      feeByStrategyHash.set(String(log.args.strategyHash).toLowerCase(), fees);
-  });
+  await options.getLogs({
+    target: AQUA_ROUTER,
+    eventAbi: AQUA_SHIPPED_ABI,
+    fromBlock: chainConfig[options.chain].routerDeployBlock,
+    cacheInCloud: true,
+    onlyArgs: true,
+    collect: false,
+    processor: (logs: any[]) =>
+      logs.forEach(({ strategyHash, strategy }: any) => {
+        const hash = String(strategyHash).toLowerCase();
+        if (!filledStrategyHashes.has(hash) || feeByStrategyHash.has(hash))
+          return;
+        const fees = decodeStrategyFees(strategy);
+        if (fees) feeByStrategyHash.set(hash, fees);
+      }),
+  } as FetchGetLogsOptions);
 
-  // ship() emits Shipped, then one Pushed per token with no external call in
-  // between, so its Pushed run occupies strictly consecutive log indices for
-  // the same maker/app/strategyHash. A real swap push() always emits an ERC20
-  // Transfer before its Pushed event, which breaks the run - walking the run
-  // separates registration pushes exactly (see the volume adapter).
-  const pushedByPosition = new Map<string, any>();
-  pushedLogs.forEach((log: any) => pushedByPosition.set(positionOf(log), log));
-  const shipRegistrationPushes = new Set<string>();
-  shippedLogs.forEach((shipped: any) => {
-    const txPrefix = `${shipped.address.toLowerCase()}-${shipped.transactionHash.toLowerCase()}`;
-    for (let index = logIndexOf(shipped) + 1; ; index++) {
-      const pushed = pushedByPosition.get(`${txPrefix}-${index}`);
-      if (!pushed || strategyOf(pushed) !== strategyOf(shipped)) break;
-      shipRegistrationPushes.add(`${txPrefix}-${index}`);
-    }
-  });
-
-  pushedLogs.forEach((log: any) => {
-    if (shipRegistrationPushes.has(positionOf(log))) return;
-    const fees = feeByStrategyHash.get(
-      String(log.args.strategyHash).toLowerCase(),
-    );
+  fills.forEach(({ token, strategyHash, amount, netAmount }) => {
+    const fees = feeByStrategyHash.get(strategyHash);
     if (!fees || (fees.flat === 0n && fees.protocol === 0n)) return;
-    const amount = BigInt(log.args.amount);
     // The DAO share is an independent rate, not a slice of the flat fee, so a
     // (theoretical) protocol-only strategy still pays it; clamp the LP share
     // at zero for safety.
-    const totalFee =
-      (amount * (fees.flat > fees.protocol ? fees.flat : fees.protocol)) /
-      FEE_BASE;
+    const rate = fees.flat > fees.protocol ? fees.flat : fees.protocol;
     const daoShare = (amount * fees.protocol) / FEE_BASE;
-    const lpShare = totalFee - daoShare;
-    dailyFees.add(log.args.token, lpShare, LABEL_LP);
-    dailyFees.add(log.args.token, daoShare, LABEL_DAO);
-    dailySupplySideRevenue.add(log.args.token, lpShare, LABEL_LP);
-    dailyRevenue.add(log.args.token, daoShare, LABEL_DAO);
-    dailyProtocolRevenue.add(log.args.token, daoShare, LABEL_DAO);
+    const lpShare =
+      (netAmount * rate) / FEE_BASE - (netAmount * fees.protocol) / FEE_BASE;
+    dailyFees.add(token, lpShare, LABEL_LP);
+    dailyFees.add(token, daoShare, LABEL_DAO);
+    dailySupplySideRevenue.add(token, lpShare, LABEL_LP);
+    dailyRevenue.add(token, daoShare, LABEL_DAO);
+    dailyProtocolRevenue.add(token, daoShare, LABEL_DAO);
   });
 
   return {
@@ -197,9 +177,9 @@ const adapter: SimpleAdapter = {
     Object.entries(chainConfig).map(([chain, { start }]) => [chain, { start }]),
   ),
   methodology: {
-    Fees: "Total Aqua swap fees paid by takers: each fill's taker-paid amount (Pushed event on the AquaRouter registry, fee-inclusive; strategy-registration pushes excluded) multiplied by the position's fee rate decoded from its on-chain strategy bytecode (SwapVM flat-fee instruction, 1e9 units = 100%). Fills of positions on the legacy developer-release registry (pre-2026-07-19, a handful of test positions on an earlier instruction set) are excluded.",
+    Fees: "Total Aqua swap fees paid by takers: each fill's taker-paid amount (Pushed event on the AquaRouter registry, fee-inclusive; strategy-registration pushes excluded) multiplied by the position's fee rate decoded from its on-chain strategy bytecode (SwapVM flat-fee instruction, 1e9 units = 100%). When a maker's own strategies trade against each other within one transaction, the LP fee is paid back to the same wallet and only counts on the maker's net change; the DAO share is always counted. Fills of positions on the legacy developer-release registry (pre-2026-07-19, a handful of test positions on an earlier instruction set) are excluded.",
     SupplySideRevenue:
-      "The share of each fill's swap fee retained by the LP inside the maker-owned wallet (Aqua is non-custodial): total fee minus the DAO share.",
+      "The share of each fill's swap fee retained by the LP inside the maker-owned wallet (Aqua is non-custodial): total fee minus the DAO share. Fees a maker's own strategies pay each other within one transaction are excluded.",
     Revenue:
       "The 1inch DAO's encoded share of each fill's swap fee: 1/4 of the LP fee on low-fee tiers (below ~0.1225%) and 1/6 on higher tiers, transferred to the purpose-deployed per-chain DAO fee exchanger at fill time. Positions created before the DAO fee launch (2026-07-19; enabled 2026-07-21 on BNB Chain and Robinhood Chain) carry no DAO fee and contribute only to SupplySideRevenue. Cross-checked against measured ERC20 inflows to the fee exchangers.",
     ProtocolRevenue: "All DAO revenue accrues to the 1inch DAO treasury.",

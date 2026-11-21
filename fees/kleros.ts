@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
@@ -47,7 +48,7 @@ const fetchArbitrum = async ({ createBalances, getLogs }: FetchOptions) => {
     const feeAmount = Number(log._feeAmount);
     if (feeAmount > 0) {
       const feeToken = log._feeToken;
-      if (feeToken === "0x0000000000000000000000000000000000000000") {
+      if (feeToken === ADDRESSES.null) {
         dailyFees.addGasToken(feeAmount, "Arbitration Fees");
         dailySupplySideRevenue.addGasToken(feeAmount, "Arbitration Fees To Jurors");
       } else {
@@ -67,7 +68,7 @@ const fetchArbitrum = async ({ createBalances, getLogs }: FetchOptions) => {
     const feeAmount = Number(log._feeAmount);
     if (feeAmount > 0) {
       const feeToken = log._feeToken;
-      if (feeToken === "0x0000000000000000000000000000000000000000") {
+      if (feeToken === ADDRESSES.null) {
         dailyFees.addGasToken(feeAmount, "Arbitration Fees");
         dailyProtocolRevenue.addGasToken(feeAmount, "Arbitration Fees To Governor");
       } else {

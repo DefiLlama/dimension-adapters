@@ -85,6 +85,7 @@ const adapter: SimpleAdapter = {
       fetch: fetchVolume,
     },
   },
-  version: 2
+  version: 2,
+  pullHourly: false, // subgraph deployment gone, daily run fails 2026-11, unverified
 };
 export default adapter;

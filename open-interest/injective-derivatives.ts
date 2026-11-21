@@ -13,8 +13,10 @@ const fetch = async (options: FetchOptions) => {
       "No OI data found for the given date: " + options.dateString,
     );
 
+  // total_open_interest counts both sides: the indexer openInterest it tracks is exactly 2x the sum of
+  // long positions on-chain (longs equal shorts), measured 2026-09-23 on BTC, ETH, INJ + 6 markets.
   return {
-    openInterestAtEnd: openInterestRes.total_open_interest,
+    openInterestAtEnd: openInterestRes.total_open_interest / 2,
   };
 };
 

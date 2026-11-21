@@ -157,30 +157,21 @@ async function fetch(options: FetchOptions) {
   const dailyRevenue = createBalances();
   const dailyNotionalVolume = createBalances();
 
-  const marketIndex = await api.call({ abi: 'uint256:marketIndex', target: market });
+  const tradeLogs = await getLogs({ target: market, eventAbi: abi.MarketActionTx, });
 
+  // Only fetch metadata for markets that actually traded today
+  const tradedMarkets = uniqueIds(tradeLogs.map((log: any) => log.marketId));
   const marketMapping: any = {}
-  let fromIndex = 0;
-  const callSize = 20000;
-  do {
-    let toIndex = fromIndex + callSize;
-    if (toIndex > marketIndex) toIndex = marketIndex;
-    
-    const markets: number[] = [];
-    for (let i = fromIndex; i < toIndex; i++) markets.push(i);
-    
-    const marketData = await api.multiCall({ target: market, abi: abi.getMarketAltData, calls: markets })
-    const marketFees = (await api.multiCall({ target: market, abi: abi.getMarketFees, calls: markets }))
-    markets.forEach((val:any, idx:any) => marketMapping[val] = {
+  if (tradedMarkets.length) {
+    const [marketData, marketFees] = await Promise.all([
+      api.multiCall({ target: market, abi: abi.getMarketAltData, calls: tradedMarkets }),
+      api.multiCall({ target: market, abi: abi.getMarketFees, calls: tradedMarkets }),
+    ])
+    tradedMarkets.forEach((id, idx) => marketMapping[id] = {
       token: marketData[idx].token,
       fees: marketFees[idx],
     })
-    
-    fromIndex += callSize;
-    
-  } while (fromIndex < marketIndex)
-  
-  const tradeLogs = await getLogs({ target: market, eventAbi: abi.MarketActionTx, });
+  }
 
   tradeLogs.forEach(({ action, marketId, value, shares }) => {
     value = Number(value)

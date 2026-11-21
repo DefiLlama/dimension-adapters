@@ -22,7 +22,7 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  version: 2,
+  version: 1, // API returns whole days
   adapter: {
     massa: {
       fetch,
