@@ -66,6 +66,7 @@ export enum CHAIN {
   SOLANA = "solana",
   IOTEX = "iotex",
   KARDIA = "kardia",
+  KADENA = "kadena",
   TOMBCHAIN = "tombchain",
   CONFLUX = "conflux",
   TERRA = "terra", // terra classic
