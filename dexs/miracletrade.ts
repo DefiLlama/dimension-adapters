@@ -57,10 +57,29 @@ const fetchNado = async (_options: FetchOptions) => {
   };
 };
 
+const fetchGrvt = async () => {
+  const response = await httpGet("https://incentives.miracletrade.com/v2/metrics?dex=grvt", {
+    headers: { "X-Api-Key": getEnv("MIRACLETRADE_API_KEY") },
+  });
+  const { volume, grossRevenue } = response.data ?? {};
+  if (
+    typeof volume !== 'number' || !Number.isFinite(volume) || volume < 0 ||
+    typeof grossRevenue !== 'number' || !Number.isFinite(grossRevenue) || grossRevenue < 0
+  ) {
+    throw new Error('Invalid Miracle GRVT snapshot metrics');
+  }
+  return {
+    dailyVolume: volume,
+    dailyFees: grossRevenue,
+    dailyRevenue: grossRevenue,
+    dailyProtocolRevenue: grossRevenue,
+  };
+};
+
 const methodology = {
   Fees: "Trading fees paid by users for perps in Miracle perps trading terminal.",
-  Revenue: "Fees collected by Miracle as Builder Revenue from Hyperliquid, Extended, and Nado Exchange.",
-  ProtocolRevenue: "Fees collected by Miracle as Builder Revenue from Hyperliquid, Extended, and Nado Exchange.",
+  Revenue: "Fees collected by Miracle as Builder Revenue from Hyperliquid, Extended, Nado, and GRVT.",
+  ProtocolRevenue: "Fees collected by Miracle as Builder Revenue from Hyperliquid, Extended, Nado, and GRVT.",
 };
 
 const adapter: SimpleAdapter = {
@@ -76,6 +95,10 @@ const adapter: SimpleAdapter = {
     [CHAIN.INK]: {
       fetch: fetchNado,
       start: "2026-03-23",
+      runAtCurrTime: true,
+    },
+    [CHAIN.GRVT]: {
+      fetch: fetchGrvt,
       runAtCurrTime: true,
     },
   },
