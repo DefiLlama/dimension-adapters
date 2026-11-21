@@ -86,6 +86,7 @@ interface IPool {
 
 const SwapEvent = 'event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee)';
 const ModifyLiquidityEvent = 'event ModifyLiquidity(bytes32 indexed id, address indexed sender, int24 tickLower, int24 tickUpper, int256 liquidityDelta, bytes32 salt)';
+const InitializeEvent = 'event Initialize(bytes32 indexed id, address indexed currency0, address indexed currency1, uint24 fee, int24 tickSpacing, address hooks, uint160 sqrtPriceX96, int24 tick)';
 const FunctionPoolKeys = 'function poolKeys(bytes25) view returns(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks)';
 
 const Configs: Record<string, IUniswapConfig> = {
@@ -420,6 +421,37 @@ async function fetch(options: FetchOptions) {
               currency0: String(poolKeys[i].currency0),
               currency1: String(poolKeys[i].currency1),
             }
+          }
+        }
+      }
+
+      // Custom position managers need not register keys with the standard PositionManager.
+      // Initialize is the canonical source, and indexed per-pool log caches retain old keys.
+      for (const poolId of poolIds.filter(id => !pools[id])) {
+        const initializationLogs = await sdk.getEventLogs({
+          chain: options.chain,
+          target: config.poolManager,
+          eventAbi: InitializeEvent,
+          extraTopics: [poolId],
+          fromBlock: 1,
+          toBlock: Number(options.toApi.block),
+          onlyArgs: false,
+          cacheInCloud: true,
+        })
+        const uniqueInitializations = new Map(
+          initializationLogs.map(log => [
+            `${log.transactionHash}-${log.logIndex ?? log.index}`,
+            log,
+          ]),
+        )
+        if (uniqueInitializations.size > 1) throw new Error(`Multiple Initialize events for ${poolId}`)
+        const initialization = uniqueInitializations.values().next().value?.args
+        if (initialization) {
+          pools[poolId] = {
+            poolId,
+            poolKey: getPoolKey(poolId),
+            currency0: String(initialization.currency0),
+            currency1: String(initialization.currency1),
           }
         }
       }
