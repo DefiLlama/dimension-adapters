@@ -1,5 +1,8 @@
 import { exportHIP3DeployerAdapter, exportValidatorStakingAdapter, type BuilderAddressConfig } from "../helpers/hyperliquid";
 import { exportBuilderAdapterV2, type HyperliquidBuilderMarketV2 } from "../helpers/hyperliquid-v2";
+import type { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { CHAIN } from "../helpers/chains";
+import { httpGet } from "../utils/fetchURL";
 import { createFactoryExports } from "./registry";
 
 interface BuilderConfig {
@@ -86,10 +89,10 @@ const builderConfigs: Record<string, BuilderConfig> = {
     // first day with fills carrying the code
     start: "2026-08-27",
     methodology: {
-      Volume: "Notional volume of Hyperliquid perpetual trades (HIP-3 markets) placed by the Vesper market-making bot with its builder code.",
-      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through Vesper; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
-      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through Vesper, all kept by Vesper.",
-      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through Vesper, all kept by Vesper.",
+      Volume: "Perpetual trade notional attributed to Vesper's builder codes by Hyperliquid and Ondo Perps. Ondo uses the venue's daily builder report under Off Chain.",
+      Fees: "Builder code fees paid on Hyperliquid and Ondo Perps trades attributed to Vesper. Venue trading fees and HIP-3 deployer fees are excluded.",
+      Revenue: "Builder code fees attributed to Vesper on Hyperliquid and Ondo Perps.",
+      ProtocolRevenue: "Builder code fees attributed to Vesper on Hyperliquid and Ondo Perps.",
     },
   },
   "bitso-onchain-perps": {
@@ -1863,8 +1866,20 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "wunder-spot": { builder: "wunder-perps", market: "spot", start: "2025-10-19" },
 };
 
+async function fetchVesperOndo({ dateString }: FetchOptions) {
+  // One row per complete UTC day from Ondo's authenticated builder report.
+  const { volumeUsd, builderFeesUsd } = await httpGet(`https://sypherscore.com/static/defillama/ondo/${dateString}.json`, { timeout: 10000 });
+  const isAmount = (amount: unknown): amount is string => typeof amount === "string"
+    && /^\d+(\.\d+)?$/.test(amount) && Number.isFinite(Number(amount));
+  if (!isAmount(volumeUsd) || !isAmount(builderFeesUsd)) {
+    throw new Error(`Missing or invalid Ondo builder totals for ${dateString}`);
+  }
+  const dailyFees = Number(builderFeesUsd);
+  return { dailyVolume: Number(volumeUsd), dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
+}
+
 // Build dexs protocols (builder + HIP3 dex)
-const dexsProtocols: Record<string, any> = {};
+const dexsProtocols: Record<string, SimpleAdapter> = {};
 for (const [name, config] of Object.entries(builderConfigs)) {
   dexsProtocols[name] = exportBuilderAdapterV2(config.addresses, {
     start: config.start,
@@ -1876,6 +1891,12 @@ for (const [name, config] of Object.entries(builderConfigs)) {
     revenueToHolders: config.revenueToHolders,
   });
 }
+
+// Ondo Perps is already tracked under Off Chain. Keep the existing Vesper adapter key and Hyperliquid history.
+dexsProtocols["vesper-sypherscore"].adapter = {
+  [CHAIN.OFF_CHAIN]: { start: "2026-11-14", fetch: fetchVesperOndo }, // First verified daily result.
+};
+
 for (const [name, listing] of Object.entries(builderMarketListings)) {
   const builder = builderConfigs[listing.builder];
   dexsProtocols[name] = exportBuilderAdapterV2(builder.addresses, {
