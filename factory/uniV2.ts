@@ -1390,7 +1390,7 @@ const methodologyMap: Record<string, any> = {
     Fees: "Users pay a 0.5% fee on every swap.",
   },
   "defi-swap": {
-    Volume: "Swap volume from all Crypto.com DeFi Swap pairs deployed by the DeFi Swap factory on Ethereum.",
+    Volume: "Swap volume from Crypto.com DeFi Swap pairs deployed by the DeFi Swap factory on Ethereum, skipping pairs that hold under $200 of pooled value.",
     Fees: "Users pay a 0.3% fee on every swap.",
   },
   "melegaswap": {
