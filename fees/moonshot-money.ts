@@ -5,10 +5,13 @@ import ADDRESSES from '../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 
 const fetch: any = async (options: FetchOptions) => {
+  assertDuneSolanaIndexed(options);
   const dailyFees = options.createBalances();
 
+  // dex_solana.trades has one row per swap hop, so it is only used as a filter: each fee payment is summed once
   const query = `
     WITH
     allFeePayments AS (
@@ -43,11 +46,15 @@ const fetch: any = async (options: FetchOptions) => {
       feePayments.token_mint_address,
       SUM(feePayments.fee_token_amount) AS total_fees
     FROM
-      dex_solana.trades AS trades
-      JOIN allFeePayments AS feePayments ON trades.tx_id = feePayments.tx_id
+      allFeePayments AS feePayments
     WHERE
-      TIME_RANGE
-      AND trades.trader_id != '5wkyL2FLEcyUUgc3UeGntHTAfWfzDrVuxMnaMm7792Gk'
+      feePayments.tx_id IN (
+        SELECT trades.tx_id
+        FROM dex_solana.trades AS trades
+        WHERE
+          TIME_RANGE
+          AND trades.trader_id != '5wkyL2FLEcyUUgc3UeGntHTAfWfzDrVuxMnaMm7792Gk'
+      )
     GROUP BY
       feePayments.token_mint_address
   `;
