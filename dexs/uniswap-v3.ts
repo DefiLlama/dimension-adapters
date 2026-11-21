@@ -237,8 +237,8 @@ async function fetchFromOku(options: FetchOptions) {
   } catch (e) {
     console.error(`uniswap-v3-dune: Oku request failed on ${options.chain}`, (e as any)?.message);
   }
-  // Oku returns no `result` for some windows/chains; degrade to empty instead of crashing.
-  if (!Array.isArray(response)) return {};
+  // Oku returns no `result` for some windows/chains; an empty row would be stored as a real day, so fail the window instead
+  if (!Array.isArray(response)) throw new Error(`uniswap-v3: Oku returned no data for ${options.chain}`);
 
   const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
   const fees = response.reduce((acc, item) => acc + item.fees, 0);
@@ -268,6 +268,24 @@ const factoryConfig: Record<string, string> ={
   // https://gov.uniswap.org/t/official-uniswap-v3-deployments-list/24323/9
   [CHAIN.ETHERLINK]: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D",
   [CHAIN.ELYSIUM]: "0x1707327F626496A7b5b3872e7E4d2879Df7d7a9f",
+  // from 2026-10-21 (see fetchFromOkuThenLogs). Boba and Filecoin: same deployments list (post 3). XDC: owner() is the
+  // UniswapWormholeMessageReceiver in gov.uniswap.org/t/25489; 0x30F317A9...4a8A on XDC is xswap-v3's, not this one
+  [CHAIN.BOBA]: "0xFFCd7Aed9C627E82A765c3247d562239507f6f1B",
+  [CHAIN.FILECOIN]: "0xB4C47eD546Fc31E26470a186eC2C5F19eF09BA41",
+  [CHAIN.XDC]: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D",
+}
+
+// No PoolCreated cache exists for these factories, so the pools are the window's Swap emitters whose factory() is the factory
+const poolsFromSwapLogs = new Set<string>([CHAIN.FILECOIN])
+const SWAP_EVENT = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
+
+async function getPoolsFromSwapLogs(options: FetchOptions, factory: string): Promise<string[]> {
+  const swapLogs = await options.getLogs({ noTarget: true, eventAbi: SWAP_EVENT, onlyArgs: false })
+  const emitters = [...new Set<string>(swapLogs.map((log: any) => String(log.address).toLowerCase()))]
+  if (!emitters.length) return []
+  // other contracts emitting the same event revert on factory(), so a failed call is not a missing pool
+  const factories = await options.api.multiCall({ abi: 'address:factory', calls: emitters, permitFailure: true })
+  return emitters.filter((_, i) => String(factories[i] ?? '').toLowerCase() === factory.toLowerCase())
 }
 
 async function fetchFromLogs(options: FetchOptions) {
@@ -277,7 +295,7 @@ async function fetchFromLogs(options: FetchOptions) {
   }
 
   const { dailyVolume, dailyFees } = await getUniV3LogAdapter({
-    factory,
+    ...(poolsFromSwapLogs.has(options.chain) ? { pools: await getPoolsFromSwapLogs(options, factory) } : { factory }),
     userFeesRatio: 1,
     revenueRatio: 0,
     protocolRevenueRatio: 0,
@@ -299,6 +317,14 @@ async function fetchFromLogs(options: FetchOptions) {
     dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
+}
+
+// Oku's analyticsProtocolHistoric breaks on these chains from 2026-10-21: hours come back with no result and days fall far
+// below the pools' own Swap logs, while the pools kept trading. From that day they read the pools, as Etherlink does.
+const OKU_BROKEN_FROM = Date.UTC(2026, 9, 21) / 1e3
+
+async function fetchFromOkuThenLogs(options: FetchOptions) {
+  return options.startTimestamp >= OKU_BROKEN_FROM ? fetchFromLogs(options) : fetchFromOku(options)
 }
 
 // One entry per chain. blockchain = the source's own slug (Dune dex.trades name
@@ -333,15 +359,15 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
   [CHAIN.ROBINHOOD]: { blockchain: 'robinhood', start: '2026-05-22', fetch: fetchFromDune },
 
   // Oku API (chains Dune has no uni-v3 data for)
-  [CHAIN.BOBA]: { blockchain: 'boba', start: '2023-07-22', fetch: fetchFromOku },
+  [CHAIN.BOBA]: { blockchain: 'boba', start: '2023-07-22', fetch: fetchFromOkuThenLogs },
   [CHAIN.ROOTSTOCK]: { blockchain: 'rootstock', start: '2023-11-19', fetch: fetchFromOku },
-  [CHAIN.FILECOIN]: { blockchain: 'filecoin', start: '2024-02-17', fetch: fetchFromOku },
+  [CHAIN.FILECOIN]: { blockchain: 'filecoin', start: '2024-02-17', fetch: fetchFromOkuThenLogs },
   [CHAIN.SEI]: { blockchain: 'sei', start: '2024-05-17', fetch: fetchFromOku },
   [CHAIN.BOB]: { blockchain: 'bob', start: '2024-08-15', fetch: fetchFromOku },
   [CHAIN.GOAT]: { blockchain: 'goat', start: '2025-02-11', fetch: fetchFromOku },
   [CHAIN.HEMI]: { blockchain: 'hemi', start: '2025-02-11', fetch: fetchFromOku },
   [CHAIN.SAGA]: { blockchain: 'saga', start: '2025-02-11', fetch: fetchFromOku },
-  [CHAIN.XDC]: { blockchain: 'xdc', start: '2025-04-12', fetch: fetchFromOku },
+  [CHAIN.XDC]: { blockchain: 'xdc', start: '2025-04-12', fetch: fetchFromOkuThenLogs },
   [CHAIN.NIBIRU]: { blockchain: 'nibiru', start: '2025-05-12', fetch: fetchFromOku },
   [CHAIN.REDBELLY]: { blockchain: 'redbelly', start: '2025-02-19', fetch: fetchFromOku },
 
