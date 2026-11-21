@@ -5,8 +5,12 @@ import { METRIC } from "../../helpers/metrics";
 import { getTimestampAtStartOfDayUTC } from "../../utils/date";
 
 const BUYBACK_BURN_START = "2026-05-18";
+// Algebra community vault on Flare. Each pool's communityVault() returns this address.
+// https://flare-explorer.flare.network/address/0x95e325a85b9e6cb4dea2ccd96218e5f8365e0b0f
 const COMMUNITY_VAULT = "0x95e325a85b9e6cb4dea2ccd96218e5f8365e0b0f";
 const FEE_DENOMINATOR = 1000;
+const GLOBAL_STATE_ABI = "function globalState() view returns (uint160 price, int24 tick, uint16 lastFee, uint8 pluginConfig, uint16 communityFee, bool unlocked)";
+const COMMUNITY_VAULT_ABI = "function communityVault() view returns (address)";
 const ALGEBRA_LICENCE = "Algebra licence fee";
 
 const endpoints: Record<string, string> = {
@@ -29,27 +33,37 @@ const splitCommunityFees = async (options: FetchOptions, dayTimestamp: number, t
     query {
       poolDayDatas(first: 1000, where: { date: ${dayTimestamp}, feesUSD_gt: "0" }) {
         feesUSD
-        pool { communityFee communityVault }
+        pool { id }
       }
     }
   `;
   const poolRes = await request(endpoints[options.chain], poolQuery);
-  const rows: Array<{ feesUSD: string, pool: { communityFee: string, communityVault: string } }> = poolRes.poolDayDatas ?? [];
+  const rows: Array<{ feesUSD: string, pool: { id: string } }> = poolRes.poolDayDatas ?? [];
   if (rows.length >= 1000) throw new Error("sparkdex-v4: more than 999 pools with fees in one day");
+
+  // api calls use the day being computed, so a later communityFee change does not rewrite history.
+  const pools = rows.map((row) => row.pool.id);
+  const states = pools.length
+    ? await options.api.multiCall({ abi: GLOBAL_STATE_ABI, calls: pools })
+    : [];
+  const vaults = pools.length
+    ? await options.api.multiCall({ abi: COMMUNITY_VAULT_ABI, calls: pools })
+    : [];
 
   let holdersUsd = 0;
   let algebraUsd = 0;
   let lpUsd = 0;
   let summed = 0;
-  for (const row of rows) {
+  for (const [i, row] of rows.entries()) {
     const fees = Number(row.feesUSD);
-    const communityFee = Number(row.pool.communityFee);
+    const communityFee = Number(states[i].communityFee);
+    const vault = String(vaults[i]).toLowerCase();
     if (!Number.isFinite(fees) || fees < 0) throw new Error("sparkdex-v4: bad pool feesUSD");
     if (!Number.isInteger(communityFee) || communityFee < 0 || communityFee > FEE_DENOMINATOR) {
-      throw new Error(`sparkdex-v4: communityFee ${row.pool.communityFee} is outside 0..${FEE_DENOMINATOR}`);
+      throw new Error(`sparkdex-v4: communityFee ${communityFee} on ${row.pool.id} is outside 0..${FEE_DENOMINATOR}`);
     }
-    if (communityFee > 0 && row.pool.communityVault.toLowerCase() !== COMMUNITY_VAULT) {
-      throw new Error(`sparkdex-v4: pool vault ${row.pool.communityVault} is not the Algebra community vault`);
+    if (communityFee > 0 && vault !== COMMUNITY_VAULT) {
+      throw new Error(`sparkdex-v4: pool ${row.pool.id} vault ${vault} is not the Algebra community vault`);
     }
     const communityUsd = fees * communityFee / FEE_DENOMINATOR;
     const algebraPart = communityUsd * algebraFee / FEE_DENOMINATOR;
