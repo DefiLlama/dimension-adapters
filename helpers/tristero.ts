@@ -177,6 +177,7 @@ const WRAPPED_NATIVE_TOKENS: Record<string, string> = {
 };
 
 const ORDER_ROUTER_INTERFACE = new Interface([
+  "function take((address sender,(address srcAsset,address dstAsset,uint256 srcQuantity,uint256 dstQuantity,uint256 minQuantity,uint128 darkSalt) parameters,uint256 deadline,address target,address filler,string orderType,bytes customData) order,(address multicallTarget,(address target,bool allowFailure,uint256 value,bytes callData)[] calls,address refundTo,address nftRecipient) arb,uint256 minOut,bool isFallback,bytes message,bytes attestation)",
   "function send((address sender, (address srcAsset, address dstAsset, uint256 srcQuantity, uint256 dstQuantity, uint256 minQuantity, uint128 darkSalt) parameters, uint256 deadline, address target, address filler, string orderType, bytes customData) order, (uint256 nonce, bytes signature) payload, (address multicallTarget, (address target, bool allowFailure, uint256 value, bytes callData)[] calls, address refundTo, address nftRecipient) arb, uint256 minOut, (address vault, ((address token, uint256 amount) permitted, uint256 nonce, uint256 deadline) permit, bytes signature) v)"
 ]);
 const ESCROW_INTERFACE = new Interface([
@@ -1134,78 +1135,136 @@ export async function fetchTristeroVolumeBuckets(options: FetchOptions): Promise
   return buckets;
 }
 
-// Gas abstraction: what the filler is paid for submitting an order on the taker's behalf. On
-// aggregated fills the arb executor pays it out of the swap proceeds straight to the submitting
-// account, in the dst asset, sometimes split across several transfers; on RELAY the router
-// itself skims `srcQuantity - minAmountUsdc`. Either way it lands on the submitter, so summing
-// transfers to that account recovers it - with one exclusion: on a darkpool fill the router
-// hands the filler the whole src leg as settlement, which is not a fee.
-export async function fetchTristeroGasAbstractionFees(options: FetchOptions): Promise<Balances> {
-  const dailyFees = options.createBalances();
+// Verified RelayRouter / Multicall3: fixed-amount cleanup calls pay service charges;
+// zero-amount cleanup sweeps are refunds. SolverCallExecuted is emitted only on success.
+// https://sourcify.dev/server/v2/contract/8453/0x33333381c18a6c046b6510322195ca046ba7da2d?fields=all
+const TRISTERO_MULTICALL = '0x33333381c18a6c046b6510322195ca046ba7da2d';
+const FEE_CALL_INTERFACE = new Interface([
+  'function cleanupErc20s(address[] tokens,address[] recipients,uint256[] amounts)',
+  'function cleanupNative(uint256 amount,address recipient)',
+  'event SolverCallExecuted(address to,bytes data,uint256 amount)',
+  'event SolverNativeTransfer(address to,uint256 amount)',
+]);
+const EXECUTED_CALL_TOPIC = FEE_CALL_INTERFACE.getEvent('SolverCallExecuted')!.topicHash;
+const NATIVE_TRANSFER_TOPIC = FEE_CALL_INTERFACE.getEvent('SolverNativeTransfer')!.topicHash;
+const TAKE_SELECTOR = ORDER_ROUTER_INTERFACE.getFunction('take')!.selector;
 
-  const addresses = getActiveTristeroV3Routers(options.chain, options.dateString)
-    .map(({ router }) => normalizeAddress(router));
-  if (!addresses.length) return dailyFees;
+// Tristero confirmed these operating wallets retain execution charges on 2026-11-09
+// (see the fee-accounting PR description).
+// Their principal funding and lender repayments are NOT revenue. Unknown recipients
+// leave the window's revenue split unavailable rather than silently receiving a 0% share.
+const TRISTERO_FEE_RECIPIENTS = new Set([
+  '0x3ac0fcec3fe9504a85485bb1407a094c8ff20506',
+  '0x6161b0da58d4a6980c974ff3e679e292f6da15b0',
+  '0xdf2e963646a2178ff90734a620f4661e412435be',
+]);
 
-  const txs = await getTristeroFillTransactions(options, addresses);
-  const feeBearing = txs
-    .map((tx) => ({ ...tx, orders: [decodeV3SendOrder(tx.input)].filter((order): order is DecodedV3SendOrder => !!order) }))
-    // A self-filled order pays no gas abstraction by definition: the submitter is the taker.
-    // If the submitter is also the order's payout target, the proceeds land on them too and
-    // cannot be told apart from a fee - skip rather than overstate.
-    .filter(({ orders, from }) => orders.some((order) =>
-      order.filler !== order.sender && order.filler === from && order.target !== from));
-  if (!feeBearing.length) return dailyFees;
+type TristeroFeeTransfer = { token: string; amount: bigint; recipient: string };
 
-  const receipts = await getTxReceiptsWithRetry(options.chain, feeBearing.map(({ hash }) => hash));
+/** Decode executed service charges, excluding principal, settlement and balance sweeps. */
+export function getTristeroGasFeeTransfers(tx: TristeroFillTransaction, receipt: any): TristeroFeeTransfer[] {
+  if (![ORDER_ROUTER_SEND_SELECTOR, TAKE_SELECTOR].includes(tx.input.slice(0, 10).toLowerCase())) return [];
+  const parsed = ORDER_ROUTER_INTERFACE.parseTransaction({ data: tx.input });
+  if (!parsed) throw new Error(`Unable to decode Tristero fee transaction ${tx.hash}`);
+  if (receipt.status === undefined || receipt.status === null) throw new Error(`Missing Tristero receipt status ${tx.hash}`);
+  if (BigInt(receipt.status) !== 1n) return [];
+  const { order, arb } = parsed.args;
+  const filler = normalizeAddress(order.filler);
+  if (filler !== normalizeAddress(tx.from) || filler === normalizeAddress(order.sender)
+    || filler === normalizeAddress(order.target) || parsed.args.isFallback === true) return [];
+  const kind = String(order.orderType).toUpperCase();
+  if (kind === 'EXTERNAL' || (kind === 'TAKER' && arb.calls.length === 0)) return [];
 
-  feeBearing.forEach(({ hash, from, orders }, index) => {
+  const fees: TristeroFeeTransfer[] = [];
+  const seen = new Set<number>();
+  const logs = (receipt.logs ?? []).filter((log: any, index: number) => {
+    const id = Number(log.index ?? log.logIndex ?? index);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+
+  // Router._processCCTP explicitly skims this amount for a direct USDC RELAY.
+  // Other router->filler transfers (including a darkpool's source leg) are not fees.
+  if (parsed.name === 'send' && kind === 'RELAY') {
+    const [, minimum] = ABI_CODER.decode(['uint32', 'uint256', 'uint256', 'uint32', 'uint32'], order.customData);
+    const amount = BigInt(order.parameters.srcQuantity) - BigInt(minimum);
+    const skim = logs.filter((log: any) => log.topics?.[0]?.toLowerCase() === ERC20_TRANSFER_TOPIC
+      && log.topics.length === 3 && topicToAddress(log.topics[1]) === normalizeAddress(tx.to)
+      && topicToAddress(log.topics[2]) === filler && normalizeAddress(log.address) === normalizeAddress(order.parameters.srcAsset)
+      && BigInt(log.data) === amount && amount > 0n);
+    if (skim.length > 1) throw new Error(`Ambiguous Tristero RELAY fee ${tx.hash}`);
+    if (skim.length) fees.push({ token: normalizeAddress(order.parameters.srcAsset), amount, recipient: filler });
+  }
+
+  const multicall = normalizeAddress(arb.multicallTarget);
+  if (!arb.calls.length) return fees;
+  if (multicall !== TRISTERO_MULTICALL) throw new Error(`Unverified Tristero fee multicall ${multicall} tx ${tx.hash}`);
+  const authorizedCalls = new Map<string, number>();
+  for (const call of arb.calls) {
+    if (normalizeAddress(call.target) !== multicall) continue;
+    const data = String(call.callData).toLowerCase();
+    authorizedCalls.set(data, (authorizedCalls.get(data) ?? 0) + 1);
+  }
+  // Match payouts only within their successful call's log segment. A failed optional
+  // remainder has neither the payment nor SolverCallExecuted and contributes nothing.
+  let pending: any[] = [];
+  for (const log of logs) {
+    if (normalizeAddress(log.address) !== multicall || log.topics?.[0]?.toLowerCase() !== EXECUTED_CALL_TOPIC) {
+      pending.push(log);
+      continue;
+    }
+    const event = FEE_CALL_INTERFACE.parseLog(log)!;
+    const data = String(event.args.data).toLowerCase();
+    const count = authorizedCalls.get(data) ?? 0;
+    if (normalizeAddress(event.args.to) === multicall && count > 0) {
+      authorizedCalls.set(data, count - 1);
+      const call = FEE_CALL_INTERFACE.parseTransaction({ data });
+      if (call?.name === 'cleanupErc20s') {
+        for (let i = 0; i < call.args.tokens.length; i++) {
+          const token = normalizeAddress(call.args.tokens[i]);
+          const amount = BigInt(call.args.amounts[i]);
+          if (normalizeAddress(call.args.recipients[i]) !== filler || amount <= 0n) continue;
+          const index = pending.findIndex(p => p.topics?.[0]?.toLowerCase() === ERC20_TRANSFER_TOPIC
+            && p.topics.length === 3 && normalizeAddress(p.address) === token
+            && topicToAddress(p.topics[1]) === multicall && topicToAddress(p.topics[2]) === filler
+            && BigInt(p.data) === amount);
+          if (index < 0) throw new Error(`Missing Tristero executed fee transfer ${tx.hash}`);
+          pending.splice(index, 1);
+          fees.push({ token, amount, recipient: filler });
+        }
+      } else if (call?.name === 'cleanupNative' && normalizeAddress(call.args.recipient) === filler && call.args.amount > 0n) {
+        const payment = pending.find(p => normalizeAddress(p.address) === multicall
+          && p.topics?.[0]?.toLowerCase() === NATIVE_TRANSFER_TOPIC
+          && normalizeAddress(FEE_CALL_INTERFACE.parseLog(p)!.args.to) === filler
+          && FEE_CALL_INTERFACE.parseLog(p)!.args.amount === call.args.amount);
+        if (!payment) throw new Error(`Missing Tristero native fee transfer ${tx.hash}`);
+        fees.push({ token: ADDRESSES.null, amount: call.args.amount, recipient: filler });
+      }
+    }
+    pending = [];
+  }
+  return fees;
+}
+
+/** Read source and destination execution fees and attribute only verified retained charges. */
+export async function fetchTristeroGasAbstractionFees(options: FetchOptions) {
+  const fees = options.createBalances();
+  const revenue = options.createBalances();
+  let hasUnattributedFees = false;
+  const addresses = getActiveTristeroV3Routers(options.chain, options.dateString).map(({ router }) => normalizeAddress(router));
+  const txs = (await getTristeroFillTransactions(options, addresses))
+    .filter(tx => [ORDER_ROUTER_SEND_SELECTOR, TAKE_SELECTOR].includes(tx.input.slice(0, 10).toLowerCase()));
+  const receipts = txs.length ? await getTxReceiptsWithRetry(options.chain, txs.map(tx => tx.hash)) : [];
+  txs.forEach((tx, index) => {
     const receipt = receipts[index];
-    // Missing input data, not an empty day: skipping would under-report fees silently.
-    if (!receipt) throw new Error(`Missing Tristero gas abstraction receipt for ${options.chain} tx ${hash}`);
-
-    const darkpoolSrcTokens = new Set(orders.filter(({ isDarkpool }) => isDarkpool).map(({ srcToken }) => normalizeAddress(srcToken)));
-
-    (receipt.logs ?? []).forEach((log: any) => {
-      if (normalizeAddress(log.topics?.[0]) !== ERC20_TRANSFER_TOPIC || log.topics.length !== 3) return;
-      if (topicToAddress(log.topics[2]) !== from) return;
-
-      const token = normalizeAddress(log.address);
-      // Darkpool settlement leg, not a charge.
-      if (addresses.includes(topicToAddress(log.topics[1])) && darkpoolSrcTokens.has(token)) return;
-
-      const amount = toBigIntOrNull(log.data);
-      if (amount && amount > 0n) dailyFees.add(token, amount, METRIC.TRANSACTION_GAS_FEES);
-    });
+    if (!receipt) throw new Error(`Missing Tristero gas abstraction receipt for ${options.chain} tx ${tx.hash}`);
+    for (const fee of getTristeroGasFeeTransfers(tx, receipt)) {
+      fees.add(fee.token, fee.amount, METRIC.TRANSACTION_GAS_FEES);
+      if (TRISTERO_FEE_RECIPIENTS.has(fee.recipient)) revenue.add(fee.token, fee.amount, METRIC.TRANSACTION_GAS_FEES);
+      else hasUnattributedFees = true;
+    }
   });
-
-  return dailyFees;
+  return { fees, revenue, hasUnattributedFees };
 }
 
-// Total capital sitting in the Tristero vault on this chain - idle plus lent out. getTVOL is
-// the vault's own accounting of both.
-export const TRISTERO_VAULT_ASSETS: Record<string, string> = {
-  [CHAIN.ETHEREUM]: ADDRESSES.mantle.AUSD,
-  [CHAIN.ARBITRUM]: ADDRESSES.arbitrum.USDC_CIRCLE,
-  [CHAIN.BASE]: ADDRESSES.base.USDC,
-};
-
-export function getTristeroVaultAddress(): string {
-  return TRISTERO_VAULT;
-}
-
-export async function getTristeroVaultTotal(options: FetchOptions): Promise<{ token: string; amount: bigint } | null> {
-  const token = TRISTERO_VAULT_ASSETS[options.chain];
-  if (!token) return null;
-
-  // No permitFailure: a reverted or unreachable vault call is missing input, not a zero
-  // balance, and swallowing it would publish a complete-looking day with the entire protocol
-  // revenue component missing.
-  const total = await options.api.call({
-    target: TRISTERO_VAULT,
-    abi: 'function getTVOL(address _token) view returns (uint256)',
-    params: [token],
-  });
-
-  return { token, amount: toBigIntSafe(total) };
-}
