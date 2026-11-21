@@ -1,7 +1,7 @@
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
-import { ChainApi } from "@defillama/sdk";
+import { ChainApi, getEventLogs } from "@defillama/sdk";
 import ADDRESSES from "../helpers/coreAssets.json";
 import { sleep } from "../utils/utils";
 
@@ -11,19 +11,21 @@ const SETTLER_DEPLOYER = "0x00000000000004533fe15556b1e086bb1a72ceae";
 const RFQ_PATTERN = "'d92aadfb[0-9a-f]{64}000000000000000000000000([0-9a-f]{40})([0-9a-f]{64})'";
 const VIP_PATTERN = "'(604ba49a|9714f25e)[0-9a-f]{344}([0-9a-f]{40})([0-9a-f]{64})'";
 
+// registryBlock: the block the Settler registry was deployed in on that chain (first block with its code), so its
+// Transfer history is read from the start. On Avalanche it is a lower bound, the block at 2024-03-31 00:00 UTC.
 const chainConfig = {
-  [CHAIN.ETHEREUM]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'ethereum', start: '2020-06-11' },
-  [CHAIN.POLYGON]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'polygon', start: '2021-05-12' },
-  [CHAIN.BSC]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'bnb', start: '2021-03-04' },
-  [CHAIN.OPTIMISM]: { exchange: '0xdef1abe32c034e558cdd535791643c58a13acc10', duneChain: 'optimism', start: '2021-12-22' },
+  [CHAIN.ETHEREUM]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'ethereum', start: '2020-06-11', registryBlock: 19582253 },
+  [CHAIN.POLYGON]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'polygon', start: '2021-05-12', registryBlock: 55435043 },
+  [CHAIN.BSC]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'bnb', start: '2021-03-04', registryBlock: 37570556 },
+  [CHAIN.OPTIMISM]: { exchange: '0xdef1abe32c034e558cdd535791643c58a13acc10', duneChain: 'optimism', start: '2021-12-22', registryBlock: 118320032 },
   [CHAIN.FANTOM]: { exchange: '0xdef189deaef76e379df891899eb5a00a94cbc250', start: '2021-10-11' },
   [CHAIN.CELO]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', start: '2021-10-15' },
-  [CHAIN.AVAX]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'avalanche_c', start: '2021-08-26' },
-  [CHAIN.ARBITRUM]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'arbitrum', start: '2021-12-23' },
-  [CHAIN.BASE]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'base', start: '2023-07-17' },
-  [CHAIN.HYPERLIQUID]: { duneChain: 'hyperevm', start: '2025-12-22' },
-  [CHAIN.ROBINHOOD]: { duneChain: 'robinhood', start: '2026-06-26' },
-} as { [chain: string]: { exchange?: string, duneChain?: string, start: string } }
+  [CHAIN.AVAX]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'avalanche_c', start: '2021-08-26', registryBlock: 43584395 },
+  [CHAIN.ARBITRUM]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'arbitrum', start: '2021-12-23', registryBlock: 197529483 },
+  [CHAIN.BASE]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'base', start: '2023-07-17', registryBlock: 12723099 },
+  [CHAIN.HYPERLIQUID]: { duneChain: 'hyperevm', start: '2025-12-22', registryBlock: 7806385 },
+  [CHAIN.ROBINHOOD]: { duneChain: 'robinhood', start: '2026-06-26', registryBlock: 19267 },
+} as { [chain: string]: { exchange?: string, duneChain?: string, start: string, registryBlock?: number } }
 
 /*
   0x RFQ volume is split across two generations:
@@ -44,7 +46,11 @@ const chainConfig = {
   so reading ownerOf() alone misses those fills. For each window we read ownerOf()
   and prev() at the start, and ownerOf() at the end for a rotation inside the
   window. A revert/zero result is ignored, which covers paused or unavailable
-  features.
+  features. prev() only goes one rotation back, and a replaced Settler stays
+  live, so an integrator still calling an older one keeps filling RFQ orders on
+  it. The registry is an ERC-721 whose Transfer events hand each feature token to
+  every new Settler, so we also add every Settler it has handed feature 2, 3 or 4
+  up to the window end.
 
   To price a Settler RFQ fill we need to bind that marker amount to a token. We
   do that by reading only transactions that already have a candidate marker log,
@@ -85,7 +91,7 @@ const prefetch = async (options: FetchOptions) => {
 
   const chainQueries = (await Promise.all(Object.entries(chainConfig)
     .filter(([, { duneChain, start }]) => duneChain && options.startTimestamp >= Date.parse(`${start}T00:00:00Z`) / 1e3)
-    .map(async ([chain, { duneChain }]) => {
+    .map(async ([chain, { duneChain, registryBlock }]) => {
       // Resolve every Settler that can fill in this historical window.
       const startApi = new ChainApi({ chain, timestamp: options.startTimestamp });
       const endApi = new ChainApi({ chain, timestamp: options.toTimestamp });
@@ -96,7 +102,19 @@ const prefetch = async (options: FetchOptions) => {
         readRegistry(startApi, prev, chain),
         readRegistry(endApi, ownerOf, chain),
       ]);
-      const settlers = [...new Set(results.flat()
+      // Every Settler handed a feature token up to the window end, older ones included
+      const transfers = await getEventLogs({
+        chain,
+        target: SETTLER_DEPLOYER,
+        eventAbi: "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
+        fromBlock: registryBlock,
+        toBlock: await endApi.getBlock(),
+        onlyArgs: true,
+        cacheInCloud: true,
+      });
+      const handedOut = transfers.filter((log: any) => [2, 3, 4].includes(Number(log.tokenId))).map((log: any) => log.to);
+      if (!handedOut.length) throw new Error(`0x-rfq: no Settler registry Transfer logs on ${chain}`);
+      const settlers = [...new Set([...results.flat(), ...handedOut]
         .filter(Boolean)
         .map((settler: string) => settler.toLowerCase())
         .filter((settler: string) => settler !== ADDRESSES.null)
