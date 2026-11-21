@@ -584,6 +584,12 @@ const TREASURY_SHARE_OF_ADMIN_FEES = 0.1
 // only for chains the API doesn't cover - any other failure must propagate
 class ChainNotInApiError extends Error { }
 
+// The API has served swaps of a near-worthless token valued at hundreds of millions while
+// trading_fees stayed at the real figure (base, 2026-11-02 and 2026-11-05, since corrected).
+// Real swap fees are far above this rate, so throw and let the window be retried.
+const MIN_TRADING_FEE_RATE = 1e-6
+const MIN_VOLUME_TO_CHECK = 1e6
+
 async function fetchFromApi(options: FetchOptions) {
   const start = Math.ceil(options.startTimestamp / 3600) * 3600;
   if (start < 1704067200) throw new ChainNotInApiError('Can not fetch data from api older than 2024-01-01');
@@ -593,6 +599,10 @@ async function fetchFromApi(options: FetchOptions) {
 
   if (!chainData) {
     throw new ChainNotInApiError(`No data for chain ${options.chain} in API response`);
+  }
+
+  if (chainData.trading_volume >= MIN_VOLUME_TO_CHECK && chainData.trading_fees < chainData.trading_volume * MIN_TRADING_FEE_RATE) {
+    throw new Error(`Curve API trading_volume ${chainData.trading_volume} on ${options.chain} is implausible against trading_fees ${chainData.trading_fees}`);
   }
 
   const dailyFees = options.createBalances();
