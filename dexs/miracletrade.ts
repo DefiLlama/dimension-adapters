@@ -57,7 +57,7 @@ const fetchNado = async (_options: FetchOptions) => {
   };
 };
 
-const fetchGrvt = async () => {
+const fetchGrvt = async (_options: FetchOptions) => {
   const response = await httpGet("https://incentives.miracletrade.com/v2/metrics?dex=grvt", {
     headers: { "X-Api-Key": getEnv("MIRACLETRADE_API_KEY") },
   });
