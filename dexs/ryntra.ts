@@ -4,7 +4,7 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 import { METRIC } from "../helpers/metrics";
-import { CONFIGS_CREATED, LAUNCH_CONFIGS, LAUNCH_POOL_PAYER } from "./ryntra-launch";
+import { CONFIGS_CREATED, LAUNCH_CONFIGS, LAUNCH_POOL_PAYER, LAUNCH_POOL_PAYER_BEFORE_KMS } from "./ryntra-launch";
 
 // Ryntra (https://ryntra.io) is a trading terminal on Solana. It charges its own fee inside the swap's transaction, and
 // a swap is Ryntra's when it paid that fee. Every address below is in Ryntra's public attribution registry
@@ -50,7 +50,7 @@ const query = ({ startTimestamp, endTimestamp }: FetchOptions) => {
       JOIN meteora_solana.dynamic_bonding_curve_evt_evtinitializepool p ON p.pool = s.pool
       WHERE ${window("s.evt_block_time")}
         AND p.config IN (${quoted(LAUNCH_CONFIGS)})
-        AND p.evt_tx_signer = '${LAUNCH_POOL_PAYER}'
+        AND p.evt_tx_signer IN ('${LAUNCH_POOL_PAYER}', '${LAUNCH_POOL_PAYER_BEFORE_KMS}')
         AND p.evt_block_time >= TIMESTAMP '${CONFIGS_CREATED}'
     ),
     trades AS (

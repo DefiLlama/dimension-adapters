@@ -10,13 +10,17 @@ import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 
 // Classic and Protected (created 2026-10-05) and Micro (created 2026-10-10). Ryntra's demo-market config is its own
 // technical validation and is not counted.
-export const LAUNCH_CONFIGS = ["B6gheJ5PL6tpE9V3vQGYA8wLqe3pcFh1fgKf4aPxZh1G", "33KU1WNMVAXLBuGF1EQAHqWFnrsDevofJnw4VAamiK2G", "3xh95YxdDBDiR35mWJo4E3hVoXNDqW4hdXemuWwsBD8w"];
+export const LAUNCH_CONFIGS = ["B6gheJ5PL6tpE9V3vQGYA8wLqe3pcFh1fgKf4aPxZh1G", "33KU1WNMVAXLBuGF1EQAHqWFnrsDevofJnw4VAamiK2G", "6SwkHZqfYc77gwi6eKTw5atR7cn78deR73xGn88T7614", "3xh95YxdDBDiR35mWJo4E3hVoXNDqW4hdXemuWwsBD8w"];
 export const CONFIGS_CREATED = "2026-10-05";
-export const LAUNCH_POOL_PAYER = "H2Bzv5pcrEGug1STGbZhvX98DGb3SCFa4pnAtUwktyyV";
+export const LAUNCH_POOL_PAYER = "7KUPNJRr6hmUDZXCL6AxJiHy4VYEVnEqwNkyJsbhbdKh";
+// The pools the wallet paid for before its key moved to KMS stay Ryntra's.
+export const LAUNCH_POOL_PAYER_BEFORE_KMS = "H2Bzv5pcrEGug1STGbZhvX98DGb3SCFa4pnAtUwktyyV";
 const FEE_CLAIMER = "22BZNVD9FuZPQvGwALBwhopSyxUCTuNNeTW1Lr1KsSvA";
 // On Micro the partner's fees go to Ryntra's launch executor instead of the vault: it owns the DAMM v2 position locked for
 // Ryntra on Micro's graduated pools.
-const LAUNCH_EXECUTOR = "J7zLmXSewhb1kcqwpL4SKpKfivivwn6wmSHwSg6H4JeU";
+const LAUNCH_EXECUTOR = "9o6PpWvnkoxeGHvKddzV6UgfzVxqBPimT9Q619bWYow6";
+// A config never changes: the Micro config of 2026-10-10 keeps naming the executor from before KMS.
+const LAUNCH_EXECUTOR_BEFORE_KMS = "J7zLmXSewhb1kcqwpL4SKpKfivivwn6wmSHwSg6H4JeU";
 const REFERRAL_ACCOUNT = "4kVogGhWqheXKjteM2urywUS5L8q7AnSNJCYDna4VrDy";
 const USDC = ADDRESSES.solana.USDC;
 
@@ -29,7 +33,7 @@ const LAUNCHES_CTE = `
       FROM meteora_solana.dynamic_bonding_curve_evt_evtinitializepool p
       JOIN meteora_solana.dynamic_bonding_curve_evt_evtcreateconfigv2 c ON c.config = p.config
       WHERE p.config IN (${quoted(LAUNCH_CONFIGS)})
-        AND p.evt_tx_signer = '${LAUNCH_POOL_PAYER}'
+        AND p.evt_tx_signer IN ('${LAUNCH_POOL_PAYER}', '${LAUNCH_POOL_PAYER_BEFORE_KMS}')
         AND p.evt_block_date >= DATE '${CONFIGS_CREATED}' AND p.evt_block_time >= TIMESTAMP '${CONFIGS_CREATED}'
         AND c.evt_block_date >= DATE '${CONFIGS_CREATED}' AND c.evt_block_time >= TIMESTAMP '${CONFIGS_CREATED}'
     )`;
@@ -123,12 +127,12 @@ const query = ({ startTimestamp, endTimestamp }: FetchOptions, graduatedPools: G
       SELECT 'position_fees', g.base_mint, CAST(f.fee_a_claimed AS BIGINT)
       FROM meteora_solana.cp_amm_evt_evtclaimpositionfee f
       JOIN graduated g ON g.pool = f.pool
-      WHERE f.owner IN ('${FEE_CLAIMER}', '${LAUNCH_EXECUTOR}') AND ${window("f.evt_block_time")}
+      WHERE f.owner IN ('${FEE_CLAIMER}', '${LAUNCH_EXECUTOR}', '${LAUNCH_EXECUTOR_BEFORE_KMS}') AND ${window("f.evt_block_time")}
       UNION ALL
       SELECT 'position_fees', '${USDC}', CAST(f.fee_b_claimed AS BIGINT)
       FROM meteora_solana.cp_amm_evt_evtclaimpositionfee f
       JOIN graduated g ON g.pool = f.pool
-      WHERE f.owner IN ('${FEE_CLAIMER}', '${LAUNCH_EXECUTOR}') AND ${window("f.evt_block_time")}` : ""}
+      WHERE f.owner IN ('${FEE_CLAIMER}', '${LAUNCH_EXECUTOR}', '${LAUNCH_EXECUTOR_BEFORE_KMS}') AND ${window("f.evt_block_time")}` : ""}
     )
     -- Volume is the curve's only: after graduation it is Meteora DAMM v2's, which lists it.
     SELECT 'volume' AS metric, '${USDC}' AS mint, CAST(SUM(quote_volume) AS VARCHAR) AS amount FROM swaps WHERE market = 'curve'
