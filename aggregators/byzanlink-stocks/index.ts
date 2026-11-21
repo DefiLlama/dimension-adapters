@@ -51,23 +51,29 @@ const addKyberVolume = async (options: FetchOptions, dailyVolume: any, router: s
 
   for (const logs of byTx.values()) {
     logs.sort((a, b) => a.logIndex - b.logIndex);
+    const tagged: any[] = [];
     let pending: any = null;
     for (const log of logs) {
       if (log.args.spentAmount !== undefined) {
         pending = log.args;
         continue;
       }
-      if (pending && isByzanlink(log.args.clientData)) {
-        addOneToken({
-          balances: dailyVolume,
-          token0: pending.srcToken,
-          amount0: pending.spentAmount,
-          token1: pending.dstToken,
-          amount1: pending.returnAmount,
-          label: "KyberSwap",
-        });
-      }
+      if (pending && isByzanlink(log.args.clientData)) tagged.push(pending);
       pending = null;
+    }
+    // skip wash trades
+    const key = (t: string) => t.toLowerCase();
+    for (const swap of tagged) {
+      const isRoundTrip = tagged.some((other) => other !== swap && key(other.srcToken) === key(swap.dstToken) && key(other.dstToken) === key(swap.srcToken));
+      if (isRoundTrip) continue;
+      addOneToken({
+        balances: dailyVolume,
+        token0: swap.srcToken,
+        amount0: swap.spentAmount,
+        token1: swap.dstToken,
+        amount1: swap.returnAmount,
+        label: "KyberSwap",
+      });
     }
   }
 };
@@ -111,11 +117,11 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   doublecounted: true,
   methodology: {
-    Volume: "Value of token swaps made on Byzanlink, routed through KyberSwap or DZap, priced on one side of each swap.",
+    Volume: "Value of token swaps made on Byzanlink, routed through KyberSwap or DZap, priced on one side of each swap. Wash trades through KyberSwap are excluded.",
   },
   breakdownMethodology: {
     Volume: {
-      KyberSwap: "Swaps routed through the KyberSwap MetaAggregationRouterV2 with the Byzanlink source.",
+      KyberSwap: "Swaps routed through the KyberSwap MetaAggregationRouterV2 with the Byzanlink source, excluding wash trades.",
       DZap: "Swaps routed through the DZap router with the Byzanlink integrator.",
     },
   },
