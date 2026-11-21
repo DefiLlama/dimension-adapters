@@ -323,7 +323,8 @@ const configs: Record<string, Record<string, any>> = {
   "defi-swap": {
     // Crypto.com DeFi Swap; replaces the subgraph read, whose cumulative totalVolumeUSD differed between runs from 2025-03-20
     // factory: pair 0x3aa370aacf4cb08c7e1e7aa8e8ff9418d73c7e0f returns it from factory(); totalFeeBasisPoint() returns 30 (0.3%)
-    [CHAIN.ETHEREUM]: { factory: '0x9DEB29c9a4c7A88a3C0257393b7f3335338D9A9D', start: '2021-09-21', fees: 0.003 },
+    // maxPairSize 100: 44 to 68 of the 100 pairs pass the $200 pooled value filter on days from 2021-09-22 to 2024-01-01, above the default cap of 42
+    [CHAIN.ETHEREUM]: { factory: '0x9DEB29c9a4c7A88a3C0257393b7f3335338D9A9D', start: '2021-09-21', fees: 0.003, maxPairSize: 100 },
   },
   "warpx-v2": {
     [CHAIN.MEGAETH]: { factory: '0xB3Ae00A68F09E8b8a003B7669e2E84544cC4a385' },
