@@ -30,6 +30,14 @@ export interface AaveLendingPoolConfig {
     // address => symbol
     [key: string]: string;
   },
+
+  // Reserves partly supplied by Aave DAO accounts (e.g. a GHO facilitator that mints GHO and supplies it
+  // to the pool). Their share of the supplier interest (scaled aToken balance / scaled aToken supply at
+  // the window start) is protocol revenue, not supply side. The rest of the reserve is booked as usual.
+  daoSupplierAssets?: {
+    // reserve address => symbol used in the label, the reserve's aToken and the DAO-owned supplier addresses
+    [key: string]: { symbol: string, aToken: string, suppliers: Array<string> };
+  },
 }
 
 export interface AaveAdapterExportConfig {
@@ -55,6 +63,20 @@ const HIGH_RESERVE_FACTOR = 0.99;
 const FULL_UTILIZATION = 0.99;
 
 export { parseStuckReserveSymbols };
+
+// Share of the supplier interest of a reserve earned by the given suppliers, pro rata to their scaled
+// aToken balance at the window start. Throws when a read fails rather than booking it as supply side.
+async function getDaoSupplierInterest(options: FetchOptions, aTokenAddress: string, suppliers: Array<string>, supplySideInterestAccrued: bigint): Promise<bigint> {
+  const scaledTotalSupply = BigInt(await options.fromApi.call({ target: aTokenAddress, abi: 'uint256:scaledTotalSupply' }))
+  if (scaledTotalSupply === 0n) return 0n
+  const scaledBalances: Array<string> = await options.fromApi.multiCall({
+    target: aTokenAddress,
+    abi: 'function scaledBalanceOf(address user) view returns (uint256)',
+    calls: suppliers,
+  })
+  const daoScaledBalance = scaledBalances.reduce((sum, balance) => sum + BigInt(balance), 0n)
+  return supplySideInterestAccrued * daoScaledBalance / scaledTotalSupply
+}
 
 export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, balances: {
   dailyFees: sdk.Balances,
@@ -274,9 +296,18 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       const interestAccrued = Number(supplySideInterestAccrued) / Number(1 - reserveFactor)
       const revenueAccrued = interestAccrued - Number(supplySideInterestAccrued)
 
-      balances.dailyFees.add(token, interestAccrued, METRIC.BORROW_INTEREST)
-      balances.dailySupplySideRevenue.add(token, supplySideInterestAccrued, METRIC.BORROW_INTEREST)
+      // interest earned by Aave DAO suppliers of this reserve goes to the DAO, not to outside lenders
+      const daoSupplier = pool.daoSupplierAssets?.[token]
+      const daoInterestAccrued = daoSupplier ? await getDaoSupplierInterest(options, daoSupplier.aToken, daoSupplier.suppliers, supplySideInterestAccrued) : 0n
+
+      balances.dailyFees.add(token, interestAccrued - Number(daoInterestAccrued), METRIC.BORROW_INTEREST)
+      balances.dailySupplySideRevenue.add(token, supplySideInterestAccrued - daoInterestAccrued, METRIC.BORROW_INTEREST)
       balances.dailyProtocolRevenue.add(token, revenueAccrued, METRIC.BORROW_INTEREST)
+      if (daoSupplier) {
+        balances.dailyFees.add(token, daoInterestAccrued, `${METRIC.BORROW_INTEREST} ${daoSupplier.symbol}`)
+        balances.dailySupplySideRevenue.add(token, 0, `${METRIC.BORROW_INTEREST} ${daoSupplier.symbol}`)
+        balances.dailyProtocolRevenue.add(token, daoInterestAccrued, `${METRIC.BORROW_INTEREST} ${daoSupplier.symbol}`)
+      }
     }
   }
 
