@@ -40,7 +40,7 @@ trades AS (
     amount_usd,
     token_sold_amount_raw AS sold_raw,
     CAST(token_bought_amount_raw AS DOUBLE) AS bought_raw,
-    row_number() OVER (PARTITION BY tx_id, outer_instruction_index, project_program_id ORDER BY inner_instruction_index) AS swap_number
+    row_number() OVER (PARTITION BY tx_id, outer_instruction_index ORDER BY inner_instruction_index) AS swap_number
   FROM dex_solana.trades
   WHERE block_month >= CAST(date_trunc('month', from_unixtime(${options.startTimestamp})) AS DATE)
     AND block_month <= CAST(date_trunc('month', from_unixtime(${options.endTimestamp} - 1)) AS DATE)
@@ -63,12 +63,13 @@ pool_prices AS (
 pool_mints AS (
   SELECT DISTINCT account_lb_pair AS pool, account_token_x_mint AS token_x, account_token_y_mint AS token_y
   FROM (
-${NO_TRADE_ROW_CALLS.map((call) => `    SELECT account_lb_pair, account_token_x_mint, account_token_y_mint
+${[...NO_TRADE_ROW_CALLS, 'swap', 'swap2'].map((call) => `    SELECT account_lb_pair, account_token_x_mint, account_token_y_mint
     FROM dlmm_solana.lb_clmm_call_${call}
     WHERE call_block_date >= CAST(from_unixtime(${options.startTimestamp}) AS DATE)
       AND call_block_date <= CAST(from_unixtime(${options.endTimestamp} - 1) AS DATE)
       AND call_block_time >= from_unixtime(${options.startTimestamp})
-      AND call_block_time < from_unixtime(${options.endTimestamp})`).join('\n    UNION ALL\n')}
+      AND call_block_time < from_unixtime(${options.endTimestamp})
+      AND call_tx_success = true`).join('\n    UNION ALL\n')}
   )
 ),
 events AS (
@@ -78,7 +79,7 @@ events AS (
     lb_pair AS pool,
     swap_for_y,
     amount_in,
-    row_number() OVER (PARTITION BY evt_tx_id, coalesce(evt_outer_instruction_index, 0), lb_pair ORDER BY coalesce(evt_inner_instruction_index, 0)) AS swap_number
+    row_number() OVER (PARTITION BY evt_tx_id, coalesce(evt_outer_instruction_index, 0) ORDER BY coalesce(evt_inner_instruction_index, 0)) AS swap_number
   FROM dlmm_solana.lb_clmm_evt_swap2evt
   WHERE evt_block_date >= CAST(from_unixtime(${options.startTimestamp}) AS DATE)
     AND evt_block_date <= CAST(from_unixtime(${options.endTimestamp} - 1) AS DATE)
@@ -87,7 +88,7 @@ events AS (
     AND evt_inner_executing_account = '${DLMM_PROGRAM}'
 ),
 no_trade_row AS (
-  -- swap events with no dex_solana.trades row for the same instruction and pool
+  -- swap events with no dex_solana.trades row: trades and events are numbered within the outer instruction, as Spellbook pairs them
   SELECT
     e.pool,
     CASE WHEN e.swap_for_y THEN m.token_x ELSE m.token_y END AS mint,
@@ -96,7 +97,6 @@ no_trade_row AS (
   LEFT JOIN trades t
     ON t.tx_id = e.tx_id
    AND t.outer_instruction_index = e.outer_instruction_index
-   AND t.pool = e.pool
    AND t.swap_number = e.swap_number
   LEFT JOIN pool_mints m ON m.pool = e.pool
   WHERE t.tx_id IS NULL
@@ -142,12 +142,12 @@ const fetch = async (options: FetchOptions) => {
   const pools = new Set<string>();
   const excluded = new Set<string>();
   for (const row of rows) {
-    if (!row.mint) throw new Error(`meteora-dlmm: swap in pool ${row.pool} with no trade row and no ${NO_TRADE_ROW_CALLS.join('/')} call to read its mints from`);
     pools.add(row.pool);
     if (blacklisted.has(row.pool)) {
       excluded.add(row.pool);
       continue;
     }
+    if (!row.mint) throw new Error(`meteora-dlmm: swap in pool ${row.pool} with no trade row and no ${NO_TRADE_ROW_CALLS.join('/')} call to read its mints from`);
     dailyVolume.addUSDValue(Number(row.priced_volume_usd));
     dailyVolume.add(row.mint, row.unpriced_sold_raw);
   }

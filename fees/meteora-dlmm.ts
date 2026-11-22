@@ -8,8 +8,9 @@ import { METRIC } from '../helpers/metrics';
 // Meteora DLMM fees and revenue. Volume is in dexs/meteora-dlmm.ts.
 // Swap events give the gross fee and protocol_fee in the fee token; each fee is valued at swap time from the
 // trade's USD value in dex_solana.trades (priced off the SOL/USDC side). Unpriced swaps fall back to raw amounts.
-// Exact-out and price-impact swaps have no dex_solana.trades row since 2026-05-13 (see dexs/meteora-dlmm.ts): their
-// fee token comes from the pool's mints in the call tables, valued at the pool's average price that day.
+// Each swap's fee token comes from its pool's mints in the call tables. Exact-out and price-impact swaps have no
+// dex_solana.trades row since 2026-05-13 (see dexs/meteora-dlmm.ts): those, and swaps paired with another pool's
+// trade row, are valued at the pool's average price that day.
 
 const DLMM_PROGRAM = 'LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo';
 const NO_TRADE_ROW_CALLS = ['swap_exact_out', 'swap_exact_out2', 'swap_with_price_impact', 'swap_with_price_impact2'];
@@ -89,7 +90,7 @@ events_raw AS (
 ),
 events AS (
   SELECT *,
-    row_number() OVER (PARTITION BY tx_id, outer_instruction_index, pool ORDER BY inner_instruction_index) AS swap_number
+    row_number() OVER (PARTITION BY tx_id, outer_instruction_index ORDER BY inner_instruction_index) AS swap_number
   FROM events_raw
 ),
 trades AS (
@@ -103,7 +104,7 @@ trades AS (
     CAST(token_bought_amount_raw AS DOUBLE) AS bought_raw,
     token_sold_mint_address AS sold_mint,
     token_bought_mint_address AS bought_mint,
-    row_number() OVER (PARTITION BY tx_id, outer_instruction_index, project_program_id ORDER BY inner_instruction_index) AS swap_number
+    row_number() OVER (PARTITION BY tx_id, outer_instruction_index ORDER BY inner_instruction_index) AS swap_number
   FROM dex_solana.trades
   WHERE block_month >= CAST(date_trunc('month', from_unixtime(${options.startTimestamp})) AS DATE)
     AND block_month <= CAST(date_trunc('month', from_unixtime(${options.endTimestamp} - 1)) AS DATE)
@@ -126,22 +127,23 @@ pool_prices AS (
 pool_mints AS (
   SELECT DISTINCT account_lb_pair AS pool, account_token_x_mint AS token_x, account_token_y_mint AS token_y
   FROM (
-${NO_TRADE_ROW_CALLS.map((call) => `    SELECT account_lb_pair, account_token_x_mint, account_token_y_mint
+${[...NO_TRADE_ROW_CALLS, 'swap', 'swap2'].map((call) => `    SELECT account_lb_pair, account_token_x_mint, account_token_y_mint
     FROM dlmm_solana.lb_clmm_call_${call}
     WHERE call_block_date >= CAST(from_unixtime(${options.startTimestamp}) AS DATE)
       AND call_block_date <= CAST(from_unixtime(${options.endTimestamp} - 1) AS DATE)
       AND call_block_time >= from_unixtime(${options.startTimestamp})
-      AND call_block_time < from_unixtime(${options.endTimestamp})`).join('\n    UNION ALL\n')}
+      AND call_block_time < from_unixtime(${options.endTimestamp})
+      AND call_tx_success = true`).join('\n    UNION ALL\n')}
   )
 ),
 swaps AS (
   SELECT
     -- swap_for_y: X sold, Y bought; fee token is X or Y per fees_on_token_x
-    CASE WHEN e.fees_on_token_x = e.swap_for_y THEN t.sold_mint ELSE t.bought_mint END AS trade_fee_mint,
-    CASE WHEN e.fees_on_token_x THEN m.token_x ELSE m.token_y END AS pool_fee_mint,
+    CASE WHEN e.fees_on_token_x THEN m.token_x ELSE m.token_y END AS fee_mint,
     CASE WHEN e.fees_on_token_x = e.swap_for_y THEN t.sold_raw ELSE t.bought_raw END AS fee_side_raw,
     t.amount_usd,
-    t.tx_id IS NULL AS no_trade_row,
+    -- no trade row, or the row paired with it (numbered within the outer instruction, as Spellbook does) is another pool's
+    t.tx_id IS NULL OR t.pool <> e.pool AS no_trade_row,
     e.pool,
     e.gross_fee,
     e.protocol_fee
@@ -149,7 +151,6 @@ swaps AS (
   LEFT JOIN trades t
     ON t.tx_id = e.tx_id
    AND t.outer_instruction_index = e.outer_instruction_index
-   AND t.pool = e.pool
    AND t.swap_number = e.swap_number
   LEFT JOIN pool_mints m ON m.pool = e.pool
 ),
@@ -166,15 +167,14 @@ valued AS (
         OR CAST(s.gross_fee AS DOUBLE) * s.usd_per_raw > s.amount_usd)) AS unpriced
   FROM (
     SELECT
-      CASE WHEN no_trade_row THEN pool_fee_mint ELSE trade_fee_mint END AS fee_mint,
-      -- a swap without a trade row is valued at the pool's average price of its fee token that day
+      -- a swap without a trade row of its own is valued at the pool's average price of its fee token that day
       CASE WHEN no_trade_row THEN p.usd_per_raw ELSE amount_usd / fee_side_raw END AS usd_per_raw,
       swaps.*
     FROM swaps
     LEFT JOIN pool_prices p
       ON swaps.no_trade_row
      AND p.pool = swaps.pool
-     AND p.mint = swaps.pool_fee_mint
+     AND p.mint = swaps.fee_mint
   ) s
 )
 SELECT
