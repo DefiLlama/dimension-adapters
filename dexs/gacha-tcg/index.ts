@@ -28,8 +28,8 @@ const fetch = async (options: FetchOptions) => {
     options.getLogs({ target: contract, eventAbi: BUYBACK_ABI, topics: [BUYBACK_TOPIC] }),
   ])
 
-  purchaseLogs.forEach((log: any) => dailyVolume.add(token, log.amount, 'Pack purchases'))
-  buybackLogs.forEach((log: any) => dailyVolume.add(token, log.amount, 'Buybacks'))
+  purchaseLogs.forEach((log: any) => dailyVolume.add(token, log.amount))
+  buybackLogs.forEach((log: any) => dailyVolume.add(token, log.amount))
 
   return { dailyVolume }
 }
@@ -38,18 +38,10 @@ const methodology = {
   Volume: 'Sum of pack purchase amounts plus USDC (USDC.e on Abstract) returned to players through the buyback program.',
 }
 
-const breakdownMethodology = {
-  Volume: {
-    'Pack purchases': 'USDC (USDC.e on Abstract) paid by players to mint card packs (Purchased event).',
-    'Buybacks': 'USDC (USDC.e on Abstract) returned to players when they sell cards back to the protocol (Buyback event).',
-  },
-}
-
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   methodology,
-  breakdownMethodology,
   fetch,
   adapter: chainConfig,
 }

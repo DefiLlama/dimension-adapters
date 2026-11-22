@@ -22,7 +22,6 @@ const PURCHASED_ABI = 'event Purchased(uint256 indexed seqNo, uint32 indexed pre
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
   const dailyRevenue = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
 
   const { contract, token } = chainConfig[options.chain]
 
@@ -35,43 +34,38 @@ const fetch = async (options: FetchOptions) => {
     dailyFees.add(token, log.amount, 'Pack purchases')
     dailyRevenue.add(token, log.amount, 'Pack purchases')
   })
+  // fees are pack sales net of buybacks (fees/AGENTS.md, as in fees/collector-crypt)
   buybackLogs.forEach((log: any) => {
-    dailySupplySideRevenue.add(token, log.amount, 'Buybacks')
-    dailyRevenue.add(token, -log.amount, 'Buybacks')
+    dailyFees.subtractToken(token, log.amount, 'Pack purchases')
+    dailyRevenue.subtractToken(token, log.amount, 'Pack purchases')
   })
 
   return {
     dailyFees,
     dailyRevenue,
-    dailySupplySideRevenue,
     dailyUserFees: dailyRevenue,
   }
 }
 
 const methodology = {
-  Fees: 'Gross USDC (USDC.e on Abstract) paid by players to mint card packs (Purchased event).',
-  Revenue: 'Net spread captured by the protocol: pack purchases minus USDC (USDC.e on Abstract) returned to players through the buyback program.',
-  SupplySideRevenue: 'USDC (USDC.e on Abstract) returned to players when they sell cards back to the protocol (Buyback event).',
+  Fees: 'USDC (USDC.e on Abstract) paid by players to mint card packs (Purchased event), net of USDC returned to players when they sell cards back to the protocol (Buyback event).',
+  Revenue: 'Pack purchases net of buybacks; all of it goes to the protocol.',
   UserFees: 'Net amount paid by players: pack purchases minus USDC (USDC.e on Abstract) received back through the buyback program.',
 }
 
 const breakdownMethodology = {
   Fees: {
-    'Pack purchases': 'USDC (USDC.e on Abstract) paid by players to mint card packs (Purchased event).',
+    'Pack purchases': 'USDC (USDC.e on Abstract) paid by players to mint card packs (Purchased event), minus USDC returned through buybacks (Buyback event).',
   },
   Revenue: {
-    'Pack purchases': 'USDC (USDC.e on Abstract) paid by players to mint card packs (Purchased event).',
-    'Buybacks': 'USDC (USDC.e on Abstract) returned to players when they sell cards back to the protocol (Buyback event); subtracted from revenue.',
-  },
-  SupplySideRevenue: {
-    'Buybacks': 'USDC (USDC.e on Abstract) returned to players when they sell cards back to the protocol (Buyback event).',
+    'Pack purchases': 'USDC (USDC.e on Abstract) paid by players to mint card packs (Purchased event), minus USDC returned through buybacks (Buyback event).',
   },
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  allowNegativeValue: true, // hourly buybacks can exceed hourly pack purchases
+  allowNegativeValue: true, // net fees go negative in hours when buybacks exceed pack purchases
   methodology,
   breakdownMethodology,
   unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
