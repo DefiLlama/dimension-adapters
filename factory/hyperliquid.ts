@@ -32,32 +32,21 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
-  "atlasx-perps": {
-    // ATLASX (https://atlx.ai, https://x.com/atlasx_ai), a non-custodial iOS and web trading app for Hyperliquid perps.
-    // Its Hyperliquid perp orders carry this builder code with a 0.05% fee on top of Hyperliquid's own fees
-    // (perps only; no spot or outcome builder fee).
-    // Verifiable: the builder field of ATLASX orders; the address's Hyperliquid `referral` state (builderRewards).
-    addresses: ["0x83018fdfc5c25453611a9f5e3389a9735030629c"],
-    // first day with fills carrying the production builder code
-    start: "2026-09-05",
+  "easyperp": {
+    // EasyPerp (https://trade.easyperp.app, https://x.com/easyperp), a perpetual futures trading interface.
+    // Users approve a 0.04% builder fee to this address; orders placed from the EasyPerp app carry this builder
+    // code on top of the venue's own trading fees.
+    // Verifiable: the builder field of orders placed through the app; the address's `referral` state
+    // (builderRewards). The address is the public VITE_BUILDER_ADDRESS in the app's production bundle.
+    addresses: ["0xd552762ced07ecc9c4027d5ece026d63f6ce0f78"],
+    // first day with fills carrying the code (stats-data builder_fills)
+    start: "2026-11-14",
     methodology: {
-      Volume: "Notional volume of Hyperliquid perpetual trades placed through ATLASX with its builder code.",
-      Fees: "0.05% builder code fee paid by users on Hyperliquid perpetual trades placed through ATLASX; excludes Hyperliquid's own trading fees.",
-      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through ATLASX, all kept by ATLASX.",
-      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through ATLASX, all kept by ATLASX.",
+      Volume: "Notional volume of perpetual trades placed through EasyPerp with its builder code.",
+      Fees: "Builder code fees paid by users on perpetual trades placed through EasyPerp; excludes the venue's own trading fees.",
+      Revenue: "Builder code fees on perpetual trades placed through EasyPerp, all kept by EasyPerp.",
+      ProtocolRevenue: "Builder code fees on perpetual trades placed through EasyPerp, all kept by EasyPerp.",
     },
-  },
-  "lockin-perps": {
-    // lockin (https://lockin.cash, https://x.com/tradeonlockin) charges a 0.1% builder fee on perps; the builder is also its EVM fee wallet
-    addresses: ["0xe1ba8be268f91c011040ac2b44efc9201a52d988"],
-    start: "2026-10-23",
-    methodology: {
-      Volume: "Notional volume of Hyperliquid perpetual trades placed through lockin with its builder code.",
-      Fees: "0.1% builder code fee paid by users on Hyperliquid perpetual trades placed through lockin; excludes Hyperliquid's own trading fees.",
-      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through lockin, all kept by lockin.",
-      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through lockin, all kept by lockin.",
-    },
-    breakdownFees: true,
   },
   "liqwall": {
     // Liqwall (https://liqwall.com, https://x.com/liqwall), a crypto trading terminal (https://liqwall.com/chart) with
