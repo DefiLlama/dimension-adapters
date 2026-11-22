@@ -288,6 +288,12 @@ const configs: Record<string, CuratorConfig> = {
         ],
         start: '2026-06-12', // Galaxy USDC deployment
       },
+      [CHAIN.STABLE]: {
+        // StableEarn Prime PYUSD (Morpho V2): owner() is Galaxy's 0x42D510eD and api.morpho.org names its curator
+        // "Galaxy Curation". Listed directly: no Morpho vault factory is configured for stable.
+        morphoV2: ['0x8c3250F028a2C8D29319eb3Ee3214b90462394ba'],
+        start: '2026-10-27', // vault deployment, block 44644572
+      },
     },
   },
   "hakutora": {
