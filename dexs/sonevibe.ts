@@ -12,7 +12,9 @@ const feeConfig = {
 }
 
 // firstPairBlock: getUniV2LogAdapter throws on a factory with no pairs, so windows ending before it skip that factory.
-type Factory = { factory: string, firstPairBlock?: number }
+// startBlock / startTimestamp: skip a factory before it existed (block lookup can land a few minutes early).
+// Factories with startBlock and no firstPairBlock also skip when allPairsLength is 0 at toBlock.
+type Factory = { factory: string, firstPairBlock?: number, startBlock?: number, startTimestamp?: number }
 
 // start is the deployment UTC date of the chain's first factory.
 const chainConfig: Record<string, { start: string, factories: Factory[] }> = {
@@ -36,8 +38,15 @@ const chainConfig: Record<string, { start: string, factories: Factory[] }> = {
   },
   [CHAIN.BSC]: {
     start: '2026-02-18',
-    // deploy 2026-02-18 03:53 UTC, block 81868992; first pair 04:47 UTC after feeTo
-    factories: [{ factory: '0xaf905e66038EcE89e03D843B35a11D262053B630' }],
+    factories: [
+      // deploy 2026-02-18 03:53 UTC, block 81868992; first pair 04:47 UTC after feeTo
+      { factory: '0xaf905e66038EcE89e03D843B35a11D262053B630' },
+      // New factory, same bytecode as current Soneium/Arbitrum. Deploy 2026-11-22 04:31:58 UTC,
+      // block 135015600, tx 0x6932510372c01bbb24097137f34411ee1b7c4d45a2c308e2e83b5d72ce3823fd.
+      // Keep the original factory above for history. Pair creation is closed and allPairsLength
+      // is still 0; skip until a pair exists (getUniV2LogAdapter throws on a factory with no pairs).
+      { factory: '0x26b13e7e923e964b0514B3167A90901B49DAe205', startBlock: 135015600, startTimestamp: 1795321918 },
+    ],
   },
   [CHAIN.ARBITRUM]: {
     start: '2026-11-05',
@@ -53,10 +62,18 @@ const fetch = async (options: FetchOptions) => {
   const result: Record<string, Balances> = {}
   for (const metric of METRICS) result[metric] = options.createBalances()
 
-  for (const { factory, firstPairBlock } of chainConfig[options.chain].factories) {
+  for (const { factory, firstPairBlock, startBlock, startTimestamp } of chainConfig[options.chain].factories) {
+    // B2: gate on timestamp and the resolved end block (block lookup can land up to 5 minutes early).
+    if (startTimestamp && options.endTimestamp < startTimestamp) continue
+    if (startBlock && (await options.getToBlock()) < startBlock) continue
     if (firstPairBlock && (await options.getToBlock()) < firstPairBlock) continue
+    // allPairsLength == 0: deployed but no pairs yet. getUniV2LogAdapter would throw on undefined pairs.
+    if (startBlock && !firstPairBlock) {
+      const pairsLength = await options.api.call({ target: factory, abi: 'uint256:allPairsLength' })
+      if (!Number(pairsLength)) continue
+    }
     const res = await getUniV2LogAdapter({ factory, ...feeConfig })(options)
-    // the helper returns 0 instead of balances when no pair passes its liquidity filter
+    // B1: the helper returns 0 instead of balances when no pair passes its liquidity filter
     for (const metric of METRICS) if (typeof res[metric] === 'object') result[metric].add(res[metric])
   }
 
