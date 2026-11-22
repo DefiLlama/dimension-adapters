@@ -271,6 +271,9 @@ const configs: Record<string, CuratorConfig> = {
         // address on both chain 1 and chain 8453.
         morphoVaultOwners: ['0x42D510eDeb9257f8D920d5B9f5109D95cB22419d'],
         morphoVaultV2Owners: ['0x42D510eDeb9257f8D920d5B9f5109D95cB22419d'],
+        // Galaxy USDC Enhanced: owner() and curator are Galaxy's, but CreateVaultV2 (block 25331914) names
+        // 0x4cd8558eDD19a79B432ef88b351D9aEF0a2C0E04 as owner, so the owner filter above never picks it up.
+        morphoV2: ['0xd95fE7adF5075fad9D6Bf853E0f9Fe53369E8D96'],
       },
       [CHAIN.BASE]: {
         morphoVaultOwners: ['0x42D510eDeb9257f8D920d5B9f5109D95cB22419d'],
