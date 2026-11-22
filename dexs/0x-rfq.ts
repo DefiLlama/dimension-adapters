@@ -3,7 +3,6 @@ import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { ChainApi, getEventLogs } from "@defillama/sdk";
 import ADDRESSES from "../helpers/coreAssets.json";
-import { sleep } from "../utils/utils";
 
 const FETCH_RFQ_CUTOFF = 1766361600; //2025-12-22 00:00:00 UTC
 // 0x Settler deployer/registry - see: https://github.com/0xProject/0x-settler 
@@ -11,8 +10,7 @@ const SETTLER_DEPLOYER = "0x00000000000004533fe15556b1e086bb1a72ceae";
 const RFQ_PATTERN = "'d92aadfb[0-9a-f]{64}000000000000000000000000([0-9a-f]{40})([0-9a-f]{64})'";
 const VIP_PATTERN = "'(604ba49a|9714f25e)[0-9a-f]{344}([0-9a-f]{40})([0-9a-f]{64})'";
 
-// registryBlock: the block the Settler registry was deployed in on that chain (first block with its code), so its
-// Transfer history is read from the start. On Avalanche it is a lower bound, the block at 2024-03-31 00:00 UTC.
+// registryBlock: Settler registry deploy block (Avalanche: lower bound, block at 2024-03-31 00:00 UTC)
 const chainConfig = {
   [CHAIN.ETHEREUM]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'ethereum', start: '2020-06-11', registryBlock: 19582253 },
   [CHAIN.POLYGON]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'polygon', start: '2021-05-12', registryBlock: 55435043 },
@@ -38,19 +36,11 @@ const chainConfig = {
     contains the RFQ order/hash fragment plus the filled maker amount, but not the
     maker token.
 
-  The active Settler contracts are discovered from the official cross-chain
-  Settler deployer/registry. ownerOf(2), ownerOf(3), and ownerOf(4) resolve the
-  current taker-submitted, metatxn/gasless, and intent Settler deployments.
-  After a rotation ownerOf() returns the new deployment at once, while 0x API
-  keeps routing to the previous one (the "dwell time" in the 0x-settler README),
-  so reading ownerOf() alone misses those fills. For each window we read ownerOf()
-  and prev() at the start, and ownerOf() at the end for a rotation inside the
-  window. A revert/zero result is ignored, which covers paused or unavailable
-  features. prev() only goes one rotation back, and a replaced Settler stays
-  live, so an integrator still calling an older one keeps filling RFQ orders on
-  it. The registry is an ERC-721 whose Transfer events hand each feature token to
-  every new Settler, so we also add every Settler it has handed feature 2, 3 or 4
-  up to the window end.
+  Settler contracts are discovered from the official cross-chain Settler
+  deployer/registry, an ERC-721 whose Transfer events hand feature tokens 2, 3
+  and 4 (taker-submitted, metatxn/gasless, intent) to each new deployment. A
+  replaced Settler stays live and keeps filling, so we take every Settler the
+  registry has handed one of those features up to the window end.
 
   To price a Settler RFQ fill we need to bind that marker amount to a token. We
   do that by reading only transactions that already have a candidate marker log,
@@ -74,54 +64,28 @@ const fetchRFQ = async ({ getLogs, chain, createBalances }: FetchOptions): Promi
   return { dailyVolume }
 }
 
-// A feature can revert while paused, so a read may miss one feature. A read with nothing for all three features means
-// the RPC failed: permitFailure turns that into nulls, and the same block answers on a retry. A missing read would store
-// a low day, so it throws once the retries are used up.
-const readRegistry = async (api: ChainApi, abi: string, chain: string): Promise<string[]> => {
-  for (let attempt = 0; attempt < 4; attempt++) {
-    if (attempt) await sleep(2000);
-    const read = await api.multiCall({ target: SETTLER_DEPLOYER, abi, calls: [2, 3, 4], permitFailure: true });
-    if (read.some(Boolean)) return read;
-  }
-  throw new Error(`0x-rfq: Settler registry read failed on ${chain}`);
-};
-
 const prefetch = async (options: FetchOptions) => {
   if (options.startTimestamp < FETCH_RFQ_CUTOFF) return [];
 
   const chainQueries = (await Promise.all(Object.entries(chainConfig)
     .filter(([, { duneChain, start }]) => duneChain && options.startTimestamp >= Date.parse(`${start}T00:00:00Z`) / 1e3)
     .map(async ([chain, { duneChain, registryBlock }]) => {
-      // Resolve every Settler that can fill in this historical window.
-      const startApi = new ChainApi({ chain, timestamp: options.startTimestamp });
-      const endApi = new ChainApi({ chain, timestamp: options.toTimestamp });
-      const ownerOf = "function ownerOf(uint256 tokenId) view returns (address)";
-      const prev = "function prev(uint128 featureId) view returns (address)";
-      const results = await Promise.all([
-        readRegistry(startApi, ownerOf, chain),
-        readRegistry(startApi, prev, chain),
-        readRegistry(endApi, ownerOf, chain),
-      ]);
-      // Every Settler handed a feature token up to the window end, older ones included
       const transfers = await getEventLogs({
         chain,
         target: SETTLER_DEPLOYER,
         eventAbi: "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
         fromBlock: registryBlock,
-        toBlock: await endApi.getBlock(),
+        toBlock: await new ChainApi({ chain, timestamp: options.toTimestamp }).getBlock(),
         onlyArgs: true,
         cacheInCloud: true,
       });
-      const handedOut = transfers.filter((log: any) => [2, 3, 4].includes(Number(log.tokenId))).map((log: any) => log.to);
-      if (!handedOut.length) throw new Error(`0x-rfq: no Settler registry Transfer logs on ${chain}`);
-      const settlers = [...new Set([...results.flat(), ...handedOut]
-        .filter(Boolean)
-        .map((settler: string) => settler.toLowerCase())
+      const settlers = [...new Set(transfers
+        .filter((log: any) => [2, 3, 4].includes(Number(log.tokenId)))
+        .map((log: any) => log.to.toLowerCase())
         .filter((settler: string) => settler !== ADDRESSES.null)
       )];
+      if (!settlers.length) throw new Error(`0x-rfq: no Settler registry Transfer logs on ${chain}`);
       const cte = chain.replace(/[^a-z0-9]/gi, "_");
-
-      if (!settlers.length) return;
 
       /*
         Per-chain Dune query shape:
@@ -217,7 +181,7 @@ const prefetch = async (options: FetchOptions) => {
         SELECT '${chain}' AS chain, COALESCE(SUM(volume_usd), 0) AS daily_volume
         FROM ${cte}_priced`,
       };
-    }))).filter(Boolean) as { ctes: string, select: string }[];
+    })));
 
   if (!chainQueries.length) return [];
 
