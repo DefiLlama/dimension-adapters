@@ -74,7 +74,7 @@ const chainConfig: Record<string, { start: string; routers: string[]; swapEvent?
   },
 };
 
-const ORDER_FILLED_TOPIC = "0x01a51532428af9a5568aeedb8ea45eccb10821f0e9033de01cd4126033f5deff";
+const orderExecutedEvent = "event OrderExecuted(bytes32 orderId, uint256 amountOut, bytes order)";
 
 const fetchEVM = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyVolume = options.createBalances();
@@ -100,15 +100,12 @@ const fetchEVM = async (options: FetchOptions): Promise<FetchResult> => {
   logs.forEach((log) => addSwap(log.tokenIn, log.amountIn, log.tokenOut, log.amountOut));
 
   if (orderRouters && !(orderRoutersStart && options.startTimestamp < Date.parse(orderRoutersStart) / 1e3)) {
-    // The implementations are unverified, so the event is read by topic. Data: (bytes32 id, uint256 amountOut, bytes order),
-    // where order starts (address keeper, uint256, offset 0x80, offset, address tokenIn, address tokenOut, uint256 amountIn, ...).
-    const fills = await options.getLogs({ targets: orderRouters, topics: [ORDER_FILLED_TOPIC], onlyArgs: false, flatten: true });
-    fills.forEach((log: any) => {
-      const word = (i: number) => "0x" + log.data.slice(2 + 64 * i, 2 + 64 * (i + 1));
-      const amountIn = BigInt(word(10));
-      if (Number(word(2)) !== 0x60 || Number(word(6)) !== 0x80 || amountIn >= 2n ** 128n) throw new Error(`aveai: unexpected order-filled layout in ${log.transactionHash}`);
-      const address = (i: number) => "0x" + word(i).slice(26);
-      addSwap(address(8), amountIn, address(9), BigInt(word(1)));
+    const fills = await options.getLogs({ targets: orderRouters, eventAbi: orderExecutedEvent, flatten: true });
+    fills.forEach((log) => {
+      // Implementation unverified; order: (address keeper, uint256, offset 0x80, offset, address tokenIn, address tokenOut, uint256 amountIn, ...)
+      const word = (i: number) => "0x" + log.order.slice(2 + 64 * i, 2 + 64 * (i + 1));
+      if (Number(word(2)) !== 0x80) throw new Error("aveai: unexpected OrderExecuted layout");
+      addSwap("0x" + word(4).slice(26), BigInt(word(6)), "0x" + word(5).slice(26), log.amountOut);
     });
   }
 
