@@ -46,6 +46,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: '2025-02-13',
+  doublecounted: true, // Unit markets trade on Hyperliquid's spot order book, already counted in hyperliquid-spot volume and fees
   methodology,
   breakdownMethodology,
 }
