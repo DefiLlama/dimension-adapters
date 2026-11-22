@@ -705,7 +705,12 @@
     "weETH": "0xcd68dff4415358c35a28f96fd5bf7083b22de1d6"
   },
   "cardano": {
-    "ADA": "ADA"
+    "ADA": "ADA",
+    "USDM": "c48cbb3d5e57ed56e276bc45f99ab39abe94e6cd7ac39fb402da47ad0014df105553444d",
+    "USDCx": "1f3aec8bfe7ea4fe14c5f121e2a92e301afe414147860d557cac7e345553444378",
+    "USDA": "fe7c786ab321f41c654ef6c1af7b3250a613c24e4213e0425a7ae45655534441",
+    "DJED": "8db269c3ec630e06ae29f74bc39edd1f87c819f1056206e879a1cd61446a65644d6963726f555344",
+    "iUSD": "f66d78b4a3cb3d37afa0ec36461e51ecbde00f26c8f0a68f94b6988069555344"
   },
   "functionx": {
     "WFX": "0x80b5a32e4f032b2a058b4f29ec95eefeeb87adcd",
