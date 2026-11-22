@@ -1,14 +1,11 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
-import fetchURL from "../../utils/fetchURL";
-
-const DANOGO_GATEWAY_ENDPOINT = 'https://danogo-gateway.api.danogo.io/api/v1/defillama-dimensions';
-// const DANOGO_START_TIMESTAMP = 1685404800 // 30/05/2023
+import { fetchDanogoGatewayData } from "../../dexs/danogo";
 
 const fetch = async (options: FetchOptions) => {
     const dailyFees = options.createBalances()
-    const { dailyFeesAdaValue } = (await fetchURL(`${DANOGO_GATEWAY_ENDPOINT}?timestamp=${options.toTimestamp}`)).data;
-    dailyFees.addCGToken('cardano', dailyFeesAdaValue / 1e6)
+    const { dailyFeesAdaValue } = await fetchDanogoGatewayData(options);
+    dailyFees.addCGToken('cardano', Number(dailyFeesAdaValue) / 1e6)
 
     return { dailyFees, dailyRevenue: dailyFees };
 }
