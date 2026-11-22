@@ -16,6 +16,7 @@ import ADDRESSES from "./coreAssets.json";
 // A fee account that sends transactions (e.g. a sweep, or the chain owner's setup calls) breaks the balance identity in the
 // blocks holding them; those blocks are found by nonce bisection and counted from receipts instead, leaving out the fees the
 // fee accounts paid themselves.
+// A fee account that is an Arbitrum RewardDistributor contract pays out without a nonce change, so its logged payouts are added back.
 
 const ARB_OWNER_PUBLIC = "0x000000000000000000000000000000000000006b"; // ArbOS precompiles: https://docs.arbitrum.io/build-decentralized-apps/precompiles/reference
 const ARB_GAS_INFO = "0x000000000000000000000000000000000000006c";
@@ -26,7 +27,7 @@ const MAX_BLOCKS_WITH_SINK_TXS = 50; // each costs ~25 sequential RPC calls; mor
 const RPC_ATTEMPTS = 5;
 const RPC_TIMEOUT_MS = 30_000;
 const RATE_LIMIT_ERROR_CODE = -32017;
-const MAX_LOG_RANGE = 50_000;
+const MAX_LOG_RANGE = 10_000;
 
 const arbOsInterface = new Interface([
   "function getNetworkFeeAccount() view returns (address)", // ArbOwnerPublic
@@ -200,8 +201,6 @@ export async function getArbitrumNitroFeesWei(options: FetchOptions): Promise<bi
     if (nonceAfter > 0) {
       const code = await rpcCall(chain, "eth_getCode", [sink, toHex(toBlock)]);
       if (code && code !== "0x") {
-        if (nonceAfter !== nonceBefore)
-          throw new Error(`${chain}: fee account ${sink} deployed a contract between blocks ${fromBlock} and ${toBlock}, its balance no longer tracks fees`);
         await assertRewardDistributor(chain, sink, toBlock);
         distributors.push(sink);
         continue;
