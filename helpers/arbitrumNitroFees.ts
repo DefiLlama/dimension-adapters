@@ -16,6 +16,7 @@ import ADDRESSES from "./coreAssets.json";
 // A fee account that sends transactions (e.g. a sweep, or the chain owner's setup calls) breaks the balance identity in the
 // blocks holding them; those blocks are found by nonce bisection and counted from receipts instead, leaving out the fees the
 // fee accounts paid themselves.
+// A fee account that is an Arbitrum RewardDistributor contract pays out without a nonce change, so its logged payouts are added back.
 
 const ARB_OWNER_PUBLIC = "0x000000000000000000000000000000000000006b"; // ArbOS precompiles: https://docs.arbitrum.io/build-decentralized-apps/precompiles/reference
 const ARB_GAS_INFO = "0x000000000000000000000000000000000000006c";
@@ -26,6 +27,7 @@ const MAX_BLOCKS_WITH_SINK_TXS = 50; // each costs ~25 sequential RPC calls; mor
 const RPC_ATTEMPTS = 5;
 const RPC_TIMEOUT_MS = 30_000;
 const RATE_LIMIT_ERROR_CODE = -32017;
+const MAX_LOG_RANGE = 10_000;
 
 const arbOsInterface = new Interface([
   "function getNetworkFeeAccount() view returns (address)", // ArbOwnerPublic
@@ -34,6 +36,23 @@ const arbOsInterface = new Interface([
   "function getBatchPosters() view returns (address[])", // ArbAggregator
   "function getFeeCollector(address batchPoster) view returns (address)", // ArbAggregator
 ]);
+
+const rewardDistributorInterface = new Interface([
+  "function PER_RECIPIENT_GAS() view returns (uint256)",
+  "event RecipientRecieved(address indexed recipient, uint256 value)",
+  "event OwnerRecieved(address indexed owner, address indexed recipient, uint256 value)",
+  "event RecipientsUpdated(bytes32 recipientGroup, address[] recipients, bytes32 recipientWeights, uint256[] weights)",
+  "event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)",
+]);
+
+const REWARD_DISTRIBUTOR_PAYOUT_EVENTS = ["RecipientRecieved", "OwnerRecieved"];
+
+const rewardDistributorEventByTopic: Record<string, string> = Object.fromEntries(
+  [...REWARD_DISTRIBUTOR_PAYOUT_EVENTS, "RecipientsUpdated", "OwnershipTransferred"].map((name) => [
+    rewardDistributorInterface.getEvent(name)!.topicHash,
+    name,
+  ])
+);
 
 const toHex = (value: number) => `0x${value.toString(16)}`;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -124,6 +143,42 @@ async function getBlockFeesFromReceipts(chain: string, block: number, sinks: Set
   }, 0n);
 }
 
+async function assertRewardDistributor(chain: string, account: string, block: number): Promise<void> {
+  let perRecipientGas: bigint;
+  try {
+    const result = await rpcCall(chain, "eth_call", [
+      { to: account, data: rewardDistributorInterface.encodeFunctionData("PER_RECIPIENT_GAS") },
+      toHex(block),
+    ]);
+    perRecipientGas = rewardDistributorInterface.decodeFunctionResult("PER_RECIPIENT_GAS", result)[0];
+  } catch (error) {
+    throw new Error(`${chain}: fee account ${account} has code at block ${block} and PER_RECIPIENT_GAS did not answer, so it is not a RewardDistributor or the node is failing: ${error}`);
+  }
+  if (perRecipientGas === 0n)
+    throw new Error(`${chain}: fee account ${account} has code at block ${block} and reports no PER_RECIPIENT_GAS, its balance no longer tracks fees`);
+}
+
+async function getPaidOutWei(chain: string, distributors: string[], sinks: Set<string>, blocksFromReceipts: Set<number>, fromBlock: number, toBlock: number): Promise<bigint> {
+  let paidOut = 0n;
+  for (let start = fromBlock; start <= toBlock; start += MAX_LOG_RANGE) {
+    const end = Math.min(start + MAX_LOG_RANGE - 1, toBlock);
+    const logs = await rpcCall(chain, "eth_getLogs", [{ address: distributors, fromBlock: toHex(start), toBlock: toHex(end) }]);
+    if (!Array.isArray(logs)) throw new Error(`${chain}: eth_getLogs returned no logs for blocks ${start}-${end}`);
+    for (const log of logs) {
+      const block = Number(log.blockNumber);
+      const name = rewardDistributorEventByTopic[String(log.topics?.[0] ?? "").toLowerCase()];
+      if (!name)
+        throw new Error(`${chain}: fee account ${log.address} emitted ${log.topics?.[0]} in block ${block}, its balance no longer tracks fees`);
+      if (!REWARD_DISTRIBUTOR_PAYOUT_EVENTS.includes(name) || blocksFromReceipts.has(block)) continue;
+      const { args } = rewardDistributorInterface.parseLog({ topics: log.topics, data: log.data })!;
+      const paidTo = String(name === "OwnerRecieved" ? args.owner : args.recipient).toLowerCase();
+      if (sinks.has(paidTo)) continue;
+      paidOut += args.value;
+    }
+  }
+  return paidOut;
+}
+
 // Gas fees in wei (native gas token) paid in the blocks of the window: options.getFromBlock() is the block after the previous window's last block
 export async function getArbitrumNitroFeesWei(options: FetchOptions): Promise<bigint> {
   const chain = options.chain;
@@ -139,12 +194,17 @@ export async function getArbitrumNitroFeesWei(options: FetchOptions): Promise<bi
   let feesWei = await getTotalBalance(chain, sinks, toBlock) - await getTotalBalance(chain, sinks, stateBlock);
 
   const blocksWithSinkTxs = new Set<number>();
+  const distributors: string[] = [];
   for (const sink of sinks) {
     const nonceBefore = await getNonce(chain, sink, stateBlock);
     const nonceAfter = await getNonce(chain, sink, toBlock);
     if (nonceAfter > 0) {
       const code = await rpcCall(chain, "eth_getCode", [sink, toHex(toBlock)]);
-      if (code && code !== "0x") throw new Error(`${chain}: fee account ${sink} has code at block ${toBlock}, its balance no longer tracks fees`);
+      if (code && code !== "0x") {
+        await assertRewardDistributor(chain, sink, toBlock);
+        distributors.push(sink);
+        continue;
+      }
     }
     if (nonceAfter === nonceBefore) continue;
     const blocks = await getBlocksWithNonceChange(chain, sink, stateBlock, toBlock, nonceBefore, nonceAfter);
@@ -152,6 +212,8 @@ export async function getArbitrumNitroFeesWei(options: FetchOptions): Promise<bi
     if (blocksWithSinkTxs.size > MAX_BLOCKS_WITH_SINK_TXS)
       throw new Error(`${chain}: fee accounts sent transactions in more than ${MAX_BLOCKS_WITH_SINK_TXS} blocks between ${fromBlock} and ${toBlock}`);
   }
+
+  if (distributors.length) feesWei += await getPaidOutWei(chain, distributors, sinkSet, blocksWithSinkTxs, fromBlock, toBlock);
 
   for (const block of blocksWithSinkTxs) {
     const balanceChange = await getTotalBalance(chain, sinks, block) - await getTotalBalance(chain, sinks, block - 1);
