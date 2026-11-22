@@ -44,8 +44,7 @@ type ChainConfig = {
   fromBlock: number; // first launch contract deploy block
   sale?: number; // QSaleLaunch lower-bound block
   router?: string;
-  start: string; // first observed QHooks fee event on the chain (see config)
-
+  start: string; // first observed QHooks fee event on the chain (see chainConfig)
 };
 
 // poolManager: the chain's Uniswap v4 PoolManager (https://docs.uniswap.org/contracts/v4/deployments; the same addresses as
@@ -54,7 +53,7 @@ type ChainConfig = {
 // Chain: first launch 2026-11-08; Base: first router trade 2026-11-05; Ethereum: 2026-11-04; Elysium: first launch
 // 2026-11-09. Arbitrum has none yet and BNB Chain's public RPCs cannot scan the range, so both use 2026-11-04, the
 // earliest router trade on any chain (an earlier start only adds empty days).
-const config: Record<string, ChainConfig> = {
+const chainConfig: Record<string, ChainConfig> = {
   [CHAIN.ROBINHOOD]: {
     poolManager: '0x8366a39cc670b4001a1121b8f6a443a643e40951', fromBlock: 108170556, sale: 110156527, router: ROUTER, start: '2026-11-08',
     launches: [
@@ -109,7 +108,7 @@ async function qhooksPools(options: FetchOptions, cfg: ChainConfig) {
 }
 
 const fetch = async (options: FetchOptions) => {
-  const cfg = config[options.chain];
+  const cfg = chainConfig[options.chain];
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -198,7 +197,8 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: Object.fromEntries(Object.entries(config).map(([chain, c]) => [chain, { start: c.start }])),
+  adapter: chainConfig,
+  doublecounted: true, // launch pool LP fees are also counted by the Uniswap v4 adapter
   methodology: {
     Fees: 'Swap fees paid by traders in QHooks launch pools (the Uniswap v4 pools created by QHooks token launches), flat fees paid to launch a token, and the QHooks terminal fee (up to 1%) on trades made through the QHooks website, bot and agent tools.',
     Revenue: 'The protocol share of launch pool swap fees, launch fees, and the terminal fee left after trader cashback and referral rewards, kept by QHooks.',
