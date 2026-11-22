@@ -21,7 +21,6 @@ const PURCHASED_ABI = 'event Purchased(uint256 indexed seqNo, uint32 indexed pre
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
 
   const { contract, token } = chainConfig[options.chain]
 
@@ -31,41 +30,43 @@ const fetch = async (options: FetchOptions) => {
   ])
 
   purchaseLogs.forEach((log: any) => {
-    dailyFees.add(token, log.amount, 'Pack purchases')
-    dailyRevenue.add(token, log.amount, 'Pack purchases')
+    dailyFees.add(token, log.amount, 'Gacha Pack Sales')
   })
-  // fees are pack sales net of buybacks (fees/AGENTS.md, as in fees/collector-crypt)
   buybackLogs.forEach((log: any) => {
-    dailyFees.subtractToken(token, log.amount, 'Pack purchases')
-    dailyRevenue.subtractToken(token, log.amount, 'Pack purchases')
+    dailyFees.subtractToken(token, log.amount, 'Pack Buyback Spends')
   })
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailyUserFees: dailyRevenue,
+    dailyRevenue: dailyFees,
+    dailyUserFees: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   }
 }
 
 const methodology = {
-  Fees: 'USDC (USDC.e on Abstract) paid by players to mint card packs (Purchased event), net of USDC returned to players when they sell cards back to the protocol (Buyback event).',
-  Revenue: 'Pack purchases net of buybacks; all of it goes to the protocol.',
-  UserFees: 'Net amount paid by players: pack purchases minus USDC (USDC.e on Abstract) received back through the buyback program.',
+  Fees: 'USDC (USDC.e on Abstract) paid by players to mint card packs, net of USDC paid back to players who sell cards back to the protocol.',
+  Revenue: 'Pack sales net of buybacks, all kept by the protocol.',
+  UserFees: 'Pack sales paid by players, net of buybacks.',
+  ProtocolRevenue: 'Pack sales net of buybacks, all kept by the protocol.',
+}
+
+const gachaBreakdown = {
+  'Gacha Pack Sales': 'USDC (USDC.e on Abstract) paid by players to mint card packs (Purchased event).',
+  'Pack Buyback Spends': 'USDC (USDC.e on Abstract) paid to players who sell cards back to the protocol (Buyback event); subtracted.',
 }
 
 const breakdownMethodology = {
-  Fees: {
-    'Pack purchases': 'USDC (USDC.e on Abstract) paid by players to mint card packs (Purchased event), minus USDC returned through buybacks (Buyback event).',
-  },
-  Revenue: {
-    'Pack purchases': 'USDC (USDC.e on Abstract) paid by players to mint card packs (Purchased event), minus USDC returned through buybacks (Buyback event).',
-  },
+  Fees: gachaBreakdown,
+  Revenue: gachaBreakdown,
+  UserFees: gachaBreakdown,
+  ProtocolRevenue: gachaBreakdown,
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  allowNegativeValue: true, // net fees go negative in hours when buybacks exceed pack purchases
+  allowNegativeValue: true, // buybacks can exceed pack sales in a window
   methodology,
   breakdownMethodology,
   unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
