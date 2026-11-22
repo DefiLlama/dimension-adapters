@@ -14,6 +14,7 @@ const CHAIN_ID_MAP: any = {
   [CHAIN.MONAD]: 143,
   [CHAIN.FLARE]: 14,
   [CHAIN.FLUENT]: 25363,
+  [CHAIN.STELLAR]: -3, // the API's id for Stellar (chain_type 'stellar')
 }
 const ONE_YEAR = 365 * 24 * 60 * 60;
 
@@ -75,7 +76,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const mgmtWaived = platform_fee_override?.is_fee_waived === true
       || waivedByDate(vault.management_fee_waived_until_date, options.toTimestamp);
 
-    if (internal_type === 'multiAssetVault') {
+    // Stellar vaults are Soroban contracts, so the ERC4626 reads below cannot run on them; they are valued
+    // from the same NAV snapshots (asset_share_ratio, total_shares, underlying_price) as multiAssetVaults.
+    if (internal_type === 'multiAssetVault' || vault.chain_type === 'stellar') {
       // multiAssetVault contracts expose no standard ERC4626 reads on-chain (asset() only);
       // NAV is reported off-chain, so value from the API's daily NAV snapshots.
       const snapshots: Snapshot[] = vault.historical_snapshots ?? [];
@@ -171,6 +174,7 @@ const adapter: Adapter = {
     [CHAIN.MONAD]: { start: '2025-11-23' },
     [CHAIN.FLARE]: { start: '2025-12-09' },
     [CHAIN.FLUENT]: { start: '2026-04-21' },
+    [CHAIN.STELLAR]: { start: '2026-05-18' }, // earliest snapshot of Gami earnUSDC, the oldest funded Stellar vault
   },
   methodology,
   breakdownMethodology,
