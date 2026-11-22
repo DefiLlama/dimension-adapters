@@ -4,13 +4,13 @@ import { CHAIN } from '../helpers/chains';
 // Hashmarket mainnet factories and built-in NFT marketplaces: https://hashmarket.xyz/docs
 const config: Record<string, { start: string; factoryBlock: number; factory: string; marketplace: string }> = {
   [CHAIN.BASE]: {
-    start: '2026-11-20',
+    start: '2026-11-20T20:00:00Z',
     factoryBlock: 60072116,
     factory: '0x3bc54467b3e6942e471ac01ae3cf85f82f3b6159',
     marketplace: '0x72b74cb6ad4326de2908c870953086b394b1a173',
   },
   [CHAIN.ROBINHOOD]: {
-    start: '2026-11-20',
+    start: '2026-11-20T20:00:00Z',
     factoryBlock: 119317776,
     factory: '0x29367d569f5f2fa7f2bc2fc9d3da034cb5461c7a',
     marketplace: '0x90766b16c11e6deb8178400bd57b4ee2125095ea',
@@ -25,25 +25,18 @@ const tradingRent = 'Trading fees allocated to NFT rent';
 const treasuryFees = 'Fees to treasury';
 
 async function fetch(options: FetchOptions) {
-  const deployment = config[options.chain];
+  const { factory, factoryBlock, marketplace } = config[options.chain];
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const result = { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
-  const toBlock = await options.getToBlock();
-  if (toBlock < deployment.factoryBlock) return result;
-  const fromBlock = Math.max(deployment.factoryBlock, await options.getFromBlock());
-  if (fromBlock > toBlock) return result;
 
   const created = await options.getLogs({
-    target: deployment.factory,
+    target: factory,
     eventAbi: 'event CollectionCreated(address indexed creator, address indexed collection, address indexed store, uint32 maxSupply)',
-    fromBlock: deployment.factoryBlock,
-    toBlock,
+    fromBlock: factoryBlock,
     cacheInCloud: true,
   });
   const targets = [...new Set<string>(created.map(log => log.collection.toLowerCase()))];
-  const window = { fromBlock, toBlock };
 
   function addFees(label: string, platform: bigint, creator: bigint, rent = 0n) {
     dailyFees.addGasToken(platform + creator + rent, label);
@@ -54,49 +47,49 @@ async function fetch(options: FetchOptions) {
 
   if (targets.length) {
     const commissions = await options.getLogs({
-      ...window, targets, eventAbi: 'event FeesAccrued(uint256 platform, uint256 creatorFee)',
+      targets, eventAbi: 'event FeesAccrued(uint256 platform, uint256 creatorFee)',
     });
     for (const log of commissions) addFees(collectionFees, BigInt(log.platform), BigInt(log.creatorFee));
 
     // The same royalty's platform and creator shares are already in FeesAccrued.
     const royalties = await options.getLogs({
-      ...window, targets,
+      targets,
       eventAbi: 'event RoyaltyReceived(address indexed sender, uint256 amount, uint256 platform, uint256 creatorFee, uint256 rent)',
     });
     for (const log of royalties) addFees(royaltyRent, 0n, 0n, BigInt(log.rent));
   }
 
   const sales = await options.getLogs({
-    ...window, target: deployment.marketplace,
+    target: marketplace,
     eventAbi: 'event SaleFees(address indexed collection, uint256 indexed tokenId, uint256 platformFee, uint256 creatorFee, uint256 rentFee)',
   });
   for (const log of sales) addFees(marketplaceFees, BigInt(log.platformFee), BigInt(log.creatorFee), BigInt(log.rentFee));
-  return result;
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
 }
 
-const treasury = { [treasuryFees]: 'The exact ETH fee allocated to the protocol treasury on accrual, before withdrawal.' };
+const treasury = { [treasuryFees]: 'Hashmarket platform cut of NFT mint commissions, royalties paid into its collections from other marketplaces, and Hashmarket marketplace sale fees, counted when it accrues to the treasury rather than when withdrawn.' };
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   adapter: config,
   fetch,
   methodology: {
-    Fees: 'Native ETH commissions accrued on factory-created NFT collections, royalties actually paid into those collections, and fees charged by the built-in NFT marketplace. Excludes gross sale amounts, the non-fee mint allocation to rent, gas, unsolicited rent deposits, fee withdrawals, and NFT burn payouts.',
-    Revenue: 'Only the treasury share of emitted fees, on an accrual basis.',
-    ProtocolRevenue: 'Equal to treasury revenue. Hashmarket has no protocol token.',
-    SupplySideRevenue: 'Creator commissions and the rent share of trade fees or paid royalties. Collection NFTs are not Hashmarket governance tokens.',
+    Fees: 'ETH fees on NFT collections created through the Hashmarket factory: mint commissions, royalties paid into those collections from other marketplaces, and fees on sales in the Hashmarket marketplace. Seller proceeds, the part of the mint price that funds collection rent, and direct deposits to rent are not fees.',
+    Revenue: 'Hashmarket platform cut of NFT mint commissions, royalties paid into its collections from other marketplaces, and Hashmarket marketplace sale fees; creator and rent shares are excluded.',
+    ProtocolRevenue: 'Hashmarket platform cut of NFT mint commissions, royalties paid into its collections from other marketplaces, and Hashmarket marketplace sale fees, all kept by the Hashmarket treasury. Hashmarket has no token, so nothing goes to holders.',
+    SupplySideRevenue: 'Creator share of NFT mint commissions, royalties paid into the collections from other marketplaces, and Hashmarket marketplace sale fees, plus the rent share of marketplace sale fees and royalties that is added to collection rent.',
   },
   breakdownMethodology: {
     Fees: {
-      [collectionFees]: 'Platform and creator amounts in FeesAccrued from collection mints and paid royalties.',
-      [marketplaceFees]: 'Platform, creator, and rent amounts from marketplace SaleFees; excludes the seller proceeds.',
-      [royaltyRent]: 'Only the rent part of RoyaltyReceived; the other shares are already counted in FeesAccrued.',
+      [collectionFees]: 'Treasury and creator shares of commissions on NFT mints and on royalties paid into the collection from other marketplaces.',
+      [marketplaceFees]: 'Treasury, creator and rent fees taken on each NFT sale in the Hashmarket marketplace; seller proceeds are excluded.',
+      [royaltyRent]: 'Rent share of royalties paid into the collection from other marketplaces; the treasury and creator shares of the same royalties are counted under NFT mint and royalty commissions.',
     },
     Revenue: treasury,
     ProtocolRevenue: treasury,
     SupplySideRevenue: {
-      [creatorFees]: 'ETH allocated to collection creators by FeesAccrued and marketplace SaleFees.',
-      [tradingRent]: 'ETH allocated to collection rent by marketplace SaleFees or external RoyaltyReceived; later payouts are not new fees.',
+      [creatorFees]: 'Creator share of NFT mint commissions, royalties paid into the collection from other marketplaces, and Hashmarket marketplace sale fees.',
+      [tradingRent]: 'Rent share of Hashmarket marketplace sale fees and of royalties paid into the collection from other marketplaces, added to collection rent. Later payouts from rent are not counted again.',
     },
   },
 };
