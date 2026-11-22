@@ -1,6 +1,6 @@
-import { ChainApi } from '@defillama/sdk';
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
+import ADDRESSES from '../helpers/coreAssets.json';
 
 // QHooks (https://qhooks.com): an ecosystem for launching and trading tokens, built for people and AI agents alike.
 // Launches open Uniswap v4 pools whose hook is the QHooks launch contract itself; trades made through the QHooks
@@ -15,15 +15,13 @@ const SWAP_TOPIC = '0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84a
 const ROUTER_SWAPPED = 'event Swapped(address indexed trader, address indexed currencyIn, address indexed currencyOut, uint256 amountIn, uint256 amountOut, address feeCurrency, uint256 fee)';
 const ROUTER_REFERRAL = 'event Referral(address indexed referrer, address indexed trader, address currency, uint256 amount)';
 const IS_HOLDER = 'function isHolder(address trader) view returns (bool)';
-// Every QHooks launch contract (and QSaleLaunch) exposes chain(): a constant per-chain table compiled into the contract
-// (no setter), so it is read at the latest block; launchFee is the flat native fee charged per launch.
+// Every QHooks launch contract (and QSaleLaunch) exposes chain(): per-chain constants; launchFee is the flat native fee per launch.
 const CHAIN_VIEW = 'function chain() view returns ((address manager, address quote, bool wrapsNative, uint256 launchFee, address platform, int24 tick0, uint256 startCap))';
 
 // Addresses: launch contracts are listed in the QHooks contract directory (https://qhooks.com/contracts,
 // https://qhooks.com/contracts-directory.json); QFeeRouter is FEE_ROUTER in the public SDK (https://qhooks.com/sdk/qhooks.mjs).
 const SALE = '0x707d79c32bea8f9773a81569fbacc64ab0502044'; // QSaleLaunch (sale-first launches), also a hook
 const ROUTER = '0x79d211f5137d22b0fe3bfda81fbb8b7f53248bff'; // QFeeRouter
-const NATIVE = '0x0000000000000000000000000000000000000000';
 // QFeeRouter constants (CASHBACK_PCT, HOLDER_BONUS_PCT, REFERRAL_PCT): the trader gets 30% of the terminal fee back,
 // 40% when the Robinhood Chain flywheel's isHolder(trader) is true (the router asks it only on Robinhood Chain); a bound
 // referrer gets 20%; the router pushes the rest to the platform in the same call.
@@ -31,6 +29,7 @@ const CASHBACK_PCT = 30n, HOLDER_CASHBACK_PCT = 40n;
 const FLYWHEEL = '0xb85e67cf7728572033a9d36aee3218dadf85baa2'; // QFlywheel on Robinhood Chain (router platform + holder check)
 
 const LABEL = {
+  swap: 'Launch pool swap fees',
   protocol: 'Launch pool protocol fees',
   creator: 'Launch pool creator fees',
   launch: 'Launch fees',
@@ -41,7 +40,8 @@ const LABEL = {
 
 type ChainConfig = {
   poolManager: string;
-  launches: [string, number][]; // launch contract, deploy block (or earlier)
+  launches: string[];
+  fromBlock: number; // first launch contract deploy block
   sale?: number; // QSaleLaunch lower-bound block
   router?: string;
   start: string; // first observed QHooks fee event on the chain (see config)
@@ -49,41 +49,41 @@ type ChainConfig = {
 };
 
 // poolManager: the chain's Uniswap v4 PoolManager (https://docs.uniswap.org/contracts/v4/deployments; the same addresses as
-// dexs/uniswap-v4.ts). launches: [launch contract, its deployment block]; sale: QSaleLaunch's deployment block there.
+// dexs/uniswap-v4.ts). launches: launch contracts; fromBlock: the first one's deployment block; sale: QSaleLaunch's deployment block there.
 // start: the day of the first QHooks fee event observed on the chain (first launch or first QFeeRouter trade). Robinhood
 // Chain: first launch 2026-11-08; Base: first router trade 2026-11-05; Ethereum: 2026-11-04; Elysium: first launch
 // 2026-11-09. Arbitrum has none yet and BNB Chain's public RPCs cannot scan the range, so both use 2026-11-04, the
 // earliest router trade on any chain (an earlier start only adds empty days).
 const config: Record<string, ChainConfig> = {
   [CHAIN.ROBINHOOD]: {
-    poolManager: '0x8366a39cc670b4001a1121b8f6a443a643e40951', sale: 110156527, router: ROUTER, start: '2026-11-08',
+    poolManager: '0x8366a39cc670b4001a1121b8f6a443a643e40951', fromBlock: 108170556, sale: 110156527, router: ROUTER, start: '2026-11-08',
     launches: [
-      ['0x023623568f41c032ec2f4bba368dbafc123160cc', 108170556],
-      ['0xfb5a559886fccba6400cc52905ba3aa4658ba0cc', 110156527],
-      ['0x34ac8c4e6ca3d5b70a5321b648d0db9451c060cc', 110390517],
-      ['0xefe39a5632212911fe8e3ddcb07f08e5e220e0cc', 110831000],
-      ['0x3fcf7693f799da31134970787f9f35578d0f60cc', 111223856],
+      '0x023623568f41c032ec2f4bba368dbafc123160cc',
+      '0xfb5a559886fccba6400cc52905ba3aa4658ba0cc',
+      '0x34ac8c4e6ca3d5b70a5321b648d0db9451c060cc',
+      '0xefe39a5632212911fe8e3ddcb07f08e5e220e0cc',
+      '0x3fcf7693f799da31134970787f9f35578d0f60cc',
     ],
   },
   [CHAIN.BASE]: {
-    poolManager: '0x498581ff718922c3f8e6a244956af099b2652b2b', sale: 55185578, router: ROUTER, start: '2026-11-05',
-    launches: [['0xfb5a559886fccba6400cc52905ba3aa4658ba0cc', 55185578], ['0x34ac8c4e6ca3d5b70a5321b648d0db9451c060cc', 55351284], ['0x3fcf7693f799da31134970787f9f35578d0f60cc', 55793671]],
+    poolManager: '0x498581ff718922c3f8e6a244956af099b2652b2b', fromBlock: 55185578, sale: 55185578, router: ROUTER, start: '2026-11-05',
+    launches: ['0xfb5a559886fccba6400cc52905ba3aa4658ba0cc', '0x34ac8c4e6ca3d5b70a5321b648d0db9451c060cc', '0x3fcf7693f799da31134970787f9f35578d0f60cc'],
   },
   [CHAIN.ARBITRUM]: {
-    poolManager: '0x360e68faccca8ca495c1b759fd9eee466db9fb32', sale: 522677810, router: ROUTER, start: '2026-11-04',
-    launches: [['0xfb5a559886fccba6400cc52905ba3aa4658ba0cc', 522677810], ['0x34ac8c4e6ca3d5b70a5321b648d0db9451c060cc', 522799540], ['0x3fcf7693f799da31134970787f9f35578d0f60cc', 523106870]],
+    poolManager: '0x360e68faccca8ca495c1b759fd9eee466db9fb32', fromBlock: 522677810, sale: 522677810, router: ROUTER, start: '2026-11-04',
+    launches: ['0xfb5a559886fccba6400cc52905ba3aa4658ba0cc', '0x34ac8c4e6ca3d5b70a5321b648d0db9451c060cc', '0x3fcf7693f799da31134970787f9f35578d0f60cc'],
   },
   [CHAIN.BSC]: {
-    poolManager: '0x28e2ea090877bf75740558f6bfb36a5ffee9e9df', sale: 132585433, router: ROUTER, start: '2026-11-04',
-    launches: [['0xfb5a559886fccba6400cc52905ba3aa4658ba0cc', 132585433], ['0x34ac8c4e6ca3d5b70a5321b648d0db9451c060cc', 132660352], ['0x3fcf7693f799da31134970787f9f35578d0f60cc', 132855010]],
+    poolManager: '0x28e2ea090877bf75740558f6bfb36a5ffee9e9df', fromBlock: 132585433, sale: 132585433, router: ROUTER, start: '2026-11-04',
+    launches: ['0xfb5a559886fccba6400cc52905ba3aa4658ba0cc', '0x34ac8c4e6ca3d5b70a5321b648d0db9451c060cc', '0x3fcf7693f799da31134970787f9f35578d0f60cc'],
   },
   [CHAIN.ETHEREUM]: {
-    poolManager: '0x000000000004444c5dc75cb358380d2e3de08a90', sale: 26380174, router: ROUTER, start: '2026-11-04',
-    launches: [['0x34ac8c4e6ca3d5b70a5321b648d0db9451c060cc', 26380174], ['0x3fcf7693f799da31134970787f9f35578d0f60cc', 26387450]],
+    poolManager: '0x000000000004444c5dc75cb358380d2e3de08a90', fromBlock: 26380174, sale: 26380174, router: ROUTER, start: '2026-11-04',
+    launches: ['0x34ac8c4e6ca3d5b70a5321b648d0db9451c060cc', '0x3fcf7693f799da31134970787f9f35578d0f60cc'],
   },
   [CHAIN.ELYSIUM]: {
-    poolManager: '0xe2e105d3f7209a9da11f83ccf3e7398a753823f1', sale: 3239822, router: '0xff208831ed6f0c4e3e3224effa45fae7906dc6c2', start: '2026-11-09',
-    launches: [['0x8223f9ce8998fb436fc32bdf541cc34d668420cc', 3239822], ['0xc7faaf2e1b01e5e2cae4f967a020b49b290ca0cc', 3539046], ['0x9a9d37bca2e9874a1da1a1bab51f242a9d1ca0cc', 4331176]],
+    poolManager: '0xe2e105d3f7209a9da11f83ccf3e7398a753823f1', fromBlock: 3239822, sale: 3239822, router: '0xff208831ed6f0c4e3e3224effa45fae7906dc6c2', start: '2026-11-09',
+    launches: ['0x8223f9ce8998fb436fc32bdf541cc34d668420cc', '0xc7faaf2e1b01e5e2cae4f967a020b49b290ca0cc', '0x9a9d37bca2e9874a1da1a1bab51f242a9d1ca0cc'],
   },
 };
 
@@ -94,10 +94,8 @@ const sortPair = (a: string, b: string) => (BigInt(lower(a)) < BigInt(lower(b)) 
 async function qhooksPools(options: FetchOptions, cfg: ChainConfig) {
   const pools = new Map<string, [string, string]>();
   const toBlock = await options.getToBlock();
-  for (const [target, fromBlock] of cfg.launches) {
-    const logs = await options.getLogs({ target, eventAbi: LAUNCHED, fromBlock, toBlock, cacheInCloud: true });
-    for (const l of logs) pools.set(lower(l.poolId), sortPair(l.token, l.quote) as [string, string]);
-  }
+  const logs = await options.getLogs({ targets: cfg.launches, eventAbi: LAUNCHED, fromBlock: cfg.fromBlock, toBlock, cacheInCloud: true });
+  for (const l of logs) pools.set(lower(l.poolId), sortPair(l.token, l.quote) as [string, string]);
   if (cfg.sale) {
     const settled = await options.getLogs({ target: SALE, eventAbi: SETTLED, fromBlock: cfg.sale, toBlock, cacheInCloud: true });
     const ids = settled.map((l: any) => lower(l.poolId)).filter((id: string) => !pools.has(id));
@@ -115,12 +113,12 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  const hooks = [...cfg.launches.map(([a]) => a), ...(cfg.sale ? [SALE] : [])];
+  const hooks = [...cfg.launches, ...(cfg.sale ? [SALE] : [])];
 
   // 1. Hook protocol fee: one fifth of the pool fee, charged in afterSwap and sent to the QHooks platform wallet.
   const protocolFees = await options.getLogs({ targets: hooks, eventAbi: PROTOCOL_FEE });
   for (const l of protocolFees) {
-    dailyFees.add(l.currency, l.amount, LABEL.protocol);
+    dailyFees.add(l.currency, l.amount, LABEL.swap);
     dailyRevenue.add(l.currency, l.amount, LABEL.protocol);
   }
 
@@ -138,17 +136,17 @@ const fetch = async (options: FetchOptions) => {
       if (input <= 0n || fee === 0n) continue;
       // Swap.fee is the LP fee in pips (hundredths of a bip; 1_000_000 = 100%), per v4-core IPoolManager's Swap event
       const amount = (input * fee) / 1_000_000n;
-      dailyFees.add(currency, amount, LABEL.creator);
+      dailyFees.add(currency, amount, LABEL.swap);
       dailySupplySideRevenue.add(currency, amount, LABEL.creator);
     }
   }
 
   // 3. Launch fee: a flat native fee per launch (the main pool of each launch carries the metadata).
-  const launches = await options.getLogs({ targets: cfg.launches.map(([a]) => a), eventAbi: LAUNCHED, flatten: false });
-  const latest = new ChainApi({ chain: options.chain });
-  const views = await latest.multiCall({ abi: CHAIN_VIEW, calls: cfg.launches.map(([a]) => a) });
+  const launches = await options.getLogs({ targets: cfg.launches, eventAbi: LAUNCHED, flatten: false });
+  // permitFailure: launch contracts deployed after the window end have no state yet
+  const views = await options.api.multiCall({ abi: CHAIN_VIEW, calls: cfg.launches, permitFailure: true });
   launches.forEach((logs: any[], i: number) => {
-    const fee = BigInt(views[i].launchFee);
+    const fee = BigInt(views[i]?.launchFee ?? 0);
     const count = BigInt(logs.filter((l: any) => String(l.meta ?? '') !== '').length);
     if (!fee || !count) return;
     dailyFees.addGasToken(fee * count, LABEL.launch);
@@ -163,16 +161,12 @@ const fetch = async (options: FetchOptions) => {
       options.getLogs({ target: cfg.router, eventAbi: ROUTER_SWAPPED }),
       options.getLogs({ target: cfg.router, eventAbi: ROUTER_REFERRAL }),
     ]);
-    // Holder status per unique trader (Robinhood Chain only, as in the router): read at the end of the window; where that
-    // block's state is not available (public non-archive RPCs), read at the latest block. For hourly runs the two are
-    // minutes apart; a backfill of older windows uses the current status.
+    // Holder status per trader (Robinhood Chain only, as in the router), read at the end of the window
     const holder = new Map<string, boolean>();
     if (options.chain === CHAIN.ROBINHOOD && swapped.length) {
       const traders = [...new Set(swapped.map((s: any) => lower(s.trader)))];
-      const atEnd = await options.api.multiCall({ abi: IS_HOLDER, target: FLYWHEEL, calls: traders, permitFailure: true });
-      const missing = traders.filter((_, i) => typeof atEnd[i] !== 'boolean');
-      const now = missing.length ? await new ChainApi({ chain: options.chain }).multiCall({ abi: IS_HOLDER, target: FLYWHEEL, calls: missing }) : [];
-      traders.forEach((t, i) => holder.set(t, typeof atEnd[i] === 'boolean' ? atEnd[i] : now[missing.indexOf(t)] === true));
+      const isHolder = await options.api.multiCall({ abi: IS_HOLDER, target: FLYWHEEL, calls: traders });
+      traders.forEach((t, i) => holder.set(t, isHolder[i]));
     }
     const charged: Record<string, bigint> = {}, back: Record<string, bigint> = {}, referred: Record<string, bigint> = {};
     for (const s of swapped) {
@@ -186,7 +180,7 @@ const fetch = async (options: FetchOptions) => {
     // clamp only guards against a malformed event.
     for (const currency of new Set([...Object.keys(charged), ...Object.keys(referred)])) {
       const fee = charged[currency] ?? 0n, cashback = back[currency] ?? 0n, referral = referred[currency] ?? 0n;
-      const add = (b: any, amount: bigint, label: string) => currency === NATIVE ? b.addGasToken(amount, label) : b.add(currency, amount, label);
+      const add = (b: any, amount: bigint, label: string) => currency === ADDRESSES.null ? b.addGasToken(amount, label) : b.add(currency, amount, label);
       if (fee) {
         add(dailyFees, fee, LABEL.terminal);
         add(dailySupplySideRevenue, cashback, LABEL.cashback);
@@ -206,27 +200,31 @@ const adapter: SimpleAdapter = {
   fetch,
   adapter: Object.fromEntries(Object.entries(config).map(([chain, c]) => [chain, { start: c.start }])),
   methodology: {
-    Fees: 'Fees paid by traders and launchers on QHooks: the protocol and creator shares of the swap fee in QHooks launch pools (Uniswap v4 pools whose hook is a QHooks launch contract), the flat launch fee, and the QHooks terminal fee charged by QFeeRouter.',
-    Revenue: 'The QHooks protocol fee in launch pools (one fifth of the pool fee), launch fees, and the terminal fee after trader cashback and referral rewards.',
-    ProtocolRevenue: 'Same as Revenue; it goes to the QHooks platform wallets.',
-    SupplySideRevenue: 'Launch pool creator fees (the pool LP fee, earned by the launch creator), terminal cashback returned to traders (30% of the terminal fee; 40% on Robinhood Chain for QHOOKS holders, read from isHolder(trader) on the QHooks flywheel at the end of each period, which the router itself checks per trade), and referral rewards (20%, from Referral events emitted by the router).',
+    Fees: 'Swap fees paid by traders in QHooks launch pools (the Uniswap v4 pools created by QHooks token launches), flat fees paid to launch a token, and the QHooks terminal fee (up to 1%) on trades made through the QHooks website, bot and agent tools.',
+    Revenue: 'The protocol share of launch pool swap fees, launch fees, and the terminal fee left after trader cashback and referral rewards, kept by QHooks.',
+    ProtocolRevenue: 'The protocol share of launch pool swap fees, launch fees, and the terminal fee left after trader cashback and referral rewards, sent to the QHooks platform wallets.',
+    SupplySideRevenue: 'Launch pool LP fees earned by token creators, the share of the terminal fee returned to traders as cashback (30%, or 40% for QHOOKS holders on Robinhood Chain), and referral rewards (20% of the terminal fee) paid to referrers.',
   },
   breakdownMethodology: {
     Fees: {
-      [LABEL.protocol]: 'One fifth of the pool fee on each swap in a QHooks launch pool, from ProtocolFeeAccrued.',
-      [LABEL.creator]: 'The pool LP fee on each swap input in a QHooks launch pool, from the Uniswap v4 PoolManager Swap event.',
-      [LABEL.launch]: 'Flat native fee paid with each launch.',
-      [LABEL.terminal]: 'Fee charged by QFeeRouter on trades made through the QHooks terminal, from Swapped.',
+      [LABEL.swap]: 'Swap fees paid by traders in QHooks launch pools: the protocol fee (one fifth of the pool fee) and the LP fee earned by the token creator.',
+      [LABEL.launch]: 'Flat fee in the chain\'s native token paid for each token launch.',
+      [LABEL.terminal]: 'Terminal fee (up to 1%) on trades made through the QHooks website, bot and agent tools.',
     },
     Revenue: {
-      [LABEL.protocol]: 'Protocol share of launch pool fees.',
-      [LABEL.launch]: 'Launch fees.',
-      [LABEL.terminal]: 'Terminal fee after cashback and referral rewards.',
+      [LABEL.protocol]: 'Protocol share of swap fees in QHooks launch pools.',
+      [LABEL.launch]: 'Flat fees paid for token launches.',
+      [LABEL.terminal]: 'Terminal fee left after trader cashback and referral rewards.',
+    },
+    ProtocolRevenue: {
+      [LABEL.protocol]: 'Protocol share of swap fees in QHooks launch pools, sent to the QHooks platform wallets.',
+      [LABEL.launch]: 'Flat fees paid for token launches, sent to the QHooks platform wallets.',
+      [LABEL.terminal]: 'Terminal fee left after trader cashback and referral rewards, sent to the QHooks platform wallets.',
     },
     SupplySideRevenue: {
-      [LABEL.creator]: 'Pool LP fees earned by launch creators.',
-      [LABEL.cashback]: 'Part of the terminal fee returned to the trader: 30%, or 40% for Robinhood Chain QHOOKS holders (flywheel isHolder at the end of the period).',
-      [LABEL.referral]: 'Part of the terminal fee paid to the referrer, from Referral.',
+      [LABEL.creator]: 'LP fees on launch pool swaps, earned by token creators through the locked launch position.',
+      [LABEL.cashback]: 'Share of the terminal fee returned to the trader: 30%, or 40% for QHOOKS holders on Robinhood Chain (holder status at the end of the period).',
+      [LABEL.referral]: 'Share of the terminal fee (20%) paid to the trader\'s referrer, when one is set.',
     },
   },
 };
