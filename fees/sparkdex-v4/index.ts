@@ -2,9 +2,13 @@ import { gql, request } from "graphql-request";
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { getTimestampAtStartOfDayUTC } from "../../utils/date";
+import { ALGEBRA_INTEGRAL_LABELS } from "../../helpers/algebraIntegral";
 
 const BUYBACK_BURN_START = "2026-05-18";
+// Algebra community vault shared by every pool: https://flare-explorer.flare.network/address/0x95e325a85b9e6cb4dea2ccd96218e5f8365e0b0f
+const COMMUNITY_VAULT = "0x95e325a85b9e6cb4dea2ccd96218e5f8365e0b0f";
+// globalState().communityFee and the vault's algebraFee are both in thousandths
+const FEE_DENOMINATOR = 1000;
 
 const endpoints: Record<string, string> = {
   [CHAIN.FLARE]:
@@ -12,39 +16,48 @@ const endpoints: Record<string, string> = {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const todaysTimestamp = getTimestampAtStartOfDayUTC(options.startTimestamp);
-  const dateId = Math.floor(todaysTimestamp / 86400);
-
-  const graphQuery = gql`
+  const { algebraDayData, poolDayDatas } = await request(endpoints[options.chain], gql`
     query {
-      algebraDayData(id: ${dateId}) {
-        id
+      algebraDayData(id: ${options.startOfDay / 86400}) { feesUSD }
+      poolDayDatas(first: 1000, where: { date: ${options.startOfDay}, feesUSD_gt: "0" }) {
         feesUSD
+        pool { id }
       }
     }
-  `;
+  `);
+  if (!algebraDayData) throw new Error(`sparkdex-v4: no algebraDayData for ${options.dateString}`);
+  const feesUsd = Number(algebraDayData.feesUSD);
 
-  const graphRes = await request(endpoints[options.chain], graphQuery);
-  const feesUsd = Number(graphRes.algebraDayData?.feesUSD ?? 0);
+  const [states, algebraFee] = await Promise.all([
+    options.api.multiCall({
+      abi: "function globalState() view returns (uint160 price, int24 tick, uint16 fee, uint8 pluginConfig, uint16 communityFee, bool unlocked)",
+      calls: poolDayDatas.map((row: any) => row.pool.id),
+    }),
+    options.api.call({ target: COMMUNITY_VAULT, abi: "function algebraFee() view returns (uint16)" }),
+  ]);
+  const communityFeesUsd = poolDayDatas.reduce(
+    (sum: number, row: any, i: number) => sum + Number(row.feesUSD) * Number(states[i].communityFee) / FEE_DENOMINATOR,
+    0,
+  );
+  const algebraFeesUsd = communityFeesUsd * Number(algebraFee) / FEE_DENOMINATOR;
+  const treasuryFeesUsd = communityFeesUsd - algebraFeesUsd;
 
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(feesUsd, METRIC.SWAP_FEES);
 
-  const dailyUserFees = dailyFees.clone(1, METRIC.SWAP_FEES);
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addUSDValue(feesUsd - communityFeesUsd, METRIC.LP_FEES);
+  dailySupplySideRevenue.addUSDValue(algebraFeesUsd, ALGEBRA_INTEGRAL_LABELS.ALGEBRA_FEES);
+
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
-  let dailySupplySideRevenue;
-
   if (options.dateString >= BUYBACK_BURN_START) {
-    // 75% LP / 25% treasury BBB / 0% protocol
-    dailySupplySideRevenue = dailyFees.clone(0.75, METRIC.LP_FEES);
-    dailyHoldersRevenue.addUSDValue(feesUsd * 0.25, METRIC.TOKEN_BUY_BACK);
+    dailyHoldersRevenue.addUSDValue(treasuryFeesUsd, METRIC.TOKEN_BUY_BACK);
   } else {
-    // Historical: 75% LP / 5% Foundation / 10% BBB / 10% staking
-    dailySupplySideRevenue = dailyFees.clone(0.75, METRIC.LP_FEES);
-    dailyProtocolRevenue.addUSDValue(feesUsd * 0.05, METRIC.SWAP_FEES);
-    dailyHoldersRevenue.addUSDValue(feesUsd * 0.1, METRIC.TOKEN_BUY_BACK);
-    dailyHoldersRevenue.addUSDValue(feesUsd * 0.1, METRIC.STAKING_REWARDS);
+    // 5% foundation / 10% buyback-and-burn / 10% staking of swap fees = 1:2:2 of the treasury share
+    dailyProtocolRevenue.addUSDValue(treasuryFeesUsd / 5, METRIC.SWAP_FEES);
+    dailyHoldersRevenue.addUSDValue(treasuryFeesUsd * 2 / 5, METRIC.TOKEN_BUY_BACK);
+    dailyHoldersRevenue.addUSDValue(treasuryFeesUsd * 2 / 5, METRIC.STAKING_REWARDS);
   }
 
   const dailyRevenue = options.createBalances();
@@ -53,7 +66,7 @@ const fetch = async (options: FetchOptions) => {
 
   return {
     dailyFees,
-    dailyUserFees,
+    dailyUserFees: dailyFees,
     dailyRevenue,
     dailyProtocolRevenue,
     dailyHoldersRevenue,
@@ -69,11 +82,11 @@ const adapter: Adapter = {
   methodology: {
     Fees: "Swap fees paid by platform users on SparkDEX V4.",
     UserFees: "100% of collected fees.",
-    Revenue: "25% of swap fees.",
-    ProtocolRevenue: "Before 2026-05-18: 5% of swap fees. From 2026-05-18: 0%.",
-    SupplySideRevenue: "75% of swap fees go to LPs.",
+    Revenue: "Each pool's community fee (25% of swap fees) minus Algebra's licence fee, which the community vault takes before paying the SparkDEX treasury.",
+    ProtocolRevenue: "Before 2026-05-18: one fifth of the treasury's share, to the foundation. From 2026-05-18: none.",
+    SupplySideRevenue: "Swap fees left in the pools for LPs, plus Algebra's licence fee taken from the community fee.",
     HoldersRevenue:
-      "Before 2026-05-18: 10% buyback-and-burn + 10% staking rewards. From 2026-05-18: 25% buyback-and-burn.",
+      "Before 2026-05-18: two fifths of the treasury's share to SPRK buyback-and-burn and two fifths to staking rewards. From 2026-05-18: all of it to SPRK buyback-and-burn.",
   },
   breakdownMethodology: {
     Fees: {
@@ -83,19 +96,20 @@ const adapter: Adapter = {
       [METRIC.SWAP_FEES]: "100% of collected fees.",
     },
     Revenue: {
-      [METRIC.SWAP_FEES]: "5% of swap fees (before 2026-05-18 only).",
-      [METRIC.TOKEN_BUY_BACK]: "10% of swap fees before 2026-05-18, 25% from 2026-05-18.",
-      [METRIC.STAKING_REWARDS]: "10% of swap fees (before 2026-05-18 only).",
+      [METRIC.SWAP_FEES]: "One fifth of the treasury's share, to the foundation (before 2026-05-18 only).",
+      [METRIC.TOKEN_BUY_BACK]: "Treasury's share used for SPRK buyback-and-burn: two fifths before 2026-05-18, all of it from that date.",
+      [METRIC.STAKING_REWARDS]: "Two fifths of the treasury's share (before 2026-05-18 only).",
     },
     HoldersRevenue: {
-      [METRIC.TOKEN_BUY_BACK]: "10% of swap fees before 2026-05-18, 25% from 2026-05-18.",
-      [METRIC.STAKING_REWARDS]: "10% of swap fees (before 2026-05-18 only).",
+      [METRIC.TOKEN_BUY_BACK]: "Treasury's share used for SPRK buyback-and-burn: two fifths before 2026-05-18, all of it from that date.",
+      [METRIC.STAKING_REWARDS]: "Two fifths of the treasury's share (before 2026-05-18 only).",
     },
     SupplySideRevenue: {
-      [METRIC.LP_FEES]: "75% of swap fees go to LPs.",
+      [METRIC.LP_FEES]: "Swap fees left in the pools after each pool's community fee.",
+      [ALGEBRA_INTEGRAL_LABELS.ALGEBRA_FEES]: "Algebra's licence fee: the community vault's algebraFee share (6%) of the community fee.",
     },
     ProtocolRevenue: {
-      [METRIC.SWAP_FEES]: "5% of swap fees (before 2026-05-18 only).",
+      [METRIC.SWAP_FEES]: "One fifth of the treasury's share, to the foundation (before 2026-05-18 only).",
     },
   },
 };
