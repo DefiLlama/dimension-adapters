@@ -169,7 +169,11 @@ export const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }
   }
 
-  const dailyFees = dailyVolume.clone(0.0085)
+  // MetaMask's standard fee is 87.5 bps of the swap amount, the same `amount` booked as volume above.
+  // https://support.metamask.io/trade/metamask-fees/
+  // Arbitrum 0xf913d20314991095fcae3b3c0c4066027a54c9dfcd5a3f11dd7b7e2e967262a8: 10000000 USDC in, 87500 to the fee wallet.
+  // Ethereum 0xbdd6ced98097fc96c39ee3a40cd83d78398bf82a4e587e0c3b16424c3fa400e6: taken from the output, 475840 of 54316129 USDC.
+  const dailyFees = dailyVolume.clone(0.00875)
 
   return {
     dailyVolume,
