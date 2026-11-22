@@ -36,7 +36,15 @@ const LABEL = {
   terminal: 'Terminal trading fees',
   cashback: 'Trader cashback',
   referral: 'Referral rewards',
+  buyback: 'QHOOKS buyback',
 };
+
+// Robinhood Chain: every revenue line is paid to QFlywheel (the router's platform() and each launch contract's
+// chain().platform; QSaleLaunch names it as a constant). QFlywheel keeps RESERVE_PCT = 25 (a constant) of what it receives
+// in its buyback currency (WETH, or ETH, which it wraps) to buy QHOOKS, half burned and half to the Safe; everything else
+// goes to the Safe. That 25% is holders revenue.
+const RH_WETH = ADDRESSES.robinhood.WETH;
+const BUYBACK_PCT = 25n;
 
 type ChainConfig = {
   poolManager: string;
@@ -111,14 +119,24 @@ const fetch = async (options: FetchOptions) => {
   const cfg = chainConfig[options.chain];
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+  const revenue = (currency: string, amount: bigint, label: string) => {
+    const c = lower(currency), native = c === ADDRESSES.null;
+    const add = (b: any, a: bigint, l: string) => { if (a > 0n) native ? b.addGasToken(a, l) : b.add(c, a, l); };
+    const toHolders = options.chain === CHAIN.ROBINHOOD && (native || c === RH_WETH) ? (amount * BUYBACK_PCT) / 100n : 0n;
+    add(dailyRevenue, amount, label);
+    add(dailyHoldersRevenue, toHolders, LABEL.buyback);
+    add(dailyProtocolRevenue, amount - toHolders, label);
+  };
   const hooks = [...cfg.launches, ...(cfg.sale ? [SALE] : [])];
 
   // 1. Hook protocol fee: one fifth of the pool fee, charged in afterSwap and sent to the QHooks platform wallet.
   const protocolFees = await options.getLogs({ targets: hooks, eventAbi: PROTOCOL_FEE });
   for (const l of protocolFees) {
     dailyFees.add(l.currency, l.amount, LABEL.swap);
-    dailyRevenue.add(l.currency, l.amount, LABEL.protocol);
+    revenue(l.currency, BigInt(l.amount), LABEL.protocol);
   }
 
   // 2. Creator fee: the pool's LP fee on the swap input, earned by the launch's creator through the locked launch position.
@@ -149,7 +167,7 @@ const fetch = async (options: FetchOptions) => {
     const count = BigInt(logs.filter((l: any) => String(l.meta ?? '') !== '').length);
     if (!fee || !count) return;
     dailyFees.addGasToken(fee * count, LABEL.launch);
-    dailyRevenue.addGasToken(fee * count, LABEL.launch);
+    revenue(ADDRESSES.null, fee * count, LABEL.launch);
   });
 
   // 4. Terminal fee (QFeeRouter): up to 1% per trade, taken in one currency (feeCurrency). Per trade the router credits
@@ -186,11 +204,11 @@ const fetch = async (options: FetchOptions) => {
       }
       if (referral) add(dailySupplySideRevenue, referral, LABEL.referral);
       const rest = fee - cashback - referral;
-      if (rest > 0n) add(dailyRevenue, rest, LABEL.terminal);
+      if (rest > 0n) revenue(currency, rest, LABEL.terminal);
     }
   }
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -202,7 +220,8 @@ const adapter: SimpleAdapter = {
   methodology: {
     Fees: 'Swap fees paid by traders in QHooks launch pools (the Uniswap v4 pools created by QHooks token launches), flat fees paid to launch a token, and the QHooks terminal fee (up to 1%) on trades made through the QHooks website, bot and agent tools.',
     Revenue: 'The protocol share of launch pool swap fees, launch fees, and the terminal fee left after trader cashback and referral rewards, kept by QHooks.',
-    ProtocolRevenue: 'The protocol share of launch pool swap fees, launch fees, and the terminal fee left after trader cashback and referral rewards, sent to the QHooks platform wallets.',
+    ProtocolRevenue: 'The protocol share of launch pool swap fees, launch fees, and the terminal fee left after trader cashback and referral rewards, sent to the QHooks platform wallets, less the Robinhood Chain QHOOKS buyback share.',
+    HoldersRevenue: 'On Robinhood Chain all revenue goes to QFlywheel, which keeps a fixed 25% of what it receives in WETH or ETH to buy back QHOOKS (half burned, half to the QHooks Safe). Counted when the fee is received.',
     SupplySideRevenue: 'Launch pool LP fees earned by token creators, the share of the terminal fee returned to traders as cashback (30%, or 40% for QHOOKS holders on Robinhood Chain), and referral rewards (20% of the terminal fee) paid to referrers.',
   },
   breakdownMethodology: {
@@ -220,6 +239,9 @@ const adapter: SimpleAdapter = {
       [LABEL.protocol]: 'Protocol share of swap fees in QHooks launch pools, sent to the QHooks platform wallets.',
       [LABEL.launch]: 'Flat fees paid for token launches, sent to the QHooks platform wallets.',
       [LABEL.terminal]: 'Terminal fee left after trader cashback and referral rewards, sent to the QHooks platform wallets.',
+    },
+    HoldersRevenue: {
+      [LABEL.buyback]: '25% of the WETH/ETH revenue QFlywheel receives on Robinhood Chain, spent buying back QHOOKS (half burned, half to the QHooks Safe).',
     },
     SupplySideRevenue: {
       [LABEL.creator]: 'LP fees on launch pool swaps, earned by token creators through the locked launch position.',
