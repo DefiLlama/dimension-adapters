@@ -275,8 +275,7 @@ const factoryConfig: Record<string, string> ={
   [CHAIN.XDC]: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D",
 }
 
-// No PoolCreated cache exists for these factories, so the pools are the window's Swap emitters whose factory() is the factory
-const poolsFromSwapLogs = new Set<string>([CHAIN.FILECOIN])
+// No PoolCreated cache exists for chains with poolsFromSwapLogs, so the pools are the window's Swap emitters whose factory() is the factory
 const SWAP_EVENT = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 
 async function getPoolsFromSwapLogs(options: FetchOptions, factory: string): Promise<string[]> {
@@ -285,6 +284,16 @@ async function getPoolsFromSwapLogs(options: FetchOptions, factory: string): Pro
   if (!emitters.length) return []
   // other contracts emitting the same event revert on factory(), so a failed call is not a missing pool
   const factories = await options.api.multiCall({ abi: 'address:factory', calls: emitters, permitFailure: true })
+  // a failed batch also comes back as null, so re-read each null alone: a revert (Filecoin nodes say 'contract reverted') excludes
+  // the emitter, anything else fails the window
+  for (let i = 0; i < emitters.length; i++) {
+    if (factories[i] != null) continue
+    try {
+      factories[i] = await options.api.call({ target: emitters[i], abi: 'address:factory' })
+    } catch (e: any) {
+      if (!(e?.code === 'CALL_EXCEPTION' || /call reverted|execution reverted|contract reverted/i.test(String(e?.message)))) throw e
+    }
+  }
   return emitters.filter((_, i) => String(factories[i] ?? '').toLowerCase() === factory.toLowerCase())
 }
 
@@ -295,7 +304,7 @@ async function fetchFromLogs(options: FetchOptions) {
   }
 
   const { dailyVolume, dailyFees } = await getUniV3LogAdapter({
-    ...(poolsFromSwapLogs.has(options.chain) ? { pools: await getPoolsFromSwapLogs(options, factory) } : { factory }),
+    ...(chainConfig[options.chain]?.poolsFromSwapLogs ? { pools: await getPoolsFromSwapLogs(options, factory) } : { factory }),
     userFeesRatio: 1,
     revenueRatio: 0,
     protocolRevenueRatio: 0,
@@ -331,7 +340,7 @@ async function fetchFromOkuThenLogs(options: FetchOptions) {
 // or Oku slug). start = first uni-v3 data on that source:
 //  - Dune rows: MIN(block_time) in dex.trades
 //  - Oku rows:  first month with volume in analyticsProtocolHistoric
-const chainConfig: Record<string, { blockchain: string; start: string; fetch: FetchV2 }> = {
+const chainConfig: Record<string, { blockchain: string; start: string; fetch: FetchV2; poolsFromSwapLogs?: boolean }> = {
   // Dune dex.trades
   [CHAIN.ETHEREUM]: { blockchain: 'ethereum', start: '2021-05-04', fetch: fetchFromDune },
   [CHAIN.ARBITRUM]: { blockchain: 'arbitrum', start: '2021-06-01', fetch: fetchFromDune },
@@ -361,7 +370,7 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
   // Oku API (chains Dune has no uni-v3 data for)
   [CHAIN.BOBA]: { blockchain: 'boba', start: '2023-07-22', fetch: fetchFromOkuThenLogs },
   [CHAIN.ROOTSTOCK]: { blockchain: 'rootstock', start: '2023-11-19', fetch: fetchFromOku },
-  [CHAIN.FILECOIN]: { blockchain: 'filecoin', start: '2024-02-17', fetch: fetchFromOkuThenLogs },
+  [CHAIN.FILECOIN]: { blockchain: 'filecoin', start: '2024-02-17', fetch: fetchFromOkuThenLogs, poolsFromSwapLogs: true },
   [CHAIN.SEI]: { blockchain: 'sei', start: '2024-05-17', fetch: fetchFromOku },
   [CHAIN.BOB]: { blockchain: 'bob', start: '2024-08-15', fetch: fetchFromOku },
   [CHAIN.GOAT]: { blockchain: 'goat', start: '2025-02-11', fetch: fetchFromOku },
