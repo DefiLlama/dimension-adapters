@@ -8,6 +8,8 @@ const WAGYU_TOKENS: Record<string, string> = {
   TRX1: "tron",
 };
 
+const XMR1_DEPEG_DATE = "2026-11-20"; // deployer wallet dumped 5.2M XMR1, price fell from ~$500 to ~$1
+
 const METRICS = {
   SpotFees: "Spot Trading Fees In Wagyu Tokens",
   SpotFeesToWagyu: "Spot Trading Fees To Wagyu",
@@ -18,6 +20,7 @@ async function fetch(options: FetchOptions) {
   const dailyRevenue = options.createBalances();
 
   for (const [token, cgId] of Object.entries(WAGYU_TOKENS)) {
+    if (token === "XMR1" && options.dateString >= XMR1_DEPEG_DATE) continue;
     const fees = await queryHyperliquidSpotDeployerFeesV2(options, token);
     dailyFees.addCGToken(cgId, fees, METRICS.SpotFees);
     dailyRevenue.addCGToken(cgId, fees, METRICS.SpotFeesToWagyu);
@@ -27,7 +30,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "Hyperliquid spot trading fees paid in Wagyu's XMR1, ZEC1 and TRX1 tokens, excluding builder-code fees. Excludes Wagyu's swap and bridge withdrawal fees, which settle off Hyperliquid and cannot be verified on-chain.",
+  Fees: "Hyperliquid spot trading fees paid in Wagyu's XMR1, ZEC1 and TRX1 tokens, excluding builder-code fees. XMR1 fees are excluded from 2026-11-20, when XMR1 lost its peg to XMR. Excludes Wagyu's swap and bridge withdrawal fees, which settle off Hyperliquid and cannot be verified on-chain.",
   Revenue: "All Hyperliquid spot trading fees paid in XMR1, ZEC1 and TRX1, which Wagyu keeps in full as the deployer of those tokens. Excludes Wagyu's swap and bridge withdrawal fees.",
   ProtocolRevenue: "All Hyperliquid spot trading fees paid in XMR1, ZEC1 and TRX1, kept by Wagyu as the tokens' deployer. Excludes Wagyu's swap and bridge withdrawal fees.",
 };

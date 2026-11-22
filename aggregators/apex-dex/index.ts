@@ -14,6 +14,9 @@ const chainConfig: Record<string, { useApi?: boolean; start: string }> = {
   // first completed apex-swap transfer on Cronos: 2026-11-06
   [CHAIN.CRONOS]: { useApi: true, start: "2026-11-06" },
   [CHAIN.BASE]: { start: "2026-11-10" },
+  [CHAIN.BSC]: { start: "2026-11-12" },
+  [CHAIN.ROBINHOOD]: { start: "2026-11-12" },
+  [CHAIN.ARBITRUM]: { start: "2026-11-13" },
 };
 
 const fetch = async (options: FetchOptions) => {
@@ -54,7 +57,7 @@ const adapter: SimpleAdapter = {
   doublecounted: true, // lifi
   methodology: {
     Volume:
-      "USD value of completed same-chain swaps routed through LI.FI with integrator apex-swap. Cronos: taken from the LI.FI analytics API (sending.amountUSD). Base: every LiFiGenericSwapCompleted log on the LI.FI diamond carrying that integrator, counted at the input amount, or at the output amount when the input is the native coin.",
+      "USD value of completed same-chain swaps routed through LI.FI with integrator apex-swap. Cronos: taken from the LI.FI analytics API (sending.amountUSD). Base, BSC, Robinhood and Arbitrum: every LiFiGenericSwapCompleted log on the LI.FI diamond carrying that integrator, counted at the input amount, or at the output amount when the input is the native coin.",
   },
 };
 
