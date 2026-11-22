@@ -276,6 +276,7 @@ const factoryConfig: Record<string, string> ={
 }
 
 // No PoolCreated cache exists for chains with poolsFromSwapLogs, so the pools are the window's Swap emitters whose factory() is the factory
+// and that the factory's getPool returns
 const SWAP_EVENT = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 
 async function getPoolsFromSwapLogs(options: FetchOptions, factory: string): Promise<string[]> {
@@ -291,10 +292,18 @@ async function getPoolsFromSwapLogs(options: FetchOptions, factory: string): Pro
     try {
       factories[i] = await options.api.call({ target: emitters[i], abi: 'address:factory' })
     } catch (e: any) {
-      if (!(e?.code === 'CALL_EXCEPTION' || /call reverted|execution reverted|contract reverted/i.test(String(e?.message)))) throw e
+      if (!/call reverted|execution reverted|contract reverted/i.test(`${e?.message} ${JSON.stringify(e?.info?.error ?? e?.error ?? '')}`)) throw e
     }
   }
-  return emitters.filter((_, i) => String(factories[i] ?? '').toLowerCase() === factory.toLowerCase())
+  const candidates = emitters.filter((_, i) => String(factories[i] ?? '').toLowerCase() === factory.toLowerCase())
+  if (!candidates.length) return []
+  // factory() can be faked, so keep only emitters the factory itself returns from getPool(token0, token1, fee); getPool does
+  // not revert, so a failed read here is an RPC failure and fails the window
+  const token0s = await options.api.multiCall({ abi: 'address:token0', calls: candidates })
+  const token1s = await options.api.multiCall({ abi: 'address:token1', calls: candidates })
+  const fees = await options.api.multiCall({ abi: 'function fee() view returns (uint24)', calls: candidates })
+  const registered = await options.api.multiCall({ target: factory, abi: 'function getPool(address,address,uint24) view returns (address)', calls: candidates.map((_, i) => ({ params: [token0s[i], token1s[i], fees[i]] })) })
+  return candidates.filter((p, i) => String(registered[i]).toLowerCase() === p)
 }
 
 async function fetchFromLogs(options: FetchOptions) {
