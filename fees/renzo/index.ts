@@ -11,6 +11,8 @@ import { addTokensReceived } from '../../helpers/token';
 const RENZO_TOKEN = "0x3B50805453023a91a8bf641e279401a0b23FA6F9";
 const BUYBACK_BOT = "0x7d7445b6e7098efBDEAfA4A24f443847D5dAA262";
 const COW_SETTLEMENT = "0x9008D19f58AAbD9eD0D60971565AA8510560ab41";
+const STETH = "0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84";
+const WITHDRAW_QUEUE = "0x5efc9D10E42FB517456f4ac41EB5e2eBe42C8918";
 
 const fetch = async (options: FetchOptions) => {
   const { createBalances, startTimestamp, endTimestamp } = options;
@@ -49,6 +51,15 @@ const fetch = async (options: FetchOptions) => {
   distributedBalances.addGasToken(ethEarnings.rewardsDepositedEarningsWei);
   distributedBalances.addGasToken(ethEarnings.rewardsForwardedEarningsWei);
   distributedBalances.addGasToken(ethEarnings.lidoDistributionEarningsWei);
+
+  // stETH rebase on the stETH held by the WithdrawQueue: RestakeManager.calculateTVLs() counts that stETH, so the rebase raises the ezETH rate.
+  // The subgraph's Lido distribution earnings cover OperatorDelegators only, so this is not counted above.
+  const [withdrawQueueShares, startPooledEthPerShare, endPooledEthPerShare] = await Promise.all([
+    options.fromApi.call({ target: STETH, abi: 'function sharesOf(address) view returns (uint256)', params: [WITHDRAW_QUEUE] }),
+    options.fromApi.call({ target: STETH, abi: 'function getPooledEthByShares(uint256) view returns (uint256)', params: ['1000000000000000000'] }),
+    options.toApi.call({ target: STETH, abi: 'function getPooledEthByShares(uint256) view returns (uint256)', params: ['1000000000000000000'] }),
+  ]);
+  distributedBalances.addGasToken(BigInt(withdrawQueueShares) * (BigInt(endPooledEthPerShare) - BigInt(startPooledEthPerShare)) / BigInt(1e18));
 
   // Add ERC20 earnings
   for (const [tokenId, tokenEarnings] of erc20Earnings.vaultDepositedERC20Earnings) {
@@ -97,10 +108,10 @@ const adapter: SimpleAdapter = {
   start: '2024-09-04',
   allowNegativeValue: true, // protocol revenue nets out REZ buybacks, which don't track daily revenue (bought more than that day's revenue on 37 of 106 buyback days before this fix)
   methodology: {
-    Fees: "Value earned by the protocol through staking, restaking, vault rewards, instant withdrawal fees, and Lido distributions",
+    Fees: "Value earned by the protocol through staking, restaking, vault rewards, instant withdrawal fees, Lido distributions, and the stETH rebase on the stETH held by the WithdrawQueue",
     Revenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees.",
     ProtocolRevenue: "Value retained by the protocol through staking, restaking, vault rewards, and instant withdrawal fees, minus the REZ bought back.",
-    SupplySideRevenue: "Value distributed to stakers and depositors",
+    SupplySideRevenue: "Value distributed to stakers and depositors, including the stETH rebase on the WithdrawQueue's stETH, which goes to ezETH holders through the ezETH rate",
     HoldersRevenue: "REZ bought back through CoW Protocol by the buyback bot, which gets 75-100% of revenue; 90% of the REZ is burned and 10% goes to stakers"
   },
 }
