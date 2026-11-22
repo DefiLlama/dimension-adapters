@@ -691,6 +691,10 @@ const configs: Record<string, CuratorConfig> = {
           '0x769699C75c4E17EbD5d678a9C58776179ddC254b', // Prime XSGD
           '0x8396d2B322f5f533531f960B042a15AAa2784529', // Farcaster x Steakhouse Prime
         ],
+        // Grove x Steakhouse USDC: curator is Steakhouse (api.morpho.org), owner() is Grove's 0x491EDFB0, and the
+        // CreateVaultV2 at block 50714129 names deployer 0xab028afb as owner, so no owner filter above resolves it.
+        // Listed directly, like its Ethereum twin 0xBeeF...4111 resolves through 0x274c71c8.
+        morphoV2: ['0xbeef0786756810478b88982DE00F3CD7fdB8e7c7'],
         start: '2024-07-29',
       },
       [CHAIN.CORN]: {
