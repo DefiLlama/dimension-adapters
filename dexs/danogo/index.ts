@@ -26,7 +26,7 @@ export const fetchDanogoGatewayData = async (options: FetchOptions): Promise<Dan
     const response = await fetchURL(`${DANOGO_GATEWAY_ENDPOINT}?timestamp=${options.toTimestamp}`);
     const data: DanogoDimensions = response?.data;
     const fields: (keyof DanogoDimensions)[] = ['dailyVolumeAdaValue', 'totalVolumeAdaValue', 'dailyFeesAdaValue', 'totalFeesAdaValue'];
-    if (response?.code !== 0 || !data || fields.some((field) => !/^\d+$/.test(String(data[field]))))
+    if (response?.code !== 0 || !data || fields.some((field) => typeof data[field] !== 'string' || !/^(0|[1-9]\d*)$/.test(data[field])))
         throw new Error(`Danogo gateway: unexpected response for ${options.dateString}: ${JSON.stringify(response)}`);
     if (data.totalVolumeAdaValue === '0')
         throw new Error(`Danogo gateway has no data for ${options.dateString}`);
