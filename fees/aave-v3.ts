@@ -24,7 +24,14 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x4e033931ad43597d96d6bcc25c280717730b58b1',
       dataProvider: '0xa3206d66cf94aa1e93b21a9d8d409d6375309f4a',
-      dataProvider2: '0x08795CFE08C7a81dCDFf482BbAAF474B240f31cD'
+      dataProvider2: '0x08795CFE08C7a81dCDFf482BbAAF474B240f31cD',
+      daoSupplierAssets: {
+        '0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f': {
+          symbol: 'GHO',
+          aToken: '0x18efe565a5373f430e2f809b97de30335b3ad96a',
+          suppliers: ['0x2ce01c87fec1b71a9041c52caed46fc5f4807285'], // LidoGhoDirectMinter, GHO facilitator
+        },
+      },
     },
 
     // ether.fi market
@@ -40,6 +47,13 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0xAe05Cd22df81871bc7cC2a04BeCfb516bFe332C8',
       dataProvider: '0x53519c32f73fE1797d10210c4950fFeBa3b21504',
+      daoSupplierAssets: {
+        '0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f': {
+          symbol: 'GHO',
+          aToken: '0x946281a2d0dd6e650d08f74833323d66ae4c8b12',
+          suppliers: ['0xe10c78a3ac7f016ed2de1a89c5479b1039eab9ea'], // HorizonGhoDirectMinter, GHO facilitator
+        },
+      },
     },
   ],
   [CHAIN.OPTIMISM]: [
@@ -206,7 +220,7 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [METRIC.BORROW_INTEREST]: 'All interest paid by borrowers from all markets (excluding GHO).',
-    'Borrow Interest GHO': 'All interest paid by borrowers from GHO only.',
+    'Borrow Interest GHO': 'Interest paid by GHO borrowers in the Core market, and in the Prime and Horizon markets the part of GHO supplier interest earned by the Aave DAO GHO facilitators (GhoDirectMinter) that supply GHO there.',
     [METRIC.LIQUIDATION_FEES]: 'Fees from liquidation penalty and bonuses.',
     [METRIC.FLASHLOAN_FEES]: 'Flashloan fees paid by flashloan borrowers and executors.',
     'Paraswap Partner Fees': 'Swap fees share from Paraswap from users by using Aave frontend.',
@@ -215,7 +229,7 @@ const breakdownMethodology = {
   },
   Revenue: {
     [METRIC.BORROW_INTEREST]: 'A portion of interest paid by borrowers from all markets (excluding GHO).',
-    'Borrow Interest GHO': 'All 100% interest paid by GHO borrowers.',
+    'Borrow Interest GHO': '100% of GHO interest in the Core market, and the GHO supplier interest earned by the Aave DAO GHO facilitators in the Prime and Horizon markets.',
     [METRIC.LIQUIDATION_FEES]: 'A portion of fees from liquidation penalty and bonuses.',
     [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors.',
     'Paraswap Partner Fees': 'Swap fees share from Paraswap from users by using Aave frontend.',
@@ -224,13 +238,13 @@ const breakdownMethodology = {
   },
   SupplySideRevenue: {
     [METRIC.BORROW_INTEREST]: 'Amount of interest distributed to lenders from all markets (excluding GHO).',
-    'Borrow Interest GHO': 'No supply side revenue for lenders on GHO market.',
+    'Borrow Interest GHO': 'No supply side revenue for lenders on GHO market, nor on the GHO supplied by the Aave DAO GHO facilitators in the Prime and Horizon markets.',
     [METRIC.LIQUIDATION_FEES]: 'Fees from liquidation penalty and bonuses are distributed to lenders.',
     [METRIC.FLASHLOAN_FEES]: 'Flashloan fees paid by flashloan borrowers and executors are distributed to lenders.',
   },
   ProtocolRevenue: {
     [METRIC.BORROW_INTEREST]: 'Amount of interest distributed to lenders from all markets (excluding GHO) are collected by Aave treasury.',
-    'Borrow Interest GHO': 'All interest paid on GHO market are collected by Aave treasury.',
+    'Borrow Interest GHO': 'All interest paid on the Core GHO market, and the GHO supplier interest earned by the Aave DAO GHO facilitators in the Prime and Horizon markets, are collected by Aave treasury.',
     [METRIC.LIQUIDATION_FEES]: 'A portion of fees from liquidation penalty and bonuses are colected by Aave treasury.',
     [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors are collected by Aave treasury.',
     'Paraswap Partner Fees': 'Swap fees share from Paraswap from users by using Aave frontend.',
