@@ -32,6 +32,21 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "atlasx-perps": {
+    // ATLASX (https://atlx.ai, https://x.com/atlasx_ai), a non-custodial iOS and web trading app for Hyperliquid perps.
+    // Its Hyperliquid perp orders carry this builder code with a 0.05% fee on top of Hyperliquid's own fees
+    // (perps only; no spot or outcome builder fee).
+    // Verifiable: the builder field of ATLASX orders; the address's Hyperliquid `referral` state (builderRewards).
+    addresses: ["0x83018fdfc5c25453611a9f5e3389a9735030629c"],
+    // first day with fills carrying the production builder code
+    start: "2026-09-05",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades placed through ATLASX with its builder code.",
+      Fees: "0.05% builder code fee paid by users on Hyperliquid perpetual trades placed through ATLASX; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through ATLASX, all kept by ATLASX.",
+      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through ATLASX, all kept by ATLASX.",
+    },
+  },
   "lockin-perps": {
     // lockin (https://lockin.cash, https://x.com/tradeonlockin) charges a 0.1% builder fee on perps; the builder is also its EVM fee wallet
     addresses: ["0xe1ba8be268f91c011040ac2b44efc9201a52d988"],
