@@ -11,7 +11,7 @@ async function fetch(options: FetchOptions) {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  pullHourly: true,
+  //pullHourly: true, to refill
   adapter: chainConfig,
   dependencies: [Dependencies.ALLIUM],
   doublecounted: true,
