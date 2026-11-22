@@ -1,3 +1,4 @@
+import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { exportHIP3DeployerAdapter, exportValidatorStakingAdapter, type BuilderAddressConfig } from "../helpers/hyperliquid";
 import { exportBuilderAdapterV2, type HyperliquidBuilderMarketV2 } from "../helpers/hyperliquid-v2";
 import { createFactoryExports } from "./registry";
@@ -11,6 +12,12 @@ interface BuilderConfig {
   breakdownFees?: boolean; // add breakdown fees labels
   market?: HyperliquidBuilderMarketV2; // perps when omitted, see builderMarketListings for the other markets
   revenueToHolders?: boolean; // all builder-code fees go to the protocol's token holders
+  // share of builder-code fees returned to the traders who paid them (a trading rebate / cashback), 0-1.
+  // Fees stay gross; SupplySideRevenue = Fees * ratio; Revenue and ProtocolRevenue = Fees * (1 - ratio).
+  // Do not use revenueToHolders for this: that flag keeps Revenue equal to Fees and attributes it to holders.
+  traderRebateRatio?: number;
+  // optional breakdown label and description for the retained share (Revenue / ProtocolRevenue) when traderRebateRatio is set
+  retainedShare?: { label: string; description: string };
 }
 
 // this config is used for both superx and superX
@@ -32,6 +39,40 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "lillytrade": {
+    // LiLLyTrade (https://lillytrade.xyz, https://x.com/LIQDLilly), a Hyperliquid trading terminal for
+    // crypto perps and HIP-3 markets (metals and energy included). Users who connect a Hyperliquid wallet
+    // approve a builder fee to this address; orders placed through the terminal carry this builder code
+    // on top of Hyperliquid's own fees. Sampled archive fills are typically 0.1% of notional on perps
+    // after mid-October 2026 (some earlier fills are 0.01%); the app uses a 1% approval ceiling.
+    // Verifiable: the builder field of LiLLyTrade orders (address hardcoded in the lillytrade.xyz frontend);
+    // the address's Hyperliquid `referral` state (referrer code LILLY, builderRewards).
+    // Cashback: in effect full cashback. The claimed builder fees go to LiLLyTrade's buyback wallet. Each buyback run
+    // spends 99% of the fees proven by the builder_fills daily file on LILLY, distributed pro rata to the traders who
+    // paid them. The other 1% is not profit: it stays in the wallet as USDC only to pay HyperEVM gas for the buybacks
+    // and Disperse payouts. Fees stay gross; traderRebateRatio 0.99 sets SupplySideRevenue to 99% and Revenue /
+    // ProtocolRevenue to the 1% gas reserve, per fees/AGENTS.md (trading rebates are Cost of Funds; gas is an
+    // operating cost and is not deducted from revenue).
+    // Distributions are live on HyperEVM from the buyback wallet 0x3069E796e05993fb2eD66710e2091833D3738bd3
+    // via Disperse 0xd15fe25ed0dba12fe05e7029c88b10c25e8880e3; sample txs are in the PR body.
+    // Hyperliquid's native referral rewards are paid by Hyperliquid, not from these builder fees, and are not counted here.
+    addresses: ["0x363d5daaa6d2fb4b2fa3da864abd36169fd31a8d"],
+    // first day with fills carrying the code
+    start: "2026-10-03",
+    traderRebateRatio: 0.99,
+    retainedShare: {
+      label: "Builder Code Fees To Gas Reserve (HyperEVM)",
+      description: "1% of builder code fees, kept as USDC in the buyback wallet only to pay HyperEVM gas for the LILLY buybacks and Disperse cashback payouts. Not distributed as profit.",
+    },
+    breakdownFees: true,
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades (including HIP-3 markets) placed through LiLLyTrade with its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through LiLLyTrade; excludes Hyperliquid's own trading fees and HIP-3 deployer fees.",
+      Revenue: "1% of builder code fees, kept as USDC in LiLLyTrade's buyback wallet only to pay HyperEVM gas for the LILLY buybacks and Disperse cashback payouts. It is not profit.",
+      ProtocolRevenue: "1% of builder code fees, kept as USDC in LiLLyTrade's buyback wallet only to pay HyperEVM gas for the LILLY buybacks and Disperse cashback payouts. It is not profit.",
+      SupplySideRevenue: "99% of builder code fees, returned to the traders who paid them as LILLY cashback: the fees buy LILLY, which is distributed pro rata to those traders on HyperEVM.",
+    },
+  },
   "atlasx-perps": {
     // ATLASX (https://atlx.ai, https://x.com/atlasx_ai), a non-custodial iOS and web trading app for Hyperliquid perps.
     // Its Hyperliquid perp orders carry this builder code with a 0.05% fee on top of Hyperliquid's own fees
@@ -1863,10 +1904,68 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "wunder-spot": { builder: "wunder-perps", market: "spot", start: "2025-10-19" },
 };
 
+// When traderRebateRatio is set, Fees stay gross. That share is a trading rebate (SupplySideRevenue);
+// the rest is Revenue and ProtocolRevenue. Wrapped here so exportBuilderAdapterV2's shared revenue logic is unchanged.
+const BUILDER_FEES_LABEL = "Hyperliquid Builder Code Fees";
+const CASHBACK_PAYOUTS = "Builder Code Fees To Traders As Cashback";
+const FEES_TO_PROTOCOL = "Builder Code Fees Retained By Protocol";
+
+function withTraderRebate(adapter: SimpleAdapter, ratio: number, props: { breakdownFees?: boolean; revenueToHolders?: boolean; hasMethodology?: boolean; retainedShare?: { label: string; description: string } }): SimpleAdapter {
+  if (!(ratio > 0 && ratio <= 1)) throw new Error(`withTraderRebate: ratio must be in (0, 1], got ${ratio}`);
+  // revenueToHolders would also return dailyHoldersRevenue = Fees, which contradicts the rebate split
+  if (props.revenueToHolders) throw new Error("withTraderRebate: traderRebateRatio cannot be combined with revenueToHolders");
+  const inner = adapter.fetch;
+  if (!inner) throw new Error("withTraderRebate: adapter has no fetch");
+  const retained = 1 - ratio;
+  // labels only when the fees themselves carry the breakdown label, so every metric is labelled or none is
+  const cashbackLabel = props.breakdownFees ? CASHBACK_PAYOUTS : undefined;
+  const pct = (x: number) => `${Math.round(x * 10000) / 100}%`;
+  const retainedLabel = props.retainedShare?.label ?? FEES_TO_PROTOCOL;
+  const retainedText = props.retainedShare?.description ?? `${pct(retained)} of builder code fees, retained by the protocol.`;
+  const protocolLabel = props.breakdownFees ? retainedLabel : undefined;
+
+  const wrapped: SimpleAdapter = {
+    ...adapter,
+    fetch: async (options: FetchOptions) => {
+      const { dailyHoldersRevenue: _unused, ...result } = await inner(options);
+      const fees = result.dailyFees;
+      if (!fees || typeof fees !== "object") throw new Error("withTraderRebate: expected dailyFees as Balances");
+      return {
+        ...result,
+        dailyRevenue: fees.clone(retained, protocolLabel),
+        dailyProtocolRevenue: fees.clone(retained, protocolLabel),
+        dailySupplySideRevenue: fees.clone(ratio, cashbackLabel),
+      };
+    },
+  };
+
+  // the helper's default methodology says all fees are kept by the builder; replace those entries when no custom one is set
+  if (!props.hasMethodology && adapter.methodology && typeof adapter.methodology === "object") {
+    wrapped.methodology = {
+      ...adapter.methodology,
+      Revenue: `${pct(retained)} of builder code fees, retained by the protocol.`,
+      ProtocolRevenue: `${pct(retained)} of builder code fees, retained by the protocol.`,
+      SupplySideRevenue: `${pct(ratio)} of builder code fees, returned to the traders who paid them as a trading rebate.`,
+    };
+  }
+
+  if (props.breakdownFees) {
+    wrapped.breakdownMethodology = {
+      Fees: { [BUILDER_FEES_LABEL]: "Builder code fees paid by users on Hyperliquid trades." },
+      Revenue: { [retainedLabel]: retainedText },
+      ProtocolRevenue: { [retainedLabel]: retainedText },
+      SupplySideRevenue: { [CASHBACK_PAYOUTS]: `${pct(ratio)} of builder code fees, returned to the traders who paid them as a trading rebate.` },
+    };
+  } else {
+    delete wrapped.breakdownMethodology;
+  }
+  return wrapped;
+}
+
 // Build dexs protocols (builder + HIP3 dex)
 const dexsProtocols: Record<string, any> = {};
 for (const [name, config] of Object.entries(builderConfigs)) {
-  dexsProtocols[name] = exportBuilderAdapterV2(config.addresses, {
+  const adapter = exportBuilderAdapterV2(config.addresses, {
     start: config.start,
     deadFrom: config.deadFrom,
     methodology: config.methodology,
@@ -1875,10 +1974,13 @@ for (const [name, config] of Object.entries(builderConfigs)) {
     market: config.market ?? "perps",
     revenueToHolders: config.revenueToHolders,
   });
+  dexsProtocols[name] = typeof config.traderRebateRatio === "number"
+    ? withTraderRebate(adapter, config.traderRebateRatio, { breakdownFees: config.breakdownFees, revenueToHolders: config.revenueToHolders, hasMethodology: !!config.methodology, retainedShare: config.retainedShare })
+    : adapter;
 }
 for (const [name, listing] of Object.entries(builderMarketListings)) {
   const builder = builderConfigs[listing.builder];
-  dexsProtocols[name] = exportBuilderAdapterV2(builder.addresses, {
+  const adapter = exportBuilderAdapterV2(builder.addresses, {
     start: listing.start,
     deadFrom: listing.deadFrom ?? builder.deadFrom,
     extraReturnFields: builder.extraReturnFields,
@@ -1886,6 +1988,9 @@ for (const [name, listing] of Object.entries(builderMarketListings)) {
     market: listing.market,
     revenueToHolders: builder.revenueToHolders,
   });
+  dexsProtocols[name] = typeof builder.traderRebateRatio === "number"
+    ? withTraderRebate(adapter, builder.traderRebateRatio, { breakdownFees: builder.breakdownFees, revenueToHolders: builder.revenueToHolders, hasMethodology: false, retainedShare: builder.retainedShare })
+    : adapter;
 }
 for (const [name, config] of Object.entries(hip3DexConfigs)) {
   dexsProtocols[name] = exportHIP3DeployerAdapter(config.dexId, {
