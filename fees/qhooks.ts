@@ -43,7 +43,7 @@ const LABEL = {
 // chain().platform; QSaleLaunch names it as a constant). QFlywheel keeps RESERVE_PCT = 25 (a constant) of what it receives
 // in its buyback currency (WETH, or ETH, which it wraps) to buy QHOOKS, half burned and half to the Safe; everything else
 // goes to the Safe. That 25% is holders revenue.
-const RH_WETH = '0x0bd7d308f8e1639fab988df18a8011f41eacad73';
+const RH_WETH = ADDRESSES.robinhood.WETH;
 const BUYBACK_PCT = 25n;
 
 type ChainConfig = {
