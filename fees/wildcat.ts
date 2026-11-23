@@ -56,15 +56,8 @@ const getApy = async (options: FetchOptions, markets: string[], tokens: string[]
 // unclaimed withdrawals and accrued protocol fees, which earn nothing.
 const getTotalSupply = async (options: FetchOptions, markets: string[], tokens: string[]): Promise<any> => {
     const { api } = options
-    const supplies = await Promise.all(markets.map(async (market) => {
-        const totalSupply = await api.call({ abi: 'uint256:totalSupply', target: market })
-        return {
-            market,
-            totalSupply,
-            token: tokens[markets.indexOf(market)]
-        }
-    }))
-    return supplies
+    const totalSupplies = await api.multiCall({ abi: 'uint256:totalSupply', calls: markets })
+    return markets.map((market, i) => ({ market, totalSupply: totalSupplies[i], token: tokens[i] }))
 }
 
 // v1 markets expose protocolFeeBips() (0 on all of them), v2 markets only hold it in currentState()
