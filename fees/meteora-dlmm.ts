@@ -142,7 +142,7 @@ ${[...NO_TRADE_ROW_CALLS, 'swap', 'swap2'].map((call) => `    SELECT ${NO_TRADE_
 swaps AS (
   SELECT
     -- swap_for_y: X sold, Y bought; fee token is X or Y per fees_on_token_x
-    CASE WHEN e.fees_on_token_x THEN m.token_x ELSE m.token_y END AS fee_mint,
+    CASE WHEN t.pool = e.pool THEN (CASE WHEN e.fees_on_token_x = e.swap_for_y THEN t.sold_mint ELSE t.bought_mint END) WHEN e.fees_on_token_x THEN m.token_x ELSE m.token_y END AS fee_mint,
     CASE WHEN e.fees_on_token_x = e.swap_for_y THEN t.sold_raw ELSE t.bought_raw END AS fee_side_raw,
     t.amount_usd,
     -- no trade row, or the row paired with it (numbered within the outer instruction, as Spellbook does) is another pool's
