@@ -125,15 +125,18 @@ pool_prices AS (
   GROUP BY 1, 2
 ),
 pool_mints AS (
+  -- decoded call tables hold successful transactions only; swap and swap2 rows from before Dune's snake_case
+  -- rename fill only the camelCase account columns
   SELECT DISTINCT account_lb_pair AS pool, account_token_x_mint AS token_x, account_token_y_mint AS token_y
   FROM (
-${[...NO_TRADE_ROW_CALLS, 'swap', 'swap2'].map((call) => `    SELECT account_lb_pair, account_token_x_mint, account_token_y_mint
+${[...NO_TRADE_ROW_CALLS, 'swap', 'swap2'].map((call) => `    SELECT ${NO_TRADE_ROW_CALLS.includes(call)
+      ? 'account_lb_pair, account_token_x_mint, account_token_y_mint'
+      : 'coalesce(account_lb_pair, "account_lbPair"), coalesce(account_token_x_mint, "account_tokenXMint"), coalesce(account_token_y_mint, "account_tokenYMint")'}
     FROM dlmm_solana.lb_clmm_call_${call}
     WHERE call_block_date >= CAST(from_unixtime(${options.startTimestamp}) AS DATE)
       AND call_block_date <= CAST(from_unixtime(${options.endTimestamp} - 1) AS DATE)
       AND call_block_time >= from_unixtime(${options.startTimestamp})
-      AND call_block_time < from_unixtime(${options.endTimestamp})
-      AND call_tx_success = true`).join('\n    UNION ALL\n')}
+      AND call_block_time < from_unixtime(${options.endTimestamp})`).join('\n    UNION ALL\n')}
   )
 ),
 swaps AS (
