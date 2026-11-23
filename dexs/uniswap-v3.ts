@@ -9,7 +9,7 @@ import { httpPost } from "../utils/fetchURL";
 import { DUNE_DEX_BLACKLIST_TABLE, getDexTokensBlacklisted } from "../helpers/lists";
 import { METRIC } from "../helpers/metrics";
 import {
-  getEstablishedTokens, getUniV3LogAdapter, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES,
+  defaultV3SwapEvent, getEstablishedTokens, getUniV3LogAdapter, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES,
   WASH_MIN_USD, WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
 } from "../helpers/uniswap";
 
@@ -231,14 +231,8 @@ async function fetchFromOku(options: FetchOptions) {
   const { blockchain } = chainConfig[options.chain];
   const url = `https://omni.icarus.tools/${blockchain}/cush/analyticsProtocolHistoric`;
   const body = { params: [options.startTimestamp * 1000, options.endTimestamp * 1000, 3600000] };
-  let response: IOkuResponse[] | undefined;
-  try {
-    response = (await httpPost(url, body))?.result;
-  } catch (e) {
-    console.error(`uniswap-v3-dune: Oku request failed on ${options.chain}`, (e as any)?.message);
-  }
-  // Oku returns no `result` for some windows/chains; degrade to empty instead of crashing.
-  if (!Array.isArray(response)) return {};
+  const response: IOkuResponse[] | undefined = (await httpPost(url, body))?.result;
+  if (!Array.isArray(response)) throw new Error(`uniswap-v3: Oku returned no data for ${options.chain}`);
 
   const dailyVolume = response.reduce((acc, item) => acc + item.volume, 0);
   const fees = response.reduce((acc, item) => acc + item.fees, 0);
@@ -268,6 +262,24 @@ const factoryConfig: Record<string, string> ={
   // https://gov.uniswap.org/t/official-uniswap-v3-deployments-list/24323/9
   [CHAIN.ETHERLINK]: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D",
   [CHAIN.ELYSIUM]: "0x1707327F626496A7b5b3872e7E4d2879Df7d7a9f",
+  // https://gov.uniswap.org/t/official-uniswap-v3-deployments-list/24323/3
+  [CHAIN.BOBA]: "0xFFCd7Aed9C627E82A765c3247d562239507f6f1B",
+  [CHAIN.FILECOIN]: "0xB4C47eD546Fc31E26470a186eC2C5F19eF09BA41",
+  // owner() is the UniswapWormholeMessageReceiver from https://gov.uniswap.org/t/rfc-deploy-uniswap-v3-on-xdc-network/25489
+  [CHAIN.XDC]: "0xcb2436774C3e191c85056d248EF4260ce5f27A9D",
+}
+
+async function getPoolsFromSwapLogs(options: FetchOptions, factory: string): Promise<string[]> {
+  const swapLogs = await options.getLogs({ noTarget: true, eventAbi: defaultV3SwapEvent, onlyArgs: false })
+  const emitters = [...new Set<string>(swapLogs.map((log: any) => log.address.toLowerCase()))]
+  const [token0s, token1s, fees] = await Promise.all(
+    ['address:token0', 'address:token1', 'function fee() view returns (uint24)'].map(abi => options.api.multiCall({ abi, calls: emitters, permitFailure: true }))
+  )
+  const candidates = emitters
+    .map((pool, i) => ({ pool, params: [token0s[i], token1s[i], fees[i]] }))
+    .filter(({ params }) => params.every(param => param != null))
+  const registered = await options.api.multiCall({ target: factory, abi: 'function getPool(address,address,uint24) view returns (address)', calls: candidates.map(({ params }) => ({ params })) })
+  return candidates.filter(({ pool }, i) => registered[i]?.toLowerCase() === pool).map(({ pool }) => pool)
 }
 
 async function fetchFromLogs(options: FetchOptions) {
@@ -277,7 +289,7 @@ async function fetchFromLogs(options: FetchOptions) {
   }
 
   const { dailyVolume, dailyFees } = await getUniV3LogAdapter({
-    factory,
+    ...(chainConfig[options.chain]?.poolsFromSwapLogs ? { pools: await getPoolsFromSwapLogs(options, factory) } : { factory }),
     userFeesRatio: 1,
     revenueRatio: 0,
     protocolRevenueRatio: 0,
@@ -305,7 +317,7 @@ async function fetchFromLogs(options: FetchOptions) {
 // or Oku slug). start = first uni-v3 data on that source:
 //  - Dune rows: MIN(block_time) in dex.trades
 //  - Oku rows:  first month with volume in analyticsProtocolHistoric
-const chainConfig: Record<string, { blockchain: string; start: string; fetch: FetchV2 }> = {
+const chainConfig: Record<string, { blockchain: string; start: string; fetch: FetchV2; poolsFromSwapLogs?: boolean }> = {
   // Dune dex.trades
   [CHAIN.ETHEREUM]: { blockchain: 'ethereum', start: '2021-05-04', fetch: fetchFromDune },
   [CHAIN.ARBITRUM]: { blockchain: 'arbitrum', start: '2021-06-01', fetch: fetchFromDune },
@@ -333,15 +345,12 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
   [CHAIN.ROBINHOOD]: { blockchain: 'robinhood', start: '2026-05-22', fetch: fetchFromDune },
 
   // Oku API (chains Dune has no uni-v3 data for)
-  [CHAIN.BOBA]: { blockchain: 'boba', start: '2023-07-22', fetch: fetchFromOku },
   [CHAIN.ROOTSTOCK]: { blockchain: 'rootstock', start: '2023-11-19', fetch: fetchFromOku },
-  [CHAIN.FILECOIN]: { blockchain: 'filecoin', start: '2024-02-17', fetch: fetchFromOku },
   [CHAIN.SEI]: { blockchain: 'sei', start: '2024-05-17', fetch: fetchFromOku },
   [CHAIN.BOB]: { blockchain: 'bob', start: '2024-08-15', fetch: fetchFromOku },
   [CHAIN.GOAT]: { blockchain: 'goat', start: '2025-02-11', fetch: fetchFromOku },
   [CHAIN.HEMI]: { blockchain: 'hemi', start: '2025-02-11', fetch: fetchFromOku },
   [CHAIN.SAGA]: { blockchain: 'saga', start: '2025-02-11', fetch: fetchFromOku },
-  [CHAIN.XDC]: { blockchain: 'xdc', start: '2025-04-12', fetch: fetchFromOku },
   [CHAIN.NIBIRU]: { blockchain: 'nibiru', start: '2025-05-12', fetch: fetchFromOku },
   [CHAIN.REDBELLY]: { blockchain: 'redbelly', start: '2025-02-19', fetch: fetchFromOku },
 
@@ -351,6 +360,10 @@ const chainConfig: Record<string, { blockchain: string; start: string; fetch: Fe
   [CHAIN.ETHERLINK]: { blockchain: 'etherlink', start: '2025-05-12', fetch: fetchFromLogs },
   [CHAIN.ARC]: { blockchain: 'arc', start: '2026-05-28', fetch: fetchFromLogs },
   [CHAIN.ELYSIUM]: { blockchain: 'elysium', start: '2026-11-03', fetch: fetchFromLogs },
+  // Oku's Cloudflare refuses most automated requests from 2026-10-21, so the whole range reads the pools
+  [CHAIN.BOBA]: { blockchain: 'boba', start: '2023-07-22', fetch: fetchFromLogs },
+  [CHAIN.FILECOIN]: { blockchain: 'filecoin', start: '2024-02-17', fetch: fetchFromLogs, poolsFromSwapLogs: true }, // no PoolCreated cache for its factory
+  [CHAIN.XDC]: { blockchain: 'xdc', start: '2025-04-12', fetch: fetchFromLogs },
 }
 
 const methodology = {
