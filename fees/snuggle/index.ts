@@ -10,8 +10,6 @@ const REFERRAL_TRACKER_ABI = "address:referralTracker";
 const REFERRAL_EARNED_EVENT = "event EarningsRecorded(address indexed referrer, address indexed token, uint256 amount, uint256 totalEarnings)";
 // referrer's share, staking rewards, these never reach the tracker
 const REWARD_FEE_EVENT = "event PerformanceFeeCollected(uint256 indexed tokenId, address indexed token, uint256 feeAmount, uint256 treasuryAmount, uint256 referralAmount)";
-// a failed referral payment goes to the treasury but is still reported as a referral
-const REFERRAL_FAILED_EVENT = "event ReferralPaymentFailed(address indexed referrer, address indexed token, uint256 amount)";
 // 1500 today, read per period because the owner can change it
 const PERFORMANCE_FEE_ABI = "uint256:performanceFeeBps";
 const BPS_DENOMINATOR = 10000;
@@ -42,6 +40,8 @@ const chainConfig: Record<string, { vaults: string[], start: string }> = {
   },
 }
 
+const transferKey = (txHash: string, token: string, amount: any) => `${txHash}-${token}-${BigInt(amount)}`.toLowerCase();
+
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
@@ -55,17 +55,30 @@ const fetch = async (options: FetchOptions) => {
   const trackers = await options.api.multiCall({ abi: REFERRAL_TRACKER_ABI, calls: stakingManagers });
 
   const referralLogs = await options.getLogs({ targets: trackers, eventAbi: REFERRAL_EARNED_EVENT, flatten: false });
-  const rewardLogs = await options.getLogs({ targets: vaults, eventAbi: REWARD_FEE_EVENT, flatten: false });
-  const failedLogs = await options.getLogs({ targets: vaults, eventAbi: REFERRAL_FAILED_EVENT, flatten: false });
+  const rewardLogs = await options.getLogs({ targets: vaults, eventAbi: REWARD_FEE_EVENT, flatten: false, onlyArgs: false }); // need the tx hash
 
   for (const [i, vault] of vaults.entries()) {
     // the cut is split between the treasury and the owner's referrer, both sides make up the fee
-    const toTreasury = await addTokensReceived({ options, target: treasuries[i], fromAddressFilter: vault });
+    const treasuryTransfers = new Set<string>();
+    const toTreasury = await addTokensReceived({
+      options,
+      target: treasuries[i],
+      fromAddressFilter: vault,
+      logFilter: (log: any) => {
+        treasuryTransfers.add(transferKey(log.transactionHash, log.token, log.value));
+        return true;
+      },
+    });
     const toReferrers = options.createBalances();
-    referralLogs[i].forEach((log: any) => toReferrers.add(log.token, log.amount));
-    rewardLogs[i].forEach((log: any) => toReferrers.add(log.token, log.referralAmount));
-    // already counted as a treasury transfer
-    failedLogs[i].forEach((log: any) => toReferrers.add(log.token, -log.amount));
+    // the treasury is the referrer of many positions, its referral share is already counted as a treasury transfer
+    referralLogs[i].forEach((log: any) => {
+      if (log.referrer.toLowerCase() !== treasuries[i].toLowerCase()) toReferrers.add(log.token, log.amount);
+    });
+    // the reward event carries no referrer, a share paid to the treasury (or sent there after a failed payment) is one of its transfers
+    rewardLogs[i].forEach((log: any) => {
+      const { token, referralAmount } = log.args;
+      if (!treasuryTransfers.has(transferKey(log.transactionHash, token, referralAmount))) toReferrers.add(token, referralAmount);
+    });
 
     const cut = options.createBalances();
     cut.addBalances(toTreasury);
@@ -84,10 +97,10 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Fees: "Trading fees and staking rewards earned by the concentrated liquidity positions the vaults manage, scaled up from the performance fee the vault moved to its treasury.",
-  Revenue: "The share of the 15% performance fee that lands in the vault treasury. The part paid out to a position owner's referrer is counted as supply side instead.",
+  Fees: "Trading fees and staking rewards earned by the concentrated liquidity positions the vaults manage, scaled up from the performance fee the vault moved to its treasury and to position owners' referrers.",
+  Revenue: "The share of the 15% performance fee that lands in the vault treasury. This includes the referral share of positions whose referrer is the treasury itself. The part paid out to any other referrer is counted as supply side instead.",
   ProtocolRevenue: "All revenue goes to the vault treasury.",
-  SupplySideRevenue: "The rest of the position's earnings, which stay with the depositor, plus the referral share paid out of the performance fee.",
+  SupplySideRevenue: "The rest of the position's earnings, which stay with the depositor, plus the referral share of the performance fee paid to referrers other than the treasury.",
 }
 
 const breakdownMethodology = {
@@ -102,7 +115,7 @@ const breakdownMethodology = {
   },
   SupplySideRevenue: {
     [METRIC.TO_DEPOSITORS]: "Position earnings left with the depositors after the performance fee.",
-    [METRIC.TO_REFERRERS]: "Share of the performance fee paid out to the position owner's referrer.",
+    [METRIC.TO_REFERRERS]: "Share of the performance fee paid out to the position owner's referrer, when that is not the treasury itself.",
   },
 }
 
