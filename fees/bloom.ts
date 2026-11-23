@@ -366,6 +366,9 @@ async function fetchEVM(options: FetchOptions) {
   const receipts = await getTxReceiptsWithRetry(options.chain, lookupHashes);
   const receiptByHash: Record<string, any> = {};
   receipts.forEach((receipt: any, i: number) => { if (receipt) receiptByHash[lookupHashes[i]] = receipt; });
+  // Without the receipt the fee token is unknown, so fail and let the day be retried rather than undercount it.
+  const missing = lookupHashes.filter((hash) => !receiptByHash[hash]);
+  if (missing.length) throw new Error(`bloom ${options.chain}: ${missing.length} of ${lookupHashes.length} receipts unavailable, e.g. ${missing[0]}`);
 
   let unresolved = 0;
   trades.forEach((trade: any) => {
@@ -375,8 +378,6 @@ async function fetchEVM(options: FetchOptions) {
       return;
     }
     const receipt = receiptByHash[trade.txHash];
-    // Without the receipt the fee could be a stablecoin with 18 decimals (BSC) read as native, so it is left out.
-    if (!receipt) { unresolved++; return; }
     const routerTopic = '0x' + trade.router.slice(2).padStart(64, '0');
     const feeTransfer = receipt.logs.find((log: any) =>
       log.topics.length === 3
@@ -395,7 +396,7 @@ async function fetchEVM(options: FetchOptions) {
       dailyRevenue.addGasToken(trade.fee, LABELS.TRADING_FEES_TO_PROTOCOL);
     }
   });
-  if (unresolved) console.log(`bloom ${options.chain}: ${unresolved} of ${trades.length} fees left out, fee token not found`);
+  if (unresolved) console.log(`bloom ${options.chain}: ${unresolved} of ${trades.length} fees left out, no matching fee transfer`);
 
   // Payouts lag the fees that fund them, so a day's revenue can be negative, as on Solana (allowNegativeValue below).
   // A chain where the relayer sent nothing in the window has no row in the prefetch.
