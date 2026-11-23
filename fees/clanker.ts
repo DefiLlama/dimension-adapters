@@ -17,6 +17,7 @@ const ANTI_SNIPE_FEE_CREDITED = 'event AntiSnipeFeeCredited(bytes32 indexed pool
 const DIVIDEND_TAX_REDIRECTED = 'event DividendTaxRedirected(bytes32 indexed poolId, address indexed recipient, address indexed currency, uint256 amount)';
 const CREATOR_TAX_CREDITED = 'event CreatorTaxCredited(bytes32 indexed poolId, address indexed recipient, address currency, uint256 amount)';
 const DIVIDEND_TAX_CREDITED = 'event DividendTaxCredited(bytes32 indexed poolId, address indexed dividend, address currency, uint256 amount)';
+const INTEGRATOR_TAX_CREDITED = 'event IntegratorTaxCredited(bytes32 indexed poolId, address indexed recipient, address currency, uint256 amount)';
 
 const CHAIN_CONFIG: Record<string, { feeWallets?: string[]; weth?: string; taxHook?: string; start: string }> = {
   [CHAIN.BASE]: {
@@ -27,6 +28,8 @@ const CHAIN_CONFIG: Record<string, { feeWallets?: string[]; weth?: string; taxHo
       '0x04F6ef12a8B6c2346C8505eE4Cff71C43D2dd825', // v0_fee_recipient
     ],
     weth: CoreAddresses.base.WETH,
+    // Clanker v5 hook, deployed 2026-10-31 at block 53331368
+    taxHook: '0x5E320eA6278107968C119942E57d876c5F922AcC',
     start: "2024-11-08",
   },
   [CHAIN.ARBITRUM]: {
@@ -106,6 +109,10 @@ const fetch = async (options: FetchOptions) => {
       dailyFees.add(log.currency, log.amount, "Swap Fees");
       dailySupplySideRevenue.add(log.currency, log.amount, "Swap Fees To Holder Dividends");
     }
+    for (const log of await credited(INTEGRATOR_TAX_CREDITED)) {
+      dailyFees.add(log.currency, log.amount, "Swap Fees");
+      dailySupplySideRevenue.add(log.currency, log.amount, "Swap Fees To Integrators");
+    }
   }
 
   if (options.chain === CHAIN.BASE) {
@@ -132,32 +139,33 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Fees: "Total swap fees paid by traders in Clanker-deployed Uniswap v4 pools (creator fee + Clanker's 20% of creator fee). On Elysium (Clanker v5), the buy and sell tax paid on every swap in a launch's pool, including the anti-snipe surcharge of its first seconds of trading; the part of the tax that is burned in the launched token is excluded.",
-  Revenue: "Clanker protocol's cut: 20% of the creator LP fee charged on top of each swap. On Elysium (Clanker v5), the protocol's share of each swap's tax (10% of the tax, at least 0.5% and at most 1% of the trade), the anti-snipe surcharge, and dividend shares redirected to Clanker while no holder qualifies.",
-  ProtocolRevenue: "Clanker protocol's cut of swap fees (on Elysium also the anti-snipe surcharge and redirected dividend shares), minus the amount spent buying back CLANKER (negative when a buyback exceeds the period's revenue).",
+  Fees: "Total swap fees paid by traders in Clanker-deployed Uniswap v4 pools (creator fee + Clanker's 20% of creator fee). On Base and Elysium (Clanker v5), the buy and sell tax paid on every swap in a launch's pool, including the anti-snipe surcharge of its first seconds of trading; the part of the tax that is burned in the launched token is excluded.",
+  Revenue: "Clanker protocol's cut: 20% of the creator LP fee charged on top of each swap. On Base and Elysium (Clanker v5), the protocol's share of each swap's tax (10% of the tax, at least 0.5% and at most 1% of the trade), the anti-snipe surcharge, and dividend shares redirected to Clanker while no holder qualifies.",
+  ProtocolRevenue: "Clanker protocol's cut of swap fees (on Base and Elysium also the anti-snipe surcharge and redirected dividend shares), minus the amount spent buying back CLANKER (negative when a buyback exceeds the period's revenue).",
   HoldersRevenue: "CLANKER tokens bought on the market with protocol revenue and sent to the buyback wallets.",
-  SupplySideRevenue: "Token creator's LP rewards, claimable from the initial single-sided Uniswap v4 position. On Elysium (Clanker v5), the creators' share of each swap's tax and the dividend share paid to holders of the launched token.",
+  SupplySideRevenue: "Token creator's LP rewards, claimable from the initial single-sided Uniswap v4 position. On Base and Elysium (Clanker v5), the creators' and integrators' shares of each swap's tax and the dividend share paid to holders of the launched token.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    "Swap Fees": "Total trading fees accrued in Clanker-deployed Uniswap v4 pools. On Elysium, the Clanker v5 tax on each swap in the pool's quote currency, from the hook's credit events.",
-    "Anti-Snipe Fees": "Surcharge on top of the normal Clanker v5 tax on swaps in the first 20 seconds of a launch's trading (Elysium).",
+    "Swap Fees": "Total trading fees accrued in Clanker-deployed Uniswap v4 pools. On Base and Elysium, the Clanker v5 tax on each swap in the pool's quote currency, from the hook's credit events.",
+    "Anti-Snipe Fees": "Surcharge on top of the normal Clanker v5 tax on swaps in the first 20 seconds of a launch's trading (Base and Elysium).",
   },
   Revenue: {
-    "Swap Fees To Protocol": "Clanker protocol's 20% cut of LP fees, tracked via WETH received by Clanker fee wallets. On Elysium, the protocol's share of the Clanker v5 tax plus dividend shares redirected to the protocol (ProtocolFeeCredited and DividendTaxRedirected events).",
-    "Anti-Snipe Fees To Protocol": "All Clanker v5 anti-snipe surcharges, credited to Clanker's protocol fee recipient (Elysium).",
+    "Swap Fees To Protocol": "Clanker protocol's 20% cut of LP fees, tracked via WETH received by Clanker fee wallets. On Base and Elysium, the protocol's share of the Clanker v5 tax plus dividend shares redirected to the protocol (ProtocolFeeCredited and DividendTaxRedirected events).",
+    "Anti-Snipe Fees To Protocol": "All Clanker v5 anti-snipe surcharges, credited to Clanker's protocol fee recipient (Base and Elysium).",
   },
   ProtocolRevenue: {
-    "Swap Fees To Protocol": "Clanker protocol's 20% cut of LP fees, tracked via WETH received by Clanker fee wallets. On Elysium, the protocol's share of the Clanker v5 tax plus dividend shares redirected to the protocol (ProtocolFeeCredited and DividendTaxRedirected events).",
-    "Anti-Snipe Fees To Protocol": "All Clanker v5 anti-snipe surcharges, credited to Clanker's protocol fee recipient (Elysium).",
+    "Swap Fees To Protocol": "Clanker protocol's 20% cut of LP fees, tracked via WETH received by Clanker fee wallets. On Base and Elysium, the protocol's share of the Clanker v5 tax plus dividend shares redirected to the protocol (ProtocolFeeCredited and DividendTaxRedirected events).",
+    "Anti-Snipe Fees To Protocol": "All Clanker v5 anti-snipe surcharges, credited to Clanker's protocol fee recipient (Base and Elysium).",
   },
   HoldersRevenue: {
     "Token Buy Back": "CLANKER tokens bought back and sent to the buyback wallet (a Safe from 2026-04-02).",
   },
   SupplySideRevenue: {
-    "Swap Fees To Creators": "Token creator's LP rewards, claimable from the initial single-sided Uniswap v4 position. On Elysium, the creator reward slots' share of the Clanker v5 tax (CreatorTaxCredited events).",
-    "Swap Fees To Holder Dividends": "The dividend share of the Clanker v5 tax, paid through each launch's dividend contract to holders of that launched token, not CLANKER (Elysium).",
+    "Swap Fees To Creators": "Token creator's LP rewards, claimable from the initial single-sided Uniswap v4 position. On Base and Elysium, the creator reward slots' share of the Clanker v5 tax (CreatorTaxCredited events).",
+    "Swap Fees To Holder Dividends": "The dividend share of the Clanker v5 tax, paid through each launch's dividend contract to holders of that launched token, not CLANKER (Base and Elysium).",
+    "Swap Fees To Integrators": "The integrator share of the Clanker v5 tax, credited to the integrator's fee recipient (IntegratorTaxCredited events, Base and Elysium).",
   },
 };
 
