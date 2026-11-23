@@ -350,7 +350,7 @@ export async function queryHyperliquidIndexer(
     dailyPerpVolume.addCGToken("usd-coin", item.perpsVolumeUsd);
     dailySpotVolume.addCGToken("usd-coin", item.spotVolumeUsd);
     dailyPriorityFeesUsd.addCGToken("usd-coin", item.priorityFeeUsd ? item.priorityFeeUsd : 0);
-    dailyLiquidationVolume.addCGToken("usd-coin", item.liquidationVolumeUsd ? item.liquidationVolumeUsd : 0);
+    dailyLiquidationVolume.addUSDValue(item.liquidationVolumeUsd ? item.liquidationVolumeUsd : 0);
 
     // add fees from perps trading
     for (const [coin, fees] of Object.entries(item.perpsFeeByTokens)) {
