@@ -52,6 +52,7 @@ const fetch = async ({ createBalances, getLogs, chain, }: FetchOptions) => {
 
     recipients.forEach((consideration: any) => {
       if (!isOfferFill && consideration.recipient === biggestValue.recipient) return; // this is sent to the NFT owner, doesn't include fees
+      if (consideration.recipient.toLowerCase() === log.recipient.toLowerCase()) return; // the fulfiller's own proceeds, e.g. a private sale matched as an offer
       if (feeCollectorSet.has(consideration.recipient.toLowerCase())) {
         dailyFees.add(consideration.token, consideration.amount, METRIC.TRADING_FEES)
         dailyRevenue.add(consideration.token, consideration.amount, 'Trading Fees To OpenSea')
