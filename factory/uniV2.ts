@@ -1280,6 +1280,22 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.POLYGON]: { factory: '0xD36ABA9EC96523B0A89886C76065852ADFE2EB39', start: '2021-12-02', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
     // Tron (factory TBfTeNjh7k8PbkTad8z6WS2vqh7SQZUfQ8) is not tracked: Tron RPCs only serve eth_call at the latest block, so the log helper cannot read pairs for a past window
   },
+  "butterswap": {
+    // Factory from the butterswap TVL adapter (DefiLlama-Adapters registries/uniswapV2.js). 3/1000 pair invariant; _mintFee mints
+    // 1/6 of fee growth to feeTo (rootK * 5 + rootKLast): https://sourcify.dev/server/v2/contract/56/0x1Ba94C0851D96b2c0a01382Bf895B5b25361CcB2?fields=all
+    // feeTo is set (0xDD053B667a1ebDF72942F39a80EF31119fb0fDa6 on 2026-11-23)
+    [CHAIN.BSC]: { factory: '0x1Ba94C0851D96b2c0a01382Bf895B5b25361CcB2', start: '2021-10-12', fees: 0.003, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+  },
+  "busta": {
+    // Factory from the busta TVL adapter (DefiLlama-Adapters registries/uniswapV2.js): https://sourcify.dev/server/v2/contract/56/0xCdAfc63DE847bBfb7E6B56B21aad12f8F6D877be?fields=all
+    // volume only: each pair has its own swapFee (0.2% to 5% on 2026-11-23), devFee share and feeTo, all changeable by the factory's feeToSetter
+    [CHAIN.BSC]: { factory: '0xCdAfc63DE847bBfb7E6B56B21aad12f8F6D877be', start: '2021-08-25', customLogic: volumeOnly },
+  },
+  "dfs-v2": {
+    // Factory from the dfs-v2 TVL adapter (DefiLlama-Adapters registries/uniswapV2.js)
+    // volume only: pair source is not verified, so the swap fee and its split are unknown
+    [CHAIN.XLAYER]: { factory: '0x32f2C88B2096088CF0e5Ea67D62ee1bf950d5D6e', start: '2025-09-22', customLogic: volumeOnly },
+  },
 }
 
 const optionsMap: Record<string, any> = {
@@ -1835,6 +1851,20 @@ const methodologyMap: Record<string, any> = {
     ProtocolRevenue: "The protocol takes no share of swap fees.",
     SupplySideRevenue: "All swap fees go to liquidity providers.",
     HoldersRevenue: "Holders have no revenue.",
+  },
+  "butterswap": {
+    Volume: "Swap volume on ButterSwap pairs on BNB Smart Chain. Excludes the Heco deployment.",
+    Fees: "Traders pay a 0.3% fee on every swap.",
+    UserFees: "Traders pay a 0.3% fee on every swap.",
+    Revenue: "One sixth of the 0.3% swap fee (0.05% of volume) goes to the ButterSwap fee address.",
+    ProtocolRevenue: "One sixth of the 0.3% swap fee (0.05% of volume) goes to the ButterSwap fee address.",
+    SupplySideRevenue: "Five sixths of the 0.3% swap fee (0.25% of volume) stay with liquidity providers.",
+  },
+  "busta": {
+    Volume: "Swap volume on Busta pairs on BNB Smart Chain.",
+  },
+  "dfs-v2": {
+    Volume: "Swap volume on DFS V2 pairs on X Layer.",
   },
 }
 

@@ -1653,6 +1653,37 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
       },
     },
   },
+  // SiO2 Finance: Aave V2 fork on Astar. Addresses provider registry 0x9D8bB85b1c728f69672923dD4A0209EC8b75EFda from the sio2
+  // TVL adapter (DefiLlama-Adapters registries/aave.js); pool is its provider's getLendingPool(), data provider its getAddress(0x01).
+  // Pool proxy deployed in block 1585582 (2022-08-06)
+  'sio2': {
+    config: {
+      [CHAIN.ASTAR]: {
+        start: '2022-08-06',
+        pools: [{
+          version: 2,
+          lendingPoolProxy: '0x4df48B292C026f0340B60C582f58aa41E09fF0de',
+          dataProvider: '0x0Ba94b054424BADCbb18f049e19aA90Ef2b274b8',
+        }],
+      },
+    },
+  },
+  // Aave Arc: permissioned Aave V2 market on Ethereum. Data provider from the aave-arc TVL adapter (DefiLlama-Adapters registries/aave.js);
+  // pool is its ADDRESSES_PROVIDER().getLendingPool(), deployed in block 13431462 (2021-10-16).
+  // deadFrom: no reserve has had any debt or been touched since the last WETH update on 2024-02-06
+  'aave-arc': {
+    config: {
+      [CHAIN.ETHEREUM]: {
+        start: '2021-10-16',
+        deadFrom: '2024-02-07',
+        pools: [{
+          version: 2,
+          lendingPoolProxy: '0x37D7306019a38Af123e4b245Eb6C28AF552e0bB0',
+          dataProvider: '0x71B53fC437cCD988b1b89B1D4605c3c3d0C810ea',
+        }],
+      },
+    },
+  },
 }
 
 const aaveProtocols = Object.fromEntries(
