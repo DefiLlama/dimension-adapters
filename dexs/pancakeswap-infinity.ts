@@ -17,6 +17,9 @@ const METRIC = {
 const config: any = {
   [CHAIN.BSC]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', binPoolManager: '0xc697d2898e0d09264376196696c51d7abbbaa4a9', fromBlock: 47214308, start: '2025-03-06' },
   [CHAIN.BASE]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', binPoolManager: '0xc697d2898e0d09264376196696c51d7abbbaa4a9', fromBlock: 30544106, start: '2025-05-23' },
+  // Robinhood and Arc have a CLPoolManager only (BinPoolManager n/a); fromBlock is the first Initialize log
+  [CHAIN.ROBINHOOD]: { clPoolManager: '0xee04c68742e6bf434be8039580d2e89bbe55bc6f', fromBlock: 57589391, start: '2026-09-08' },
+  [CHAIN.ARC]: { clPoolManager: '0xa0ffb9c1ce1fe56963b0321b32e7a0302114058b', fromBlock: 21438462, start: '2026-09-18' },
 }
 const adapter: SimpleAdapter = {
   pullHourly: true,
@@ -71,17 +74,7 @@ async function trackPoolManager({ getLogs, chain, target, fromBlock, getFromBloc
 
   const BigIntE6 = BigInt(1e6)
 
-  await sdk.indexer.getLogs({
-    chain,
-    target,
-    eventAbi: swapAbi,
-    fromBlock: getFromBlock,
-    toBlock: getToBlock,
-    onlyArgs: true,
-    all: true,
-    collect: false,
-    clientStreaming: true,
-    processor: (chunk: any | any[]) => {
+  const processor = (chunk: any | any[]) => {
       const swapLogs = Array.isArray(chunk) ? chunk : [chunk]
 
       swapLogs.forEach((log: any) => {
@@ -108,7 +101,25 @@ async function trackPoolManager({ getLogs, chain, target, fromBlock, getFromBloc
         addOneToken({ chain, balances: swapFees, token0: currency0, amount0: amoun0Fees, token1: currency1, amount1: amoun1Fees })
         addOneToken({ chain, balances: revenue, token0: currency0, amount0: amount0ProtocolFees, token1: currency1, amount1: amount1ProtocolFees })
       })
-    },
+  }
+
+  // Arc is not on the log indexer, so its swaps are read over RPC
+  if (!sdk.indexer.isIndexerEnabled(chain)) {
+    processor(await getLogs({ target, eventAbi: swapAbi, fromBlock: getFromBlock, toBlock: getToBlock, onlyArgs: true }))
+    return
+  }
+
+  await sdk.indexer.getLogs({
+    chain,
+    target,
+    eventAbi: swapAbi,
+    fromBlock: getFromBlock,
+    toBlock: getToBlock,
+    onlyArgs: true,
+    all: true,
+    collect: false,
+    clientStreaming: true,
+    processor,
   })
 }
 
@@ -130,7 +141,7 @@ async function fetch(options: FetchOptions) {
       swapAbi: 'event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee, uint16 protocolFee)',
       dailyVolume, swapFees, revenue,
     }),
-    trackPoolManager({
+    binPoolManager && trackPoolManager({
       getLogs, chain, fromBlock, getFromBlock, getToBlock, blacklistTokens,
       target: binPoolManager,
       initializeAbi: 'event Initialize(bytes32 indexed id, address indexed currency0, address indexed currency1, address hooks, uint24 fee, bytes32 parameters, uint24 activeId)',
