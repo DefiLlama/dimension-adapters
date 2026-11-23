@@ -15,7 +15,7 @@ export async function nativeRouterFees(options: FetchOptions, router: string, we
   const routerAbi = new Interface(['function buyExactEthForTokens(address token,uint256 minOut,address recipient) payable returns(uint256)']);
   const buySelector = routerAbi.getFunction('buyExactEthForTokens')!.selector;
   const deposits = new Map<string, bigint[]>();
-  const fromBlock = (await options.getFromBlock()) + 1, toBlock = await options.getToBlock();
+  const fromBlock = await options.getFromBlock(), toBlock = await options.getToBlock();
   const depositLogs = await options.getLogs({ target: weth, eventAbi: depositAbi, topics: wrapped.encodeFilterTopics('Deposit', [router]) as string[], fromBlock, toBlock, onlyArgs: false });
   const withdrawalLogs = await options.getLogs({ target: weth, eventAbi: withdrawalAbi, topics: wrapped.encodeFilterTopics('Withdrawal', [router]) as string[], fromBlock, toBlock });
   if (!depositLogs.length && !withdrawalLogs.length) return 0n;

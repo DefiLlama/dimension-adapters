@@ -25,7 +25,7 @@ const parse = (key: string, log: any) => { try { return interfaces[key].parseLog
 // notional or use today's creator split for historical positions. The factory's
 // FeesCollected event excludes principal even in the v3 migration transaction.
 export async function collections(options: FetchOptions, factories: { address: string; block: number; version: number }[], vault: string, baseOf: (token: string) => string) {
-  const toBlock = await options.getToBlock(), fromBlock = (await options.getFromBlock()) + 1;
+  const toBlock = await options.getToBlock(), fromBlock = await options.getFromBlock();
   const owners = new Set([...factories.filter(f => f.block <= toBlock).map(f => lower(f.address)), lower(vault)]);
   const logs: any[] = [];
   for (const eventAbi of [abi.v3, abi.v4, abi.vault3, abi.vault4])

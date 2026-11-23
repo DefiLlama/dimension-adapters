@@ -105,7 +105,7 @@ const fetchOnchain = async (options: FetchOptions) => {
   const feeLogs = await options.getLogs({
     target: SSV_NETWORK,
     eventAbi: FEES_SYNCED_ABI,
-    fromBlock: fromBlock + 1,
+    fromBlock,
     toBlock,
   });
   let networkFeesWei = BigInt(0);
@@ -138,7 +138,7 @@ const fetchOnchain = async (options: FetchOptions) => {
   const withdrawals = await options.getLogs({
     target: SSV_NETWORK,
     eventAbi: OPERATOR_WITHDRAWN_ABI,
-    fromBlock: fromBlock + 1,
+    fromBlock,
     toBlock,
   });
   for (const log of withdrawals) operatorFeesWei += BigInt(log.value);
