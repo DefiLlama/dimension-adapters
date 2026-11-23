@@ -64,6 +64,7 @@ const fetch = async (options: FetchOptions) => {
       options,
       target: treasuries[i],
       fromAddressFilter: vault,
+      skipIndexer: true, // the key needs exact amounts, the indexer can round them
       logFilter: (log: any) => {
         treasuryTransfers.add(transferKey(log.transactionHash, log.token, log.value));
         return true;
