@@ -309,10 +309,8 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.IMX]: { factory: '0x464Ea59a3AA5Ea35e961Ff8aA4CCC7183eAA197e' },
   },
   "alienbase-v3": {
-    // stock uniV3 pools, fee tiers 0.01% to 1%. Volume sits in the 0.01%/0.02% pools (WETH/cbBTC, WETH/USDC, USDC/USDbC, EURC),
-    // so fees/volume of ~2.6 bps is expected. slot0().feeProtocol = 0 on every pool (ALB/WETH 0.3% checked 2026-11-10) => 100% to LPs
-    // today; the factory owner 0x4aB9070B7680f802cBf8322e597a4409902171e5 can switch it on, so it is read per pool.
-    // fetch is wrapped below to add the Bunni vault fee share paid to esALB/govALB stakers
+    // Pool protocol fee is read per pool and is off today, so those fees stay with liquidity providers.
+    // The fetch wrapper adds the vault share paid to esALB holders.
     [CHAIN.BASE]: { factory: ALIENBASE_V3_FACTORY, userFeesRatio: 1, dynamicProtocolFees: true, getRevenueRatio: slot0AverageRevenueRatio },
   },
   "apertureSwap": {
@@ -1077,13 +1075,13 @@ const methodologyMap: Record<string, any> = {
     Fees: "User pays fees on each swap based pool tier: 0.01%, 0.05%, 0.1%, 0.20%, 0.50%, and 1%."
   },
   "alienbase-v3": {
-    Volume: "Swap volume from all Alien Base V3 pools deployed by the V3 factory on Base, including the liquidity managed by Alien Base vaults.",
-    Fees: "Swap fees paid by traders at each pool's fee tier (0.01% to 1%); most volume trades in the 0.01% and 0.02% pools, so fees are about 0.026% of volume.",
-    UserFees: "Swap fees paid by traders at each pool's fee tier.",
-    Revenue: "The protocol's share of pool swap fees read from slot0.feeProtocol (0% on every pool so far), plus the half of Alien Base vault swap fees skimmed for esALB and govALB stakers.",
-    ProtocolRevenue: "The protocol's share of pool swap fees read from slot0.feeProtocol, sent to the treasury (0% on every pool so far).",
-    HoldersRevenue: "Half of the swap fees earned by Alien Base vault positions, skimmed at each vault compound, converted to WETH and paid to esALB and govALB stakers.",
-    SupplySideRevenue: "Swap fees kept by liquidity providers, including the vault depositors' half of vault fees.",
+    Volume: "Swap volume on Alien Base V3, including vault liquidity.",
+    Fees: "Swap fees paid by traders.",
+    UserFees: "Swap fees paid by traders.",
+    Revenue: "Pool protocol fees, plus the vault share paid to esALB holders. Pool protocol fees are off.",
+    ProtocolRevenue: "Pool protocol fees kept by the protocol. None are enabled.",
+    HoldersRevenue: "Half of vault swap fees, paid to esALB holders.",
+    SupplySideRevenue: "Swap fees kept by liquidity providers.",
   },
   "baseswap-v3": {
     Fees: "Swap fees paid by traders at each pool's fee tier.",
@@ -1326,20 +1324,14 @@ protocols['hybra-v3'].adapter[CHAIN.ROBINHOOD].fetch = async (options: FetchOpti
   return result
 }
 
-// Alien Base vaults are Bunni hubs holding positions in Alien Base V3 pools, so their swap fees are already in the pool fees.
-// Every ~56h the ops key 0xDD3705A1c50Fc84B6d31394aA8F4D568B98a8AD5 compounds each vault: on the new hub through the BunniHubController
-// 0x4BCC584979817219585b6a62A5bb6C15C1fa0F38, which sets protocolFee to 0.5e18, calls compoundSkim and resets it to 1e18
-// (tx 0x044837399d938ab322891a92eda95530f10df5366ba6f0f6b0f1bdfc652663db); the old hub has protocolFee 0.5e18 and uses compound().
-// PayProtocolFee is the 50% of the re-addable fees taken out of the vault. The part compoundSkim cannot re-add at the position's
-// ratio also stays in the hub; its destination is not verifiable on chain, so it is not counted. The hubs keep the skim until
-// sweepTokens, then it is swapped to WETH and paid to esALB/govALB stakers (WETH stream of the staking contract
-// 0x28a3c9852383eef436a874b74d2acf23047e85cf, earlier the WETH rewarders of the locked-esALB farm). Those payouts are not used
-// here: they are manual, pooled with other fee sources and land days later.
+// Vaults hold V3 positions, so their swap fees are already in the pool fees.
+// PayProtocolFee is the half paid to esALB holders. Amounts left in the hub are not counted.
+// A compound realises fees accrued since the previous one, so one window can exceed that window's swap fees.
 const ALIENBASE_BUNNI_HUBS = [
-  '0xDC53487e2a6eF468260Bc938F645f84caaccAC6F', // BunniHub (original)
-  '0xd1Fac4F51457E4a6D35BdC7311718e5D6de92BB9', // BunniHubA, owned by the BunniHubController
+  '0xDC53487e2a6eF468260Bc938F645f84caaccAC6F',
+  '0xd1Fac4F51457E4a6D35BdC7311718e5D6de92BB9',
 ]
-const ALIENBASE_VAULT_FEES = 'Vault Fees To esALB Stakers'
+const ALIENBASE_VAULT_FEES = 'Holder Fees'
 const v3CollectEvent = new ethers.Interface(['event Collect(address indexed owner, address recipient, int24 indexed tickLower, int24 indexed tickUpper, uint128 amount0, uint128 amount1)'])
 const v3CollectTopic = v3CollectEvent.getEvent('Collect')!.topicHash
 
@@ -1379,15 +1371,15 @@ const getAlienbaseBunniSkims = async (options: FetchOptions) => {
 }
 
 protocols['alienbase-v3'].breakdownMethodology = {
-  Fees: { 'Token Swap Fees': "Swap fees paid by traders at each pool's fee tier, vault positions included." },
-  UserFees: { 'Trading fees': "Swap fees paid by traders at each pool's fee tier." },
+  Fees: { 'Token Swap Fees': "Swap fees paid by traders." },
+  UserFees: { 'Trading fees': "Swap fees paid by traders." },
   Revenue: {
-    'Protocol fees': "Per-pool protocol share of swap fees from slot0.feeProtocol, 0% on every pool so far.",
-    [ALIENBASE_VAULT_FEES]: "50% of vault swap fees, skimmed by the vault hubs at each compound (PayProtocolFee) for esALB/govALB stakers.",
+    'Protocol fees': "Pool protocol fees kept by the protocol. None are enabled.",
+    [ALIENBASE_VAULT_FEES]: "Half of vault swap fees, paid to esALB holders.",
   },
-  ProtocolRevenue: { 'Protocol fees': "Per-pool protocol share of swap fees from slot0.feeProtocol, sent to the treasury." },
-  HoldersRevenue: { [ALIENBASE_VAULT_FEES]: "50% of vault swap fees, skimmed at each compound, converted to WETH and paid to esALB/govALB stakers." },
-  SupplySideRevenue: { 'LP fees': "Swap fees left to liquidity providers after the protocol share and the vault skim." },
+  ProtocolRevenue: { 'Protocol fees': "Pool protocol fees kept by the protocol." },
+  HoldersRevenue: { [ALIENBASE_VAULT_FEES]: "Half of vault swap fees, paid to esALB holders." },
+  SupplySideRevenue: { 'LP fees': "Swap fees kept by liquidity providers." },
 }
 // the vault skim is realised every ~56h on fees accrued since the last compound, so the hour (or day) of a compound can
 // take more out of the LP share than that window's swap fees

@@ -3,11 +3,11 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTransactionsWithRetry, getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
 
-// Epsilon v6 router on Base, the order and swap engine of the Alien Base app.
+// Epsilon router on Base. 90% of the protocol fee is kept. 10% is paid to esALB holders.
+// Keeper fees are protocol revenue. The split is applied to the single protocol-fee transfer.
 const ROUTER = "0x303ca5c65aabcb1ce242df93f478c41e0e4d2580";
-// router.feeCollector() (checked 2026-11-10): receives the protocol fee (router.protocolFeeBps() = 5, i.e. 0.05% on every
-// swap and fill), the matching fee on matched legs and the protocol share of captured surplus. An Epsilon-owned EOA.
 const FEE_COLLECTOR = "0x7b7a3028acccc4a22767b0853d72afbfdb4032dd";
+const HOLDER_SHARE_DENOMINATOR = 10n;
 
 const SWAPPED =
   "event Swapped(address indexed user, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut)";
@@ -34,7 +34,7 @@ const METRIC = {
   DIRECT_SWAPS: "Direct Swaps",
   ORDER_FILLS: "Order Fills",
   PROTOCOL_FEES: "Protocol Fees",
-  KEEPER_FEES: "Keeper Fees",
+  HOLDER_FEES: "Holder Fees",
   REFERRAL_FEES: "Referral Fees",
 };
 
@@ -50,6 +50,8 @@ const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
   const swaps: any[] = await options.getLogs({ target: ROUTER, eventAbi: SWAPPED, entireLog: true, parseLog: true });
@@ -64,7 +66,7 @@ const fetch = async (options: FetchOptions) => {
   for (const log of [...swaps, ...fills]) meta(log.transactionHash);
 
   const txHashes = [...txMeta.keys()];
-  if (!txHashes.length) return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
+  if (!txHashes.length) return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 
   const receipts = await getTxReceiptsWithRetry(options.chain, txHashes);
   const transfersByTx: Record<string, Transfer[]> = {};
@@ -131,11 +133,22 @@ const fetch = async (options: FetchOptions) => {
     for (const { token, from, to, amount } of transfersByTx[hash]) {
       if (from !== ROUTER || m.payouts.has(to)) continue;
       if (to === FEE_COLLECTOR) {
+        const holderAmount = amount / HOLDER_SHARE_DENOMINATOR;
+        const protocolAmount = amount - holderAmount;
+        if (protocolAmount > 0n) {
+          dailyFees.add(token, protocolAmount, METRIC.PROTOCOL_FEES);
+          dailyRevenue.add(token, protocolAmount, METRIC.PROTOCOL_FEES);
+          dailyProtocolRevenue.add(token, protocolAmount, METRIC.PROTOCOL_FEES);
+        }
+        if (holderAmount > 0n) {
+          dailyFees.add(token, holderAmount, METRIC.HOLDER_FEES);
+          dailyRevenue.add(token, holderAmount, METRIC.HOLDER_FEES);
+          dailyHoldersRevenue.add(token, holderAmount, METRIC.HOLDER_FEES);
+        }
+      } else if (m.keepers.has(to)) {
         dailyFees.add(token, amount, METRIC.PROTOCOL_FEES);
         dailyRevenue.add(token, amount, METRIC.PROTOCOL_FEES);
-      } else if (m.keepers.has(to)) {
-        dailyFees.add(token, amount, METRIC.KEEPER_FEES);
-        dailySupplySideRevenue.add(token, amount, METRIC.KEEPER_FEES);
+        dailyProtocolRevenue.add(token, amount, METRIC.PROTOCOL_FEES);
       } else if (m.referrers.has(to) && to !== ZeroAddress) {
         dailyFees.add(token, amount, METRIC.REFERRAL_FEES);
         dailySupplySideRevenue.add(token, amount, METRIC.REFERRAL_FEES);
@@ -147,7 +160,8 @@ const fetch = async (options: FetchOptions) => {
     dailyVolume,
     dailyFees,
     dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue.clone(),
+    dailyProtocolRevenue,
+    dailyHoldersRevenue,
     dailySupplySideRevenue,
   };
 };
@@ -155,10 +169,11 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Volume:
     "Sum of direct swaps and order fills (limit, stop-loss, DCA and trailing-stop executions) routed through the Epsilon router of Alien Base on Base, valued on the input token. Ring-matched legs settled peer to peer by the Epsilon matcher emit no fill event and are not counted.",
-  Fees: "All fees charged on trades, measured from token transfers out of the router: the 0.05% protocol fee on every swap and fill (plus matching fees and captured surplus), keeper execution fees and referral fees.",
-  Revenue: "The protocol fee, matching fees and captured surplus, all sent to the Epsilon fee collector.",
-  ProtocolRevenue: "The protocol fee, matching fees and captured surplus, all kept by the Epsilon fee collector; there is no token distribution.",
-  SupplySideRevenue: "Execution fees paid to the keepers that fill orders and referral fees paid to the referrer named on an order.",
+  Fees: "Fees charged on swaps and order fills.",
+  Revenue: "Fees kept by the protocol, plus the share paid to esALB holders.",
+  ProtocolRevenue: "Fees kept by the protocol. 90% of the protocol fee, plus execution fees.",
+  HoldersRevenue: "10% of the protocol fee, paid to esALB holders.",
+  SupplySideRevenue: "Referral fees.",
 };
 
 const breakdownMethodology = {
@@ -167,19 +182,22 @@ const breakdownMethodology = {
     [METRIC.ORDER_FILLS]: "Keeper executions of limit, stop-loss, DCA and trailing-stop orders (OrderFilled events), valued on the input token.",
   },
   Fees: {
-    [METRIC.PROTOCOL_FEES]: "0.05% protocol fee on every swap and fill, matching fees and the protocol share of captured surplus, transferred to the fee collector.",
-    [METRIC.KEEPER_FEES]: "Execution fee (set per order type and token tier) paid to the keeper that fills an order.",
-    [METRIC.REFERRAL_FEES]: "Referral fee paid to the referrer named on the order.",
+    [METRIC.PROTOCOL_FEES]: "Fees kept by the protocol.",
+    [METRIC.HOLDER_FEES]: "Share of fees paid to esALB holders.",
+    [METRIC.REFERRAL_FEES]: "Referral fees.",
   },
   Revenue: {
-    [METRIC.PROTOCOL_FEES]: "Protocol fee, matching fees and captured surplus kept by the fee collector.",
+    [METRIC.PROTOCOL_FEES]: "Fees kept by the protocol.",
+    [METRIC.HOLDER_FEES]: "Share of fees paid to esALB holders.",
   },
   ProtocolRevenue: {
-    [METRIC.PROTOCOL_FEES]: "Protocol fee, matching fees and captured surplus kept by the fee collector.",
+    [METRIC.PROTOCOL_FEES]: "Fees kept by the protocol.",
+  },
+  HoldersRevenue: {
+    [METRIC.HOLDER_FEES]: "Share of fees paid to esALB holders.",
   },
   SupplySideRevenue: {
-    [METRIC.KEEPER_FEES]: "Execution fees earned by keepers for filling orders.",
-    [METRIC.REFERRAL_FEES]: "Referral fees earned by order referrers.",
+    [METRIC.REFERRAL_FEES]: "Referral fees.",
   },
 };
 

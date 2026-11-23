@@ -1166,10 +1166,8 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.BASE]: { factory: '0xFDa619b6d20975be80A10332cD39b9a4b0FAa8BB', start: '2023-07-28', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32, holdersRevenueRatio: 0 },
   },
   "alienbase": {
-    // Alien Base V2 (https://alienbase.xyz): Uniswap V2 fork, pairs charge 0.16% per swap (not the stock 0.3%).
-    // factory.feeTo() = 0xdD8Bb6779D6d7A2540C38caE1e95c2A1c350A390 (protocol fee address, team-operated; checked 2026-11-10), so the stock
-    // kLast _mintFee mints 1/6 of the LP fee growth to the treasury. Factory deployed August 2023 (listed 2023-08-09).
-    [CHAIN.BASE]: { factory: '0x3E84D913803b02A4a7f027165E8cA42C14C0FdE7', start: '2023-08-09', fees: 0.0016, userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+    // 0.16% swap fee. Deployed _mintFee uses rootK + rootKLast, so half of fee growth is taken and paid to esALB holders.
+    [CHAIN.BASE]: { factory: '0x3E84D913803b02A4a7f027165E8cA42C14C0FdE7', start: '2023-08-09', fees: 0.0016, userFeesRatio: 1, revenueRatio: 0.5, protocolRevenueRatio: 0, holdersRevenueRatio: 0.5 },
   },
   "voltswap-v1": {
     // all swap fees go to VOLT stakers
@@ -1790,12 +1788,13 @@ const methodologyMap: Record<string, any> = {
     HoldersRevenue: "Stakers received $GLINT in staking rewards.",
   },
   "alienbase": {
-    Volume: "Swap volume from all Alien Base V2 pairs deployed by the V2 factory on Base.",
-    Fees: "Traders pay a 0.16% fee on every swap in Alien Base V2 pairs.",
-    UserFees: "All fees are the 0.16% swap fee paid by traders.",
-    Revenue: "1/6 of swap fees (about 0.027% of volume), minted as LP tokens to the protocol fee address through the factory feeTo switch.",
-    ProtocolRevenue: "1/6 of swap fees (about 0.027% of volume), collected by the protocol fee address set as the factory feeTo (redeemed daily and recycled into esALB/govALB staker rewards).",
-    SupplySideRevenue: "5/6 of swap fees (about 0.133% of volume) stay in the pairs for liquidity providers.",
+    Volume: "Swap volume on Alien Base V2.",
+    Fees: "Traders pay 0.16% on each swap.",
+    UserFees: "Traders pay 0.16% on each swap.",
+    Revenue: "Half of swap fees is paid to esALB holders.",
+    ProtocolRevenue: "The protocol keeps no V2 swap fees.",
+    SupplySideRevenue: "Half of swap fees stays with liquidity providers.",
+    HoldersRevenue: "Half of swap fees is paid to esALB holders.",
   },
   "baseswap-v2": {
     Fees: "Traders pay a 0.25% fee on every swap in BaseSwap V2 pairs.",
@@ -2381,11 +2380,11 @@ protocols['baseswap-v2'].breakdownMethodology = {
 }
 
 protocols['alienbase'].breakdownMethodology = {
-  Fees: { 'Token Swap Fees': "0.16% swap fee paid by traders on Alien Base V2 pairs." },
-  UserFees: { 'Trading fees': "0.16% swap fee paid by traders per trade." },
-  Revenue: { 'Protocol fees': "1/6 of swap fees, minted to the protocol fee address through the factory feeTo switch." },
-  ProtocolRevenue: { 'Protocol fees': "1/6 of swap fees, collected by the protocol fee address (feeTo)." },
-  SupplySideRevenue: { 'LP fees': "5/6 of swap fees, kept by liquidity providers." },
+  Fees: { 'Token Swap Fees': "0.16% swap fee." },
+  UserFees: { 'Trading fees': "0.16% swap fee." },
+  Revenue: { 'Protocol fees': "Half of swap fees, paid to esALB holders." },
+  SupplySideRevenue: { 'LP fees': "Half of swap fees, kept by liquidity providers." },
+  HoldersRevenue: { 'Tokenholder fees': "Half of swap fees, paid to esALB holders." },
 }
 
 protocols['potatoswap'].breakdownMethodology = {
