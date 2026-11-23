@@ -32,6 +32,22 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "easyperp": {
+    // EasyPerp (https://trade.easyperp.app, https://x.com/easyperp), a perpetual futures trading interface.
+    // Users approve a 0.04% builder fee to this address; orders placed from the EasyPerp app carry this builder
+    // code on top of the venue's own trading fees.
+    // Verifiable: the builder field of orders placed through the app; the address's `referral` state
+    // (builderRewards). The address is the public VITE_BUILDER_ADDRESS in the app's production bundle.
+    addresses: ["0xd552762ced07ecc9c4027d5ece026d63f6ce0f78"],
+    // first day with fills carrying the code (stats-data builder_fills)
+    start: "2026-11-14",
+    methodology: {
+      Volume: "Notional volume of perpetual trades placed through EasyPerp with its builder code.",
+      Fees: "Builder code fees paid by users on perpetual trades placed through EasyPerp; excludes the venue's own trading fees.",
+      Revenue: "Builder code fees on perpetual trades placed through EasyPerp, all kept by EasyPerp.",
+      ProtocolRevenue: "Builder code fees on perpetual trades placed through EasyPerp, all kept by EasyPerp.",
+    },
+  },
   "atlasx-perps": {
     // ATLASX (https://atlx.ai, https://x.com/atlasx_ai), a non-custodial iOS and web trading app for Hyperliquid perps.
     // Its Hyperliquid perp orders carry this builder code with a 0.05% fee on top of Hyperliquid's own fees
