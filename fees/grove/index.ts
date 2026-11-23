@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { Balances } from "@defillama/sdk";
+import { Balances, ChainApi } from "@defillama/sdk";
 import { CHAIN } from "../../helpers/chains";
+import ADDRESSES from "../../helpers/coreAssets.json";
 
 const chainConfig = {
     [CHAIN.ETHEREUM]: {
@@ -121,6 +122,26 @@ const chainConfig = {
                 // first ALM proxy deposit 2026-09-28: 0xb7ecfefb5a9fda1939ec663ea8717e51738bb220671cdd87ffe8dd24cf438c91
                 vault: "0xbeef0786756810478b88982DE00F3CD7fdB8e7c7",
                 name: "grove-steakUSDC",
+                vaultDecimals: 18,
+                assetDecimals: 6,
+            },
+        ]
+    },
+    // ALM proxy, Grove x Steakhouse USDG vault and USDG in Grove's address registry:
+    // https://github.com/grove-labs/grove-address-registry/blob/622981e83411fa675672073476cbf45d6777c2b5/src/Robinhood.sol#L10-L36
+    [CHAIN.ROBINHOOD]: {
+        // first full day after the proxy registered for USDG rewards on 2026-08-07 19:15 UTC (payout group 20, block 30454946)
+        start: '2026-08-08',
+        address: "0x29626c2d8Ca49A51E4dECEEc5499e52983c42BD5",
+        usdgRewards: {
+            token: ADDRESSES.robinhood.USDG,
+            payoutGroupId: 20, // the proxy is the only account in the group
+        },
+        morphoVaults: [
+            {
+                // first ALM proxy deposit 2026-08-11: 0x86d3eb691b350e869a6bf97fbd87d3d89668ea34320c7a306bd713e65d37696e
+                vault: "0xBEEff039907422219Fb367e525954DDC092854d9",
+                name: "grove-steakUSDG",
                 vaultDecimals: 18,
                 assetDecimals: 6,
             },
@@ -287,6 +308,38 @@ async function addMorphoYields(options: FetchOptions, dailyFees: Balances) {
 
 }
 
+// USDG credits rewards once a day, at 00:00 UTC, on the balance held at that moment. Read half an hour either side of
+// midnight, in the first hourly run of the day, so the credit lands on its own day wherever the midnight block resolves.
+// Hourly runs end at HH:59:59 or HH+1:00:00, so the first one starts at 23:59:59 or 00:00:00: the window is anchored on
+// startOfDay, which is the same midnight for both, and every later run returns here without a request.
+// Rewards accrued = change in what is still unclaimed + what was claimed in between.
+async function addUsdgRewards(options: FetchOptions, dailyFees: Balances) {
+    if (Math.abs(options.fromTimestamp - options.startOfDay) > 60) return;
+
+    const { address, usdgRewards } = chainConfig[CHAIN.ROBINHOOD];
+    const [blockBefore, blockAfter] = await Promise.all([-1800, 1800].map(s => options.getBlock(options.startOfDay + s, options.chain, {})));
+    if (!blockBefore || !blockAfter) throw new Error(`No block around ${options.dateString} 00:00 UTC on ${options.chain}`);
+    const [availableBefore, availableAfter] = await Promise.all([blockBefore, blockAfter].map(block => new ChainApi({ chain: options.chain, block }).call({
+        target: usdgRewards.token,
+        abi: "function availableRewardsOf(address account) view returns (uint256)",
+        params: address,
+    })));
+    const claims = await options.getLogs({
+        target: usdgRewards.token,
+        eventAbi: "event ClaimAllExecuted(uint32 indexed payoutGroupId, address indexed executor, address indexed destination, uint256 amount)",
+        fromBlock: blockBefore + 1,
+        toBlock: blockAfter,
+    });
+
+    let accrued = BigInt(availableAfter) - BigInt(availableBefore);
+    for (const claim of claims) {
+        if (Number(claim.payoutGroupId) === usdgRewards.payoutGroupId) accrued += BigInt(claim.amount);
+    }
+    if (accrued < 0n) throw new Error(`Unclaimed USDG rewards fell by ${-accrued} with no claim`);
+
+    dailyFees.add(usdgRewards.token, accrued, 'Assets Yields - USDG Rewards');
+}
+
 async function fetch(options: FetchOptions) {
 
     const dailyFees = options.createBalances();
@@ -307,6 +360,10 @@ async function fetch(options: FetchOptions) {
         await addMorphoYields(options, dailyFees);
     }
 
+    if (options.chain === CHAIN.ROBINHOOD) {
+        await addUsdgRewards(options, dailyFees);
+    }
+
 
     return {
         dailyFees,
@@ -316,7 +373,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-    Fees: "Includes all the yields earned by allocating assets into various defi protocols",
+    Fees: "Includes all the yields earned by allocating assets into various defi protocols, and the rewards accrued on USDG held directly by Grove's ALM proxy on Robinhood Chain",
     Revenue: "No revenue",
     SupplySideRevenue: "All the yields go to investors"
 }
@@ -327,12 +384,14 @@ const breakdownMethodology = {
         'Assets Yields - Aave Horizon': 'Yields earned by allocating assets into aave horizon vaults',
         'Assets Yields - Securitize': 'Yields earned by allocating assets into securitize vaults',
         'Assets Yields - Morpho': 'Yields earned by allocating assets into morpho vaults',
+        'Assets Yields - USDG Rewards': "Rewards accrued on USDG held directly by Grove's ALM proxy on Robinhood Chain",
     },
     SupplySideRevenue: {
         'Assets Yields - Centrifuge': 'Yields earned by allocating assets into centrifuge vaults',
         'Assets Yields - Aave Horizon': 'Yields earned by allocating assets into aave horizon vaults',
         'Assets Yields - Securitize': 'Yields earned by allocating assets into securitize vaults',
         'Assets Yields - Morpho': 'Yields earned by allocating assets into morpho vaults',
+        'Assets Yields - USDG Rewards': "Rewards accrued on USDG held directly by Grove's ALM proxy on Robinhood Chain",
     }
 }
 
