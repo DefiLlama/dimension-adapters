@@ -17,6 +17,11 @@ const chainConfig = {
                 name: "JAAA",
                 badDataDays: ["2025-07-28"]
             },
+            {
+                token: "0x9477724bb54ad5417de8baff29e59df3fb4da74f",
+                vault: "0x74a739ea1dc67c5a0179ebad665d1d3c4b80b712",
+                name: "ACRDX",
+            },
         ]
     },
     [CHAIN.AVAX]: {
@@ -37,6 +42,11 @@ const chainConfig = {
                 vault: "0x354a9222571259457b2e98b2285b62e6a9bf4ed3",
                 name: "ACRDX",
             },
+            {
+                token: "0xa5d465251fbcc907f5dd6bb2145488dfc6a2627b",
+                vault: "0x818a3593340622c1d6a51b039e191f2f8c99a1f2",
+                name: "JTRSY",
+            },
         ]
     },
     [CHAIN.BASE]: {
@@ -46,6 +56,11 @@ const chainConfig = {
                 token: "0x5a0f93d040de44e78f251b03c43be9cf317dcf64",
                 vault: "0x2aef271f00a9d1b0da8065d396f4e601dbd0ef0b",
                 name: "JAAA",
+            },
+            {
+                token: "0x8c213ee79581ff4984583c6a801e5263418c4b86",
+                vault: "0x1adc510c58b0ee383034b0a42421f516d0baf283",
+                name: "JTRSY",
             },
         ]
     },
@@ -131,7 +146,8 @@ async function fetch(options: FetchOptions) {
     })
 
     for (let i = 0; i < tokenAddresses.length; i++) {
-        if (!totalSupplies[i] || !pricePerShareBefore[i] || !pricePerShareAfter[i] || !decimals[i] || badDataDays[i]?.includes(options.dateString)) {
+        // pricePerShare is read as a string and is "0" until the vault's first price, so compare it as a number
+        if (!totalSupplies[i] || !Number(pricePerShareBefore[i]) || !Number(pricePerShareAfter[i]) || !decimals[i] || badDataDays[i]?.includes(options.dateString)) {
             continue;
         }
 
