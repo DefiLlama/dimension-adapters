@@ -190,6 +190,7 @@ const fetch = async (options: FetchOptions) => {
   return {
     dailyFees,
     dailyRevenue,
+    dailyProtocolRevenue: dailyRevenue,
     dailySupplySideRevenue,
     dailyUserFees,
   }
@@ -205,6 +206,7 @@ const adapters = {
     Fees: "Staking rewards + yield distribution + mint fees + redeem fees + extra fees",
     UserFees: "Users pay fees when minting USDe using USDT, USDC or USDtb, and when redeeming USDe for stablecoin collateral",
     Revenue: "Mint Fees, Redeem Fees and staking rewards portion to Reserve Fund",
+    ProtocolRevenue: "Mint Fees, Redeem Fees and staking rewards portion to Reserve Fund",
     SupplySideRevenue: "Staking rewards, extra rewards and Aave liquidation fees distributed to sUSDe stakers",
   },
   breakdownMethodology: {
@@ -217,6 +219,11 @@ const adapters = {
       [EXTRA_METRICS.AAVE_LIQ_FEES]: 'Aave liquidation fees distributed to sUSDe stakers.',
     },
     Revenue: {
+      [EXTRA_METRICS.MINT_FEES]: 'Users pay fees when minting USDe using USDT, USDC or USDtb.',
+      [EXTRA_METRICS.REDEEM_FEES]: 'Redemption fee plus gas users pay when redeeming USDe: the USDe burned minus the stablecoin collateral paid out, kept by the protocol.',
+      [EXTRA_METRICS.RESERVE_FUND]: 'Staking rewards portion to Reserve Fund.',
+    },
+    ProtocolRevenue: {
       [EXTRA_METRICS.MINT_FEES]: 'Users pay fees when minting USDe using USDT, USDC or USDtb.',
       [EXTRA_METRICS.REDEEM_FEES]: 'Redemption fee plus gas users pay when redeeming USDe: the USDe burned minus the stablecoin collateral paid out, kept by the protocol.',
       [EXTRA_METRICS.RESERVE_FUND]: 'Staking rewards portion to Reserve Fund.',
