@@ -11,6 +11,7 @@ interface BuilderConfig {
   breakdownFees?: boolean; // add breakdown fees labels
   market?: HyperliquidBuilderMarketV2; // perps when omitted, see builderMarketListings for the other markets
   revenueToHolders?: boolean; // all builder-code fees go to the protocol's token holders
+  note?: string; // shown when running the adapter test
 }
 
 // this config is used for both superx and superX
@@ -772,7 +773,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
   // "flowbot-perps": { addresses: ["0xb5d19a1f92fcd5bfdd154d16793bb394f246cb36"], start: "2025-11-27" },
   // Changes to fomo's revenue methodology, including shared builder logic, require further approval before merging:
   // a Trueo market depends on this data; this builder also supplies fomo Spot and Outcome.
-  "fomo-perps": { addresses: ["0xb838e4d1c8bcf71fa8e63299d5aa3258c83d6adb"] },
+  "fomo-perps": { addresses: ["0xb838e4d1c8bcf71fa8e63299d5aa3258c83d6adb"], note: "Changes to this adapter's revenue methodology require further approval before merging: a Trueo market depends on this data." },
   "gemwallet-perps": {
     addresses: ["0x0d9dab1a248f63b0a48965ba8435e4de7497a3dc"],
     start: "2025-08-01",
@@ -1177,6 +1178,7 @@ const builderConfigs: Record<string, BuilderConfig> = {
   // Changes to fomo Perps' revenue methodology, including shared builder logic, require further approval before merging:
   // a Trueo market depends on this data.
   "fomo-social-trading-perps": {
+    note: "Changes to this adapter's revenue methodology require further approval before merging: a Trueo market depends on this data.",
     addresses: ["0x2a2b6b093a9813fbd8cddae800c3d17d46460d17"],
     start: "2026-06-05",
     methodology: {
@@ -1756,7 +1758,7 @@ const validatorConfigs: Record<string, ValidatorConfig> = {
 }
 
 // HIP3 deployer dex configs: protocol name -> { dexId, start, methodology }
-const hip3DexConfigs: Record<string, { dexId: string; start: string; deadFrom?: string; methodologyName: string }> = {
+const hip3DexConfigs: Record<string, { dexId: string; start: string; deadFrom?: string; methodologyName: string; note?: string }> = {
   // Tether-backed Dreamcash kept its main frontend but retired the CASH
   // HIP-3 market once USDC became the dominant Hyperliquid quote asset,
   // making a USDT-quoted deployer market unviable. Last fees 2026-07-02.
@@ -1771,7 +1773,7 @@ const hip3DexConfigs: Record<string, { dexId: string; start: string; deadFrom?: 
   // its builder codes are in the standalone dexs/kinetiq-interface.ts (perps) and dexs/kinetiq-interface-spot.ts
   // Changes to tradeXYZ's revenue methodology, including shared HIP-3 deployer logic, require further approval before merging:
   // a Trueo market depends on this data.
-  "tradexyz": { dexId: "xyz", start: "2025-11-01", methodologyName: "Trade.xyz" },
+  "tradexyz": { dexId: "xyz", start: "2025-11-01", methodologyName: "Trade.xyz", note: "Changes to this adapter's revenue methodology require further approval before merging: a Trueo market depends on this data." },
   // Ventuals shut down 2026-06-19, halting all HIP-3 markets (incl. its
   // OPENAI/ANTHROPIC pre-IPO perps) and settling every open position.
   "ventuals": { dexId: "vntl", start: "2025-11-13", deadFrom: "2026-06-20", methodologyName: "Ventuals" },
@@ -1801,7 +1803,7 @@ function hip3Methodology(name: string) {
 // Builders are split into one listing per market. Each builderConfigs entry is the builder's perps listing
 // (its outcome listing for outcome-only builders); these are the builder's other markets, reusing its addresses
 // and settings. Spot and perps listings start with the builder, outcome listings no earlier than HIP-4 (2026-05-02).
-const builderMarketListings: Record<string, { builder: string; market: HyperliquidBuilderMarketV2; start: string; deadFrom?: string }> = {
+const builderMarketListings: Record<string, { builder: string; market: HyperliquidBuilderMarketV2; start: string; deadFrom?: string; note?: string }> = {
   "ditto-spot": { builder: "ditto-perps", market: "spot", start: "2026-09-30" },
   "alphapilot-spot": { builder: "alphapilot", market: "spot", start: "2025-08-01" },
   "aura-money-outcome": { builder: "aura-money-perps", market: "outcome", start: "2026-05-04" },
@@ -1832,8 +1834,8 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "floatout-outcome": { builder: "floatout", market: "outcome", start: "2026-05-05" },
   // Changes to fomo Spot or Outcome revenue methodology require further approval before merging:
   // a Trueo market depends on this data, including the shared fomo-perps builder configuration.
-  "fomo-spot": { builder: "fomo-perps", market: "spot", start: "2025-08-01" },
-  "fomo-outcome": { builder: "fomo-perps", market: "outcome", start: "2026-05-02" },
+  "fomo-spot": { builder: "fomo-perps", market: "spot", start: "2025-08-01", note: "Changes to this adapter's revenue methodology require further approval before merging: a Trueo market depends on this data." },
+  "fomo-outcome": { builder: "fomo-perps", market: "outcome", start: "2026-05-02", note: "Changes to this adapter's revenue methodology require further approval before merging: a Trueo market depends on this data." },
   "gdex-outcome": { builder: "gdex-perps", market: "outcome", start: "2026-05-05" },
   "gemwallet-spot": { builder: "gemwallet-perps", market: "spot", start: "2025-08-01" },
   "grider-spot": { builder: "grider-perps", market: "spot", start: "2026-03-08" },
@@ -1932,6 +1934,7 @@ for (const [name, config] of Object.entries(builderConfigs)) {
     market: config.market ?? "perps",
     revenueToHolders: config.revenueToHolders,
   });
+  if (config.note) dexsProtocols[name].note = config.note;
 }
 for (const [name, listing] of Object.entries(builderMarketListings)) {
   const builder = builderConfigs[listing.builder];
@@ -1943,6 +1946,7 @@ for (const [name, listing] of Object.entries(builderMarketListings)) {
     market: listing.market,
     revenueToHolders: builder.revenueToHolders,
   });
+  if (listing.note) dexsProtocols[name].note = listing.note;
 }
 for (const [name, config] of Object.entries(hip3DexConfigs)) {
   dexsProtocols[name] = exportHIP3DeployerAdapter(config.dexId, {
@@ -1951,6 +1955,7 @@ for (const [name, config] of Object.entries(hip3DexConfigs)) {
     deadFrom: config.deadFrom,
     methodology: hip3Methodology(config.methodologyName),
   });
+  if (config.note) dexsProtocols[name].note = config.note;
 }
 
 // Build fees protocols (validators staking fees)

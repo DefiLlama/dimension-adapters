@@ -94,6 +94,7 @@ const fetch = async (options: FetchOptions) => {
 
 // https://resources.curve.finance/pools/overview/#pool-fees
 const adapter: SimpleAdapter = {
+  note: "Changes to this adapter's revenue methodology require further approval before merging: a Trueo market depends on this data.",
   version: 2,
   pullHourly: false, // bribes come from a once-a-day cumulative stats JSON
   adapter: Object.keys(baseDexAdapter).reduce((all, chain) => {
