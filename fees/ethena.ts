@@ -24,8 +24,14 @@ const MINT_EVENT_ABI = {
   'V2': "event Mint(string indexed order_id, address indexed benefactor, address indexed beneficiary, address minter, address collateral_asset, uint256 collateral_amount, uint256 usde_amount)"
 }
 
+const REDEEM_EVENT_ABI = {
+  'V1': "event Redeem(address indexed redeemer,address indexed benefactor,address indexed beneficiary,address collateral_asset,uint256 collateral_amount,uint256 usde_amount)",
+  'V2': "event Redeem(string indexed order_id, address indexed benefactor, address indexed beneficiary, address redeemer, address collateral_asset, uint256 collateral_amount, uint256 usde_amount)"
+}
+
 const EXTRA_METRICS = {
   MINT_FEES: 'Mint Fees',
+  REDEEM_FEES: 'Redeem Fees',
   RESERVE_FUND: 'Reserve Fund',
   SUSDE_STAKING_REWARDS: 'sUSDe Staking Rewards',
   EXTRA_REWARDS: 'Extra Rewards',
@@ -34,7 +40,7 @@ const EXTRA_METRICS = {
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
-  const dailyMintFees = options.createBalances();
+  const dailyUserFees = options.createBalances();
   const dailyRevenue = dailyFees.clone();
   const dailySupplySideRevenue = options.createBalances();
 
@@ -46,13 +52,22 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: MINT_EVENT_ABI['V2'],
     target: MINT_AND_REDEEM_CONTRACT['V2'],
   });
+  const v1_redeem_logs = await options.getLogs({
+    eventAbi: REDEEM_EVENT_ABI['V1'],
+    target: MINT_AND_REDEEM_CONTRACT['V1'],
+  });
+  const v2_redeem_logs = await options.getLogs({
+    eventAbi: REDEEM_EVENT_ABI['V2'],
+    target: MINT_AND_REDEEM_CONTRACT['V2'],
+  });
+  const redeem_logs = [...v1_redeem_logs, ...v2_redeem_logs];
 
   // V1 only ever accepted 6-decimal stables (USDT/USDC/USDtb-pre-rebrand) so
   // `/1e12` is safe to bake in.
   v1_logs.map((log) => {
     const fee = Number(log.collateral_amount) - (Number(log.usde_amount) / 1e12);
     if (fee > 0) {
-      dailyMintFees.add(log.collateral_asset.toLowerCase(), fee, EXTRA_METRICS.MINT_FEES);
+      dailyUserFees.add(log.collateral_asset.toLowerCase(), fee, EXTRA_METRICS.MINT_FEES);
     }
   });
 
@@ -67,40 +82,49 @@ const fetch = async (options: FetchOptions) => {
   // Switch to the same event-derived approach as V1, but read each
   // collateral asset's decimals on-chain so the scale conversion handles
   // 18-dec stables (USDtb, USDm) correctly.
-  if (v2_logs.length > 0) {
-    const collateralAssetsV2 = Array.from(
-      new Set<string>(v2_logs.map((log: any) => log.collateral_asset.toLowerCase())),
+  // Redeem is the mirror: USDe is burned and less collateral is paid out, and
+  // the difference is the redemption fee (plus gas) the protocol keeps.
+  if (v2_logs.length + redeem_logs.length > 0) {
+    const collateralAssets = Array.from(
+      new Set<string>([...v2_logs, ...redeem_logs].map((log: any) => log.collateral_asset.toLowerCase())),
     );
     const decimalsResults: Array<any> = await options.api.multiCall({
       abi: 'uint8:decimals',
-      calls: collateralAssetsV2,
+      calls: collateralAssets,
     });
     const decByAsset: Record<string, number> = {};
-    collateralAssetsV2.forEach((asset, i) => {
+    collateralAssets.forEach((asset, i) => {
       const d = Number(decimalsResults[i]);
       if (!Number.isFinite(d)) throw new Error(`ethena: invalid decimals for collateral asset ${asset}`);
       decByAsset[asset] = d;
     });
 
-    for (const log of v2_logs) {
-      const asset = log.collateral_asset.toLowerCase();
-      const dec = decByAsset[asset];
-      const collateral = BigInt(log.collateral_amount);
+    const usdeInAssetScale = (log: any) => {
+      const dec = decByAsset[log.collateral_asset.toLowerCase()];
       const usdeRaw = BigInt(log.usde_amount);
       // Convert USDe (18-dec) into the collateral asset's decimal scale before
       // taking the diff so the fee comes out in the asset's native units.
-      const usdeInAssetScale =
-        dec >= 18
-          ? usdeRaw * (10n ** BigInt(dec - 18))
-          : usdeRaw / (10n ** BigInt(18 - dec));
-      const fee = collateral - usdeInAssetScale;
+      return dec >= 18
+        ? usdeRaw * (10n ** BigInt(dec - 18))
+        : usdeRaw / (10n ** BigInt(18 - dec));
+    };
+
+    for (const log of v2_logs) {
+      const fee = BigInt(log.collateral_amount) - usdeInAssetScale(log);
       if (fee > 0n) {
-        dailyMintFees.add(asset, fee, EXTRA_METRICS.MINT_FEES);
+        dailyUserFees.add(log.collateral_asset.toLowerCase(), fee, EXTRA_METRICS.MINT_FEES);
+      }
+    }
+
+    for (const log of redeem_logs) {
+      const fee = usdeInAssetScale(log) - BigInt(log.collateral_amount);
+      if (fee > 0n) {
+        dailyUserFees.add(log.collateral_asset.toLowerCase(), fee, EXTRA_METRICS.REDEEM_FEES);
       }
     }
   }
-  dailyFees.addBalances(dailyMintFees, EXTRA_METRICS.MINT_FEES);
-  dailyRevenue.addBalances(dailyMintFees, EXTRA_METRICS.MINT_FEES);
+  dailyFees.addBalances(dailyUserFees);
+  dailyRevenue.addBalances(dailyUserFees);
 
   // https://etherscan.io/advanced-filter?fadd=0x71E4f98e8f20C88112489de3DDEd4489802a3A87&tadd=0x2b5ab59163a6e93b4486f6055d33ca4a115dd4d5&qt=1&tkn=0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48,0xdac17f958d2ee523a2206206994597c13d831ec7
   const in_flow = (await options.getLogs({
@@ -167,7 +191,7 @@ const fetch = async (options: FetchOptions) => {
     dailyFees,
     dailyRevenue,
     dailySupplySideRevenue,
-    dailyUserFees: dailyMintFees,
+    dailyUserFees,
   }
 }
 
@@ -178,14 +202,15 @@ const adapters = {
   fetch,
   start: '2023-11-24',
   methodology: {
-    Fees: "Staking rewards + yield distribution + mint fees + extra fees",
-    UserFees: "Users pay fees when minting USDe using USDT, USDC or USDtb",
-    Revenue: "Mint Fees and staking rewards portion to Reserve Fund",
-    SupplySideRevenue: "Mint Fees and staking rewards distributed to suppliers",
+    Fees: "Staking rewards + yield distribution + mint fees + redeem fees + extra fees",
+    UserFees: "Users pay fees when minting USDe using USDT, USDC or USDtb, and when redeeming USDe for stablecoin collateral",
+    Revenue: "Mint Fees, Redeem Fees and staking rewards portion to Reserve Fund",
+    SupplySideRevenue: "Staking rewards, extra rewards and Aave liquidation fees distributed to sUSDe stakers",
   },
   breakdownMethodology: {
     Fees: {
       [EXTRA_METRICS.MINT_FEES]: 'Users pay fees when minting USDe using USDT, USDC or USDtb.',
+      [EXTRA_METRICS.REDEEM_FEES]: 'Redemption fee plus gas users pay when redeeming USDe: the USDe burned minus the stablecoin collateral paid out, kept by the protocol.',
       [EXTRA_METRICS.RESERVE_FUND]: 'Staking rewards portion to Reserve Fund.',
       [EXTRA_METRICS.SUSDE_STAKING_REWARDS]: 'Staking rewards distributed to sUSDe stakers.',
       [EXTRA_METRICS.EXTRA_REWARDS]: 'Extra rewards distributed to sUSDe stakers.',
@@ -193,6 +218,7 @@ const adapters = {
     },
     Revenue: {
       [EXTRA_METRICS.MINT_FEES]: 'Users pay fees when minting USDe using USDT, USDC or USDtb.',
+      [EXTRA_METRICS.REDEEM_FEES]: 'Redemption fee plus gas users pay when redeeming USDe: the USDe burned minus the stablecoin collateral paid out, kept by the protocol.',
       [EXTRA_METRICS.RESERVE_FUND]: 'Staking rewards portion to Reserve Fund.',
     },
     SupplySideRevenue: {
