@@ -32,6 +32,40 @@ const superxConfig: BuilderConfig = {
 // factory export. The DefiLlama dimension framework picks the appropriate
 // fields (volume vs fees) based on each protocol's metadata adapter type.
 const builderConfigs: Record<string, BuilderConfig> = {
+  "coinbase-wallet-perps": {
+    // Coinbase Wallet (https://www.coinbase.com/wallet) in-app perps trading on Hyperliquid. Orders carry this builder
+    // code; users approve a 0.085% builder fee to it.
+    // Verifiable: the address's Hyperliquid `referral` state holds the referral code CBWALLET (and builderRewards), and
+    // it is the same fee wallet fees/coinbase-wallet.ts tracks for Coinbase Wallet's EVM swap fees from 2025-10-16.
+    addresses: ["0x5aafc1f252d544f744d17a4e734afd6efc47ede4"],
+    // start = earliest date with a file at https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/<address>/<YYYYMMDD>.csv.lz4;
+    // Hyperliquid publishes one per builder per day that had trades with its code (missing days return 403)
+    start: "2026-07-31",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades placed through Coinbase Wallet with its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through Coinbase Wallet; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through Coinbase Wallet, all kept by Coinbase.",
+      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through Coinbase Wallet, all kept by Coinbase.",
+    },
+    breakdownFees: true,
+  },
+  "pocket-universe-perps": {
+    // Pocket Universe / Kerberus (https://www.pocketuniverse.app) trading on Hyperliquid perps and spot; its Lighter
+    // trading is listed as pocket-universe-lighter. Users approve up to a 1% builder fee (spot), perp orders carry 0.1%.
+    // Verifiable: the builder field of its orders; this address is also the Pocket Universe / Kerberus CoW Swap
+    // partner fee recipient tracked in fees/pocket-universe.ts.
+    addresses: ["0x9c87bb379d5ff2fcbf2f83e619f9fccb95a40ad9"],
+    // start = earliest date with a file at https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/<address>/<YYYYMMDD>.csv.lz4;
+    // Hyperliquid publishes one per builder per day that had trades with its code (missing days return 403)
+    start: "2026-08-05",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades placed through Pocket Universe with its builder code.",
+      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through Pocket Universe; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through Pocket Universe, all kept by Pocket Universe.",
+      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through Pocket Universe, all kept by Pocket Universe.",
+    },
+    breakdownFees: true,
+  },
   "easyperp": {
     // EasyPerp (https://trade.easyperp.app, https://x.com/easyperp), a perpetual futures trading interface.
     // Users approve a 0.04% builder fee to this address; orders placed from the EasyPerp app carry this builder
@@ -625,7 +659,13 @@ const builderConfigs: Record<string, BuilderConfig> = {
     breakdownFees: true,
   },
   "metamask-perps": {
-    addresses: ["0xe95a5e31904e005066614247d309e00d8ad753aa"],
+    // MetaMask routes perps through two builder addresses: the original one, and the one set as
+    // MM_PERPS_HL_BUILDER_ADDRESS_MAINNET in metamask-extension's builds.yml. The second one's first builder_fills file
+    // (https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/<address>/<YYYYMMDD>.csv.lz4) is for 2026-03-30
+    addresses: [
+      "0xe95a5e31904e005066614247d309e00d8ad753aa",
+      { address: "0xea2c82b5aba243ab631c0ce151763d5e38df75b3", start: "2026-03-30" },
+    ],
     start: "2025-10-07",
     methodology: {
       Fees: "Builder code revenue from Hyperliquid Perps Trades.",
@@ -1848,6 +1888,7 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "phantom-spot": { builder: "phantom-perps", market: "spot", start: "2025-07-08" },
   "phantom-outcome": { builder: "phantom-perps", market: "outcome", start: "2026-05-02" },
   "pluto-spot": { builder: "pluto-perps", market: "spot", start: "2025-05-26" },
+  "pocket-universe-spot": { builder: "pocket-universe-perps", market: "spot", start: "2026-08-05" },
   "profunding-spot": { builder: "profunding", market: "spot", start: "2026-02-22" },
   "purrps-spot": { builder: "purrps", market: "spot", start: "2026-01-20" },
   "pvp-trade-spot": { builder: "pvp-trade", market: "spot", start: "2024-10-27" },
