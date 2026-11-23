@@ -435,7 +435,7 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
   return fetch
 }
 
-const defaultV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
+export const defaultV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)'
 const defaultPoolCreatedEvent = 'event PoolCreated(address indexed token0, address indexed token1, uint24 indexed fee, int24 tickSpacing, address pool)'
 const defaultAlgebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
 const defaultFeeChangeEvent = 'event SetFee(uint24 feeOld, uint24 feeNew)'
