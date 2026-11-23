@@ -117,6 +117,7 @@ export enum Dependencies {
 
 
 export type AdapterBase = {
+  note?: string; // a note will be shown when running
   timetravel?: boolean
   isExpensiveAdapter?: boolean,
   dependencies?: Dependencies[]

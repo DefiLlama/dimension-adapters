@@ -17,6 +17,7 @@ const fetch = async (options: any) => {
 }
 
 export default {
+  note: "Changes to this adapter's revenue methodology require further approval before merging: a Trueo market depends on this data.",
   pullHourly: true,
   version: 2,
   adapter: {

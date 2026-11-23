@@ -274,6 +274,7 @@ const breakdownMethodology = {
 }
 
 const adapters: SimpleAdapter = {
+  note: "Changes to this adapter's revenue methodology require further approval before merging: a Trueo market depends on this data.",
   version: 2,
   pullHourly: true,
   fetch,

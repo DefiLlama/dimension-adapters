@@ -133,6 +133,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 const adapter: SimpleAdapter = {
+  note: "Changes to this adapter's revenue methodology require further approval before merging: a Trueo market depends on this data.",
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: '2024-12-23',

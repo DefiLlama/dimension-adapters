@@ -22,6 +22,16 @@ function formatHourLabel(timestamp: number) {
   return `${hour} ${ampm} - ${day}/${month}`
 }
 
+// print the adapter note in bold yellow, colors only on a terminal so CI logs/PR comments stay plain text
+function printNote(note: string) {
+  const color = (text: string) => process.stdout.isTTY ? `\x1b[1;33m${text}\x1b[0m` : text
+  const lines = note.trim().split('\n').map((line) => line.trim())
+  console.log('')
+  console.info(color(`!!! PLEASE NOTE: ${lines[0]}`))
+  console.log('')
+  lines.slice(1).forEach((line) => console.info(color(`          ${line}`)))
+}
+
 function checkIfFileExistsInMasterBranch(filePath: any) {
   const res = execSync(`git ls-tree --name-only -r master`)
 
@@ -99,6 +109,8 @@ let usedHelper: string | null | undefined = null;
     console.error(error.message);
     process.exit(1);
   }
+
+  if (adapterModule.note) printNote(adapterModule.note)
 
   console.info(`---------------------------------------------------`)
 
