@@ -2,42 +2,28 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
-// Daily aggregates indexed by XOXNO from the swap-aggregator router's events.
+// Window totals indexed by XOXNO from the swap-aggregator router's events.
 // Router (Stellar mainnet): CCVENFSVCBYDHVOACFZXMNNYVOZ3LKXPZYU5LUI4N7KTXOKRVYD7F3TR
 // Event topics ["router", "swap"]; data map { sender, token_in, token_out,
 // amount_in, amount_out, referral_id, fee_token, static_fee, referral_fee },
 // published once per successful swap. static_fee goes to the protocol and
 // referral_fee to the referral partner, both in fee_token.
 const API_BASE = "https://api.xoxno.com";
-const VOLUME_EXPORT_PATH = "/integrations/swap/stellar/volume";
+const TOTALS_EXPORT_PATH = "/integrations/swap/stellar/totals";
 const HEADERS = { "User-Agent": "dune-analytics" };
 const REQUEST_TIMEOUT_MS = 10_000;
 
 const SWAP_FEES_TO_PROTOCOL = "Swap Fees To Protocol";
 const SWAP_FEES_TO_REFERRERS = "Swap Fees To Referrers";
 
-type VolumePoint = {
-  timestamp?: string;
-  dailyVolumeUsd?: number;
-  dailyProtocolFeeUsd?: number;
-  dailyReferralFeeUsd?: number;
+type TotalsExport = {
+  volumeUsd?: number;
+  protocolFeeUsd?: number;
+  referralFeeUsd?: number;
 };
 
-type VolumeExport = { points?: VolumePoint[] };
-
-function dayRange(timestamp: number) {
-  const day = new Date(timestamp * 1000);
-  day.setUTCHours(0, 0, 0, 0);
-  const next = new Date(day);
-  next.setUTCDate(next.getUTCDate() + 1);
-  return {
-    startTime: day.toISOString().slice(0, 10),
-    endTime: next.toISOString().slice(0, 10),
-  };
-}
-
 function usd(value: unknown): number {
-  const n = Number(value ?? 0);
+  const n = Number(value);
   if (!Number.isFinite(n) || n < 0) {
     throw new Error(`XOXNO aggregator export returned an invalid USD value: ${value}`);
   }
@@ -45,37 +31,30 @@ function usd(value: unknown): number {
 }
 
 const fetch_ = async (options: FetchOptions) => {
-  // [startTime, endTime) is exactly one UTC day.
-  const { startTime, endTime } = dayRange(options.startTimestamp);
-  const url = `${API_BASE}${VOLUME_EXPORT_PATH}?startTime=${startTime}&endTime=${endTime}`;
+  // The export sums [from, to). endTimestamp (= toTimestamp + 1) is the
+  // exclusive end, so consecutive hourly windows tile the day exactly.
+  const url = `${API_BASE}${TOTALS_EXPORT_PATH}?from=${options.startTimestamp}&to=${options.endTimestamp}`;
 
   const response = await fetch(url, {
     headers: HEADERS,
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) {
-    throw new Error(`XOXNO aggregator volume export failed: ${response.status}`);
+    throw new Error(`XOXNO aggregator totals export failed: ${response.status}`);
   }
 
-  const data = (await response.json()) as VolumeExport;
-  // The export zero-fills every day in the window, so a missing point means
-  // the day was not served: fail rather than record a false zero.
-  const point = (data.points ?? []).find(
-    (p) => typeof p.timestamp === "string" && p.timestamp.slice(0, 10) === startTime,
-  );
-  if (!point) {
-    throw new Error(`XOXNO aggregator volume export has no data for ${startTime}`);
-  }
-
-  const protocolFees = usd(point.dailyProtocolFeeUsd);
-  const referralFees = usd(point.dailyReferralFeeUsd);
+  // A missing field means a malformed response: usd() throws rather than
+  // recording a false zero.
+  const data = (await response.json()) as TotalsExport;
+  const protocolFees = usd(data.protocolFeeUsd);
+  const referralFees = usd(data.referralFeeUsd);
 
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  dailyVolume.addUSDValue(usd(point.dailyVolumeUsd));
+  dailyVolume.addUSDValue(usd(data.volumeUsd));
   dailyFees.addUSDValue(protocolFees + referralFees, METRIC.SWAP_FEES);
   dailyRevenue.addUSDValue(protocolFees, SWAP_FEES_TO_PROTOCOL);
   dailySupplySideRevenue.addUSDValue(referralFees, SWAP_FEES_TO_REFERRERS);
@@ -115,9 +94,8 @@ const breakdownMethodology = {
 };
 
 const adapter: SimpleAdapter = {
-  // External API returning daily aggregates only; v2 block-range fetching is
-  // not possible against it.
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch: fetch_,
   chains: [CHAIN.STELLAR],
   start: "2026-11-19",
