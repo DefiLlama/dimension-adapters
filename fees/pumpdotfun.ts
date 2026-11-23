@@ -122,6 +122,19 @@ const PUMP_FEE_RECIPIENTS = [
   'G5UZAVbAf46s7cKWoyKu8kYTip9DGTpbLZ2qa9Aq69dP',
   '7VtfL8fvgNfhz17qKRMjzQEXgbdpnHHHQRh54R9jP2RJ',
 ]
+// Reference only, not used in code: protocol fee recipients of the bonding curve and PumpSwap
+// programs were rotated in November 2026, and the wallets above stop receiving on 2026-11-25.
+// The TradeEvent path (and fees/pump-swap) reads the fee from the event, which names the new
+// recipient and still reports the full fee, so the rotation needs no change. Each recipient
+// receives half of the event fee, so wallet inflows are not the full fee.
+//   2aSWZ3QXsNLVVBr1UB1HxSw7sqMRR2pv2qa5ohsTi5Gp
+//   DrcDxWxLi3i7Yd7cTyCyd44DE7pwS9BvFxSsPx1c7XTv
+//   EAN7utdjyxhKVaqA69DRyxW5ffBhnidRZfifmfhwUgPm
+//   Fso3Ggq2Um1pQT6Uzq8wDicgRh62vANYZUT8uqJd2fXh
+//   BWNNnhN6id5j71h5wfkzmXjnV2fgF9zA61FqGJJjnakw
+//   Eh7hTLi6iMbT55jAEYVgtN5QaSb6z9Ytzwxs2LGG5qg4
+//   3Mqk6qHEj7r3TFNFYjCP85a5venbp2mefYQTSKVVchBC
+//   A3cm36KqisUXVTSRCK6VQ7kvXLene4gsbQedhcd5MujQ
 const PUMP_FEE_EXCLUDE_TX_ADDRESSES = [
   '49AdQfhKyVgWKb1HPi6maQxm5tqJasePR9K6Mn67hEYA',
   'EkuimaBYybHvviYjtMXcnC7eg6WQmzLriDPtvh98fjRg',
