@@ -64,8 +64,8 @@ import { getDexTokensBlacklisted } from "../helpers/lists";
 import { METRIC } from "../helpers/metrics";
 import { isCoreAsset } from "../helpers/prices";
 import {
-  getEstablishedTokens, getPhantomSwapKeys, phantomSwapKey, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES, WASH_MIN_USD,
-  WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
+  fetchUniBurnInflows, getEstablishedTokens, getPhantomSwapKeys, getUniBurnRevenue, phantomSwapKey, washDayStart, WASH_DUST_USD,
+  WASH_MIN_TRADES, WASH_MIN_USD, WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
 } from "../helpers/uniswap";
 import { formatAddress } from "../utils/utils";
 
@@ -349,13 +349,16 @@ const prefetch: any = async (options: FetchOptions) => {
     -- priced-but-dust pools are noise either way; NULL usd (unpriced by Dune) stays flagged
     AND NOT (u.usd IS NOT NULL AND u.usd < ${WASH_DUST_USD})`;
 
-  const rows: any[] = await queryDune('3996608', { fullQuery }, options);
+  const [rows, uniBurnInflows]: [any[], any] = await Promise.all([
+    queryDune('3996608', { fullQuery }, options),
+    fetchUniBurnInflows(options),
+  ]);
   const washPools: Record<string, Set<string>> = {};
   for (const row of rows) {
     if (!row.chain || !row.id) continue;
     (washPools[row.chain] ??= new Set()).add(String(row.id).toLowerCase());
   }
-  return { washPools };
+  return { washPools, uniBurnInflows };
 }
 
 async function fetch(options: FetchOptions) {
@@ -465,10 +468,7 @@ async function fetch(options: FetchOptions) {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees.clone(1, 'Swap Fees To Liquidity Providers'),
-    dailyRevenue: 0, // tracked in uniswap-v3 adapter
-    dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: 0, // tracked in uniswap-v3 adapter
+    ...(await getUniBurnRevenue(options, 'v4', dailyFees)),
   }
 }
 
@@ -481,10 +481,10 @@ const adapter: SimpleAdapter = {
     Volume: 'Swap volume, excluding wash trading and swaps settled with no tokens changing hands.',
     Fees: 'Swap fees paid by users, excluding wash trading and swaps settled with no tokens changing hands.',
     UserFees: 'Swap fees paid by users, excluding wash trading and swaps settled with no tokens changing hands.',
-    Revenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
+    Revenue: 'The Uniswap v4 share of the UNI burned with the swap fees the fee switch collects, on chains where v4 pools pay protocol fees into the fee collector.',
     ProtocolRevenue: 'Protocol makes no revenue.',
-    SupplySideRevenue: 'Part of fees distributed to LPs after protocol cut. (It was 100% of fees before fee switch(27 Jul 2026)).',
-    HoldersRevenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
+    SupplySideRevenue: 'Swap fees kept by liquidity providers: all of them before the fee switch, and the fees minus the v4 share of the UNI burn after it.',
+    HoldersRevenue: 'The Uniswap v4 share of the UNI burned with the swap fees the fee switch collects, on chains where v4 pools pay protocol fees into the fee collector.',
   },
   breakdownMethodology: {
     Fees: {
@@ -493,10 +493,18 @@ const adapter: SimpleAdapter = {
     UserFees: {
       [METRIC.SWAP_FEES]: 'Swap fees paid by users, excluding wash trading and swaps settled with no tokens changing hands.',
     },
+    Revenue: {
+      'Fees Used To Burn UNI': 'Swap fees collected by the fee switch are released to whoever burns UNI at the Firepit. Valued as the UNI burned, split across v2, v3 and v4 by what each paid into the fee collector, v4 share shown here.',
+    },
     SupplySideRevenue: {
-      'Swap Fees To Liquidity Providers': 'Swap fees distributed to LPs, the fee switch share is subtracted in uniswap-v3 adapter.',
+      'Swap Fees To Liquidity Providers': 'v4 swap fees minus the v4 share of the UNI burn, can be negative in a window where a burn exceeds the fees.',
+    },
+    HoldersRevenue: {
+      'Fees Used To Burn UNI': 'Swap fees collected by the fee switch are released to whoever burns UNI at the Firepit. Valued as the UNI burned, split across v2, v3 and v4 by what each paid into the fee collector, v4 share shown here.',
     },
   },
+  // burns land in lumps (2,000-4,000 UNI per release), so the burn share of an hourly window can exceed its swap fees and push supply side negative
+  allowNegativeValue: true,
   fetch,
 };
 

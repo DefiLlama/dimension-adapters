@@ -7,6 +7,8 @@ import { Balances, ChainApi, cache, coins } from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { addOneToken, isCoreAsset } from "./prices";
 import { queryDune } from "./dune";
+import { CHAIN } from "./chains";
+import { DUNE_DEX_BLACKLIST_TABLE } from "./lists";
 import { ethers } from "ethers";
 import { toPositionedLogArgs } from "./logs";
 
@@ -95,6 +97,123 @@ export async function getEstablishedTokens(chain: string, tokens: string[]): Pro
     if ((info?.confidence ?? 0) >= 0.9) established.add(key.split(':')[1].toLowerCase());
   }
   return established;
+}
+
+// UNI burn (fee switch), split across v2 / v3 / v4.
+// Each chain has one TokenJar that v2, v3 and v4 protocol fees are paid into and
+// one Firepit that releases the jar to whoever burns `threshold` UNI. The burn
+// carries no version, so it is split by what each version paid into the jar.
+// tokenJar is firepit.TOKEN_JAR(), poolManager is the chain's v4 PoolManager (dexs/uniswap-v4.ts).
+export const UNI_BURN_CONFIG: Record<string, { feeSwitchDate: string; firepit: string; tokenJar: string; poolManager: string; duneChain: string }> = {
+  [CHAIN.ETHEREUM]: { feeSwitchDate: "2025-12-29", firepit: '0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721', tokenJar: '0xf38521f130fcCF29dB1961597bc5d2B60F995f85', poolManager: '0x000000000004444c5dc75cB358380D2e3dE08A90', duneChain: 'ethereum' },
+  [CHAIN.OPTIMISM]: { feeSwitchDate: "2026-03-08", firepit: '0x94460443Ca27FFC1baeCa61165fde18346C91AbD', tokenJar: '0xb13285DF724ea75f3f1E9912010B7e491dCd5EE3', poolManager: '0x9a13f98cb987694c9f086b1f5eb990eea8264ec3', duneChain: 'optimism' },
+  [CHAIN.ARBITRUM]: { feeSwitchDate: "2026-03-08", firepit: '0xB8018422bcE25D82E70cB98FdA96a4f502D89427', tokenJar: '0x95E337C5B155385945D407f5396387D0c2a3A263', poolManager: '0x360e68faccca8ca495c1b759fd9eee466db9fb32', duneChain: 'arbitrum' },
+  [CHAIN.BASE]: { feeSwitchDate: "2026-03-08", firepit: '0xFf77c0ED0B6b13A20446969107E5867abc46f53a', tokenJar: '0x9bD25e67bF390437C8fAF480AC735a27BcF6168c', poolManager: '0x498581ff718922c3f8e6a244956af099b2652b2b', duneChain: 'base' },
+  [CHAIN.CELO]: { feeSwitchDate: "2026-06-02", firepit: '0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25', tokenJar: '0x190c22c5085640D1cB60CeC88a4F736Acb59bb6B', poolManager: '0x288dc841a52fca2707c6947b3a777c5e56cd87bc', duneChain: 'celo' },
+  [CHAIN.WC]: { feeSwitchDate: "2026-03-08", firepit: '0x455e844D286631566cF98D6cb2996149734618C6', tokenJar: '0xbDb82c2dE7D8748A3e499e771604ef8ef8544918', poolManager: '0xb1860d529182ac3bc1f51fa2abd56662b7d13f33', duneChain: 'worldchain' },
+  [CHAIN.ZORA]: { feeSwitchDate: "2026-03-08", firepit: '0x2f98eD4D04e633169FbC941BFCc54E785853b143', tokenJar: '0x4753C137002D802f45302b118E265c41140e73C2', poolManager: '0x0575338e4c17006ae181b47900a84404247ca30f', duneChain: 'zora' },
+  [CHAIN.XLAYER]: { feeSwitchDate: "2026-03-08", firepit: '0xe122E231cb52aea99690963Fd73E91e33E97468f', tokenJar: '0x8Dd8B6D56e4a4A158EDbBfE7f2f703B8FFC1a754', poolManager: '0x360E68faCcca8cA495c1B759Fd9EEe466db9FB32', duneChain: 'xlayer' },
+  [CHAIN.BSC]: { feeSwitchDate: "2026-06-02", firepit: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2', tokenJar: '0xc6Ae6373CEcc9e595A6C8b9fe581925a8c84f70A', poolManager: '0x28e2ea090877bf75740558f6bfb36a5ffee9e9df', duneChain: 'bnb' },
+  [CHAIN.POLYGON]: { feeSwitchDate: "2026-06-02", firepit: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2', tokenJar: '0xc6Ae6373CEcc9e595A6C8b9fe581925a8c84f70A', poolManager: '0x67366782805870060151383f4bbff9dab53e5cd6', duneChain: 'polygon' },
+  [CHAIN.ROBINHOOD]: { feeSwitchDate: "2026-07-27", firepit: '0x7A8F74C2585F84C781F951B7F2FF21337D5B630B', tokenJar: '0x2aC03e14Cfe755426DaAEe0a4994184Ce81482F8', poolManager: '0x8366a39cc670b4001a1121b8f6a443a643e40951', duneChain: 'robinhood' },
+  // The jar here is fed by Unichain sequencer fees (FeeSplitter predeploy 0x4300c0d3...0004), not by
+  // pool protocol fees, so the whole burn stays on v3 as it was before the split.
+  [CHAIN.UNICHAIN]: { feeSwitchDate: "2026-01-09", firepit: '0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB', tokenJar: '0xD576BDF6b560079a4c204f7644e556DbB19140b5', poolManager: '0x1f98400000000000000000000000000000000004', duneChain: 'unichain' },
+  // Releaser from github.com/Uniswap/protocol-fees .records/Arc.json; fee switch relayed 2026-10-05 (tx 0x2d42e5e9...5c49), first Released 2026-10-18
+  [CHAIN.ARC]: { feeSwitchDate: "2026-10-05", firepit: '0xe1Adf3f130Abf616a7aB04AEeBf8D0470F6B6a16', tokenJar: '0xfd39ac616e630e9db03EFB2c9a4Fe63eDB949233', poolManager: '0x8366a39cc670b4001a1121b8f6a443a643e40951', duneChain: 'arc' },
+}
+
+export type UniVersion = 'v2' | 'v3' | 'v4';
+const UNI_BURN_LABEL = 'Fees Used To Burn UNI';
+// UTC days of jar inflows the split is measured over, ending with the window's own
+// day. Busy chains pay the jar every day; on quiet ones the burner collects the fees
+// and burns on the same day, so every burn day of Sep-Nov 2026 had inflows in range.
+const UNI_BURN_INFLOW_DAYS = 3;
+
+// USD each version paid into each chain's TokenJar, one Dune query for every chain
+// and version (prefetch it, the three adapters read the same result). A transfer
+// into the jar is v4 when the PoolManager sent it and v3 otherwise, since v3 pools
+// pay the jar themselves. v2 pays in LP tokens minted to the jar, which have no
+// price, so v2 is its 1/6 share of the 0.3% fee (0.05% of volume) on chains whose
+// pairs minted LP to the jar in the window.
+// Known limit: the v2 figure is what accrued, not what reached the jar. A pair only
+// mints its fee LP on a liquidity add/remove, so locked-liquidity pairs never pay;
+// on Robinhood (16-22 Nov 2026) this reads ~3x the LP actually minted, moving ~5%
+// of the burn to v2. Value the LP mints from the same tx's deposit if v2 matters.
+// The query only depends on the UTC day, so the 24 hourly windows of a day share one run per process.
+const uniBurnInflowsByDay: Record<number, Promise<Record<string, Record<string, number>>>> = {};
+export function fetchUniBurnInflows(options: FetchOptions): Promise<Record<string, Record<string, number>>> {
+  const dayEnd = washDayStart(options) + 86400;
+  return uniBurnInflowsByDay[dayEnd] ??= queryUniBurnInflows(options, dayEnd).catch((e) => { delete uniBurnInflowsByDay[dayEnd]; throw e; });
+}
+
+async function queryUniBurnInflows(options: FetchOptions, dayEnd: number): Promise<Record<string, Record<string, number>>> {
+  const date = (ts: number) => `DATE '${new Date(ts * 1000).toISOString().slice(0, 10)}'`;
+  const days = (alias: string) => `${alias}.block_date >= ${date(dayEnd - UNI_BURN_INFLOW_DAYS * 86400)} AND ${alias}.block_date < ${date(dayEnd)}`;
+  const configs = Object.values(UNI_BURN_CONFIG);
+  const chains = configs.map((c) => `'${c.duneChain}'`).join(', ');
+  const fullQuery = `
+    WITH cfg (blockchain, jar, pool_manager) AS (
+      VALUES ${configs.map((c) => `('${c.duneChain}', ${c.tokenJar.toLowerCase()}, ${c.poolManager.toLowerCase()})`).join(', ')}
+    )
+    SELECT t.blockchain,
+      CASE WHEN t."from" = c.pool_manager THEN 'v4' WHEN t."from" = ${ZERO_ADDRESS} THEN 'v2_lp_mints' ELSE 'v3' END AS source,
+      SUM(t.amount_usd) AS usd
+    FROM tokens.transfers t
+    JOIN cfg c ON c.blockchain = t.blockchain AND c.jar = t."to"
+    LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b ON b.address = t.contract_address AND b.chain IN ('any', t.blockchain)
+    WHERE t.blockchain IN (${chains}) AND ${days('t')} AND b.address IS NULL
+    GROUP BY 1, 2
+    UNION ALL
+    SELECT d.blockchain, 'v2_volume', SUM(d.amount_usd)
+    FROM dex.trades d
+    LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b0 ON b0.address = d.token_bought_address AND b0.chain IN ('any', d.blockchain)
+    LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b1 ON b1.address = d.token_sold_address AND b1.chain IN ('any', d.blockchain)
+    WHERE d.blockchain IN (${chains}) AND d.project = 'uniswap' AND d.version = '2' AND ${days('d')}
+      AND b0.address IS NULL AND b1.address IS NULL
+    GROUP BY 1`;
+
+  // extraUIDKey keeps DUNE_BULK_MODE from UNION ALLing this with the module's other queries
+  const rows: any[] = await queryDune('3996608', { fullQuery }, options, { extraUIDKey: 'uni-burn' });
+  const bySource: Record<string, Record<string, number>> = {};
+  for (const row of rows) (bySource[row.blockchain] ??= {})[row.source] = Number(row.usd ?? 0);
+  const inflows: Record<string, Record<string, number>> = {};
+  for (const [chain, s] of Object.entries(bySource)) {
+    // a v2_lp_mints row means the v2 fee switch is on for the chain (unpriced, so its usd is 0)
+    inflows[chain] = { v2: 'v2_lp_mints' in s ? (s.v2_volume ?? 0) * 0.0005 : 0, v3: s.v3 ?? 0, v4: s.v4 ?? 0 };
+  }
+  return inflows;
+}
+
+// This version's share of the UNI burned in the window (Released events x threshold).
+export async function getUniBurn(options: FetchOptions, version: UniVersion): Promise<Balances> {
+  const dailyHoldersRevenue = options.createBalances();
+  const config = UNI_BURN_CONFIG[options.chain];
+  if (!config || options.dateString < config.feeSwitchDate) return dailyHoldersRevenue;
+
+  const [releaseLogs, threshold] = await Promise.all([
+    options.getLogs({ target: config.firepit, eventAbi: 'event Released (uint256 indexed nonce, address indexed recipient, address[] assets)' }),
+    options.api.call({ target: config.firepit, abi: 'uint256:threshold' }),
+  ]);
+  if (!releaseLogs.length || !threshold) return dailyHoldersRevenue;
+
+  const allInflows = options.preFetchedResults?.uniBurnInflows;
+  if (!allInflows) throw new Error('uniswap: prefetch did not return uniBurnInflows');
+  const inflows: Record<string, number> = allInflows[config.duneChain] ?? {};
+  const total = (inflows.v2 ?? 0) + (inflows.v3 ?? 0) + (inflows.v4 ?? 0);
+  // no priced inflow in range: the whole burn stays on v3, as it was before the split
+  const share = total > 0 ? (inflows[version] ?? 0) / total : Number(version === 'v3');
+  dailyHoldersRevenue.addCGToken("uniswap", releaseLogs.length * Number(threshold) / 1e18 * share, UNI_BURN_LABEL);
+  return dailyHoldersRevenue;
+}
+
+// Revenue fields shared by the three adapters: the version's burn share is holders
+// revenue and the rest of its swap fees stays with LPs.
+export async function getUniBurnRevenue(options: FetchOptions, version: UniVersion, dailyFees: Balances) {
+  const dailyHoldersRevenue = await getUniBurn(options, version);
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addUSDValue((await dailyFees.getUSDValue()) - (await dailyHoldersRevenue.getUSDValue()), 'Swap Fees To Liquidity Providers');
+  return { dailyRevenue: dailyHoldersRevenue, dailyProtocolRevenue: 0, dailyHoldersRevenue, dailySupplySideRevenue };
 }
 
 // Uniswap v4 flash accounting lets one transaction add liquidity, swap through it
