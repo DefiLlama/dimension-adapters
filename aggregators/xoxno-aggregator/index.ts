@@ -22,12 +22,14 @@ type TotalsExport = {
   referralFeeUsd?: number;
 };
 
+// The export always sends finite numbers. Anything else (null, a string, a
+// missing field) means the data is unavailable: throw rather than coerce it
+// to a number and record a false value.
 function usd(value: unknown): number {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n < 0) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
     throw new Error(`XOXNO aggregator export returned an invalid USD value: ${value}`);
   }
-  return n;
+  return value;
 }
 
 const fetch_ = async (options: FetchOptions) => {
@@ -43,8 +45,6 @@ const fetch_ = async (options: FetchOptions) => {
     throw new Error(`XOXNO aggregator totals export failed: ${response.status}`);
   }
 
-  // A missing field means a malformed response: usd() throws rather than
-  // recording a false zero.
   const data = (await response.json()) as TotalsExport;
   const protocolFees = usd(data.protocolFeeUsd);
   const referralFees = usd(data.referralFeeUsd);
