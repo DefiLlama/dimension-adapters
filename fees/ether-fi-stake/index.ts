@@ -12,9 +12,15 @@ const LIQUIDITY_POOL = "0x308861A430be4cce5502d0A12724771Fc6DaF216";
 const STETH = ADDRESSES.ethereum.STETH;
 const SSV = "0x9D65fF81a3c488d585bBfb0Bfe3c7707c7917f54";
 const OBOL = "0x0B010000b7624eb9B3DfBC279673C76E9D29D5F7";
+const REDEMPTION_MANAGER = "0xDadEf1fFBFeaAB4f68A9fD181395F68b4e4E7Ae0";
+// Upgrade 0xc9c80e5bc8a3f2eedfca80030eba7a5531bcb23774ca9da3e29a591032570314 (2026-07-14): before it, the third
+// data word of Redeemed is the eETH net to the receiver, after it the stakers' part of the fee.
+const REDEEMED_UPGRADE_BLOCK = 25533308;
 
 const MetricLabels = {
   WITHDRAW_FEES: 'Vault Withdraw Fees',
+  INSTANT_WITHDRAW_FEES: 'Instant Withdrawal Fees',
+  INSTANT_WITHDRAW_FEES_TO_STAKERS: 'Instant Withdrawal Fees To Stakers',
   stETH_STAKING_REWARDS: 'Restaker stETH Staking Rewards',
   EIGEN_STAKING_REWARDS: 'EigenLayer Staking Rewards',
   SSV_STAKING_REWARDS: 'SSV Staking Rewards',
@@ -102,6 +108,24 @@ const getWithdrawalFees = async (options: FetchOptions) => {
   return logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
 }
 
+const getInstantWithdrawalFees = async (options: FetchOptions) => {
+  let toTreasury = 0n;
+  let toStakers = 0n;
+  for (const eventAbi of [
+    "event Redeemed(address indexed receiver, uint256 redemptionAmount, uint256 feeAmountToTreasury, uint256 feeAmountToStakers)",
+    "event Redeemed(address indexed receiver, uint256 redemptionAmount, uint256 feeAmountToTreasury, uint256 feeAmountToStakers, address token)",
+  ]) {
+    const logs = await options.getLogs({ target: REDEMPTION_MANAGER, eventAbi, entireLog: true, parseLog: true });
+    for (const { args, blockNumber } of logs) {
+      const treasuryPart = BigInt(args.feeAmountToTreasury);
+      const thirdWord = BigInt(args.feeAmountToStakers);
+      toTreasury += treasuryPart;
+      toStakers += Number(blockNumber) < REDEEMED_UPGRADE_BLOCK ? BigInt(args.redemptionAmount) - treasuryPart - thirdWord : thirdWord;
+    }
+  }
+  return { toTreasury, toStakers };
+}
+
 const getMiscStakingRevenue = async (options: FetchOptions) => {
   const logs = await options.getLogs({
     target: ADDRESSES.ethereum.EETH, //eETH as WETH
@@ -114,7 +138,9 @@ const getMiscStakingRevenue = async (options: FetchOptions) => {
     topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", null, ethers.zeroPadValue("0x0c83EAe1FE72c390A02E426572854931EefF93BA", 32)],
   });
 
-  const wethRevenue = logs.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
+  // mints are the protocol fee already counted from ProtocolFeePaid; transfers from the redemption manager are counted from Redeemed
+  const countedElsewhere = [ethers.ZeroAddress, REDEMPTION_MANAGER.toLowerCase()];
+  const wethRevenue = logs.reduce((acc: bigint, log: any) => countedElsewhere.includes(log.from.toLowerCase()) ? acc : acc + BigInt(log.value), 0n);
   const eigenRevenue = logs2.reduce((acc: bigint, log: any) => acc + BigInt(log.value), 0n);
   return { wethRevenue, eigenRevenue };
 }
@@ -182,6 +208,7 @@ const getAdditionalRevenueStreams = async (options: FetchOptions) => {
  *   - Direct token transfers and miscellaneous earnings (protocol only)
  *
  * DEPOSIT_WITHDRAW_FEES: Withdrawal fees from vault operations (protocol only)
+ * INSTANT_WITHDRAW_FEES: Exit fee on instant redemptions (treasury part to protocol, rest to stakers)
  * TOKEN_BUY_BACK: ETHFI buybacks benefiting token holders (holders revenue)
  *
  * Note: Different revenue streams have different protocol vs supply side splits
@@ -234,6 +261,12 @@ const fetch = async (options: FetchOptions) => {
   dailyFees.add(EETH, withdrawalFees, MetricLabels.WITHDRAW_FEES);
   dailyRevenue.add(EETH, withdrawalFees, MetricLabels.WITHDRAW_FEES);
 
+  // exit fee on instant withdrawals: part to the treasury, the rest burned for eETH holders
+  const { toTreasury, toStakers } = await getInstantWithdrawalFees(options);
+  dailyFees.add(EETH, toTreasury + toStakers, MetricLabels.INSTANT_WITHDRAW_FEES);
+  dailyRevenue.add(EETH, toTreasury, MetricLabels.INSTANT_WITHDRAW_FEES);
+  dailySupplySideRevenue.add(EETH, toStakers, MetricLabels.INSTANT_WITHDRAW_FEES_TO_STAKERS);
+
   const { wethRevenue, eigenRevenue } = await getMiscStakingRevenue(options);
   dailyRevenue.add(EETH, wethRevenue, MetricLabels.EIGEN_STAKING_REWARDS);
   dailyFees.add(EETH, wethRevenue, MetricLabels.EIGEN_STAKING_REWARDS);
@@ -274,8 +307,8 @@ const adapter: Adapter = {
   dependencies: [Dependencies.DUNE],
   start: '2024-03-13',
   methodology: {
-    Fees: "Total rewards generated from ether.fi staking services: ETH staking, Eigenlayer restaking, validator operations",
-    Revenue: "Protocol's share of fees including management fees from staking/restaking and validator operations rewards",
+    Fees: "Total rewards generated from ether.fi staking services: ETH staking, Eigenlayer restaking, validator operations, plus eETH withdrawal fees",
+    Revenue: "Protocol's share of fees including management fees from staking/restaking and validator operations rewards, plus the treasury's part of eETH withdrawal fees",
     ProtocolRevenue: "ether.fi's share of staking, restaking and validator rewards, plus eETH withdrawal fees, all kept by the protocol treasury.",
     SupplySideRevenue: "Portion of fees distributed to stakers.",
     HoldersRevenue: "ETHFI bought back on the open market by ether.fi's treasury, plus monthly off-chain buybacks from July 2024 to April 2025; excludes ETHFI bought since September 2026 to fund ether.fi Cash cashback, which the ether.fi Cash listing counts as a cost.",
@@ -283,24 +316,27 @@ const adapter: Adapter = {
   breakdownMethodology: {
     Fees: {
       [MetricLabels.ETH_STAKING_REWARDS]: 'All rewards from core ETH staking, derived from the protocol fees paid by the liquidity pool (protocol fee represents ~10% of total staking rewards).',
-      [MetricLabels.EIGEN_STAKING_REWARDS]: 'EigenLayer restaking rewards claimed weekly on Optimism (converted to daily), plus miscellaneous WETH/EIGEN transfers to the protocol treasury.',
+      [MetricLabels.EIGEN_STAKING_REWARDS]: 'EigenLayer restaking rewards claimed weekly on Optimism (converted to daily), plus miscellaneous eETH/EIGEN transfers to the protocol treasury, excluding the core protocol fee mint and instant withdrawal fees.',
       [MetricLabels.stETH_STAKING_REWARDS]: 'Lido rebasing rewards accrued on the stETH/wstETH held by the EtherFiRestaker contract.',
       [MetricLabels.SSV_STAKING_REWARDS]: 'SSV token rewards earned for running SSV-based validators.',
       [MetricLabels.OBOL_STAKING_REWARDS]: 'OBOL token rewards earned for running Obol-based validators.',
       [MetricLabels.WITHDRAW_FEES]: 'Fees charged on eETH withdrawals, tracked as eETH transfers from the withdrawal queue to the treasury.',
+      [MetricLabels.INSTANT_WITHDRAW_FEES]: 'Exit fees users pay on instant withdrawals through the redemption manager, treasury and staker parts together.',
     },
     Revenue: {
       [MetricLabels.ETH_STAKING_REWARDS]: 'Protocol keeps ~10% of core ETH staking rewards.',
-      [MetricLabels.EIGEN_STAKING_REWARDS]: 'Protocol keeps ~11% of EigenLayer restaking rewards, plus all miscellaneous treasury transfers.',
+      [MetricLabels.EIGEN_STAKING_REWARDS]: 'Protocol keeps ~11% of EigenLayer restaking rewards, plus miscellaneous eETH/EIGEN transfers to the protocol treasury, excluding the core protocol fee mint and instant withdrawal fees.',
       [MetricLabels.stETH_STAKING_REWARDS]: 'Protocol keeps a 2.5% share of the stETH staking rewards.',
       [MetricLabels.SSV_STAKING_REWARDS]: 'SSV validator rewards are retained by the protocol.',
       [MetricLabels.OBOL_STAKING_REWARDS]: 'OBOL validator rewards are retained by the protocol.',
       [MetricLabels.WITHDRAW_FEES]: 'eETH withdrawal fees are retained by the protocol.',
+      [MetricLabels.INSTANT_WITHDRAW_FEES]: 'Part of instant withdrawal fees sent to the treasury.',
     },
     SupplySideRevenue: {
       [MetricLabels.ETH_STAKING_REWARDS]: 'The ~90% of core ETH staking rewards distributed to stakers.',
       [MetricLabels.EIGEN_STAKING_REWARDS]: 'The ~89% of EigenLayer restaking rewards distributed to stakers.',
       [MetricLabels.stETH_STAKING_REWARDS]: 'stETH rebasing rewards passed on to stakers (everything above the 2.5% protocol share).',
+      [MetricLabels.INSTANT_WITHDRAW_FEES_TO_STAKERS]: 'Part of instant withdrawal fees burned as eETH shares, which raises the rate for the remaining eETH holders.',
     },
     HoldersRevenue: {
       [METRIC.TOKEN_BUY_BACK]: 'ETHFI bought on the open market by ether.fi\'s treasury, plus monthly off-chain buybacks from July 2024 to April 2025; excludes ETHFI bought since September 2026 for ether.fi Cash cashback.',
