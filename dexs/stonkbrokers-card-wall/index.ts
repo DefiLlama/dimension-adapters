@@ -51,7 +51,7 @@ import { ROBINHOOD_USDG, ROBINHOOD_WETH } from "../../fees/stonkbrokers/helpers"
  * (Collector Crypt COLLECTOR, ERC-721): 0xb47a306bD89E8b6fA2b14f553E534AdcD7Cc337F.
  */
 
-const ALLEY_TILL = "0x668676e967E9C3820ee36eF9AAdC115165eA5676";
+const ALLEY_TILLS = ["0x668676e967E9C3820ee36eF9AAdC115165eA5676", "0x75f16355482a9449160bE32CafEFA19905d6c42a"];
 
 // Payment assets (till getters wall() / usdg() / weth(); asset 2 = native ETH).
 const WALL = "0xB03058B8A39f3967DF08d833682C1c99b29821B1";
@@ -78,9 +78,9 @@ const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
   const [pullLogs, refundLogs, payoutLogs] = await Promise.all([
-    options.getLogs({ target: ALLEY_TILL, eventAbi: PULL_REQUESTED }),
-    options.getLogs({ target: ALLEY_TILL, eventAbi: PULL_REFUNDED }),
-    options.getLogs({ target: ALLEY_TILL, eventAbi: PAYOUT }),
+    options.getLogs({ targets: ALLEY_TILLS, eventAbi: PULL_REQUESTED }),
+    options.getLogs({ targets: ALLEY_TILLS, eventAbi: PULL_REFUNDED }),
+    options.getLogs({ targets: ALLEY_TILLS, eventAbi: PAYOUT }),
   ]);
 
   // Volume-weighted $WALL/USD rate from this window's $WALL pulls (each pull

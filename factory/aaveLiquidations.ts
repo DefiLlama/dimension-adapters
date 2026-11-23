@@ -5,21 +5,24 @@ import { chainConfig as moreMarketsChainConfig } from "../fees/more-markets";
 import { chainConfig as sparkChainConfig } from "../fees/spark";
 import { createFactoryExports } from "./registry";
 
-type LiquidationConfig = Record<string, { pools: string[]; start?: string; deadFrom?: string }>;
+type LiquidationConfig = Record<string, { pools: string[]; start?: string; deadFrom?: string; excludeTxHashes?: string[] }>;
 
 // create liquidation configs from aave fee configs so new protocols added to fee tracking are picked up
 function toLiquidationConfig(
-  feeConfig: Record<string, { start?: any; deadFrom?: string; pools: Array<{ lendingPoolProxy: string; version: number; ignoreLiquidation?: boolean }> }>,
+  feeConfig: Record<string, { start?: any; deadFrom?: string; pools: Array<{ lendingPoolProxy: string; version: number; ignoreLiquidation?: boolean; excludeTxHashes?: string[] }> }>,
 ): LiquidationConfig | null {
   const result: LiquidationConfig = {};
   for (const [chain, { pools, start, deadFrom }] of Object.entries(feeConfig)) {
     // V1 uses a different LiquidationCall event (skips for now)
-    const addresses = pools
-      .filter((p) => !p.ignoreLiquidation && p.version >= 2)
-      .map((p) => p.lendingPoolProxy);
-    if (addresses.length > 0) {
+    const liquidationPools = pools.filter((p) => !p.ignoreLiquidation && p.version >= 2);
+    if (liquidationPools.length > 0) {
       // carry the fee config's chain-level deadFrom so a dead chain stops being fetched here too
-      result[chain] = { pools: addresses, start: start ? String(start) : undefined, deadFrom };
+      result[chain] = {
+        pools: liquidationPools.map((p) => p.lendingPoolProxy),
+        start: start ? String(start) : undefined,
+        deadFrom,
+        excludeTxHashes: liquidationPools.flatMap((p) => p.excludeTxHashes ?? []),
+      };
     }
   }
   return Object.keys(result).length > 0 ? result : null;

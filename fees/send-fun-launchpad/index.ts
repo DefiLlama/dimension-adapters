@@ -6,9 +6,9 @@ import { METRIC } from "../../helpers/metrics";
 
 // send.fun launchpad (bonding-curve) fees. This is the "Launchpad" child of the
 // "send.fun" parent on DefiLlama; the permanent-liquidity DEX is a sibling
-// adapter (fees/send-fun-dex). Every fee is denominated in the curve's quote
-// mint (WSOL, USDC, ...) and is sourced from Dune-decoded Anchor `emit_cpi!`
-// events on the launchpad program 5R1uFyEE4oxqkm7hJDqHq6gXaLVF9dxeF3LF4yz1sfLP:
+// adapter (fees/send-fun-dex). Trade fees are denominated in the curve's quote
+// mint (WSOL, USDC, ...), the creation fee in SOL. Both are sourced from Dune-decoded
+// Anchor `emit_cpi!` events on the launchpad program 5R1uFyEE4oxqkm7hJDqHq6gXaLVF9dxeF3LF4yz1sfLP:
 //   TradeEvent       -> protocol_fee, creator_fee  (no LP fee on the curve)
 //   TokenCreateEvent -> creation_fee
 //
@@ -34,26 +34,34 @@ const fetch = async (options: FetchOptions) => {
   const timeFilter = `evt_block_time >= from_unixtime(${options.startTimestamp})
       AND evt_block_time < from_unixtime(${options.endTimestamp})`;
 
+  // Dune decodes each event under several IDL versions, one row each, so keep one row per event.
   const sql = `
-    WITH trades AS (
+    WITH trade_events AS (
+      SELECT DISTINCT evt_tx_id, evt_outer_instruction_index, evt_inner_instruction_index, quote_mint, protocol_fee, creator_fee
+      FROM ${TABLES.trade}
+      WHERE ${timeFilter} AND quote_mint IS NOT NULL
+    ),
+    create_events AS (
+      SELECT DISTINCT evt_tx_id, evt_outer_instruction_index, evt_inner_instruction_index, creation_fee
+      FROM ${TABLES.create}
+      WHERE ${timeFilter} AND creation_fee IS NOT NULL
+    ),
+    trades AS (
       SELECT
         quote_mint AS token,
         COALESCE(SUM(CAST(protocol_fee AS decimal(38, 0))), 0) AS protocol_fee,
         COALESCE(SUM(CAST(creator_fee AS decimal(38, 0))), 0) AS creator_fee,
         CAST(0 AS decimal(38, 0)) AS creation_fee
-      FROM ${TABLES.trade}
-      WHERE ${timeFilter}
+      FROM trade_events
       GROUP BY quote_mint
     ),
     creates AS (
       SELECT
-        quote_mint AS token,
+        '${ADDRESSES.solana.SOL}' AS token,
         CAST(0 AS decimal(38, 0)) AS protocol_fee,
         CAST(0 AS decimal(38, 0)) AS creator_fee,
         COALESCE(SUM(CAST(creation_fee AS decimal(38, 0))), 0) AS creation_fee
-      FROM ${TABLES.create}
-      WHERE ${timeFilter}
-      GROUP BY quote_mint
+      FROM create_events
     ),
     combined AS (
       SELECT * FROM trades

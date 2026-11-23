@@ -25,30 +25,29 @@ const LABELS = {
     ROLLOVER: "Rollover Fee",
 }
 
+// 2026-11-16 exploit: Balancer flash loans opening and closing 100x positions in the same tx at a stale oracle price
+const EXPLOIT_TXS = new Set([
+    "0x9e4d83d9131fcec6150adafa601042d20524a4e93290da591b77884b3c80eebe",
+    "0xf07f2d31fc7b4b905032977c227d36d436d51b150fbfd1f47632954be72a2932",
+    "0x281531abf28485cbbbee634e43dc49a4b5b8303afd88890b6cdb272e1652f495",
+    "0xcd0b4aa29543fb70edb710ea3400d4cf01d061afc2744a739ec46fc8ac45a72c",
+    "0xe7e6046e4ca443b4d66a8c3a70f35a89aefb8537bdacbfc6dee6229f907df045",
+]);
+
+const getPerpLogs = async (options: FetchOptions, eventAbi: string) => {
+    const logs = await options.getLogs({ target: PERP_ADDRESS, eventAbi, onlyArgs: false });
+    return logs.filter((log: any) => !EXPLOIT_TXS.has(log.transactionHash.toLowerCase())).map((log: any) => log.args);
+};
+
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const dailyVolume = options.createBalances();
     const dailyFees = options.createBalances();
     const dailyUserFees = options.createBalances();
 
-    const openedLogs = await options.getLogs({
-        target: PERP_ADDRESS,
-        eventAbi: ABIS.PositionOpened,
-    });
-
-    const closedLogs = await options.getLogs({
-        target: PERP_ADDRESS,
-        eventAbi: ABIS.PositionClosed,
-    });
-
-    const liquidatedLogs = await options.getLogs({
-        target: PERP_ADDRESS,
-        eventAbi: ABIS.PositionLiquidated,
-    });
-
-    const rolloverLogs = await options.getLogs({
-        target: PERP_ADDRESS,
-        eventAbi: ABIS.RolloverAccrued,
-    });
+    const openedLogs = await getPerpLogs(options, ABIS.PositionOpened);
+    const closedLogs = await getPerpLogs(options, ABIS.PositionClosed);
+    const liquidatedLogs = await getPerpLogs(options, ABIS.PositionLiquidated);
+    const rolloverLogs = await getPerpLogs(options, ABIS.RolloverAccrued);
 
     for (const log of openedLogs) {
         dailyVolume.add(USDC_ADDRESS, log.size);
