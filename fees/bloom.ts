@@ -399,7 +399,7 @@ async function fetchEVM(options: FetchOptions) {
 
   // Payouts lag the fees that fund them, so a day's revenue can be negative, as on Solana (allowNegativeValue below).
   // A chain where the relayer sent nothing in the window has no row in the prefetch.
-  const payoutRow = options.preFetchedResults.find((row: any) => row.blockchain === duneBlockchain(options.chain));
+  const payoutRow = options.preFetchedResults.find((row: any) => row.blockchain === duneChain(options.chain));
   const referralCashbackRewards = Number(payoutRow?.payouts ?? 0);
   dailySupplySideRevenue.addGasToken(referralCashbackRewards, LABELS.REFERRAL_CASHBACK_PAYOUT);
   dailyRevenue.addGasToken(-referralCashbackRewards, LABELS.TRADING_FEES_TO_PROTOCOL);
@@ -410,11 +410,16 @@ async function fetchEVM(options: FetchOptions) {
 
 const EVM_CHAINS = Object.keys(chainConfig).filter((chain) => chain !== CHAIN.SOLANA);
 
+// Dune names HyperEVM 'hyperevm'; the other chains use the shared mapping.
+function duneChain(chain: string) {
+  return chain === CHAIN.HYPERLIQUID ? 'hyperevm' : duneBlockchain(chain);
+}
+
 async function prefetch(options: FetchOptions) {
   return queryDuneSql(options, `
     SELECT blockchain, SUM(value) AS payouts
     FROM evms.transactions
-    WHERE blockchain IN (${EVM_CHAINS.map((chain) => `'${duneBlockchain(chain)}'`).join(', ')})
+    WHERE blockchain IN (${EVM_CHAINS.map((chain) => `'${duneChain(chain)}'`).join(', ')})
       AND "from" = ${EVM_REWARD_RELAYER}
       AND success
       AND value > uint256 '0'
