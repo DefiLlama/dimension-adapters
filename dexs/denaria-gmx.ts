@@ -42,6 +42,11 @@ const DENARIA_REFERRAL_CODE = '0x44454e41524941000000000000000000000000000000000
 // operation, 0.05 USDC before) that the Denaria app charges from the user's smart
 // account. https://arbiscan.io/address/0xf723f3f37f4a0639ce8daa681ab1762d2ddad485
 const DENARIA_SERVICE_FEE_RECEIVER = '0xf723f3f37f4a0639ce8daa681ab1762d2ddad485'
+// Fees reach the Safe in cents per operation (0.05/0.1 USDC GMX, 0.03 USDC Earn) or as a
+// share of the interest of one Earn withdrawal. A larger single transfer is a treasury
+// movement, not a fee: 5,000 USDC from 0x3cF63891928B8CeebB81C95426600a18cd59C03f on
+// 2026-09-25 (tx 0x02b2ab4d784f36fbb380351a6c58b506bb3d11e40843468747aeade9f945cbba).
+const MAX_FEE_TRANSFER_USDC = 100n * 10n ** 6n
 
 const EVENT_LOG_1_ABI = 'event EventLog1(address msgSender, string eventName, string indexed eventNameHash, bytes32 indexed topic1, tuple(tuple(tuple(string key, address value)[] items, tuple(string key, address[] value)[] arrayItems) addressItems, tuple(tuple(string key, uint256 value)[] items, tuple(string key, uint256[] value)[] arrayItems) uintItems, tuple(tuple(string key, int256 value)[] items, tuple(string key, int256[] value)[] arrayItems) intItems, tuple(tuple(string key, bool value)[] items, tuple(string key, bool[] value)[] arrayItems) boolItems, tuple(tuple(string key, bytes32 value)[] items, tuple(string key, bytes32[] value)[] arrayItems) bytes32Items, tuple(tuple(string key, bytes value)[] items, tuple(string key, bytes[] value)[] arrayItems) bytesItems, tuple(tuple(string key, string value)[] items, tuple(string key, string[] value)[] arrayItems) stringItems) eventData)'
 
@@ -117,13 +122,13 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     }
   }
 
-  // Flat service fee: USDC transferred by user smart accounts to the Denaria fee
-  // Safe. The Safe has no other inflows (verified on-chain: only per-operation fee
-  // amounts, never from Denaria's own wallets).
+  // Service fees: USDC transferred by user smart accounts to the Denaria fee Safe.
+  // Transfers above MAX_FEE_TRANSFER_USDC are treasury movements and are skipped.
   const serviceFees = await addTokensReceived({
     options,
     token: ADDRESSES.arbitrum.USDC_CIRCLE, // native USDC (0xaf88...), the token the app charges the fee in
     target: DENARIA_SERVICE_FEE_RECEIVER,
+    logFilter: (log: any) => BigInt(log.value.toString()) <= MAX_FEE_TRANSFER_USDC,
   })
   dailyFees.addBalances(serviceFees, SERVICE_FEES)
   dailyUserFees.addBalances(serviceFees, SERVICE_FEES)
@@ -154,11 +159,11 @@ const breakdownMethodology = {
   Fees: {
     [UI_FEES]: 'GMX uiFee (uiFeeFactor x trade size) paid by Denaria traders to the Denaria uiFeeReceiver.',
     [AFFILIATE_REWARDS]: 'Affiliate share of GMX position fees paid to the owner of the DENARIA referral code.',
-    [SERVICE_FEES]: 'Flat per-operation USDC service fee charged by the Denaria app (GMX operations and wallet transfers), received by the Denaria fee Safe.',
+    [SERVICE_FEES]: 'USDC service fees charged by the Denaria app and received by the Denaria fee Safe: the flat per-operation fee (GMX operations, wallet transfers, Earn deposits and withdrawals) and the share of interest taken on Earn withdrawals. Single transfers above 100 USDC are treasury movements and are excluded.',
   },
   UserFees: {
     [UI_FEES]: 'GMX uiFee paid by Denaria traders.',
-    [SERVICE_FEES]: 'Flat per-operation USDC service fee paid by Denaria users.',
+    [SERVICE_FEES]: 'Flat per-operation USDC service fee and Earn interest share paid by Denaria users.',
   },
   Revenue: {
     [UI_FEES]: 'GMX uiFee paid to the Denaria uiFeeReceiver.',
