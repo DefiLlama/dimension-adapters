@@ -1,5 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { convertUnpricedQuotes } from "../helpers/fourMeme";
 import { METRIC } from "../helpers/metrics";
 import { addTokensReceived } from "../helpers/token";
 
@@ -108,6 +109,8 @@ const fetch = async (options: FetchOptions) => {
       dailySupplySideRevenue.add(log.quoteAsset, log.antiSniperFee, 'Anti-Sniper Fees')
     }
   })
+
+  await convertUnpricedQuotes(options, [dailyFees, dailyRevenue, dailySupplySideRevenue])
 
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
 };

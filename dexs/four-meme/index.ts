@@ -1,6 +1,7 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { convertUnpricedQuotes } from "../../helpers/fourMeme";
 
 // Trades emit on TokenManager V1 (BNB quote) and TokenManager2 (BNB or ERC-20 quote), regardless of router.
 const WBNB = ADDRESSES.bsc.WBNB
@@ -59,6 +60,8 @@ const fetch = async (options: FetchOptions) => {
     if (String(log.presetId) === TAPEFOUR_PRESET) return
     dailyVolume.add(log.quoteAsset, log.isBuy ? log.traderQuoteAmount : log.curveQuoteAmount)
   })
+
+  await convertUnpricedQuotes(options, [dailyVolume])
 
   return { dailyVolume }
 }
