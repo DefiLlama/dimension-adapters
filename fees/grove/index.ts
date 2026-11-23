@@ -310,9 +310,11 @@ async function addMorphoYields(options: FetchOptions, dailyFees: Balances) {
 
 // USDG credits rewards once a day, at 00:00 UTC, on the balance held at that moment. Read half an hour either side of
 // midnight, in the first hourly run of the day, so the credit lands on its own day wherever the midnight block resolves.
+// Hourly runs end at HH:59:59 or HH+1:00:00, so the first one starts at 23:59:59 or 00:00:00: the window is anchored on
+// startOfDay, which is the same midnight for both, and every later run returns here without a request.
 // Rewards accrued = change in what is still unclaimed + what was claimed in between.
 async function addUsdgRewards(options: FetchOptions, dailyFees: Balances) {
-    if (options.fromTimestamp !== options.startOfDay) return;
+    if (Math.abs(options.fromTimestamp - options.startOfDay) > 60) return;
 
     const { address, usdgRewards } = chainConfig[CHAIN.ROBINHOOD];
     const [blockBefore, blockAfter] = await Promise.all([-1800, 1800].map(s => options.getBlock(options.startOfDay + s, options.chain, {})));
