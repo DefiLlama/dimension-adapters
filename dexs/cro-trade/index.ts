@@ -1,4 +1,5 @@
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { queryAllium } from "../../helpers/allium";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import ADDRESSES from '../../helpers/coreAssets.json';
@@ -128,8 +129,57 @@ const fetchRobinhood = async (options: FetchOptions) => {
   }
 }
 
+// Solana (since 2026-11-18): no contract of ours. cro.trade pays the network fee of every app trade from SOL_PAYER (the
+// transaction's fee payer, `signer` in Allium) and the trade sends cro.trade's fee to SOL_FEE_OWNER as its own transfer.
+// The same wallet also receives account-rent charges and send fees, so the transfers into it are not all trading fees:
+// a trade is a dex trade in a transaction we paid for that also pays SOL_FEE_OWNER, counted once (its largest leg), and
+// the fee is the flat rate on that volume.
+const SOL_PAYER = 'BA1h3Vw1jiud1EXGCo3FvEMSRBZhkBKLgBx7BjpZnd8N'
+const SOL_FEE_OWNER = 'C9gaooyoWVFPRqkm5pCkxXdyfLo1znAMvkyZqhvVhL9h'
+
+const fetchSolana = async (options: FetchOptions) => {
+  const timeRange = `block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})`
+  const rows = await queryAllium(`
+    WITH fee_txns AS (
+      SELECT DISTINCT txn_id
+      FROM solana.assets.transfers
+      WHERE ${timeRange}
+        AND to_address = '${SOL_FEE_OWNER}'
+        AND signer = '${SOL_PAYER}'
+    ),
+    trades AS (
+      SELECT t.txn_id, t.usd_amount
+      FROM solana.dex.trades t
+      JOIN fee_txns f ON t.txn_id = f.txn_id
+      WHERE ${timeRange}
+        AND t.signer = '${SOL_PAYER}'
+      QUALIFY ROW_NUMBER() OVER (PARTITION BY t.txn_id ORDER BY t.usd_amount DESC) = 1
+    )
+    SELECT COALESCE(SUM(usd_amount), 0) AS volume FROM trades
+  `)
+  const volume = Number(rows[0]?.volume ?? 0)
+  const fee = volume * Number(FEE_NUMERATOR) / Number(FEE_DENOMINATOR)
+  const dailyVolume = options.createBalances()
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
+  dailyVolume.addUSDValue(volume)
+  dailyFees.addUSDValue(fee, LABELS.Fees)
+  dailyRevenue.addUSDValue(fee, LABELS.ToBuyback)
+  dailyHoldersRevenue.addUSDValue(fee, LABELS.Buyback)
+  return {
+    dailyVolume,
+    dailyFees,
+    dailyUserFees: dailyFees.clone(),
+    dailyRevenue,
+    dailyProtocolRevenue: options.createBalances(),
+    dailyHoldersRevenue,
+  }
+}
+
 const fetch = async (options: FetchOptions) => {
   if (options.chain === CHAIN.ROBINHOOD) return fetchRobinhood(options)
+  if (options.chain === CHAIN.SOLANA) return fetchSolana(options)
   const { createBalances, getLogs, endTimestamp } = options
   const dailyVolume = createBalances()
   const dailyFees = createBalances()
@@ -227,9 +277,9 @@ const fetch = async (options: FetchOptions) => {
 }
 
 const methodology = {
-  Volume: 'Total USD value of the spot trades people make through cro.trade on Cronos and Robinhood Chain (DEX swaps and launchpad trades), counting each trade once even when it is routed through several pools. A trade counts when it pays a fee to cro.trade.',
-  Fees: "Every trading fee cro.trade users pay on spot trades routed through cro.trade's contracts on Cronos and Robinhood Chain, measured from the fee each trade pays on-chain. Trades whose fee leaves no on-chain event are not included, so the figure is a floor.",
-  UserFees: "Every trading fee cro.trade users pay on spot trades routed through cro.trade's contracts on Cronos and Robinhood Chain.",
+  Volume: 'Total USD value of the spot trades people make through cro.trade on Cronos, Robinhood Chain and Solana (DEX swaps and launchpad trades), counting each trade once even when it is routed through several pools. A trade counts when it pays a fee to cro.trade.',
+  Fees: "Every trading fee cro.trade users pay on spot trades routed through cro.trade on Cronos, Robinhood Chain and Solana, measured from the fee each trade pays on-chain (on Solana, from the volume of the trades that pay it). Trades whose fee leaves no on-chain event are not included, so the figure is a floor.",
+  UserFees: "Every trading fee cro.trade users pay on spot trades routed through cro.trade on Cronos, Robinhood Chain and Solana.",
   Revenue: 'All trading fees; no share goes to liquidity providers.',
   ProtocolRevenue: 'None, all trading fees go to CRONUS holders.',
   HoldersRevenue: 'All trading fees go to CRONUS holders through buybacks: distributed to holders before 2026-09-22, burned since.',
@@ -255,10 +305,12 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
   fetch,
   adapter: {
     [CHAIN.CRONOS]: { start: '2026-03-04' },
     [CHAIN.ROBINHOOD]: { start: '2026-11-01' },
+    [CHAIN.SOLANA]: { start: '2026-11-18' },
   },
   methodology,
   breakdownMethodology,
