@@ -1,128 +1,22 @@
-const http = require('axios')
-const { getEnv } = require('./env')
-const { queryAllium } = require('./allium')
-
-// Sui JSON-RPC is deprecated, migrated to GraphQL RPC
+// Sui helpers on top of `sdk.chains.sui` (GraphQL RPC, endpoint from `SUI_GRAPH_RPC`).
 // https://docs.sui.io/concepts/data-access/graphql-rpc
-// https://docs.sui.io/develop/accessing-data/json-rpc-migration#method-mapping
-const graphEndpoint = () => getEnv('SUI_GRAPH_RPC')
+import * as sdk from "@defillama/sdk";
+import "./env"; // copies the repo's default endpoints (SUI_GRAPH_RPC, ...) into process.env for the sdk
+import { queryAllium } from './allium'
 
-async function graphqlCall(query: string, variables: any = {}, attempts = 4) {
-  let lastErr: any
-  for (let i = 1; i <= attempts; i++) {
-    try {
-      const res = await http.post(graphEndpoint(), { query, variables }, { timeout: 60_000 })
-      const { data, errors } = res.data
-      if (errors?.length || !data) throw new Error(`Failed to fetch sui data: ${errors?.[0]?.message ?? 'no data returned'}`)
-      return { data }
-    } catch (e) {
-      lastErr = e
-      if (i < attempts) await new Promise((r) => setTimeout(r, 500 * i))
-    }
-  }
-  throw lastErr
+const sui = sdk.chains.sui
+
+// Move object contents shaped like the JSON-RPC `content` (`{ type, fields, dataType }`), null when missing.
+export async function getObject(objectId: string): Promise<any> {
+  return sui.getObject({ objectId })
 }
 
-function normalizeFields(fields: any): any {
-  if (!fields || typeof fields !== 'object') return fields
-  const normalized: any = {}
-  for (const [key, value] of Object.entries(fields)) {
-    if (key === 'id' && typeof value === 'string') {
-      normalized[key] = { id: value }
-    } else if (Array.isArray(value)) {
-      normalized[key] = value.map((v: any) => (typeof v === 'object' && v !== null) ? wrapStruct(v) : v)
-    } else if (typeof value === 'object' && value !== null) {
-      normalized[key] = wrapStruct(value)
-    } else {
-      normalized[key] = value
-    }
-  }
-  return normalized
+export async function graphqlCall(query: string, variables: Record<string, any> = {}): Promise<any> {
+  return sui.graphqlCall({ query, variables })
 }
 
-function wrapStruct(obj: any): any {
-  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj
-  return { fields: normalizeFields(obj) }
-}
-
-function shortenTypeAddresses(type: string): string {
-  return type.replace(/0x([0-9a-fA-F]+)/g, (_m: string, hex: string) => {
-    const stripped = hex.replace(/^0+/, '') || '0'
-    return stripped.length <= 1 ? '0x' + stripped : '0x' + stripped.padStart(64, '0')
-  })
-}
-
-function rewrapWithLayout(value: any, layout: any): any {
-  if (!layout || typeof layout === 'string') {
-    if (layout === 'address' && typeof value === 'string' && value && !value.startsWith('0x')) return '0x' + value
-    return value
-  }
-  if (layout.vector !== undefined)
-    return Array.isArray(value) ? value.map((v: any) => rewrapWithLayout(v, layout.vector)) : value
-  if (layout.struct) {
-    const { type, fields } = layout.struct
-    if (type.endsWith('::object::UID')) return { id: (value && typeof value === 'object') ? value.id : value }
-    if (type.endsWith('::object::ID') || type.endsWith('::string::String') || type.endsWith('::ascii::String'))
-      return (value && typeof value === 'object') ? Object.values(value)[0] : value
-    const t = shortenTypeAddresses(type.replace(/,(?!\s)/g, ', '))
-    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-      const f: any = {}
-      for (const fl of fields) f[fl.name] = rewrapWithLayout(value[fl.name], fl.layout)
-      return { type: t, fields: f }
-    }
-    if (type.endsWith('::type_name::TypeName'))
-      return { type: t, fields: { [fields[0].name]: value } }
-    return value
-  }
-  return value
-}
-
-function formatObject(obj: any): any {
-  if (!obj || !obj.type) return null
-  const layout = obj.type.layout
-  if (layout) {
-    const rewrapped = rewrapWithLayout(obj.json, layout)
-    if (!rewrapped || typeof rewrapped !== 'object')
-      throw new Error(`Unexpected Sui move object shape for type ${obj.type.repr}`)
-    const { type, fields } = rewrapped
-    return { type, fields, dataType: 'moveObject' }
-  }
-  const type = shortenTypeAddresses(obj.type.repr.replace(/,(?!\s)/g, ', '))
-  return { type, fields: normalizeFields(obj.json), dataType: 'moveObject' }
-}
-
-function toAddr(id: string): string {
-  if (typeof id === 'string' && id && !id.startsWith('0x') && /^[0-9a-fA-F]+$/.test(id)) return '0x' + id
-  return id
-}
-
-function toParsedJson(value: any, layout: any): any {
-  if (value === null || value === undefined) return value
-  if (!layout || typeof layout === 'string') return value // bool / uN / address
-  if (layout.vector !== undefined) return Array.isArray(value) ? value.map((v: any) => toParsedJson(v, layout.vector)) : value
-  if (layout.struct) {
-    const { type, fields } = layout.struct
-    const unwrap = (v: any) => (v && typeof v === 'object' && !Array.isArray(v)) ? Object.values(v)[0] : v
-    if (type.endsWith('::type_name::TypeName')) return { name: unwrap(value) }
-    if (type.endsWith('::ascii::String') || type.endsWith('::string::String') || type.endsWith('::object::ID')) return unwrap(value)
-    if (type.endsWith('::object::UID')) return { id: (value && typeof value === 'object') ? (value.id ?? unwrap(value)) : value }
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      const out: any = {}
-      for (const f of fields) out[f.name] = toParsedJson(value[f.name], f.layout)
-      return out
-    }
-    return value
-  }
-  return value
-}
-
-export async function getObject(objectId: string) {
-  const { data } = await graphqlCall(`query ($address: SuiAddress!) {
-    object(address: $address) {
-      asMoveObject { contents { json type { repr layout } } }
-    }
-  }`, { address: toAddr(objectId) })
-  return formatObject(data.object?.asMoveObject?.contents)
+export async function getCheckpointAtTimestamp(timestamp: number): Promise<{ sequenceNumber: number; timestamp: number }> {
+  return sui.getCheckpointAtTimestamp({ timestamp })
 }
 
 export interface SuiEventModule {
@@ -137,37 +31,60 @@ export interface QueryEventsParams<T = any> {
   transform?: (item: any) => T
 }
 
-export async function queryEvents<T = any>({ eventType, eventModule, options, transform = (i: any) => i }: QueryEventsParams<T>): Promise<T[]> {
-  let filter = ''
-  if (eventModule) {
-    filter = `filter: { module: "${eventModule.package}::${eventModule.module}" }`
-  } else if (eventType) {
-    filter = `filter: { type: "${eventType}" }`
-  }
+// Events in the half-open window `[startTimestamp, endTimestamp)`, filtered by emitting module
+// (preferred when given) or by event type, as `parsedJson`-shaped payloads.
+export async function queryEvents<T = any>({ eventType, eventModule, options, transform }: QueryEventsParams<T>): Promise<T[]> {
+  return sui.queryEvents<T>({
+    eventType: eventModule ? undefined : eventType,
+    eventModule,
+    startTimestamp: options.startTimestamp,
+    endTimestamp: options.endTimestamp,
+    transform,
+  })
+}
 
-  const items: any[] = []
-  let before: string | null = null
-  do {
-    const { data } = await graphqlCall(`query ($before: String) {
-      events(last: 50, before: $before, ${filter}) {
-        pageInfo { hasPreviousPage startCursor }
-        nodes { timestamp contents { json type { layout } } }
+const checkpointsBeforeWindow: Record<number, Promise<{ sequenceNumber: number; timestamp: number }>> = {}
+
+export function getCheckpointBeforeWindow(startTimestamp: number): Promise<{ sequenceNumber: number; timestamp: number }> {
+  return checkpointsBeforeWindow[startTimestamp] ??= getCheckpointAtTimestamp(startTimestamp - 1)
+}
+
+export async function queryEventsInWindow(eventType: string, options: { startTimestamp: number; endTimestamp: number }): Promise<any[]> {
+  return (await queryEventNodesInWindow(eventType, options)).map((e) => e.json)
+}
+
+export async function queryEventNodesInWindow(eventType: string, options: { startTimestamp: number; endTimestamp: number }): Promise<{ json: any; digest: string }[]> {
+  const { sequenceNumber } = await getCheckpointBeforeWindow(options.startTimestamp)
+  const events: { json: any; digest: string }[] = []
+  let after: string | null = null
+  while (true) {
+    const { events: page } = await graphqlCall(`query ($after: String) {
+      events(first: 50, after: $after, filter: { type: "${eventType}", afterCheckpoint: ${sequenceNumber} }) {
+        pageInfo { hasNextPage endCursor }
+        nodes { timestamp contents { json } transaction { digest } }
       }
-    }`, { before })
-
-    const { pageInfo, nodes } = data.events // nodes ascending (oldest -> newest)
-    before = pageInfo.hasPreviousPage ? pageInfo.startCursor : null
-
-    for (const node of nodes) {
+    }`, { after })
+    for (const node of page.nodes) {
       const ts = Date.parse(node.timestamp) / 1e3
-      // half-open window: startTimestamp inclusive, endTimestamp exclusive
-      if (options.startTimestamp <= ts && ts < options.endTimestamp) items.push(toParsedJson(node.contents.json, node.contents.type.layout))
+      if (ts >= options.endTimestamp) return events
+      if (ts >= options.startTimestamp) events.push({ json: node.contents.json, digest: node.transaction.digest })
     }
-    // stop once the oldest event on this page is already before the window start
-    if (!nodes.length || Date.parse(nodes[0].timestamp) / 1e3 <= options.startTimestamp) before = null
-  } while (before)
+    if (!page.pageInfo.hasNextPage) return events
+    after = page.pageInfo.endCursor
+  }
+}
 
-  return items.map(transform)
+export async function getTransactionsJson(digests: string[]): Promise<Record<string, any>> {
+  const txs: Record<string, any> = {}
+  for (let i = 0; i < digests.length; i += 50) {
+    const keys = digests.slice(i, i + 50)
+    const { multiGetTransactions } = await graphqlCall(`query ($keys: [String!]!) { multiGetTransactions(keys: $keys) { digest transactionJson } }`, { keys })
+    multiGetTransactions.forEach((tx: any, j: number) => {
+      if (!tx?.transactionJson) throw new Error(`sui: transaction ${keys[j]} not found`)
+      txs[tx.digest] = tx.transactionJson
+    })
+  }
+  return txs
 }
 
 // graphql queryEvents doesn't retrieve historical events so we use allium for this

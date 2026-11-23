@@ -1,9 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
 const PROGRAM_ID = "BDGRD2fcnDzz5ueWq39W7tSRDadFJonZUPG6CxQgJGHd";
-const SOL_MINT = "So11111111111111111111111111111111111111112";
+const SOL_MINT = ADDRESSES.solana.SOL;
 // Mainnet program ID and SOL mint: https://bidgrid.win/about
 const RESET_DISCRIMINATOR = "0x1751fb548ab7f0d6";
 const RESET_EVENT_DISCRIMINATOR = "0x7c16d3bd8f2f9cde";

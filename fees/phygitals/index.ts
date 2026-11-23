@@ -2,6 +2,7 @@ import { SimpleAdapter, FetchOptions, Dependencies } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { queryAllium } from "../../helpers/allium";
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards";
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -54,7 +55,7 @@ const fetch = async (options: FetchOptions) => {
               END
             ) AS buyback
         FROM solana.assets.transfers
-        WHERE mint = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+        WHERE mint = '${ADDRESSES.solana.USDC}'
             AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
             AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
             AND (
@@ -115,6 +116,7 @@ const adapter: SimpleAdapter = {
   start: '2025-03-16',
   methodology,
   breakdownMethodology,
+  unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
   pullHourly: true,
   allowNegativeValue: true,
 }

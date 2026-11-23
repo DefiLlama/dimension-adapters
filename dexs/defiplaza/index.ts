@@ -16,6 +16,12 @@ type RadixPlazaResponse = {
 
 const thegraph_endpoints = sdk.graph.modifyEndpoint('4z9FBF12CrfoQJhAkWicqzY2fKYN9QRmuzSsizVXhjKa');
 const radix_endpoint = "https://radix.defiplaza.net/api/defillama/volume";
+// Days the source published a bad figure; store 0 instead of that day.
+const badDays: Record<string, string[]> = {
+  [CHAIN.RADIXDLT]: [
+    '2026-10-03',
+  ],
+}
 
 const adapter: SimpleAdapter = {
 
@@ -57,6 +63,17 @@ const adapter: SimpleAdapter = {
     },
     [CHAIN.RADIXDLT]: {
       fetch: async (options: FetchOptions): Promise<FetchResultGeneric> => {
+        if (badDays[options.chain]?.includes(options.dateString)) {
+          return {
+            dailyVolume: 0,
+            dailyUserFees: 0,
+            dailyFees: 0,
+            dailyRevenue: 0,
+            dailyProtocolRevenue: 0,
+            dailySupplySideRevenue: 0,
+          }
+        }
+
         const daily: RadixPlazaResponse = (await fetchURL(radix_endpoint + `?timestamp=${options.toTimestamp}`));
 
         const dailySupplySideRevenue = daily.feesUSD;

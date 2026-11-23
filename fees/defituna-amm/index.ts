@@ -12,7 +12,11 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const url = `${BASE_AMM_URL}?from_timestamp=${options.startTimestamp}&to_timestamp=${options.endTimestamp}`;
+  // API floors both bounds to the hour, range is [from, to). Server hourly slices start at (HH-1):59:59,
+  // which floors into the previous hour, so snap both bounds up to the hour
+  const from = Math.ceil(options.startTimestamp / 3600) * 3600;
+  const to = Math.ceil(options.endTimestamp / 3600) * 3600;
+  const url = `${BASE_AMM_URL}?from_timestamp=${from}&to_timestamp=${to}`;
   const { feesUsd, revenuesUsd, protocolRevenueUsd, volumeUsd } = await fetchURL(url);
 
   dailyFees.addUSDValue(feesUsd, METRIC.SWAP_FEES);
@@ -50,6 +54,7 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2025-06-03",

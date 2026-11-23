@@ -1,9 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
 import { addTokensReceived } from "../../helpers/token"
 
 const LIQUID_FACTORY = '0x04F1a284168743759BE6554f607a10CEBdB77760';
-const WETH = '0x4200000000000000000000000000000000000006';
+const WETH = ADDRESSES.optimism.WETH_1;
 
 const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
     const deploymentFees = await addTokensReceived({

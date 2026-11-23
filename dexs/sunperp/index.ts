@@ -29,7 +29,8 @@ const fetch = async (options: FetchOptions) => {
     });
 
   return {
-    dailyVolume: results.reduce((sum, volume) => sum + volume, 0),
+    // SunX klines report buy+sell turnover (HTX-clone convention), halve for the one-sided volume
+    dailyVolume: results.reduce((sum, volume) => sum + volume, 0) / 2,
   };
 };
 
@@ -37,7 +38,10 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 1,
   fetch,
-  chains: [CHAIN.TRON],
+  // HTX-style off-chain matching engine; only deposits/withdrawals settle on Tron and no
+  // trade or position contracts are published, so the venue is keyed as off_chain rather
+  // than Tron.
+  chains: [CHAIN.OFF_CHAIN],
   start: "2025-09-10",
 };
 

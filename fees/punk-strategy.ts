@@ -41,9 +41,9 @@ async function fetch(options: FetchOptions) {
     target: ADDRESS.CRYPTO_PUNKS_NFT,
     topics: [
       ADDRESS.PUNK_BOUGHT_TOPIC, 
-      null as any, 
+      null, 
       ethers.zeroPadValue(ADDRESS.PUNK_STRATEGY_PATCH, 32), 
-      null as any
+      null
     ]
   });
 

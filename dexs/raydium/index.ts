@@ -1,11 +1,12 @@
-import { FetchResultFees, FetchResultVolume, SimpleAdapter, FetchOptions } from "../../adapters/types";
+import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
+import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL"
 import * as sdk from "@defillama/sdk"
 import PromisePool from "@supercharge/promise-pool";
 
 
-const fetch = async (_options: FetchOptions): Promise<FetchResultVolume & FetchResultFees> => {
+const fetch = async (options: FetchOptions) => {
   const ammPoolStandard: any[] = [];
   let page = 1;
 
@@ -60,23 +61,31 @@ const fetch = async (_options: FetchOptions): Promise<FetchResultVolume & FetchR
   }
   sdk.log(`total pages: ${page} and valid pools: ${validPoolCount} and all pools: ${totalPoolCount}`);
 
-  const dailyFees = ammFee + clmmFee + cpmmFee; // Total fees paid by users
-  const dailyUserFees = dailyFees; // Same as dailyFees for Raydium swaps
+  const totalFees = ammFee + clmmFee + cpmmFee; // Total fees paid by users
 
   // Protocol Revenue (Treasury)
   // AMM: 0%, CLMM: 4%, CPMM: 4%
-  const dailyProtocolRevenue = (clmmFee + cpmmFee) * 0.04;
+  const treasuryFees = (clmmFee + cpmmFee) * 0.04;
 
   // Holders Revenue (Buybacks)
   // AMM: 12%, CLMM: 12%, CPMM: 12%
-  const dailyHoldersRevenue = (ammFee + clmmFee + cpmmFee) * 0.12;
+  const buybackFees = totalFees * 0.12;
 
-  // Total Revenue (Protocol + Holders)
-  const dailyRevenue = dailyProtocolRevenue + dailyHoldersRevenue;
+  // Supply Side Revenue (LPs) = Total Fees - Treasury - Buybacks
+  const lpFees = totalFees - treasuryFees - buybackFees;
 
-  // Supply Side Revenue (LPs)
-  // Can be calculated as Total Fees - Total Revenue
-  const dailySupplySideRevenue = dailyFees - dailyRevenue;
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+
+  dailyFees.addUSDValue(totalFees, METRIC.SWAP_FEES);
+  dailyRevenue.addUSDValue(treasuryFees, METRIC.PROTOCOL_FEES);
+  dailyRevenue.addUSDValue(buybackFees, METRIC.TOKEN_BUY_BACK);
+  dailyProtocolRevenue.addUSDValue(treasuryFees, METRIC.PROTOCOL_FEES);
+  dailyHoldersRevenue.addUSDValue(buybackFees, METRIC.TOKEN_BUY_BACK);
+  dailySupplySideRevenue.addUSDValue(lpFees, METRIC.LP_FEES);
 
   // // const buyRay = await postURL('https://explorer-api.mainnet-beta.solana.com/', JSON.stringify({
   // const buyRay = await postURL('https://api.mainnet-beta.solana.com', JSON.stringify({
@@ -103,12 +112,12 @@ const fetch = async (_options: FetchOptions): Promise<FetchResultVolume & FetchR
 
   return {
     dailyVolume: dailyVolumeAmmPool,
-    dailyFees: `${dailyFees}`,
-    dailyUserFees: `${dailyUserFees}`,
-    dailyRevenue: `${dailyRevenue}`,          // ProtocolRevenue + HoldersRevenue
-    dailyProtocolRevenue: `${dailyProtocolRevenue}`, // Treasury
-    dailyHoldersRevenue: `${dailyHoldersRevenue}`,   // Buybacks
-    dailySupplySideRevenue: `${dailySupplySideRevenue}`, // LPs
+    dailyFees,
+    dailyUserFees: dailyFees, // Same as dailyFees for Raydium swaps
+    dailyRevenue, // ProtocolRevenue + HoldersRevenue
+    dailyProtocolRevenue, // Treasury
+    dailyHoldersRevenue, // Buybacks
+    dailySupplySideRevenue, // LPs
   };
 };
 
@@ -124,6 +133,27 @@ const adapter: SimpleAdapter = {
     SupplySideRevenue: "Fees allocated to liquidity providers (88% for AMM, 84% for CLMM/CPMM).",
     HoldersRevenue: "Fees allocated to RAY token buybacks (12% across all pool types).",
     ProtocolRevenue: "Fees allocated to the Raydium Treasury (4% from CLMM/CPMM pools, 0% from AMM).",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.SWAP_FEES]: "Total swap fees paid by traders across AMM, CLMM and CPMM pools.",
+    },
+    UserFees: {
+      [METRIC.SWAP_FEES]: "Total swap fees paid by traders across AMM, CLMM and CPMM pools.",
+    },
+    Revenue: {
+      [METRIC.PROTOCOL_FEES]: "4% of CLMM/CPMM swap fees allocated to the Raydium Treasury.",
+      [METRIC.TOKEN_BUY_BACK]: "12% of swap fees across all pool types used to buy back RAY.",
+    },
+    ProtocolRevenue: {
+      [METRIC.PROTOCOL_FEES]: "4% of CLMM/CPMM swap fees allocated to the Raydium Treasury.",
+    },
+    HoldersRevenue: {
+      [METRIC.TOKEN_BUY_BACK]: "12% of swap fees across all pool types used to buy back RAY.",
+    },
+    SupplySideRevenue: {
+      [METRIC.LP_FEES]: "Swap fees paid to liquidity providers (88% for AMM, 84% for CLMM/CPMM).",
+    },
   },
 };
 

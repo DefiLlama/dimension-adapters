@@ -4,6 +4,9 @@ import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { addTokensReceived } from "../../helpers/token";
 import fetchURL from "../../utils/fetchURL";
+import { getConfig } from "../../helpers/cache";
+import { BIM_CHAIN_START, BRIDGE_SELECTOR, isRpcChain, PERFORM_ACTIONS_SELECTOR, SWAP_AND_BRIDGE_SELECTOR, SWAP_SELECTOR } from "../../aggregators/bim/config";
+import { fetchBimFromRpc } from "../../aggregators/bim/rpc";
 
 const STELLAR_SWAP_URL = "https://defillama-data.bim.finance/swap";
 const STELLAR_BRIDGE_URL = "https://defillama-data.bim.finance/bridge";
@@ -39,6 +42,7 @@ const chainIdMap: Record<number, CHAIN> = {
   56: CHAIN.BSC,
   100: CHAIN.XDAI,
   137: CHAIN.POLYGON,
+  5042: CHAIN.ARC,
   8453: CHAIN.BASE,
   9745: CHAIN.PLASMA,
   42161: CHAIN.ARBITRUM,
@@ -59,16 +63,18 @@ const fetchBridgeAndSwapTokens = (): Promise<Record<string, string[]>> => {
         }
       };
 
-      const firstPage = await fetchURL(`${tokenChainsEndpoint}?page=0&size=${size}`);
-      processPage(firstPage);
-
-      if (!firstPage.last) {
-        const remaining = Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>
-          fetchURL(`${tokenChainsEndpoint}?page=${i + 1}&size=${size}`)
-        );
-        const pages = await Promise.all(remaining);
-        pages.forEach(processPage);
-      }
+      // all pages cached together through getConfig so a bim.finance outage falls back to the last good token list
+      const pages: any[] = await getConfig('bim/token-chains', undefined, {
+        fetcher: async () => {
+          const firstPage = await fetchURL(`${tokenChainsEndpoint}?page=0&size=${size}`);
+          if (firstPage.last) return [firstPage];
+          const remaining = await Promise.all(Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>
+            fetchURL(`${tokenChainsEndpoint}?page=${i + 1}&size=${size}`)
+          ));
+          return [firstPage, ...remaining];
+        },
+      });
+      pages.forEach(processPage);
 
       return tokens;
     })().catch((e) => {
@@ -77,6 +83,21 @@ const fetchBridgeAndSwapTokens = (): Promise<Record<string, string[]>> => {
     });
   }
   return cachedTokensPromise;
+};
+
+// BIM buyback program: bought-back BIM is sent to this Safe on Base.
+// Sample tx: 0xdd15d68d7e863a6f31773129042e6bcc0a11fe87c3aa0adfe0f03fd6369931b0
+const BIM_TOKEN_BASE = "0x555fff48549c1a25a723bd8e7ed10870d82e8379";
+const BIM_BUYBACK_WALLET = "0x472f31ab919ef12ccadfdd3f9ed5704397546d79";
+const BIM_BUYBACK_START = "2026-02-20"; // first BIM transfer into the wallet
+
+const getBuybacks = async (options: FetchOptions): Promise<Balances> => {
+  if (options.chain !== CHAIN.BASE || options.dateString < BIM_BUYBACK_START) return options.createBalances();
+  return addTokensReceived({
+    options,
+    token: BIM_TOKEN_BASE,
+    target: BIM_BUYBACK_WALLET,
+  });
 };
 
 const stakingTarget = "0xcc0516d2B5D8E156890D894Ee03a42BaC7176972";
@@ -160,12 +181,14 @@ const baseAdapter: BaseAdapter = {
   [CHAIN.STELLAR]: {
     start: "2026-04-19",
   },
+  ...Object.fromEntries(Object.entries(BIM_CHAIN_START).map(([chain, start]) => [chain, { start }])),
 };
 
 const fetchVaults = (): Promise<any[]> => {
   if (!cachedVaultsPromise) {
     cachedVaultsPromise = (async () => {
-      const data = await fetchURL(vaultsEndpoint);
+      // cached through getConfig so a bim.finance outage falls back to the last good vault list
+      const data = await getConfig('bim/vaults', vaultsEndpoint);
       if (!data || !data.length) {
         throw new Error("No vault data found");
       }
@@ -208,6 +231,12 @@ const getStakingFees = async (options: FetchOptions): Promise<Balances> => {
 
 const getBridgeAndSwapFees = async (options: FetchOptions): Promise<any> => {
   const { chain } = options;
+  // chains Dune does not index: fees are read per bim tx from the chain's RPC instead
+  // of the fee wallet's token transfers (never both, they cover the same wallet)
+  if (isRpcChain(chain)) {
+    const { dailyFees } = await fetchBimFromRpc(options, [SWAP_SELECTOR, BRIDGE_SELECTOR, SWAP_AND_BRIDGE_SELECTOR, PERFORM_ACTIONS_SELECTOR]);
+    return dailyFees;
+  }
   const tokens = await fetchBridgeAndSwapTokens();
   const bridgeAndSwapTarget = options.dateString >= bridgeAndSwapTargetChangeDate ? newBridgeAndSwapTarget : oldBridgeAndSwapTarget;
   return addTokensReceived({
@@ -221,14 +250,18 @@ const fetch = async (options: FetchOptions) => {
   if (options.chain === CHAIN.STELLAR) return fetchStellarFees(options);
   const stakingFeesPromise = getStakingFees(options);
   const dailyBridgeAndSwapFeesPromise = getBridgeAndSwapFees(options);
+  const buybacksPromise = getBuybacks(options);
   const dailyFees = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
   dailyFees.addBalances(await stakingFeesPromise, "Staking Fees");
   dailyFees.addBalances(await dailyBridgeAndSwapFeesPromise, "Swap & Bridge Fees (EVM)");
+  dailyHoldersRevenue.addBalances(await buybacksPromise, "BIM Buyback");
 
   return {
     dailyFees: dailyFees,
     dailyRevenue: dailyFees,
     dailyProtocolRevenue: dailyFees,
+    dailyHoldersRevenue,
   };
 };
 
@@ -236,6 +269,7 @@ const methodology = {
   Fees: `9% of each harvest is charged as a performance fee for staking, 0.25% for every swap and 0.125% for every bridge.`,
   Revenue: `9% of each harvest is charged as a performance fee for staking, 0.25% for every swap and 0.125% for every bridge.`,
   ProtocolRevenue: `9% of each harvest is charged as a performance fee for staking, 0.25% for every swap and 0.125% for every bridge.`,
+  HoldersRevenue: `BIM tokens bought back by the protocol and sent to the buyback wallet on Base.`,
 };
 
 const feesBreakdown = {
@@ -255,6 +289,9 @@ const adapter: SimpleAdapter = {
     Fees: feesBreakdown,
     Revenue: feesBreakdown,
     ProtocolRevenue: feesBreakdown,
+    HoldersRevenue: {
+      "BIM Buyback": "BIM tokens received by the protocol's buyback wallet on Base.",
+    },
   },
 };
 

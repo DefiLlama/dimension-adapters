@@ -1,46 +1,34 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
-import { CHAIN } from '../../helpers/chains'
 import { MorphoBlues } from '../../fees/morpho/index'
-
-// stalls on these chains
-const SKIP_CHAINS = new Set<string>([CHAIN.UNICHAIN, CHAIN.MONAD])
 
 const MorphoBlueAbis = {
   Liquidate: 'event Liquidate(bytes32 indexed id, address indexed caller, address indexed borrower, uint256 repaidAssets, uint256 repaidShares, uint256 seizedAssets, uint256 badDebtAssets, uint256 badDebtShares)',
-  CreateMarket: 'event CreateMarket(bytes32 indexed id, tuple(address loanToken, address collateralToken, address oracle, address irm, uint256 lltv) marketParams)',
+  idToMarketParams: 'function idToMarketParams(bytes32) view returns (address loanToken, address collateralToken, address oracle, address irm, uint256 lltv)',
 }
 
 const fetch = async (options: FetchOptions) => {
   const dailyCollateralLiquidated = options.createBalances()
 
-  const { blue, fromBlock } = MorphoBlues[options.chain]
-
-  const createMarketEvents = await options.getLogs({
-    target: blue,
-    eventAbi: MorphoBlueAbis.CreateMarket,
-    fromBlock,
-    cacheInCloud: true,
-  })
-
-  const marketMap: Record<string, { collateralToken: string }> = {}
-  for (const event of createMarketEvents) {
-    marketMap[String(event.id).toLowerCase()] = {
-      collateralToken: event.marketParams.collateralToken,
-    }
-  }
+  const { blue } = MorphoBlues[options.chain]
 
   const liquidateEvents = await options.getLogs({
     target: blue,
     eventAbi: MorphoBlueAbis.Liquidate,
   })
+  if (!liquidateEvents.length) return { dailyCollateralLiquidated }
+
+  // resolve only the markets liquidated in this window; scanning every CreateMarket from the deploy
+  // block is what stalled Unichain and Monad
+  const marketIds = [...new Set(liquidateEvents.map((event: any) => String(event.id).toLowerCase()))]
+  const marketParams = await options.api.multiCall({
+    abi: MorphoBlueAbis.idToMarketParams,
+    calls: marketIds.map((id) => ({ target: blue, params: [id] })),
+  })
+  const collateralToken: Record<string, string> = {}
+  marketIds.forEach((id, i) => { collateralToken[id] = marketParams[i].collateralToken })
 
   for (const event of liquidateEvents) {
-    const market = marketMap[String(event.id).toLowerCase()]
-    if (!market) continue
-
-    if (market.collateralToken) {
-      dailyCollateralLiquidated.add(market.collateralToken, event.seizedAssets)
-    }
+    dailyCollateralLiquidated.add(collateralToken[String(event.id).toLowerCase()], event.seizedAssets)
   }
 
   return { dailyCollateralLiquidated }
@@ -51,7 +39,6 @@ const adapter: SimpleAdapter = {
   pullHourly: false,
   adapter: Object.fromEntries(
     Object.entries(MorphoBlues)
-      .filter(([chain]) => !SKIP_CHAINS.has(chain))
       .map(([chain, { start }]) => [chain, { fetch, start }])
   ),
   methodology: {

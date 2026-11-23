@@ -3,7 +3,7 @@
  *
  * Reads per-instrument long/short open interest directly from the PlatformManager
  * contract at the end of each period and reports:
- *   - openInterestAtEnd      = sum over instruments of (long + short)
+ *   - openInterestAtEnd      = sum over instruments of (long + short) / 2
  *   - longOpenInterestAtEnd  = sum over instruments of long OI
  *   - shortOpenInterestAtEnd = sum over instruments of short OI
  */
@@ -57,6 +57,10 @@ const fetch = async (options: FetchOptions) => {
 
     const openInterestAtEnd = longOpenInterestAtEnd.clone();
     openInterestAtEnd.addBalances(shortOpenInterestAtEnd);
+    // pool venue with no single-sided field: average the two sides instead of summing them
+    openInterestAtEnd.resizeBy(0.5);
+    longOpenInterestAtEnd.resizeBy(0.5);
+    shortOpenInterestAtEnd.resizeBy(0.5);
 
     return { openInterestAtEnd, longOpenInterestAtEnd, shortOpenInterestAtEnd };
 };
@@ -75,6 +79,6 @@ export default {
     fetch,
     methodology: {
         OpenInterest:
-            "Sum of long and short open interest across all instruments, read from contract state at the end of the period. Values are notional in AUSD (position size x oracle price).",
+            "Average of long and short open interest across all instruments, read from contract state at the end of the period. Values are notional in AUSD (position size x oracle price). Long and short are halved into one figure because there is no single-sided field to read.",
     },
 } as SimpleAdapter;

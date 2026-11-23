@@ -3,6 +3,7 @@ import { FetchOptions, FetchV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { cache } from "@defillama/sdk";
+import { getExcludedMarketIds, getExcludedAssets } from "../../helpers/morphoExclusions";
 
 interface MorphoBlueConfig {
   chainId?: number;
@@ -87,7 +88,7 @@ export const MorphoBlues: Record<string, MorphoBlueConfig> = {
     start: "2025-01-22",
   },
   [CHAIN.WC]: {
-    fromBlock: 12842868,
+    fromBlock: 9025669, // Morpho Blue deployment on World Chain (2025-01-20); first CreateMarket at 9025916
     blue: "0xE741BC7c34758b4caE05062794E8Ae24978AF432",
     start: "2025-01-22",
   },
@@ -158,11 +159,11 @@ export const MorphoBlues: Record<string, MorphoBlueConfig> = {
   },
   // Sei deferred: not in Morpho API, and getLogs is disabled for sei (runAdapter problematicChains).
   // blue 0xc9cDAc20FCeAAF616f7EB0bb6Cd2c69dcfa9094c, block 166036723.
-  [CHAIN.ETHERLINK]: {
-    fromBlock: 21047448,
-    blue: "0xbCE7364E63C3B13C73E9977a83c9704E2aCa876e",
-    start: "2025-07-14",
-  },
+  // [CHAIN.ETHERLINK]: {
+  //   fromBlock: 21047448,
+  //   blue: "0xbCE7364E63C3B13C73E9977a83c9704E2aCa876e",
+  //   start: "2025-07-14",
+  // },
   [CHAIN.TEMPO]: {
     chainId: 4217,
     blue: "0x10EE9AAC980A180dd4DcFc96C746d60B0EA88f97",
@@ -183,6 +184,12 @@ export const MorphoBlues: Record<string, MorphoBlueConfig> = {
     fromBlock: 286,
     blue: "0x9D53d5E3bd5E8d4Cbfa6DB1ca238AEA02E651010",
     start: "2026-01-01",
+  },
+  [CHAIN.ARC]: {
+    chainId: 5042,
+    fromBlock: 1946500,
+    blue: "0x34CD04070dD72b14E241112F6d83812Df5Af7fCD",
+    start: "2026-09-16",
   },
   [CHAIN.MORPH]: {
     // no chainId: Morph (2818) isn't in the Morpho API, so use log scanning. Adding chainId forces the API path and throws "unsupported chainId".
@@ -346,13 +353,29 @@ const fetchEvents = async (
     marketMap[item.marketId.toLowerCase()] = item;
   });
 
-  const blacklistedIds = blacklistedMarketIds[options.chain]?.filter(item => item.from <= options.dateString).map(item => item.id.toLowerCase()) ?? [];
+  // asset_usage is 'all', so a market is excluded if either leg uses an excluded asset
+  const excludedAssets = new Set(await getExcludedAssets(options.chain, options.dateString));
+  const assetExcludedIds = Object.values(marketMap)
+    .filter(m => excludedAssets.has(m.loanAsset.toLowerCase()) || (!!m.collateralAsset && excludedAssets.has(m.collateralAsset.toLowerCase())))
+    .map(m => m.marketId.toLowerCase());
+
+  const blacklistedIds = [
+    ...assetExcludedIds,
+    ...(blacklistedMarketIds[options.chain]?.filter(item => item.from <= options.dateString).map(item => item.id.toLowerCase()) ?? []),
+    ...(await getExcludedMarketIds(options.chain, options.dateString)), // morpho's own feed, additive
+  ];
 
   const morphoInsolventMarketsCacheKey = `tvl-adapter-cache/cache/insolvent-markets/morpho-blue.json`;
 
   const insolventMarketsDetails = await cache.readCache(morphoInsolventMarketsCacheKey, { readFromR2Cache: true });
-  const stuckMarkets = Object.keys((insolventMarketsDetails.stuck ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
-  const insolventMarkets = Object.keys((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
+  const cacheBlacklistedMarkets = Object.keys({
+    ...((insolventMarketsDetails.stuck ?? {})?.[options.chain] ?? {}),
+    ...((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {}),
+    ...((insolventMarketsDetails.apiFlagged?.markets ?? {})?.[options.chain] ?? {}),
+  }).map(item => item.toLowerCase());
+
+  // one predicate for both event types: an excluded market must not contribute interest OR liquidation bonus
+  const isExcluded = (id: string) => blacklistedIds.includes(id.toLowerCase()) || cacheBlacklistedMarkets.includes(id.toLowerCase());
 
   const interests: Array<MorphoBlueAccrueInterestEvent> = (
     await options.getLogs({
@@ -361,7 +384,7 @@ const fetchEvents = async (
     })
   ).map((log: any) => {
     let interest = log.interest;
-    if (blacklistedIds.includes(log.id.toLowerCase()) || stuckMarkets.includes(log.id.toLowerCase()) || insolventMarkets.includes(log.id.toLowerCase())) interest = 0;
+    if (isExcluded(log.id)) interest = 0;
     return {
       token: marketMap[String(log.id).toLowerCase()] ? marketMap[String(log.id).toLowerCase()].loanAsset : null,
       interest: BigInt(interest),
@@ -372,7 +395,7 @@ const fetchEvents = async (
       eventAbi: MorphoBlueAbis.Liquidate,
       target: MorphoBlues[options.chain].blue,
     })
-  ).filter(log => marketMap[String(log.id).toLowerCase()]).map((log: any) => {
+  ).filter(log => marketMap[String(log.id).toLowerCase()] && !isExcluded(String(log.id))).map((log: any) => {
     return {
       token: marketMap[String(log.id).toLowerCase()] ? marketMap[String(log.id).toLowerCase()].collateralAsset : null,
       lif: marketMap[String(log.id).toLowerCase()].lif,

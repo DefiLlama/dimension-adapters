@@ -8,7 +8,7 @@ import { METRIC } from "../../helpers/metrics";
 // https://docs.hydroprotocol.finance/lending
 // no public Injective archival LCD to supports historical block-height queries
 const LOAN_CONTRACT = "inj1nuw6ala2ra7t457tg4g04k67r94v55mdyq9klr";
-const INJECTIVE_LCD = "https://lcd.injective.network";
+const INJECTIVE_LCD = "https://sentry.lcd.injective.network"; // lcd.injective.network returns 502
 
 function encodeQuery(msg: Record<string, unknown>): string {
   return Buffer.from(JSON.stringify(msg)).toString("base64");

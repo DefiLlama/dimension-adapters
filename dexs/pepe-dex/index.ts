@@ -55,6 +55,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
 
 const adapter: SimpleAdapter = {
     version: 2,
+    deadFrom: '2026-01-19',
     adapter: {
         [CHAIN.WAVES]: {
             fetch,

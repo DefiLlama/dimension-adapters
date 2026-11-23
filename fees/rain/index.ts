@@ -34,6 +34,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.SOLANA],
   start: '2025-01-01',
+  deadFrom: '2026-09-14',
   dependencies: [Dependencies.ALLIUM],
   isExpensiveAdapter: true,
   methodology: {

@@ -1,4 +1,4 @@
-import { Row } from "@clickhouse/client";
+import { Row } from "../helpers/indexer";
 import { Adapter, FetchOptions, ProtocolType } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryClickhouse } from "../helpers/indexer";
@@ -32,7 +32,7 @@ type FeesRow = Row & {
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  const fromBlock = Number(options.fromApi.block);
+  const fromBlock = Number(await options.getFromBlock());
   const safeBlock = Number(options.toApi.block) - 50;
   if (safeBlock <= fromBlock) {
     return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees };
@@ -69,7 +69,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: Adapter = {
-  version: 1,
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.HYPERLIQUID],
   start: '2025-02-21',

@@ -1,46 +1,82 @@
 import { CHAIN } from "../../helpers/chains";
-import { FetchOptions } from "../../adapters/types";
-import { httpPost } from "../../utils/fetchURL";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { queryAllium } from "../../helpers/allium";
+import { isCoreAsset } from "../../helpers/prices";
 
-const sentioApiKey = "l3ruhon4MonUTvfCHMYVGsK6Axp0KyjMM"; //Read Only
-const API_URL =
-  "https://app.sentio.xyz/api/v1/analytics/navi/astros/sql/execute";
+const NAVI_ROUTER_EVENT = '0x88dfe5e893bc9fa984d121e4d0d5b2e873dc70ae430cf5b3228ae6cb199cb32b::slippage::SwapEvent';
 
-const HEADERS = {
-  "api-key": sentioApiKey,
-  "Content-Type": "application/json",
-};
+// 0x000...0002::sui::SUI -> 0x2::sui::SUI, so framework coins match coreAssets.json
+const shortCoinType = (t: string) => t.replace(/^0x0+(?=[0-9a-f]{1,4}::)/i, '0x');
 
-// we need to resync the history data of this aggregator
-const fetchDailyVolume = async (options: FetchOptions) => {
-  const res = await httpPost(
-    API_URL,
-    JSON.stringify({
-      sqlQuery: {
-        sql: `SELECT SUM(GREATEST(amount_in_usd, amount_out_usd)) AS usdValue
-            FROM 'swapEvent'
-            WHERE timestamp >= ${options.fromTimestamp} AND timestamp <= ${options.toTimestamp};`,
-      },
-    }),
-    {
-      headers: HEADERS,
-    }
-  );
+function extractCoinTypes(typeString: string) {
+  const match = typeString.match(/<([^,]+),\s*([^>]+)>/);
+  if (!match) return null;
+  return {
+    coinIn: shortCoinType(match[1].trim()),
+    coinOut: shortCoinType(match[2].trim())
+  };
+}
+
+const fetch = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+
+  const start = new Date(options.startTimestamp * 1000).toISOString();
+  const end = new Date(options.endTimestamp * 1000).toISOString();
+  const probeEnd = new Date((options.endTimestamp + 3600) * 1000).toISOString();
+
+  // The coins only exist in the event's type parameters (SwapEvent<CoinIn, CoinOut>), the payload has
+  // just the amounts, so read the type column too. queryEventsAllium returns parsed_json alone.
+  const rows: { indexed: number, type: string | null, parsed_json: any }[] = await queryAllium(`
+    WITH ingested AS (
+      SELECT IFF(EXISTS (
+        SELECT 1 FROM sui.raw.events
+        WHERE checkpoint_timestamp >= '${end}' AND checkpoint_timestamp < '${probeEnd}'
+      ), 1, 0) AS indexed
+    ), swaps AS (
+      SELECT type, parsed_json
+      FROM sui.raw.events
+      WHERE checkpoint_timestamp >= '${start}' AND checkpoint_timestamp < '${end}'
+        AND type LIKE '${NAVI_ROUTER_EVENT}<%'
+    )
+    SELECT ingested.indexed, swaps.type, swaps.parsed_json
+    FROM ingested LEFT JOIN swaps ON TRUE
+  `);
+
+  // quiet hours are real, so the window is only trusted once Allium has events past its end
+  if (Number(rows[0]?.indexed) !== 1)
+    throw new Error(`navi: Allium has not indexed sui.raw.events past ${end}`);
+
+  for (const row of rows) {
+    if (!row.type) continue;
+    const coins = extractCoinTypes(row.type);
+    const { amount_in, amount_out } = row.parsed_json ?? {};
+    if (!coins || amount_in == null || amount_out == null)
+      throw new Error(`navi: unparseable SwapEvent row ${row.type}`);
+
+    // count each swap once, on the input coin unless only the output is a core asset
+    const useInput = isCoreAsset(options.chain, coins.coinIn) || !isCoreAsset(options.chain, coins.coinOut);
+    dailyVolume.add(useInput ? coins.coinIn : coins.coinOut, useInput ? amount_in : amount_out);
+  }
 
   return {
-    dailyVolume: res.result.rows[0].usdValue,
+    dailyVolume,
   };
 };
 
-//NAVI Aggregator Volume
-const navi_aggregator: any = {
+const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
+  methodology: {
+    Volume: "Swaps routed through NAVI's Astros aggregator on Sui, read from the router's SwapEvent and counted once, on the input coin unless only the output is a core asset.",
+  },
   adapter: {
     [CHAIN.SUI]: {
-      fetch: fetchDailyVolume,
+      fetch,
       start: "2024-10-05",
     },
   },
 };
 
-export default navi_aggregator;
+export default adapter;

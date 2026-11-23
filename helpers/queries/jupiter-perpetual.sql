@@ -1,6 +1,10 @@
 -- Jupiter Perpetual Fees - Hybrid approach
 -- Uses instruction_calls for open_fees, close_fees, liquidation_fees
 -- Uses decoded tables for funding_fees and price_impact_fees
+-- feeUsd on position events (read from instruction_calls below) already includes the borrow (funding) fee and the
+-- price impact fee, so the decoded legs below subtract them from open/close fees to report each fee once.
+-- Liquidations: the instruction_calls leg reads liquidationFeeUsd only, so the decoded leg adds the base close fee
+-- (positionFeeUsd minus the price impact fee it contains).
 
 WITH all_events AS (
     -- Add liquidity fees
@@ -233,7 +237,7 @@ WITH all_events AS (
         0 AS add_liq_fees,
         0 AS remove_liq_fees,
         0 AS swap_fees,
-        0 AS open_fees,
+        -(COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) + COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0)) / 1e6 AS open_fees,
         0 AS close_fees,
         0 AS liquidation_fees,
         COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) / 1e6 AS funding_fees,
@@ -250,7 +254,7 @@ WITH all_events AS (
         0 AS add_liq_fees,
         0 AS remove_liq_fees,
         0 AS swap_fees,
-        0 AS open_fees,
+        -(COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) + COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0)) / 1e6 AS open_fees,
         0 AS close_fees,
         0 AS liquidation_fees,
         COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) / 1e6 AS funding_fees,
@@ -268,7 +272,7 @@ WITH all_events AS (
         0 AS remove_liq_fees,
         0 AS swap_fees,
         0 AS open_fees,
-        0 AS close_fees,
+        -(COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) + COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0)) / 1e6 AS close_fees,
         0 AS liquidation_fees,
         COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) / 1e6 AS funding_fees,
         COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0) / 1e6 AS price_impact_fees
@@ -285,7 +289,7 @@ WITH all_events AS (
         0 AS remove_liq_fees,
         0 AS swap_fees,
         0 AS open_fees,
-        0 AS close_fees,
+        -(COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) + COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0)) / 1e6 AS close_fees,
         0 AS liquidation_fees,
         COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) / 1e6 AS funding_fees,
         COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0) / 1e6 AS price_impact_fees
@@ -302,7 +306,7 @@ WITH all_events AS (
         0 AS remove_liq_fees,
         0 AS swap_fees,
         0 AS open_fees,
-        0 AS close_fees,
+        (COALESCE(CAST(positionFeeUsd AS DOUBLE), 0) - COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0)) / 1e6 AS close_fees,
         0 AS liquidation_fees,
         COALESCE(CAST(fundingFeeUsd AS DOUBLE), 0) / 1e6 AS funding_fees,
         COALESCE(CAST(priceImpactFeeUsd AS DOUBLE), 0) / 1e6 AS price_impact_fees
@@ -311,6 +315,47 @@ WITH all_events AS (
         AND evt_block_time < from_unixtime({{end}})
 )
 
+, staking AS (
+    -- SOL staking rewards of the JLP pool's SOL custody, from the RedeemStake program log (lamports)
+    SELECT
+        date_trunc('day', call_block_time) AS day,
+        SUM(COALESCE(TRY_CAST(regexp_extract(array_join(call_log_messages, ' '), 'Stake rewards: ([0-9]+)', 1) AS DOUBLE), 0)) / 1e9 AS staking_rewards_sol
+    FROM jupiter_solana.perpetuals_call_redeemstake
+    WHERE call_block_time >= from_unixtime({{start}})
+        AND call_block_time < from_unixtime({{end}})
+    GROUP BY 1
+), loans AS (
+    -- JLP Loans interest as it accrues. Every 15 minutes withdrawFees2 sweeps each custody's fees and logs an event
+    -- (Program data, discriminator 0xec768a5a8badb159). On the USDC custody, bytes 160..167 of that event are the loan
+    -- interest accrued since the previous sweep (USDC, 6 decimals), split 75% LP / 25% protocol like the fees.
+    -- Every call row carries the whole transaction's logs, so each transaction is read once. Other programs in the same
+    -- transaction can log Program data that is not one base64 chunk; TRY skips those, the discriminator keeps this event.
+    SELECT
+        date_trunc('day', block_time) AS day,
+        COUNT(*) AS fee_withdrawals,
+        COUNT_IF(to_base58(bytearray_substring(evt, 1+40, 32)) = 'G18jKKXQwBbrHeiK3C9MRXhkHsLHf7XgCSisykV46EZa') AS usdc_fee_withdrawals, -- USDC custody
+        SUM(CASE WHEN to_base58(bytearray_substring(evt, 1+40, 32)) = 'G18jKKXQwBbrHeiK3C9MRXhkHsLHf7XgCSisykV46EZa' -- USDC custody
+            THEN bytearray_to_bigint(bytearray_reverse(bytearray_substring(evt, 1+160, 8)))
+            ELSE 0
+        END) / 1e6 AS loan_interest
+    FROM (
+        SELECT call_block_time AS block_time, TRY(from_base64(split_part(substr(msg, 15), ' ', 1))) AS evt
+        FROM (
+            SELECT
+                call_block_time,
+                call_log_messages,
+                ROW_NUMBER() OVER (PARTITION BY call_tx_id ORDER BY call_outer_instruction_index) AS rn
+            FROM jupiter_solana.perpetuals_call_withdrawfees2
+            WHERE call_block_time >= from_unixtime({{start}})
+                AND call_block_time < from_unixtime({{end}})
+        ) w
+        CROSS JOIN UNNEST(call_log_messages) AS l(msg)
+        WHERE rn = 1
+            AND msg LIKE 'Program data: %'
+    ) e
+    WHERE bytearray_substring(evt, 1, 8) = 0xec768a5a8badb159
+    GROUP BY 1
+), fees AS (
 SELECT
     day,
     SUM(add_liq_fees) AS add_liquidity_fees,
@@ -324,4 +369,15 @@ SELECT
     SUM(add_liq_fees + remove_liq_fees + swap_fees + open_fees + close_fees + liquidation_fees + funding_fees + price_impact_fees) AS total_fees
 FROM all_events
 GROUP BY day
-ORDER BY day
+)
+
+SELECT
+    f.*,
+    COALESCE(s.staking_rewards_sol, 0) AS staking_rewards_sol,
+    l.loan_interest,
+    l.fee_withdrawals,
+    l.usdc_fee_withdrawals
+FROM fees f
+LEFT JOIN staking s ON s.day = f.day
+LEFT JOIN loans l ON l.day = f.day
+ORDER BY f.day

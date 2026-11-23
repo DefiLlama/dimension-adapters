@@ -33,15 +33,49 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const chainConfig: Record<string, ChainConfig> = {
+  // AKKA Router on Ethereum; source: https://docs.akka.finance/smart-contracts
+  [CHAIN.ETHEREUM]: {
+    routers: ["0x0B00004Ccc39408Fa289e9F6853BFE4eac3E52c8"],
+    // Deployment: https://etherscan.io/tx/0xd8f6b9fc54a1239c9fcd69b7244962a1c4a1c740a98c71440bc508e071ce6aeb
+    start: "2026-07-12",
+    fetch,
+  },
+  // AKKA Router on Arbitrum; source: https://docs.akka.finance/smart-contracts
+  [CHAIN.ARBITRUM]: {
+    routers: ["0xfB33E11e44547f31f55CAa5e77028b844a6d6fE3"],
+    // Deployment: https://arbiscan.io/tx/0x225a0dac720d4a61d2d4fb84ecf6047f1fcbb87fc627dd7c01e7f16e31515916
+    start: "2026-08-16",
+    fetch,
+  },
+  // AKKA Router on Robinhood Chain; source: https://docs.akka.finance/smart-contracts
+  [CHAIN.ROBINHOOD]: {
+    routers: ["0x0B00004Ccc39408Fa289e9F6853BFE4eac3E52c8"],
+    // Deployment: https://robinhoodchain.blockscout.com/tx/0xde781fa8766415dc3c23ba391f173ccf1f97b041f6de50f0e41cf5fb374091a2
+    start: "2026-07-07",
+    fetch,
+  },
+  // AKKA Router on Elysium (Kinetiq); source: https://elysium.kinetiq.xyz/address/0x0B00004Ccc39408Fa289e9F6853BFE4eac3E52c8
+  [CHAIN.ELYSIUM]: {
+    routers: ["0x0B00004Ccc39408Fa289e9F6853BFE4eac3E52c8"],
+    // Deployment: https://elysium.kinetiq.xyz/tx/0x307ca55b530986098020ad5a88a60e1d1a63553d445e467962d9f993d4e13264
+    start: "2026-11-10",
+    fetch,
+  },
   // AKKA Router on HyperEVM; source: https://docs.akka.finance/smart-contracts
   [CHAIN.HYPERLIQUID]: {
     routers: ["0xcce7452db4392b40aa0e1592a7c486e13bf69654"],
     start: "2026-01-20",
     fetch,
   },
-  // AKKA Router on XDC Network; source: https://docs.akka.finance/smart-contracts
+  // AKKA Routers on XDC Network
   [CHAIN.XDC]: {
-    routers: ["0x9afd9c2c9cbe15ac03eb2f42555e0c6f484ec3f3"],
+    routers: [
+      // Historical AKKA XDC router; source: https://github.com/DefiLlama/dimension-adapters/blob/master/aggregators/akka/index.ts
+      "0x9afd9c2c9cbe15ac03eb2f42555e0c6f484ec3f3",
+      // Current AKKA XDC router; source: https://docs.akka.finance/smart-contracts
+      // Deployment: https://xdcscan.com/tx/0x04714d83e7ac3def908deb63560a4bb7ad0f72f8098a9722f4fe3fed199cefdc
+      "0x0B00004Ccc39408Fa289e9F6853BFE4eac3E52c8",
+    ],
     start: "2024-10-29",
     fetch,
   },
@@ -77,14 +111,14 @@ const chainConfig: Record<string, ChainConfig> = {
 
 const methodology = {
   Volume: "Volume is calculated from Swap events emitted by the AkkaRouter contracts.",
-  Fees: "Fees are tracked from the fee field in Swap events, denominated in the output token.",
+  Fees: "Fees are tracked from the fee field in Swap events in the output token, excluding charges not reported by router builds that emit zero fees.",
   Revenue: "All the fees from swap events go to the protocol.",
   ProtocolRevenue: "All the fees from swap events go to the protocol.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.SWAP_FEES]: "Fees are tracked from the fee field in Swap events, denominated in the output token.",
+    [METRIC.SWAP_FEES]: "Fees are tracked from the fee field in Swap events in the output token, excluding charges not reported by router builds that emit zero fees.",
   },
   Revenue: {
     "Swap fees to protocol": "All the fees from swap events go to the protocol.",

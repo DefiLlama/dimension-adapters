@@ -43,6 +43,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
 const adapter: SimpleAdapter = {
   version: 1,
+  deadFrom: "2026-06-27",
   methodology: {
     Fees: "Protocol fee accruals on settled FIBO parimutuel rounds (treasury_flows fee_accrual via api.fibo.fun).",
     Revenue: "Fees retained by protocol treasury (100% of fees).",

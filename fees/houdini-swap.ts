@@ -9,6 +9,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultFees> => {
 
 
 const adapter: Adapter = {
+  version: 2,
   fetch,
   start: '2023-01-16',
   pullHourly: true,

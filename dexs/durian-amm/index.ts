@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 /**
  * Durian AMM — post-graduation DEX adapter.
  *
@@ -117,7 +118,7 @@ const DURIAN_V3_FACTORY_BLOCK = 34_014_863;
 
 // KKUB (wrapped KUB) — used to price native-KUB notionals in USD via
 // DefiLlama's Bitkub Chain oracle, and the quote asset of every Durian V3 pool.
-const KKUB = "0x67eBD850304c70d983B2d1b93ea79c7CD6c3F6b5";
+const KKUB = ADDRESSES.bitkub.KKUB;
 
 const TOKEN_CREATED_ABI =
   "event TokenCreated(address indexed token, address indexed market, address indexed creator, string name, string symbol, uint256 totalSupply, uint256 timestamp)";
@@ -143,7 +144,7 @@ const POOL_CREATED_ABI =
 const V3_SWAP_ABI =
   "event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)";
 
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ADDRESSES.null;
 
 // BondingCurveMarket graduation targets (V4.6.7+): 0 = in-house DurianAMM,
 // 1 = external KUBLERX V3 pool.

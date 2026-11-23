@@ -22,9 +22,7 @@ const adapter: Adapter = {
       fetch: fetchBuilderSymmioPerpsByName("Quickswap"),
     },
     [CHAIN.ORDERLY]: {
-      // Orderly omits no-trade days (orderly.fetch throws); return empty so an
-      // Orderly gap doesn't fail the whole protocol and drop the Base data.
-      fetch: (options) => orderly.fetch!(options).catch(() => ({})),
+      fetch: orderly.fetch!,
     },
   },
 };

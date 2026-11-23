@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { ethers } from "ethers";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
@@ -30,8 +31,8 @@ const v2 = {
   nadFunFactory: "0xA25b13127e63ddae6d0b35570FF3D39dBD621001",
   // WMON/LVMON are both treated as MON-denominated quote assets.
   monEquivalentQuoteTokens: [
-    "0x3bd359C1119dA7Da1D913D1C4D2B7c461115433A",
-    "0x91b81bfbe3A747230F0529Aa28d8b2Bc898E6D56",
+    ADDRESSES.monad.WMON,
+    ADDRESSES.monad.LVMON,
   ],
 };
 
@@ -399,9 +400,21 @@ async function getV2PairMetadata(options: FetchOptions) {
         dexProtocolFeeRate: Number(log.dexProtocolFeeRate),
       },
     });
+    // PairCreated names both sides of a pair but not which of them the token launched
+    // against. Setup names the launched token, so the quote is whichever side is left.
+    // Taking it from here rather than matching against a list of known quote assets is
+    // what lets a pair quoted in something new be read at all: an unlisted quote leaves
+    // the pair with none, and the first swap against it takes the whole day down.
+    const meta = pairMeta[pair];
+    if (meta) {
+      const baseToken = log.token.toLowerCase();
+      if (meta.token0.toLowerCase() === baseToken) meta.quoteToken = meta.token1;
+      else if (meta.token1.toLowerCase() === baseToken) meta.quoteToken = meta.token0;
+    }
+
     // Setup is also the token -> pair link, which is what the curve trade volume
     // needs to know which quote asset a token trades against.
-    const quoteToken = pairMeta[pair]?.quoteToken;
+    const quoteToken = meta?.quoteToken;
     if (quoteToken) tokenQuoteMap[log.token.toLowerCase()] = quoteToken;
   });
 

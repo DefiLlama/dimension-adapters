@@ -65,8 +65,10 @@ async function fromSnapshot(slug: string) {
   let dailyNormalizedVolume = 0;
   let dailyActiveLiquidity = 0;
   for (const { nvol } of pairs) {
+    if (nvol && typeof nvol.active_liquidity_measured !== 'number')
+      throw new Error(`${slug}: snapshot pair nvol is missing active_liquidity_measured`);
     dailyNormalizedVolume += nvol?.normalized ?? 0;
-    dailyActiveLiquidity += nvol?.active_liquidity ?? 0;
+    dailyActiveLiquidity += nvol?.active_liquidity_measured ?? 0;
   }
   return { dailyNormalizedVolume, dailyActiveLiquidity };
 }
@@ -87,6 +89,7 @@ function fetchNormalizedVolume(slug: string, version: 1 | 2) {
 function normalizedVolumeAdapter(slug: string, chain: string, start: string, version: 1 | 2 = 1): SimpleAdapter {
   return {
     version,
+    pullHourly: false, // daily history keyed by day
     adapter: { [chain]: { fetch: fetchNormalizedVolume(slug, version), start } },
   };
 }
@@ -97,24 +100,27 @@ const protocols = {
   'lighter': normalizedVolumeAdapter('lighter', CHAIN.ZK_LIGHTER, '2026-01-20'),
   'aster': normalizedVolumeAdapter('aster', CHAIN.OFF_CHAIN, '2026-01-20'),
   'paradex': normalizedVolumeAdapter('paradex', CHAIN.PARADEX, '2026-01-20', 2),
-  'sunx': normalizedVolumeAdapter('sunx', CHAIN.TRON, '2026-01-20'),
+  // SunPerp matches off-chain and only settles deposits/withdrawals on Tron (see dexs/sunperp)
+  'sunx': normalizedVolumeAdapter('sunx', CHAIN.OFF_CHAIN, '2026-01-20'),
   'apex-omni': normalizedVolumeAdapter('apex-omni', CHAIN.ETHEREUM, '2026-01-20'),
   'grvt': normalizedVolumeAdapter('grvt', CHAIN.GRVT, '2026-01-20'),
-  'pacifica': normalizedVolumeAdapter('pacifica', CHAIN.SOLANA, '2026-01-20', 2),
+  // Pacifica matches off-chain and only settles deposits/withdrawals on Solana,
+  // so it is keyed as off_chain like its dexs/fees/open-interest adapters
+  'pacifica': normalizedVolumeAdapter('pacifica', CHAIN.OFF_CHAIN, '2026-01-20', 2),
   'extended': normalizedVolumeAdapter('extended', CHAIN.STARKNET, '2026-01-20'),
   'nado': normalizedVolumeAdapter('nado', CHAIN.INK, '2026-01-20'),
   'standx': normalizedVolumeAdapter('standx', CHAIN.STANDX, '2026-01-20'),
   'evedex': normalizedVolumeAdapter('evedex', CHAIN.EVENTUM, '2026-03-30'),
   'antarctic': normalizedVolumeAdapter('antarctic', CHAIN.OFF_CHAIN, '2026-03-06'),
   'risex': normalizedVolumeAdapter('risex', CHAIN.RISE, '2026-05-25', 2),
-  'dango': normalizedVolumeAdapter('dango', CHAIN.DANGO, '2026-05-28', 2),
+  'dango': { ...normalizedVolumeAdapter('dango', CHAIN.DANGO, '2026-05-28', 2), deadFrom: '2026-07-29' },
   'sodex': normalizedVolumeAdapter('sodex', CHAIN.VALUECHAIN, '2026-05-31'),
   'variational-omni': normalizedVolumeAdapter('variational', CHAIN.ARBITRUM, '2026-05-07', 2),
   'o1-exchange': normalizedVolumeAdapter('01', CHAIN.OFF_CHAIN, '2026-05-06'),
-  'ethereal-dex': normalizedVolumeAdapter('ethereal', CHAIN.ETHEREAL, '2026-05-07', 2),
+  'ethereal-dex': { ...normalizedVolumeAdapter('ethereal', CHAIN.ETHEREAL, '2026-05-07', 2), deadFrom: '2026-08-25' },
   'phoenix-trade': normalizedVolumeAdapter('phoenix', CHAIN.SOLANA, '2025-11-18'),
   'arcus-perps': normalizedVolumeAdapter('arcus', CHAIN.ROBINHOOD, '2026-06-22'),
-  'afx': normalizedVolumeAdapter('afx', CHAIN.AFX, '2026-05-12'),
+  'afx': { ...normalizedVolumeAdapter('afx', CHAIN.AFX, '2026-05-12'), deadFrom: '2026-08-11' },
   'dydx-v4': normalizedVolumeAdapter('dydx', 'dydx', '2025-01-20'),
   'katana-perps': normalizedVolumeAdapter('katana', CHAIN.KATANA, '2026-01-15', 2),
   'hibachi': normalizedVolumeAdapter('hibachi', CHAIN.ARBITRUM, '2026-07-22', 2),

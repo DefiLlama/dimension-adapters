@@ -61,6 +61,22 @@ const failedRpcSenders: Record<string, Set<string> | undefined> = {};
  * Shared configs for cosmos-sdk chains that derive chain metrics directly from RPC tx results.
  */
 export const COSMOS_CHAIN_METRIC_CONFIGS: Record<string, CosmosChainMetricConfig> = {
+  noble: {
+    chain: CHAIN.NOBLE,
+    start: "2023-03-01",
+    rpcs: [
+      "https://noble-rpc.polkachu.com",
+      "https://rpc.cosmos.directory/noble",
+    ],
+    // denoms https://api.noble.xyz/noble/globalfee/v1/gas_prices
+    denoms: {
+      uusdc: { cgToken: "usd-coin", decimals: 6 },
+      uusdn: { cgToken: "noble-dollar-usdn", decimals: 6 },
+      ausdy: { cgToken: "ondo-us-dollar-yield", decimals: 18 },
+      ueure: { cgToken: "monerium-eur-money-2", decimals: 6 },
+      "ibc/EF48E6B1A1A19F47ECAEA62F5670C37C0580E86A9E88498B7E393EB6F49F33C0": { cgToken: "cosmos", decimals: 6 },
+    },
+  },
   neutron: {
     chain: CHAIN.NEUTRON,
     start: "2023-05-10",

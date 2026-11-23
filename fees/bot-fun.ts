@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import { METRIC } from '../helpers/metrics'
@@ -11,7 +12,7 @@ const REFERRAL_ACCRUED = 'event ReferralAccrued(address indexed token, address i
 
 const BURNED_PROTOCOL_FEES = 'Burned Protocol Fees'
 const REFERRAL_FEES = 'Referral Fees'
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+const ZERO_ADDRESS = ADDRESSES.null
 
 const fetch = async (options: FetchOptions) => {
   const treasury = await options.toApi.call({ target: FACTORY, abi: 'address:treasury' })

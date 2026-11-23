@@ -3,6 +3,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { Chain } from "../adapters/types";
 import { addTokensReceived } from "../helpers/token";
+import { getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
 import BigNumber from "bignumber.js";
 import { getConfig } from "../helpers/cache";
 import { ChainApi } from "@defillama/sdk";
@@ -19,7 +20,7 @@ type IConfig = {
     treasury: string;
     blacklists?: Array<string>;
     airdropFunders?: Array<string>;
-    usdtAddress: string;
+    usdtAddress?: string;
   };
 };
 
@@ -28,6 +29,18 @@ const EETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.EETH;
 const WETH_ETHEREUM = "ethereum:" + ADDRESSES.ethereum.WETH;
 
 const AIRDROP_DISTRIBUTOR = '0x3942F7B55094250644cFfDa7160226Caa349A38E'
+
+// sPendle and pendlePtLooper in Pendle's deployments/1-core.json. The looper has the same address on every chain it is on.
+const SPENDLE = '0x999999999991E178D52Cd95AFd4b00d066664144'
+const PENDLE = '0x808507121b80c02388fad14726482e061b8da827'
+const PT_LOOPER = '0xF82Ef4080A53b71093f9c470676Fc80E2ADC4263'
+const EXIT_FEES_LABEL = 'sPENDLE Instant Exit Fees'
+const LOOPER_FEES_LABEL = 'PT Looper Service Fees And Gas'
+const ERC20_TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+const LOOPER_POSITION_EVENTS = [
+  'event PositionIncreased(address indexed owner, bytes32 indexed boxId, bytes32 requestHash, uint256 nonce, uint256 preInBalance, uint256 netPtToMM, uint256 postDebtBalance)',
+  'event PositionDecreased(address indexed owner, bytes32 indexed boxId, bytes32 requestHash, uint256 nonce, uint256 preDebtBalance, uint256 netPtToSwap, uint256 postDebtBalance)',
+]
 
 const BRIDGED_ASSETS = [
   {
@@ -87,20 +100,27 @@ const chainConfig: IConfig = {
   },
   [CHAIN.BERACHAIN]: {
     treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
-    usdtAddress: "0x779Ded0c9e1022225f8E0630b35a9b54bE713736"
+    usdtAddress: ADDRESSES.xlayer.USDT0
   }, 
   [CHAIN.PLASMA]: {
     treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
-    usdtAddress: "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb"
+    usdtAddress: ADDRESSES.corn.USDT0
   },
   [CHAIN.HYPERLIQUID]: {
     treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
     airdropFunders: ["0xeea6F790F18563E91b18DF00B89d9f79b2E6761F"],
-    usdtAddress: "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb"
+    usdtAddress: ADDRESSES.corn.USDT0
   },
   [CHAIN.MONAD]: {
     treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
-    usdtAddress: "0xe7cd86e13AC4309349F30B3435a9d337750fC82D"
+    usdtAddress: ADDRESSES.flare.USDT0
+  },
+  [CHAIN.XLAYER]: {
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
+    usdtAddress: ADDRESSES.xlayer.USDT
+  },
+  [CHAIN.ROBINHOOD]: {
+    treasury: "0xCbcb48e22622a3778b6F14C2f5d258Ba026b05e6",
   }
 };
 
@@ -112,6 +132,16 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances()
 
   const { markets, sys, marketToSy } = await getWhitelistedAssets(api);
+
+  if (!markets.length) {
+    return {
+      dailyFees,
+      dailyRevenue: options.createBalances(),
+      dailyProtocolRevenue: options.createBalances(),
+      dailyHoldersRevenue: options.createBalances(),
+      dailySupplySideRevenue,
+    };
+  }
 
   const rewardTokens: string[] = (
     await api.multiCall({
@@ -234,7 +264,9 @@ const fetch = async (options: FetchOptions) => {
     fromAdddesses: sources,
   })
 
-  tokenToDistributor.removeTokenBalance(chainConfig[chain].usdtAddress) // ignore USDT airdrop
+  if (chainConfig[chain].usdtAddress) tokenToDistributor.removeTokenBalance(chainConfig[chain].usdtAddress!) // ignore USDT airdrop
+  // sPENDLE from these senders is PENDLE staked and pushed on (on 2026-02-13, treasury PENDLE), not a points airdrop. Exit fees are counted on arrival below.
+  tokenToDistributor.removeTokenBalance(SPENDLE)
 
   const dailyRevenue = options.createBalances()
   dailyRevenue.addBalances(treasuryInflows, 'YT And Swap Fees')
@@ -249,6 +281,44 @@ const fetch = async (options: FetchOptions) => {
   const dailyHoldersRevenue = hasProtocolRevenue ? dailyRevenue.clone(0.8, 'sPENDLE Distributions') : dailyRevenue.clone(1, 'sPENDLE Distributions')
   const dailyProtocolRevenue = hasProtocolRevenue ? dailyRevenue.clone(0.2, 'Treasury And Operations') : dailyRevenue.clone(0)
 
+  // Two flows reach the treasury in tokens the SY and reward lists above never hold. They are added after the split on purpose:
+  // Pendle's 80/10/10 covers yield and swap fees only and nothing public says where these go, so neither is booked to
+  // dailyProtocolRevenue or dailyHoldersRevenue.
+  const addTreasuryFees = (balances: any, label: string) => {
+    dailyFees.addBalances(balances, label)
+    dailyRevenue.addBalances(balances, label)
+  }
+
+  // instantUnstake sends its fee to feeReceiver() in PENDLE. sPENDLE exists only on Ethereum.
+  if (chain === CHAIN.ETHEREUM) {
+    const exitFees = await addTokensReceived({ options, target: chainConfig[chain].treasury, fromAdddesses: [SPENDLE], tokens: [PENDLE] })
+    addTreasuryFees(exitFees, EXIT_FEES_LABEL)
+  }
+
+  // Each position box pays TREASURY() in the position's token. Boxes are per user, so match on the transactions that moved a
+  // position. SY and reward tokens in those transactions are swap fees already counted above. Gross: Pendle pays the executors'
+  // gas out of this, and that cost isn't netted.
+  const looperTxs = new Set<string>()
+  for (const eventAbi of LOOPER_POSITION_EVENTS) {
+    const logs = await getLogs({ target: PT_LOOPER, eventAbi, onlyArgs: false })
+    logs.forEach((log: any) => looperTxs.add(String(log.transactionHash).toLowerCase()))
+  }
+  if (looperTxs.size) {
+    const countedTokens = new Set(rewardTokens.concat(sys).filter(Boolean).map((token) => token.toLowerCase()))
+    const treasuryTopic = chainConfig[chain].treasury.toLowerCase().replace('0x', '').padStart(64, '0')
+    const receipts = await getTxReceiptsWithRetry(chain, [...looperTxs])
+    const looperFees = options.createBalances()
+    receipts.forEach((receipt: any) => {
+      (receipt?.logs ?? []).forEach((log: any) => {
+        const [topic0, , to] = log.topics
+        const token = log.address.toLowerCase()
+        if (topic0 === ERC20_TRANSFER_TOPIC && log.topics.length === 3 && to?.toLowerCase().endsWith(treasuryTopic) && !countedTokens.has(token))
+          looperFees.add(token, BigInt(log.data))
+      })
+    })
+    addTreasuryFees(looperFees, LOOPER_FEES_LABEL)
+  }
+
   return {
     dailyFees,
     dailyRevenue,
@@ -259,10 +329,10 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-    Fees: 'Total yield from deposited assets + trading fees paid by yield traders.',
-    Revenue: 'Sum of 5% fee from all yield + points accrued and 80% trading fees.',
-    ProtocolRevenue: '20% revenue to protocol treasury and operations (since September 2025, 0% before).',
-    HoldersRevenue: '80% revenue distributed to sPENDLE holders (100% before September 2025).',
+    Fees: 'Total yield from deposited assets + trading fees paid by yield traders + sPENDLE instant-exit fees + what PT Looper users pay the treasury.',
+    Revenue: 'Sum of 5% fee from all yield + points accrued and 80% trading fees + sPENDLE instant-exit fees + what PT Looper users pay the treasury.',
+    ProtocolRevenue: '20% of yield and swap fee revenue to protocol treasury and operations (since September 2025, 0% before). Excludes sPENDLE instant-exit fees and PT Looper receipts, whose destination is not published.',
+    HoldersRevenue: '80% of yield and swap fee revenue distributed to sPENDLE holders (100% before September 2025). Excludes sPENDLE instant-exit fees and PT Looper receipts, whose destination is not published.',
     SupplySideRevenue: '20% of AMM swap fees distributed to liquidity providers.',
 }
 
@@ -270,10 +340,14 @@ const breakdownMethodology = {
     Fees: {
       'YT And Swap Fees': 'YT fees (5% of all yield accrued by YT) + 80% of AMM swap fees + limit order swap fees sent to treasury.',
       'AMM Swap Fees To LPs': '20% of AMM swap fees retained by liquidity providers.',
+      [EXIT_FEES_LABEL]: '5% of the sPENDLE unstaked through instantUnstake, paid in PENDLE to the Ethereum treasury.',
+      [LOOPER_FEES_LABEL]: 'What PT Looper users pay the treasury, gross. Opening or increasing a loop: a dynamic service fee capped at 10 bps, with gas bundled in. Withdrawing or decreasing: gas only.',
     },
     Revenue: {
       'YT And Swap Fees': 'YT fees, AMM swap fees, and limit order fees collected by the treasury.',
-      'Other Fees': 'Non-USDT fees from negotiated points, distributed via airdrop distributor.',
+      'Other Fees': 'Non-USDT fees from negotiated points, distributed via airdrop distributor. sPENDLE sent to the distributor is not counted.',
+      [EXIT_FEES_LABEL]: 'sPENDLE instant-exit fees received by the Ethereum treasury.',
+      [LOOPER_FEES_LABEL]: 'PT Looper service fees and gas charges received by the treasury, before the gas Pendle pays its executors.',
     },
     SupplySideRevenue: {
       'AMM Swap Fees To LPs': '20% of AMM swap fees distributed to liquidity providers.',
@@ -301,7 +375,9 @@ const adapter: SimpleAdapter = {
     [CHAIN.BERACHAIN]: { start: '2025-02-07' }, 
     [CHAIN.PLASMA]: { start: '2025-09-24' },
     [CHAIN.HYPERLIQUID]: { start: '2025-07-09' },
-    [CHAIN.MONAD]: { start: '2026-06-19' }
+    [CHAIN.MONAD]: { start: '2026-06-19' },
+    [CHAIN.XLAYER]: { start: '2026-08-02' },
+    [CHAIN.ROBINHOOD]: { start: '2026-09-02' },
   },
   methodology,
   breakdownMethodology,

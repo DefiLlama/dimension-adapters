@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types"
 import { CHAIN } from "../helpers/chains"
-import { getDefaultDexTokensBlacklisted } from "../helpers/lists"
+import { getDexTokensBlacklisted } from "../helpers/lists"
 import { addOneToken } from "../helpers/prices"
 
 const METRIC = {
@@ -10,9 +10,25 @@ const METRIC = {
 }
 
 // SquadSwap Thanos is SquadSwap's v4, both CLAMM (CLPoolManager) and LBAMM (BinPoolManager) launched together.
-const config: any = {
-  [CHAIN.BSC]: { clPoolManager: '0x9d3b119eff69cd81d324f654062b6ffa3dd7f405', binPoolManager: '0xd7a5a9df1719ee83a4d10749019caabf137debac', fromBlock: 74380131, start: '2026-01-07', blacklistTokens: getDefaultDexTokensBlacklisted(CHAIN.BSC) },
-  [CHAIN.BASE]: { clPoolManager: '0xbb07a7bdfc50829ce932adccc0498f0e29f49f50', binPoolManager: '0xd243e0c2fc2a91eace239e0c54023559a47c5f04', fromBlock: 40500004, start: '2026-01-07', blacklistTokens: getDefaultDexTokensBlacklisted(CHAIN.BASE) },
+const config: Record<string, { start: string, fromBlock: number, clPoolManagers: string[], binPoolManagers: string[] }> = {
+  [CHAIN.BSC]: {
+    start: '2026-01-07',
+    fromBlock: 74380131,
+    clPoolManagers: ['0x9d3b119eff69cd81d324f654062b6ffa3dd7f405', '0xb9a52e6b7e98bf7e80e0bdc8cbee97d7e1314f22'],
+    binPoolManagers: ['0xd7a5a9df1719ee83a4d10749019caabf137debac', '0x7f8e5a02f9007b19408ef731982adbba7ae08eb1'],
+  },
+  [CHAIN.BASE]: {
+    start: '2026-01-07',
+    fromBlock: 40500004,
+    clPoolManagers: ['0xbb07a7bdfc50829ce932adccc0498f0e29f49f50', '0xfeb042bababeb8a669897a499d51a8a07f2b260a'],
+    binPoolManagers: ['0xd243e0c2fc2a91eace239e0c54023559a47c5f04', '0xd5727d30bc1dbb98dc74e34ed535fc570b17ad27'],
+  },
+  [CHAIN.ETHEREUM]: {
+    start: '2026-11-05',
+    fromBlock: 26354460,
+    clPoolManagers: ['0xb930ed3581aae632bb1788b28777c50bf2c6a85d'],
+    binPoolManagers: ['0xa61093c554d58ee0b0108ad71cdc57c396f04313'],
+  },
 }
 
 const adapter: SimpleAdapter = {
@@ -44,13 +60,13 @@ const adapter: SimpleAdapter = {
 
 // CLPoolManager and BinPoolManager share the same Swap semantics (id, amount0, amount1, fee, protocolFee,
 // both denominated in hundredths of a bip) — only the Initialize/Swap ABI differs (sqrtPriceX96+tick vs activeId).
-async function trackPoolManager({ getLogs, chain, target, fromBlock, initializeAbi, swapAbi, blacklistTokens, dailyVolume, swapFees, revenue }: {
-  getLogs: FetchOptions['getLogs'], chain: string, target: string, fromBlock: number,
+async function trackPoolManagers({ getLogs, chain, targets, fromBlock, initializeAbi, swapAbi, blacklistTokens, dailyVolume, swapFees, revenue }: {
+  getLogs: FetchOptions['getLogs'], chain: string, targets: string[], fromBlock: number,
   initializeAbi: string, swapAbi: string, blacklistTokens?: string[],
   dailyVolume: ReturnType<FetchOptions['createBalances']>, swapFees: ReturnType<FetchOptions['createBalances']>, revenue: ReturnType<FetchOptions['createBalances']>,
 }) {
   const initializeLogs = await getLogs({
-    target,
+    targets,
     fromBlock,
     cacheInCloud: true,
     eventAbi: initializeAbi,
@@ -63,7 +79,7 @@ async function trackPoolManager({ getLogs, chain, target, fromBlock, initializeA
   })
 
   const swapLogs = await getLogs({
-    target,
+    targets,
     eventAbi: swapAbi,
   })
 
@@ -95,23 +111,25 @@ async function trackPoolManager({ getLogs, chain, target, fromBlock, initializeA
   })
 }
 
-async function fetch({ getLogs, createBalances, chain }: FetchOptions) {
-  const { clPoolManager, binPoolManager, fromBlock, blacklistTokens } = config[chain]
+async function fetch(options: FetchOptions) {
+  const { getLogs, createBalances, chain } = options
+  const { fromBlock, clPoolManagers, binPoolManagers } = config[chain]
+  const blacklistTokens = await getDexTokensBlacklisted(options)
   const dailyVolume = createBalances()
   const swapFees = createBalances()
   const revenue = createBalances()
 
   await Promise.all([
-    trackPoolManager({
+    trackPoolManagers({
       getLogs, chain, fromBlock, blacklistTokens,
-      target: clPoolManager,
+      targets: clPoolManagers,
       initializeAbi: 'event Initialize(bytes32 indexed id, address indexed currency0, address indexed currency1, address hooks, uint24 fee, bytes32 parameters, uint160 sqrtPriceX96, int24 tick)',
       swapAbi: 'event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick, uint24 fee, uint16 protocolFee)',
       dailyVolume, swapFees, revenue,
     }),
-    trackPoolManager({
+    trackPoolManagers({
       getLogs, chain, fromBlock, blacklistTokens,
-      target: binPoolManager,
+      targets: binPoolManagers,
       initializeAbi: 'event Initialize(bytes32 indexed id, address indexed currency0, address indexed currency1, address hooks, uint24 fee, bytes32 parameters, uint24 activeId)',
       swapAbi: 'event Swap(bytes32 indexed id, address indexed sender, int128 amount0, int128 amount1, uint24 activeId, uint24 fee, uint16 protocolFee)',
       dailyVolume, swapFees, revenue,

@@ -71,11 +71,15 @@ const fetch = async (options: FetchOptions) => {
     });
   });
 
+  // Pool venue: every position is its own contract against the pool (longs and shorts are not
+  // matched against each other), so long + short counts each open position exactly once.
   return { openInterestAtEnd, longOpenInterestAtEnd, shortOpenInterestAtEnd };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // OI is end-of-window state; hourly snapshots must not be summed.
+  pullHourly: false,
   fetch,
   adapter: chainConfigs,
 };

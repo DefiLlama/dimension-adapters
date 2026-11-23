@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { Adapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -27,7 +28,7 @@ const fetch = async (options: FetchOptions) => {
   let dailyFees = options.createBalances();
   let dailyRevenue = options.createBalances();
   let dailySupplySideRevenue = options.createBalances();
-  const USDM = "0xFAfDdbb3FC7688494971a79cc65DCa3EF82079E7";
+  const USDM = ADDRESSES.megaeth.USDm;
 
   for (const log of finalizedLogs) {
     const treasuryFee = BigInt(log.treasuryFee)

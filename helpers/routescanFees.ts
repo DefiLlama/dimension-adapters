@@ -6,6 +6,7 @@ export type RouteScanFeeConfig = {
   chainId: number;
   CGToken: string;
   start: string;
+  deadFrom?: string;
 };
 
 type RouteScanFeeRow = {
@@ -41,10 +42,12 @@ async function fetchRouteScanFees(options: FetchOptions, config: RouteScanFeeCon
 export function routescanFeeAdapter(config: RouteScanFeeConfig): Adapter {
   return {
     version: 1,
+    deadFrom: config.deadFrom,
     adapter: {
       [config.chain]: {
         fetch: (options: FetchOptions) => fetchRouteScanFees(options, config),
         start: config.start,
+        deadFrom: config.deadFrom,
       },
     },
     protocolType: ProtocolType.CHAIN,

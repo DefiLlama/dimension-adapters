@@ -1,7 +1,7 @@
 import { Dependencies, FetchOptions, FetchResult, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
-import { ChainApi } from "@defillama/sdk";
+import { ChainApi, getEventLogs } from "@defillama/sdk";
 import ADDRESSES from "../helpers/coreAssets.json";
 
 const FETCH_RFQ_CUTOFF = 1766361600; //2025-12-22 00:00:00 UTC
@@ -10,19 +10,20 @@ const SETTLER_DEPLOYER = "0x00000000000004533fe15556b1e086bb1a72ceae";
 const RFQ_PATTERN = "'d92aadfb[0-9a-f]{64}000000000000000000000000([0-9a-f]{40})([0-9a-f]{64})'";
 const VIP_PATTERN = "'(604ba49a|9714f25e)[0-9a-f]{344}([0-9a-f]{40})([0-9a-f]{64})'";
 
+// registryBlock: Settler registry deploy block (Avalanche: lower bound, block at 2024-03-31 00:00 UTC)
 const chainConfig = {
-  [CHAIN.ETHEREUM]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'ethereum', start: '2020-06-11' },
-  [CHAIN.POLYGON]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'polygon', start: '2021-05-12' },
-  [CHAIN.BSC]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'bnb', start: '2021-03-04' },
-  [CHAIN.OPTIMISM]: { exchange: '0xdef1abe32c034e558cdd535791643c58a13acc10', duneChain: 'optimism', start: '2021-12-22' },
+  [CHAIN.ETHEREUM]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'ethereum', start: '2020-06-11', registryBlock: 19582253 },
+  [CHAIN.POLYGON]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'polygon', start: '2021-05-12', registryBlock: 55435043 },
+  [CHAIN.BSC]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'bnb', start: '2021-03-04', registryBlock: 37570556 },
+  [CHAIN.OPTIMISM]: { exchange: '0xdef1abe32c034e558cdd535791643c58a13acc10', duneChain: 'optimism', start: '2021-12-22', registryBlock: 118320032 },
   [CHAIN.FANTOM]: { exchange: '0xdef189deaef76e379df891899eb5a00a94cbc250', start: '2021-10-11' },
   [CHAIN.CELO]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', start: '2021-10-15' },
-  [CHAIN.AVAX]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'avalanche_c', start: '2021-08-26' },
-  [CHAIN.ARBITRUM]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'arbitrum', start: '2021-12-23' },
-  [CHAIN.BASE]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'base', start: '2023-07-17' },
-  [CHAIN.HYPERLIQUID]: { duneChain: 'hyperevm', start: '2025-12-22' },
-  [CHAIN.ROBINHOOD]: { duneChain: 'robinhood', start: '2026-06-26' },
-} as { [chain: string]: { exchange?: string, duneChain?: string, start: string } }
+  [CHAIN.AVAX]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'avalanche_c', start: '2021-08-26', registryBlock: 43584395 },
+  [CHAIN.ARBITRUM]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'arbitrum', start: '2021-12-23', registryBlock: 197529483 },
+  [CHAIN.BASE]: { exchange: '0xdef1c0ded9bec7f1a1670819833240f027b25eff', duneChain: 'base', start: '2023-07-17', registryBlock: 12723099 },
+  [CHAIN.HYPERLIQUID]: { duneChain: 'hyperevm', start: '2025-12-22', registryBlock: 7806385 },
+  [CHAIN.ROBINHOOD]: { duneChain: 'robinhood', start: '2026-06-26', registryBlock: 19267 },
+} as { [chain: string]: { exchange?: string, duneChain?: string, start: string, registryBlock?: number } }
 
 /*
   0x RFQ volume is split across two generations:
@@ -35,11 +36,11 @@ const chainConfig = {
     contains the RFQ order/hash fragment plus the filled maker amount, but not the
     maker token.
 
-  The active Settler contracts are discovered from the official cross-chain
-  Settler deployer/registry. ownerOf(2), ownerOf(3), and ownerOf(4) resolve the
-  current taker-submitted, metatxn/gasless, and intent Settler deployments at the
-  requested historical start timestamp. A revert/zero result is ignored, which
-  covers paused or unavailable features.
+  Settler contracts are discovered from the official cross-chain Settler
+  deployer/registry, an ERC-721 whose Transfer events hand feature tokens 2, 3
+  and 4 (taker-submitted, metatxn/gasless, intent) to each new deployment. A
+  replaced Settler stays live and keeps filling, so we take every Settler the
+  registry has handed one of those features up to the window end.
 
   To price a Settler RFQ fill we need to bind that marker amount to a token. We
   do that by reading only transactions that already have a candidate marker log,
@@ -68,21 +69,23 @@ const prefetch = async (options: FetchOptions) => {
 
   const chainQueries = (await Promise.all(Object.entries(chainConfig)
     .filter(([, { duneChain, start }]) => duneChain && options.startTimestamp >= Date.parse(`${start}T00:00:00Z`) / 1e3)
-    .map(async ([chain, { duneChain }]) => {
-      // Resolve only the active Settler addresses for this historical window.
-      const settlers = [...new Set((await new ChainApi({ chain, timestamp: options.startTimestamp }).multiCall({
+    .map(async ([chain, { duneChain, registryBlock }]) => {
+      const transfers = await getEventLogs({
+        chain,
         target: SETTLER_DEPLOYER,
-        abi: "function ownerOf(uint256 tokenId) view returns (address)",
-        calls: [2, 3, 4],
-        permitFailure: true,
-      }))
-        .filter(Boolean)
-        .map((settler: string) => settler.toLowerCase())
+        eventAbi: "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
+        fromBlock: registryBlock,
+        toBlock: await new ChainApi({ chain, timestamp: options.toTimestamp }).getBlock(),
+        onlyArgs: true,
+        cacheInCloud: true,
+      });
+      const settlers = [...new Set(transfers
+        .filter((log: any) => [2, 3, 4].includes(Number(log.tokenId)))
+        .map((log: any) => log.to.toLowerCase())
         .filter((settler: string) => settler !== ADDRESSES.null)
       )];
+      if (!settlers.length) throw new Error(`0x-rfq: no Settler registry Transfer logs on ${chain}`);
       const cte = chain.replace(/[^a-z0-9]/gi, "_");
-
-      if (!settlers.length) return;
 
       /*
         Per-chain Dune query shape:
@@ -172,13 +175,13 @@ const prefetch = async (options: FetchOptions) => {
            AND p.contract_address = m.token
            AND p.timestamp = m.fill_day
            AND p.timestamp >= DATE_TRUNC('day', from_unixtime(${options.startTimestamp}))
-           AND p.timestamp <= DATE_TRUNC('day', from_unixtime(${options.endTimestamp}))
+           AND p.timestamp <= DATE_TRUNC('day', from_unixtime(${options.toTimestamp}))
         )`,
         select: `
         SELECT '${chain}' AS chain, COALESCE(SUM(volume_usd), 0) AS daily_volume
         FROM ${cte}_priced`,
       };
-    }))).filter(Boolean) as { ctes: string, select: string }[];
+    })));
 
   if (!chainQueries.length) return [];
 

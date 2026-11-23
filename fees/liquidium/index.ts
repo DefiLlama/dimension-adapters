@@ -5,6 +5,8 @@ import { httpGet } from "../../utils/fetchURL";
 
 const FEES_API = "https://app.liquidium.fi/api/defi-llama/fees";
 
+const ACTIVATION_FEES = "Borrow Activation Fees";
+
 const COINGECKO_IDS: Record<string, string> = {
   BTC: "bitcoin",
   ETH: "ethereum",
@@ -23,6 +25,7 @@ type FeeHistoryItem = {
   fees: unknown;
   revenue: unknown;
   supplySideRevenue: unknown;
+  activationFees: unknown;
 };
 
 type FeeHistoryResponse = {
@@ -78,6 +81,7 @@ async function fetch(options: FetchOptions) {
     const fees = parseRawTokenAmount(item.fees);
     const revenue = parseRawTokenAmount(item.revenue);
     const supplySideRevenue = parseRawTokenAmount(item.supplySideRevenue);
+    const activationFees = parseRawTokenAmount(item.activationFees);
 
     if (fees !== revenue + supplySideRevenue) {
       throw new Error(
@@ -105,6 +109,10 @@ async function fetch(options: FetchOptions) {
       toTokenAmount(supplySideRevenue, item.decimals),
       "Borrow Interest To Lenders",
     );
+
+    const activationFeeAmount = toTokenAmount(activationFees, item.decimals);
+    dailyFees.addCGToken(coingeckoId, activationFeeAmount, ACTIVATION_FEES);
+    dailyRevenue.addCGToken(coingeckoId, activationFeeAmount, ACTIVATION_FEES);
   }
 
   return {
@@ -117,25 +125,29 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  UserFees: "Gross interest accrued by borrowers across Liquidium lending pools.",
-  Fees: "Gross interest accrued by borrowers across Liquidium lending pools.",
-  Revenue: "The reserve-factor share of borrower interest allocated to the Liquidium treasury.",
-  ProtocolRevenue: "The reserve-factor share of borrower interest allocated to the Liquidium treasury.",
+  UserFees: "Gross interest accrued by borrowers plus the one-time activation fee charged when a borrow opens.",
+  Fees: "Gross interest accrued by borrowers plus the one-time activation fee charged when a borrow opens.",
+  Revenue: "The reserve-factor share of borrower interest plus all activation fees, allocated to the Liquidium treasury.",
+  ProtocolRevenue: "The reserve-factor share of borrower interest plus all activation fees, allocated to the Liquidium treasury.",
   SupplySideRevenue: "Borrower interest allocated to lenders after the Liquidium reserve-factor cut.",
 };
 
 const breakdownMethodology = {
   UserFees: {
     [METRIC.BORROW_INTEREST]: "Gross interest accrued by borrowers.",
+    [ACTIVATION_FEES]: "One-time fee on the borrowed amount, added to the opening debt when a borrow opens.",
   },
   Fees: {
     [METRIC.BORROW_INTEREST]: "Gross interest accrued by borrowers.",
+    [ACTIVATION_FEES]: "One-time fee on the borrowed amount, added to the opening debt when a borrow opens.",
   },
   Revenue: {
     "Borrow Interest To Treasury": "Borrow interest allocated to the Liquidium treasury through each pool's reserve factor.",
+    [ACTIVATION_FEES]: "Activation fees, which go to the Liquidium treasury in full.",
   },
   ProtocolRevenue: {
     "Borrow Interest To Treasury": "Borrow interest allocated to the Liquidium treasury through each pool's reserve factor.",
+    [ACTIVATION_FEES]: "Activation fees, which go to the Liquidium treasury in full.",
   },
   SupplySideRevenue: {
     "Borrow Interest To Lenders": "Borrow interest allocated to lenders after the reserve-factor cut.",

@@ -12,9 +12,8 @@ const post = async (params: any) => {
 };
 
 const fetch = async (options: any) => {
+  // The two sides are independent, so the one-sided figure is their average.
   const openInterestAtEnd = options.createBalances();
-  const longOpenInterestAtEnd = options.createBalances();
-  const shortOpenInterestAtEnd = options.createBalances();
   const marketPrices = await post({ action: "getMarketPrices" });
   const openInterest = await post({ action: "getOpenInterest" });
 
@@ -23,16 +22,10 @@ const fetch = async (options: any) => {
     if (!price || !price.markPrice || !longOpenInterest || !shortOpenInterest) {
       throw new Error(`Missing Synthetix mark price or open interest for ${symbol}`);
     }
-    openInterestAtEnd.addUSDValue(Number(price.markPrice) * (Number(longOpenInterest) + Number(shortOpenInterest)));
-    longOpenInterestAtEnd.addUSDValue(Number(price.markPrice) * Number(longOpenInterest));
-    shortOpenInterestAtEnd.addUSDValue(Number(price.markPrice) * Number(shortOpenInterest));
+    openInterestAtEnd.addUSDValue(Number(price.markPrice) * (Number(longOpenInterest) + Number(shortOpenInterest)) / 2);
   });
 
-  return {
-    openInterestAtEnd,
-    longOpenInterestAtEnd,
-    shortOpenInterestAtEnd,
-  };
+  return { openInterestAtEnd };
 };
 
 const adapter = {

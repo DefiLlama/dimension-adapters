@@ -17,7 +17,7 @@ import { METRIC } from "../../helpers/metrics";
 //   V4+ 2024-12-20 onwards        same fields, pFee signed
 //
 // feeIndex points at the fee the contract actually transfers to oplTreasury.
-const depositEvents = [
+const transactionEvents = [
   {
     abi: `event ProcessDeposit(address sender, address receiver, uint256 assets, uint256 shares, uint256 oeFee, int256 pFee, uint256 totalFee, address oplTreasury, address treasury)`,
     feeIndex: 6,
@@ -29,6 +29,16 @@ const depositEvents = [
   {
     abi: `event ProcessDeposit(address sender, address receiver, uint256 assets, uint256 shares, uint256 txFee, address oplTreasury, address treasury)`,
     feeIndex: 4,
+  },
+  {
+    // OpenEdenVaultV5 emits this once per processed redemption, including instant redemptions.
+    abi: `event ProcessWithdraw(address sender, address receiver, uint256 assets, uint256 shares, uint256 actualAssets, uint256 actualShare, uint256 oeFee, int256 pFee, uint256 totalFee, bytes32 prevId, address oplTreasury)`,
+    feeIndex: 8,
+  },
+  {
+    // V3 used an unsigned partnership fee, which gives the event a different topic.
+    abi: `event ProcessWithdraw(address sender, address receiver, uint256 assets, uint256 shares, uint256 actualAssets, uint256 actualShare, uint256 oeFee, uint256 pFee, uint256 totalFee, bytes32 prevId, address oplTreasury)`,
+    feeIndex: 8,
   },
 ];
 
@@ -99,7 +109,7 @@ const fetch = async (
     dailyFees.addUSDValue((await getTokenSupply(config)) * DAILY_MANAGEMENT_FEES, METRIC.MANAGEMENT_FEES)
   } else {
     const [logSets, totalUSDC] = await Promise.all([
-      Promise.all(depositEvents.map(({ abi }) => getLogs({ target: config, eventAbi: abi }))),
+      Promise.all(transactionEvents.map(({ abi }) => getLogs({ target: config, eventAbi: abi }))),
       api.call({ target: config, abi: "uint256:totalAssets" }),
     ]);
 
@@ -109,7 +119,7 @@ const fetch = async (
       // Count the fee the contract actually transfers to oplTreasury, not oeFee.
       // oeFee is the gross figure before the partnership adjustment, so on the
       // V4+ shape a negative pFee can leave oeFee large while nothing is collected.
-      const { feeIndex } = depositEvents[i];
+      const { feeIndex } = transactionEvents[i];
       logs.forEach((log: any) => {
         dailyFees.add(ADDRESSES[api.chain].USDC, log[feeIndex], "Transaction Fees");
       });
@@ -122,24 +132,24 @@ const fetch = async (
 const breakdownMethodology = {
   Fees: {
     [METRIC.MANAGEMENT_FEES]: 'Management fee of 0.30% per annum accrued daily on assets under management.',
-    "Transaction Fees": 'Transaction fee actually collected on subscriptions, the totalFee the vault transfers to oplTreasury. Base rate is 5 basis points, then adjusted by the partnership fee where one applies. That adjustment can raise or lower the fee, is floored at the minimum transaction fee when it is not negative, and leaves nothing collected when it fully offsets the base fee.',
+    "Transaction Fees": 'Transaction fee actually collected on subscriptions and supported redemptions, the totalFee the vault transfers to oplTreasury. Base rate is 5 basis points, then adjusted by the partnership fee where one applies. That adjustment can raise or lower the fee, is floored at the minimum transaction fee when it is not negative, and leaves nothing collected when it fully offsets the base fee.',
   },
   Revenue: {
     [METRIC.MANAGEMENT_FEES]: 'Management fee of 0.30% per annum accrued daily on assets under management.',
-    "Transaction Fees": 'Transaction fee actually collected on subscriptions, the totalFee the vault transfers to oplTreasury. Base rate is 5 basis points, then adjusted by the partnership fee where one applies. That adjustment can raise or lower the fee, is floored at the minimum transaction fee when it is not negative, and leaves nothing collected when it fully offsets the base fee.',
+    "Transaction Fees": 'Transaction fee actually collected on subscriptions and supported redemptions, the totalFee the vault transfers to oplTreasury. Base rate is 5 basis points, then adjusted by the partnership fee where one applies. That adjustment can raise or lower the fee, is floored at the minimum transaction fee when it is not negative, and leaves nothing collected when it fully offsets the base fee.',
   },
   ProtocolRevenue: {
     [METRIC.MANAGEMENT_FEES]: 'Management fee of 0.30% per annum accrued daily on assets under management.',
-    "Transaction Fees": 'Transaction fee actually collected on subscriptions, the totalFee the vault transfers to oplTreasury. Base rate is 5 basis points, then adjusted by the partnership fee where one applies. That adjustment can raise or lower the fee, is floored at the minimum transaction fee when it is not negative, and leaves nothing collected when it fully offsets the base fee.',
+    "Transaction Fees": 'Transaction fee actually collected on subscriptions and supported redemptions, the totalFee the vault transfers to oplTreasury. Base rate is 5 basis points, then adjusted by the partnership fee where one applies. That adjustment can raise or lower the fee, is floored at the minimum transaction fee when it is not negative, and leaves nothing collected when it fully offsets the base fee.',
   },
 }
 
 
 const adapter: Adapter = {
   methodology: {
-    Fees: 'Management fee of 0.30% per annum accrued daily on assets under management, plus the transaction fee collected on subscriptions (base rate 5 basis points, net of any partnership adjustment up or down).',
-    Revenue: 'Management fees of 0.30% per annum accrued daily on assets under management and the transaction fee collected on subscriptions (base rate 5 basis points, net of any partnership adjustment up or down).',
-    ProtocolRevenue: 'Management fees of 0.30% per annum accrued daily on assets under management and the transaction fee collected on subscriptions (base rate 5 basis points, net of any partnership adjustment up or down).',
+    Fees: 'Management fee of 0.30% per annum accrued daily on assets under management, plus the transaction fee collected on subscriptions and supported redemptions (base rate 5 basis points, net of any partnership adjustment up or down).',
+    Revenue: 'Management fees of 0.30% per annum accrued daily on assets under management and the transaction fee collected on subscriptions and supported redemptions (base rate 5 basis points, net of any partnership adjustment up or down).',
+    ProtocolRevenue: 'Management fees of 0.30% per annum accrued daily on assets under management and the transaction fee collected on subscriptions and supported redemptions (base rate 5 basis points, net of any partnership adjustment up or down).',
   },
   breakdownMethodology,
   version: 2,

@@ -24,6 +24,7 @@ const v1graphs = getChainVolume2({
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: false, // subgraph deployment gone, daily run fails 2026-11, unverified
   adapter: {
     [CHAIN.AURORA]: {
       fetch: v1graphs(CHAIN.AURORA as Chain),

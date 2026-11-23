@@ -1,12 +1,14 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL";
+import { proxiedFetch } from "../utils/fetchURL";
 
 const MARKETS_URL = "https://api.storm.tg/api/markets";
 const USD_SCALE = 1e9;
 
 const fetch = async (_options: FetchOptions) => {
-  const markets = await fetchURL(MARKETS_URL);
+  // storm.tg's Cloudflare returns 403 to the server IP (2026-11); proxiedFetch routes through
+  // PROXY_AUTH and falls back to a direct GET when no proxy is configured
+  const markets = await proxiedFetch(MARKETS_URL);
 
   let longOpenInterestAtEnd = 0;
   let shortOpenInterestAtEnd = 0;
@@ -17,9 +19,10 @@ const fetch = async (_options: FetchOptions) => {
   }
 
   return {
-    openInterestAtEnd: longOpenInterestAtEnd + shortOpenInterestAtEnd,
-    longOpenInterestAtEnd,
-    shortOpenInterestAtEnd,
+    // pool venue with no single-sided field: average the two sides instead of summing them
+    openInterestAtEnd: (longOpenInterestAtEnd + shortOpenInterestAtEnd) / 2,
+    longOpenInterestAtEnd: longOpenInterestAtEnd / 2,
+    shortOpenInterestAtEnd: shortOpenInterestAtEnd / 2,
   };
 };
 

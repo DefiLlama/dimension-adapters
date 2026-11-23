@@ -143,8 +143,8 @@ const getTransactions = async (
   return { transactions: allTransactions, totalPayment };
 };
 
-const fetch = async ({ createBalances, api, fromApi, toApi, getLogs }: FetchOptions) => {
-  const fromBlock = Number(fromApi.block)
+const fetch = async ({ createBalances, api, getFromBlock, toApi, getLogs }: FetchOptions) => {
+  const fromBlock = Number(await getFromBlock())
   const toBlock = Number(toApi.block)
   const dailyRevenue = createBalances();
   const dailyGas = createBalances();

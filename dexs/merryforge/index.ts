@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 /**
  * MerryForge volume adapter for DefiLlama dimension-adapters (dexs dashboard).
  *
@@ -15,7 +16,7 @@ import { CHAIN } from "../../helpers/chains";
 // LaunchFactory creation block 24875635 (≈ 2026-08-01 UTC) via RH Blockscout contract creation.
 const LAUNCH_FACTORY = "0x3b5e8FE8d61B00b35e021275c96F754424b1B9A8";
 const TRADE_ROUTER = "0x0913FE5c3f28721EDD92413c2D29BB1034D75e70";
-const ZERO = "0x0000000000000000000000000000000000000000";
+const ZERO = ADDRESSES.null;
 
 const TOKENS_PURCHASED =
   "event TokensPurchased(address indexed buyer, address indexed recipient, address indexed token, uint256 quoteAmountIn, uint256 feeAmount, uint256 tokensOut, uint256 priceAfter, uint256 timestamp)";

@@ -6,6 +6,8 @@ import { METRIC } from "../helpers/metrics";
 
 // https://metabase.definitive.fi/public/dashboard/80e43551-a7e9-4503-8ac5-d5697a4a3734?tab=17-revenue
 
+const BUYBACK_START_DATE = '2025-10-01';
+
 // Solana addresses for legacy fee collection
 const SOLANA_FEE_ADDRESSES = [
   "Ggp9SGTqAKiJWRXeyEb2gEVdmD6n7fgHD7t4s8DrAqwf",
@@ -40,6 +42,8 @@ const CHAIN_TO_DUNE_MAPPING: Record<string, string> = {
   [CHAIN.OPTIMISM]: 'optimism',
   [CHAIN.BSC]: 'bnb',
   [CHAIN.ROBINHOOD]: 'robinhood',
+  [CHAIN.INK]: 'ink',
+  [CHAIN.ARC]: 'arc',
 };
 
 const chainConfig = {
@@ -51,6 +55,8 @@ const chainConfig = {
   [CHAIN.OPTIMISM]: { start: '2022-01-01' },
   [CHAIN.BSC]: { start: '2022-01-01' },
   [CHAIN.ROBINHOOD]: { start: '2026-07-11' },
+  [CHAIN.INK]: { start: '2026-09-08' },
+  [CHAIN.ARC]: { start: '2026-09-15' },
   [CHAIN.SOLANA]: { start: '2022-01-01' },
 }
 
@@ -66,41 +72,64 @@ const fetch = async (options: FetchOptions) => {
     });
 
     dailyFees.addBalances(solanaFees, METRIC.TRADING_FEES);
-
-    return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
-  }
-
-  // Handle EVM chains with Dune query
-  const preFetchedResults = options.preFetchedResults || [];
-  const dune_chain = CHAIN_TO_DUNE_MAPPING[options.chain];
-
-  if (!dune_chain) {
-    console.log(`No Dune mapping found for chain ${options.chain}`);
-    return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees };
-  }
-
-  const data = preFetchedResults.find((result: any) => result.blockchain === dune_chain);
-
-  if (data) {
-    const usdcFees = data.total_amount_usdc || 0;
-    dailyFees.addUSDValue(usdcFees, METRIC.TRADING_FEES);
   } else {
-    console.log(`No data found for chain ${options.chain} on ${options.startOfDay}`);
+    // Handle EVM chains with Dune query
+    const preFetchedResults = options.preFetchedResults || [];
+    const dune_chain = CHAIN_TO_DUNE_MAPPING[options.chain];
+
+    if (!dune_chain) {
+      console.log(`No Dune mapping found for chain ${options.chain}`);
+    } else {
+      const data = preFetchedResults.find((result: any) => result.blockchain === dune_chain);
+
+      if (data) {
+        const usdcFees = data.total_amount_usdc || 0;
+        dailyFees.addUSDValue(usdcFees, METRIC.TRADING_FEES);
+      } else {
+        console.log(`No data found for chain ${options.chain} on ${options.startOfDay}`);
+      }
+    }
   }
 
-  return { dailyFees, dailyUserFees: dailyFees, dailyRevenue: dailyFees, dailyProtocolRevenue: dailyFees }
+  // From October 1, 2025, 10% of revenue funds EDGE buybacks and 10% funds EDGE staker rewards.
+  // https://docs.definitive.fi/edge/buybacks-and-rewards
+  const holdersRevenueShare = options.dateString >= BUYBACK_START_DATE ? 0.2 : 0;
+  const dailyHoldersRevenue = dailyFees.clone(holdersRevenueShare / 2, METRIC.TOKEN_BUY_BACK);
+  dailyHoldersRevenue.addBalances(dailyFees.clone(holdersRevenueShare / 2, METRIC.STAKING_REWARDS));
+
+  return {
+    dailyFees,
+    dailyUserFees: dailyFees.clone(),
+    dailyRevenue: dailyFees.clone(),
+    dailyProtocolRevenue: dailyFees.clone(1 - holdersRevenueShare),
+    dailyHoldersRevenue,
+  }
 }
 
 const methodology = {
-  Fees: 'User pays 0.05% - 0.25% fee on each trade',
-  UserFees: 'User pays 0.05% - 0.25% fee on each trade',
-  Revenue: 'Fees are distributed to Definitive',
-  ProtocolRevenue: 'Fees are distributed to Definitive',
+  Fees: 'User pays 0.25% - 0.85% fee on each trade. Majors and Stables have feeless trading.',
+  UserFees: 'User pays 0.25% - 0.85% fee on each trade',
+  Revenue: 'Trading fees are split between Definitive and EDGE holders',
+  ProtocolRevenue: '100% of revenue is allocated to Definitive before October 1, 2025, and 80% thereafter',
+  HoldersRevenue: 'From October 1, 2025, 10% of revenue funds EDGE buybacks and 10% funds EDGE staker rewards',
 }
 
 const breakdownMethodology = {
   Fees: {
-    [METRIC.TRADING_FEES]: 'Trading fees (0.05%-0.25% per trade) collected at Definitive fee addresses',
+    [METRIC.TRADING_FEES]: 'Trading fees (0.25%-0.85% per trade) collected at Definitive fee addresses. Majors and Stables have feeless trading.',
+  },
+  UserFees: {
+    [METRIC.TRADING_FEES]: 'Trading fees (0.25%-0.85% per trade) paid by users. Majors and Stables have feeless trading.',
+  },
+  Revenue: {
+    [METRIC.TRADING_FEES]: 'Trading fees split between Definitive and EDGE holders',
+  },
+  ProtocolRevenue: {
+    [METRIC.TRADING_FEES]: '100% of trading fee revenue is allocated to Definitive before October 1, 2025, and 80% thereafter',
+  },
+  HoldersRevenue: {
+    [METRIC.TOKEN_BUY_BACK]: '10% of trading fee revenue funds EDGE buybacks from October 1, 2025',
+    [METRIC.STAKING_REWARDS]: '10% of trading fee revenue funds EDGE staker rewards from October 1, 2025',
   },
 }
 

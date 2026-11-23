@@ -36,6 +36,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
     fromBlock: 28543,
     toBlock,
     eventAbi: eventAbis.event_pool_created,
+    cacheInCloud: true,
   });
   const rawPools = rawPoolsData.map((i) => {
     return {

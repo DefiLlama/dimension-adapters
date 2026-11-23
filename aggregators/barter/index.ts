@@ -6,6 +6,7 @@ const EXECUTORS = [
   "0x2c0552e5dcb79b064fd23e358a86810bc5994244",
   "0x2141af658ffda533da864dd11b2ffdb8529c8b94",
   "0xb2f72662ed42067ccce278f8462a0215b6adcabb",
+  "0xd301a9f757fcc828af5122834bcea1c683f57b76", // SwapExecutorMainnet, deployed 2026-11-17 (tx 0x7a4f8c0d509306d59f3b038f21df2cb7f1d8a1845bc599725b90fed90d9318a7)
 ];
 
 const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
@@ -19,7 +20,7 @@ const fetch = async ({ createBalances, getLogs }: FetchOptions) => {
     const padded = ethers.zeroPadValue(executor, 32);
 
     const logs = await getLogs({
-      topics: [TRANSFER_TOPIC, null as any, padded],
+      topics: [TRANSFER_TOPIC, null, padded],
       noTarget: true,
       eventAbi: "event Transfer(address indexed from, address indexed to, uint256 value)",
       entireLog: true,
@@ -63,6 +64,7 @@ const methodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  doublecounted: true, // Barter fills CoW Protocol orders, and aggregators/cowswap counts the same trades from the settlement's Trade events
   adapter: {
     [CHAIN.ETHEREUM]: { fetch, start: "2023-01-01" },
   },

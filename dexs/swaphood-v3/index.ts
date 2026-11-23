@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { cache } from "@defillama/sdk";
 import { ethers } from "ethers";
 import { FetchOptions, FetchResult, SimpleAdapter } from "../../adapters/types";
@@ -21,7 +22,7 @@ const FACTORY = "0x0Ec554F0BfF0Be6C99d1e95C8015bb0950f6A2C7";
 // https://robinhoodchain.blockscout.com/address/0x734c9ef24AEeb9654Be9A19f6d3991b5D91c587B
 const MASTERCHEF = "0x734c9ef24AEeb9654Be9A19f6d3991b5D91c587B";
 // gauges() returns this for any address that was never registered in the MasterChef.
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ZERO_ADDRESS = ADDRESSES.null;
 
 // Pool fee tiers are stored as a uint24 in hundredths of a basis point (500 = 0.05%),
 // so the raw value has to be divided by 1e6 to get a fraction of the swap amount.

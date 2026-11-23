@@ -6,6 +6,7 @@ import { METRIC } from '../../helpers/metrics';
 import { CHAIN } from '../../helpers/chains';
 import { createFactoryExports } from '../../factory/registry';
 import { cache } from "@defillama/sdk";
+import { collectNamedSymbols, parseStuckReserveSymbols } from '../insolventMarkets';
 
 export interface AaveLendingPoolConfig {
   version: 1 | 2 | 3;
@@ -15,15 +16,33 @@ export interface AaveLendingPoolConfig {
   ignoreLiquidation?: boolean;
   ignoreFlashloan?: boolean;
 
+  // Events from these transactions are not fees. Only for an incident whose logs are not
+  // fees someone paid (AGENTS.md: exploit fees are excluded, not whitelisted). A fixed list
+  // of past transaction hashes, so any day replays the same way. Drops LiquidationCall and
+  // FlashLoan from the listed transactions, and takes the supplier share of those flashloan
+  // premiums back out of the liquidity-index interest, which is where Aave credits it.
+  // Requires identifiable positive LP index jumps after an earlier same-transaction update;
+  // exclusions with a zero LP share or custom repayment callbacks need separate handling.
+  excludeTxHashes?: Array<string>;
+
   // GHO on aave
   selfLoanAssets?: {
     // address => symbol
     [key: string]: string;
   },
+
+  // Reserves partly supplied by Aave DAO accounts (e.g. a GHO facilitator that mints GHO and supplies it
+  // to the pool). Their share of the supplier interest (scaled aToken balance / scaled aToken supply at
+  // the window start) is protocol revenue, not supply side. The rest of the reserve is booked as usual.
+  daoSupplierAssets?: {
+    // reserve address => symbol used in the label, the reserve's aToken and the DAO-owned supplier addresses
+    [key: string]: { symbol: string, aToken: string, suppliers: Array<string> };
+  },
 }
 
 export interface AaveAdapterExportConfig {
   start?: string;
+  deadFrom?: string;
   pools: Array<AaveLendingPoolConfig>;
 }
 
@@ -33,30 +52,30 @@ const PercentageMathDecimals = 1e4;
 // https://etherscan.io/address/0x02d84abd89ee9db409572f19b6e1596c301f3c81#code#F16#L16
 const LiquidityIndexDecimals = BigInt(1e27);
 
+function excludedTxSet(pool: AaveLendingPoolConfig): Set<string> | null {
+  if (!pool.excludeTxHashes?.length) return null
+  return new Set(pool.excludeTxHashes.map((txHash) => txHash.toLowerCase()))
+}
+
 const SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
 const MAX_REASONABLE_SUPPLY_APR = 10; // 1000% APR
+const HIGH_RESERVE_FACTOR = 0.99;
+const FULL_UTILIZATION = 0.99;
 
-// The stuck-markets cache records one entry per pool, whose value names the
-// offending reserves in a fixed shape: "SYMBOL: reason", several of them joined
-// by " | ". Every one of the 41 entries in the cache follows it, including
-// awkward ones like "SolvBTC.b", "USDC.e", "oUSDC", "WETH/USDT WLP" and
-// "T-2250_2750-WETH-USDC", none of which contain a colon or a pipe.
-//
-// Returns an empty array for anything it cannot read, which the caller treats as
-// "drop the whole pool", i.e. the behaviour before reserve-level filtering.
-export function parseStuckReserveSymbols(reason: unknown): Array<string> {
-  if (typeof reason !== 'string' || !reason.trim()) return []
-  const symbols = reason
-    .split('|')
-    .map(segment => {
-      const separator = segment.indexOf(':')
-      return separator === -1 ? '' : segment.slice(0, separator).trim()
-    })
-    .filter(Boolean)
-  // A partially parseable reason is not good enough: one unreadable segment
-  // would let its reserve through. Treat the whole thing as unreadable.
-  if (symbols.length !== reason.split('|').length) return []
-  return [...new Set(symbols)]
+export { parseStuckReserveSymbols };
+
+// Share of the supplier interest of a reserve earned by the given suppliers, pro rata to their scaled
+// aToken balance at the window start. Throws when a read fails rather than booking it as supply side.
+async function getDaoSupplierInterest(options: FetchOptions, aTokenAddress: string, suppliers: Array<string>, supplySideInterestAccrued: bigint): Promise<bigint> {
+  const scaledTotalSupply = BigInt(await options.fromApi.call({ target: aTokenAddress, abi: 'uint256:scaledTotalSupply' }))
+  if (scaledTotalSupply === 0n) return 0n
+  const scaledBalances: Array<string> = await options.fromApi.multiCall({
+    target: aTokenAddress,
+    abi: 'function scaledBalanceOf(address user) view returns (uint256)',
+    calls: suppliers,
+  })
+  const daoScaledBalance = scaledBalances.reduce((sum, balance) => sum + BigInt(balance), 0n)
+  return supplySideInterestAccrued * daoScaledBalance / scaledTotalSupply
 }
 
 export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOptions, balances: {
@@ -133,6 +152,68 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
     permitFailure: true,
   })
 
+  const highReserveFactorIndexes = pool.version === 1 ? [] : reserveFactors
+    .map((reserveFactor, reserveIndex) => ({ reserveFactor: reserveFactor / PercentageMathDecimals, reserveIndex }))
+    .filter(({ reserveFactor }) => reserveFactor >= HIGH_RESERVE_FACTOR && reserveFactor < 1)
+    .map(({ reserveIndex }) => reserveIndex)
+  const normalizedVariableDebtIndexes = new Map<number, { before: bigint, after: bigint }>()
+  if (highReserveFactorIndexes.length > 0) {
+    const calls = highReserveFactorIndexes.map(reserveIndex => reservesList[reserveIndex])
+    const before = await options.fromApi.multiCall({ abi: AaveAbis.getReserveNormalizedVariableDebt, target: pool.lendingPoolProxy, calls })
+    const after = await options.toApi.multiCall({ abi: AaveAbis.getReserveNormalizedVariableDebt, target: pool.lendingPoolProxy, calls })
+    highReserveFactorIndexes.forEach((reserveIndex, i) => {
+      normalizedVariableDebtIndexes.set(reserveIndex, { before: BigInt(before[i]), after: BigInt(after[i]) })
+    })
+  }
+
+  const excludedTxHashes = excludedTxSet(pool)
+  // Remove premium index jumps on the same opening-supply basis as the interest below.
+  const excludedLiquidityIndexGrowth = new Map<string, bigint>()
+  let includedFlashloanEvents: Array<any> | null = null
+  if (excludedTxHashes && !pool.ignoreFlashloan) {
+    const flashloanLogs: Array<any> = await options.getLogs({
+      target: pool.lendingPoolProxy,
+      eventAbi: AaveAbis.FlashloanEvent,
+      onlyArgs: false,
+    })
+    let excludedFlashloans = flashloanLogs.filter(log => excludedTxHashes.has(String(log.transactionHash).toLowerCase()) && BigInt(log.args.premium) > 0n)
+    includedFlashloanEvents = flashloanLogs.filter(log => !excludedTxHashes.has(String(log.transactionHash).toLowerCase())).map(log => log.args)
+    if (excludedFlashloans.length) {
+      // fromApi reads post-state at the opening block, whose premiums are already in its index.
+      const openingBlock = await options.getFromBlock()
+      excludedFlashloans = excludedFlashloans.filter(log => Number(log.blockNumber) > openingBlock)
+    }
+    if (excludedFlashloans.length) {
+      const reserveUpdates: Array<any> = await options.getLogs({
+        target: pool.lendingPoolProxy,
+        eventAbi: 'event ReserveDataUpdated(address indexed reserve,uint256 liquidityRate,uint256 stableBorrowRate,uint256 variableBorrowRate,uint256 liquidityIndex,uint256 variableBorrowIndex)',
+        onlyArgs: false,
+      })
+      const updates = new Map<string, { previous?: any, current: any, used: boolean }>()
+      const events = [...reserveUpdates, ...excludedFlashloans]
+        .sort((a, b) => Number(a.blockNumber) - Number(b.blockNumber) || Number(a.logIndex ?? a.index) - Number(b.logIndex ?? b.index))
+      for (const event of events) {
+        if (event.args.reserve) {
+          const asset = String(event.args.reserve).toLowerCase()
+          updates.set(asset, { previous: updates.get(asset)?.current, current: event, used: false })
+          continue
+        }
+        const asset = String(event.args.asset).toLowerCase()
+        const pair = updates.get(asset)
+        // FlashLoanLogic updates the reserve before emitting FlashLoan. An earlier update in
+        // the same transaction has already accrued ordinary interest; no time elapses between
+        // those updates, so their index difference is only the repayment premium.
+        // Require that evidence rather than guessing when a configured incident differs.
+        if (!pair || pair.used || pair.previous?.transactionHash !== event.transactionHash || pair.current.transactionHash !== event.transactionHash)
+          throw new Error(`aave: cannot isolate excluded flashloan index growth for ${event.transactionHash} ${asset}`)
+        const growth = BigInt(pair.current.args.liquidityIndex) - BigInt(pair.previous.args.liquidityIndex)
+        if (growth <= 0n) throw new Error(`aave: cannot isolate positive excluded flashloan index growth for ${event.transactionHash} ${asset}`)
+        excludedLiquidityIndexGrowth.set(asset, (excludedLiquidityIndexGrowth.get(asset) ?? 0n) + growth)
+        pair.used = true
+      }
+    }
+  }
+
   // all calculations use BigInt because aave math has 27 decimals
   for (let reserveIndex = 0; reserveIndex < reservesList.length; reserveIndex++) {
     if (skipReserveIndexes.has(reserveIndex)) continue
@@ -148,6 +229,7 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       totalLiquidity = BigInt(reserveDataBefore[reserveIndex].availableLiquidity)
         + BigInt(reserveDataBefore[reserveIndex].totalStableDebt)
         + BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
+      totalVariableDebt = BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
     } else {
       totalLiquidity = BigInt(reserveDataBefore[reserveIndex].totalAToken)
       totalVariableDebt = BigInt(reserveDataBefore[reserveIndex].totalVariableDebt)
@@ -167,31 +249,71 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
       balances.dailyFees.add(token, interestAccrued, `${METRIC.BORROW_INTEREST} ${symbol}`)
       balances.dailySupplySideRevenue.add(token, 0, `${METRIC.BORROW_INTEREST} ${symbol}`)
       balances.dailyProtocolRevenue.add(token, interestAccrued, `${METRIC.BORROW_INTEREST} ${symbol}`)
+    } else if (reserveFactor >= 1) {
+      // 100% reserve factor is used to deprecate/freeze reserves (e.g. superlend's insolvent reserves).
+      // The borrow index keeps growing on bad debt that will never be repaid and the treasury aTokens
+      // minted against it are unbacked, so any interest here is phantom. Skip it entirely.
+      continue
+    } else if (pool.version !== 1 && reserveFactor >= HIGH_RESERVE_FACTOR) {
+      // Reserves frozen with a reserve factor just under 100% (aave v2 uses 99.99%) leave suppliers
+      // almost nothing, so backing interest out of the liquidity index divides by (1 - reserveFactor)
+      // and multiplies any liquidity index growth by up to 10,000x. Read the interest off the debt instead.
+
+      const totalDebt = BigInt(reserveDataBefore[reserveIndex].totalStableDebt) + totalVariableDebt
+      if (totalLiquidity === 0n || Number(totalDebt) / Number(totalLiquidity) >= FULL_UTILIZATION) continue
+
+      const { before: reserveVariableBorrowIndexBefore, after: reserveVariableBorrowIndexAfter } = normalizedVariableDebtIndexes.get(reserveIndex)!
+      const growthVariableBorrowIndex = reserveVariableBorrowIndexAfter - reserveVariableBorrowIndexBefore
+      if (growthVariableBorrowIndex <= 0n || reserveVariableBorrowIndexBefore === 0n) continue
+
+      const interestAccrued = Number(totalVariableDebt * growthVariableBorrowIndex / reserveVariableBorrowIndexBefore)
+      const revenueAccrued = interestAccrued * reserveFactor
+
+      balances.dailyFees.add(token, interestAccrued, METRIC.BORROW_INTEREST)
+      balances.dailySupplySideRevenue.add(token, interestAccrued - revenueAccrued, METRIC.BORROW_INTEREST)
+      balances.dailyProtocolRevenue.add(token, revenueAccrued, METRIC.BORROW_INTEREST)
     } else {
       // normal reserves
       const reserveLiquidityIndexBefore = BigInt(reserveDataBefore[reserveIndex].liquidityIndex)
       const reserveLiquidityIndexAfter = BigInt(reserveDataAfter[reserveIndex].liquidityIndex)
-      const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore
+      const growthLiquidityIndex = reserveLiquidityIndexAfter - reserveLiquidityIndexBefore - (excludedLiquidityIndexGrowth.get(token) ?? 0n)
+      if (excludedLiquidityIndexGrowth.has(token) && growthLiquidityIndex < 0n) throw new Error(`aave: excluded index growth exceeds window growth for ${token}`)
 
       const windowSeconds = options.toTimestamp - options.fromTimestamp
 
+      // The stored liquidityIndex only moves when the reserve is touched, so the growth we read spans the
+      // time between the two lastUpdateTimestamps, not the run window. Annualize over that span, otherwise
+      // an hourly window in which an idle reserve catches up on days of interest looks like a 1000%+ APR
+      // and the sanity guard below drops real interest (hourly runs undercounted lendle by ~40%).
+      const accrualSeconds = Number(reserveDataAfter[reserveIndex].lastUpdateTimestamp ?? 0) - Number(reserveDataBefore[reserveIndex].lastUpdateTimestamp ?? 0)
+      const annualizeSeconds = accrualSeconds > 0 ? accrualSeconds : windowSeconds
+
       const periodSupplyRate = Number(growthLiquidityIndex) / Number(reserveLiquidityIndexBefore)
-      const annualizedSupplyRate = windowSeconds > 0? periodSupplyRate * SECONDS_PER_YEAR / windowSeconds : periodSupplyRate
+      const annualizedSupplyRate = annualizeSeconds > 0 ? periodSupplyRate * SECONDS_PER_YEAR / annualizeSeconds : periodSupplyRate
       if (annualizedSupplyRate > MAX_REASONABLE_SUPPLY_APR) continue
 
       const supplySideInterestAccrued = totalLiquidity * growthLiquidityIndex / reserveLiquidityIndexBefore
       const interestAccrued = Number(supplySideInterestAccrued) / Number(1 - reserveFactor)
       const revenueAccrued = interestAccrued - Number(supplySideInterestAccrued)
 
-      balances.dailyFees.add(token, interestAccrued, METRIC.BORROW_INTEREST)
-      balances.dailySupplySideRevenue.add(token, supplySideInterestAccrued, METRIC.BORROW_INTEREST)
+      // interest earned by Aave DAO suppliers of this reserve goes to the DAO, not to outside lenders
+      const daoSupplier = pool.daoSupplierAssets?.[token]
+      const daoInterestAccrued = daoSupplier ? await getDaoSupplierInterest(options, daoSupplier.aToken, daoSupplier.suppliers, supplySideInterestAccrued) : 0n
+
+      balances.dailyFees.add(token, interestAccrued - Number(daoInterestAccrued), METRIC.BORROW_INTEREST)
+      balances.dailySupplySideRevenue.add(token, supplySideInterestAccrued - daoInterestAccrued, METRIC.BORROW_INTEREST)
       balances.dailyProtocolRevenue.add(token, revenueAccrued, METRIC.BORROW_INTEREST)
+      if (daoSupplier) {
+        balances.dailyFees.add(token, daoInterestAccrued, `${METRIC.BORROW_INTEREST} ${daoSupplier.symbol}`)
+        balances.dailySupplySideRevenue.add(token, 0, `${METRIC.BORROW_INTEREST} ${daoSupplier.symbol}`)
+        balances.dailyProtocolRevenue.add(token, daoInterestAccrued, `${METRIC.BORROW_INTEREST} ${daoSupplier.symbol}`)
+      }
     }
   }
 
   if (!pool.ignoreFlashloan) {
-    // get flashloan fees
-    const flashloanEvents = await options.getLogs({
+    // get flashloan fees. A pool that excludes transactions already split these logs above.
+    const flashloanEvents = includedFlashloanEvents ?? await options.getLogs({
       target: pool.lendingPoolProxy,
       eventAbi: AaveAbis.FlashloanEvent,
     })
@@ -223,10 +345,15 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
   if (!pool.ignoreLiquidation) {
     // aave v3 has liquidation protocol fees which is a partition from liquidation bonus
     if (pool.version === 3) {
-      const liquidationEvents: Array<any> = await options.getLogs({
+      const liquidationLogs: Array<any> = await options.getLogs({
         target: pool.lendingPoolProxy,
         eventAbi: AaveAbis.LiquidationEvent,
+        // the transaction hash only comes with the raw log, every other pool just needs the args
+        onlyArgs: !excludedTxHashes,
       })
+      const liquidationEvents: Array<any> = !excludedTxHashes
+        ? liquidationLogs
+        : liquidationLogs.filter(log => !excludedTxHashes.has(String(log.transactionHash).toLowerCase())).map(log => log.args)
       if (liquidationEvents.length > 0) {
         const liquidationProtocolFees = (await options.api.multiCall({
           abi: AaveAbis.getConfiguration,
@@ -309,22 +436,21 @@ export function aaveExport(exportConfig: {[key: string]: AaveAdapterExportConfig
         for (const [poolAddress, reason] of Object.entries((insolventMarketsDetails.stuck ?? {})?.[options.chain] ?? {})) {
           stuckReasons[poolAddress.toLowerCase()] = reason;
         }
-        const insolventMarkets = Object.keys((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {}).map(item => item.toLowerCase());
+        const insolventReasons: Record<string, unknown> = {};
+        for (const [poolAddress, reason] of Object.entries((insolventMarketsDetails.insolvent ?? {})?.[options.chain] ?? {})) {
+          insolventReasons[poolAddress.toLowerCase()] = reason;
+        }
 
         for (const pool of config.pools) {
           const poolAddress = pool.lendingPoolProxy.toLowerCase();
 
-          // Insolvency stays pool-level. A backing gap or unrepayable debt is a
-          // statement about the market as a whole, not about one reserve's rate.
-          if (insolventMarkets.includes(poolAddress)) continue;
-
-          let skipReserveSymbols: Array<string> | undefined;
-          if (poolAddress in stuckReasons) {
-            skipReserveSymbols = parseStuckReserveSymbols(stuckReasons[poolAddress]);
-            // No parseable symbols means we cannot tell which reserves are stuck,
-            // so fall back to dropping the pool the way this did before.
-            if (!skipReserveSymbols.length) continue;
-          }
+          // Both lists name their offending reserves in the same "SYMBOL: reason" shape, so drop
+          // those reserves and keep the rest of the pool. A reason we cannot read still drops the
+          // whole pool, which is what both lists did before.
+          const listed = poolAddress in insolventReasons || poolAddress in stuckReasons;
+          const namedSymbols = collectNamedSymbols([insolventReasons[poolAddress], stuckReasons[poolAddress]]);
+          if (listed && !namedSymbols?.length) continue;
+          const skipReserveSymbols = namedSymbols?.length ? namedSymbols : undefined;
 
           await getPoolFees(pool, options, {
             dailyFees,
@@ -341,6 +467,7 @@ export function aaveExport(exportConfig: {[key: string]: AaveAdapterExportConfig
         }
       }),
       start: config.start,
+      ...(config.deadFrom ? { deadFrom: config.deadFrom } : {}),
     }
   })
   return exportObject
@@ -383,10 +510,66 @@ const aaveV1V2BreakdownMethodology = {
 }
 
 function aaveAdapter(config: {[key: string]: AaveAdapterExportConfig}, global?: Partial<SimpleAdapter>): SimpleAdapter {
-  return { version: 2, adapter: aaveExport(config), ...global };
+  return { version: 2, pullHourly: true, adapter: aaveExport(config), ...global };
 }
 
 export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveAdapterExportConfig}, global?: Partial<SimpleAdapter> }> = {
+  // Aave V3 pool and data provider: https://kittypunch.gitbook.io/kittypunch-docs/protocols-and-products-abstract/kona-lend
+  // Pool creation: https://abscan.org/tx/0x0b4de9b171e88900a701de525520bf4fb1ed120417c5d3441cd104ee3a6aeed7
+  'kittypunch-kona-lend': {
+    config: {
+      [CHAIN.ABSTRACT]: {
+        start: '2025-12-10',
+        pools: [{
+          version: 3,
+          lendingPoolProxy: '0x8f16B5713F412C5dE4951Aaf678Eb8409101f819',
+          dataProvider: '0xDfc422c8793864ecD12Bc59F2024614034BcB078',
+        }],
+      },
+    },
+  },
+  // Data providers from the dtrinity-dlend TVL adapter (DefiLlama-Adapters registries/aave.js);
+  // pools read from each data provider's ADDRESSES_PROVIDER().getPool(); start = pool creation date
+  'dtrinity-dlend': {
+    config: {
+      [CHAIN.FRAXTAL]: {
+        start: '2024-11-25',
+        pools: [{
+          version: 3,
+          lendingPoolProxy: '0xd76c827ee2ce1e37c37fc2ce91376812d3c9bce2',
+          dataProvider: '0xFB3adf4c845fD6352D24F3F0981eb7954401829c',
+        }],
+      },
+      [CHAIN.SONIC]: {
+        start: '2025-04-17',
+        pools: [{
+          version: 3,
+          lendingPoolProxy: '0xedc3cfb1aa36c570cc1d374876268bdda2d460cc',
+          dataProvider: '0xB245F8321E7A4938DEf8bDb2D5E2E16481268c42',
+        }],
+      },
+      [CHAIN.ETHEREUM]: {
+        start: '2025-12-10',
+        pools: [{
+          version: 3,
+          lendingPoolProxy: '0x6598dad18bda89a0e58a1f427c8cebc0de90f153',
+          dataProvider: '0x7BC6d94344392ac7898Ce197Ae382e21c71347f2',
+        }],
+      },
+    },
+  },
+  'fathom-lending': {
+    config: {
+      [CHAIN.XDC]: {
+        start: "2024-04-03",
+        pools: [{
+          version: 3,
+          lendingPoolProxy: '0x70d8005e3c8c7e383fe35fa40156042f3393449f',
+          dataProvider: '0x7fa488a5C88E9E35B0B86127Ec76B0c1F0933191',
+        }],
+      },
+    },
+  },
   'aave-v1': {
     config: {
       [CHAIN.ETHEREUM]: {
@@ -699,11 +882,6 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
             lendingPoolProxy: '0xC486115C7db399F0e080A3713BF01B65CC8A5b64',
             dataProvider: '0x898D0EF6E20B7597728AEB41169c22608Fe4b234',
           },
-          {
-            version: 3,
-            lendingPoolProxy: '0xeD6d6d18F20f8b419B5442C43D3e48EE568dEc14',
-            dataProvider: '0x4c25c261Fe47bC216113D140BaF72B05E151bcE4',
-          },
         ],
       },
       [CHAIN.CORE]: {
@@ -980,15 +1158,15 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
           },
         ],
       },
-      [CHAIN.SEI]: {
-        pools: [
-          {
-            version: 3,
-            lendingPoolProxy: '0xE5eB6aBbA365A49C8624532acaed54A47cc36D3C',
-            dataProvider: '0x16b9b88B773C1a1aBA6D305e0560171405d45121',
-          },
-        ],
-      },
+      // [CHAIN.SEI]: {
+      //   pools: [
+      //     {
+      //       version: 3,
+      //       lendingPoolProxy: '0xE5eB6aBbA365A49C8624532acaed54A47cc36D3C',
+      //       dataProvider: '0x16b9b88B773C1a1aBA6D305e0560171405d45121',
+      //     },
+      //   ],
+      // },
     },
   },
   'colend-protocol': {
@@ -1134,20 +1312,7 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
       },
     },
   },
-  'more-markets': {
-    config: {
-      [CHAIN.FLOW]: {
-        start: '2025-01-14',
-        pools: [
-          {
-            version: 3,
-            lendingPoolProxy: '0xbC92aaC2DBBF42215248B5688eB3D3d2b32F2c8d',
-            dataProvider: '0x79e71e3c0EDF2B88b0aB38E9A1eF0F6a230e56bf',
-          },
-        ],
-      },
-    },
-  },
+  // "more-markets": moved to fees/more-markets.ts: it excludes the 2026-11-16 exploit
   'pac-finance': {
     config: {
       [CHAIN.BLAST]: {
@@ -1227,6 +1392,7 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
     config: {
       [CHAIN.ETHERLINK]: {
         start: '2024-10-04',
+        deadFrom: '2026-08-27',
         pools: [
           {
             version: 3,
@@ -1414,6 +1580,66 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
             dataProvider: '0x6da56B769B42952CACA18D37Feda3015FDB2fE67',
           },
         ],
+      },
+    },
+  },
+  'oter-fi': {
+    config: {
+      [CHAIN.ROBINHOOD]: {
+        start: '2026-09-04',
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x127797f6dBBD03bDDA09A70a8347dcfd1CF598B9',
+            dataProvider: '0xD95D42BAd744821af78da755C6fC012f10ad1824',
+          },
+        ],
+      },
+    },
+  },
+  // RNT Lend: Reental's Aave V3 fork, borrow USDT0/USDC against Reental property tokens
+  'rnt-lend': {
+    config: {
+      [CHAIN.POLYGON]: {
+        start: '2024-10-30', // pool proxy created in block 63679510, tx 0x30a6c77d72229baf4a26a575d5d2c1f66ea2494cb065c847d2067dd1f9b29f58
+        pools: [
+          {
+            version: 3,
+            lendingPoolProxy: '0x67dC8037Db6309Dd5571D82c65F5f593F7da1505', // returned by PoolAddressesProvider 0x717c2a6fa0820b04b9d4793daca33a229aec85ca getPool()
+            // Source: https://github.com/DefiLlama/DefiLlama-Adapters/blob/main/projects/rnt-lend/index.js
+            dataProvider: '0x5542ac41138f6a52a13c644f1db56bada71a4021',
+          },
+        ],
+      },
+    },
+    global: {
+      pullHourly: true,
+      methodology: {
+        Fees: 'Estimated borrowing fees, including supplier flashloan earnings, plus liquidation bonuses and the separately recorded protocol share of flashloan premiums; unpriced collateral bonuses are excluded from USD totals.',
+        Revenue: 'Estimated reserve-factor share of borrowing fees, plus the protocol shares of liquidation bonuses and flashloan premiums; unpriced collateral bonuses are excluded from USD totals.',
+        SupplySideRevenue: 'Liquidity-index earnings for suppliers, including their flashloan premiums, and liquidation bonuses retained by liquidators; unpriced collateral bonuses are excluded from USD totals.',
+        ProtocolRevenue: 'Estimated reserve-factor share of borrowing fees and the protocol shares of liquidation bonuses and flashloan premiums; unpriced collateral bonuses are excluded from USD totals.',
+      },
+      breakdownMethodology: {
+        Fees: {
+          [METRIC.BORROW_INTEREST]: 'Opening aToken supply multiplied by relative liquidity-index growth, grossed up by the opening reserve factor; includes supplier flashloan earnings.',
+          [METRIC.LIQUIDATION_FEES]: 'Liquidation bonuses, paid in the seized collateral. Reental property tokens have no market price, so bonuses paid in them are not valued.',
+          [METRIC.FLASHLOAN_FEES]: 'Protocol share of flashloan premiums. The suppliers\' share accrues to the liquidity index and is already counted in borrow interest.',
+        },
+        Revenue: {
+          [METRIC.BORROW_INTEREST]: 'Estimated interest less supplier index earnings, using the reserve factor at the start of the window.',
+          [METRIC.LIQUIDATION_FEES]: 'Liquidation protocol fee share of liquidation bonuses.',
+          [METRIC.FLASHLOAN_FEES]: 'Protocol share of flashloan premiums.',
+        },
+        SupplySideRevenue: {
+          [METRIC.BORROW_INTEREST]: 'Opening aToken supply multiplied by relative liquidity-index growth, including supplier flashloan earnings.',
+          [METRIC.LIQUIDATION_FEES]: 'Liquidation bonuses kept by liquidators.',
+        },
+        ProtocolRevenue: {
+          [METRIC.BORROW_INTEREST]: 'Reserve factor share of borrow interest kept by the RNT Lend treasury.',
+          [METRIC.LIQUIDATION_FEES]: 'Liquidation protocol fee share kept by the RNT Lend treasury.',
+          [METRIC.FLASHLOAN_FEES]: 'Protocol share of flashloan premiums kept by the RNT Lend treasury.',
+        },
       },
     },
   },

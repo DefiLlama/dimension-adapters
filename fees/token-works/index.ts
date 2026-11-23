@@ -159,7 +159,7 @@ export default {
 // const uniswapV4Pools: {[key: string]: any} = {}
 // for (const strategy of STRATEGIES)   {
 //   uniswapV4Pools[strategy.poolId] = {
-//     currency0: '0x0000000000000000000000000000000000000000',
+//     currency0: ADDRESSES.null,
 //     currency1: strategy.tokenAddress,
 //   }
 // }

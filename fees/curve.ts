@@ -1,3 +1,6 @@
+// Changes to this adapter's revenue methodology require further approval before merging:
+// a Trueo market depends on this data.
+
 import { BaseAdapter, FetchOptions, FetchV2, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
@@ -92,7 +95,7 @@ const fetch = async (options: FetchOptions) => {
 // https://resources.curve.finance/pools/overview/#pool-fees
 const adapter: SimpleAdapter = {
   version: 2,
-  // pullHourly: true, // curve api doesn't support hourly pull
+  pullHourly: false, // bribes come from a once-a-day cumulative stats JSON
   adapter: Object.keys(baseDexAdapter).reduce((all, chain) => {
     all[chain] = {
       fetch,

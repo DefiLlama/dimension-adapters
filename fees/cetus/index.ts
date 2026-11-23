@@ -32,7 +32,8 @@ const breakdownMethodology = {
 };
 
 const fetch = async (options: FetchOptions) => {
-  const url = `${cetusApiURL}?fromTimestamp=${options.startTimestamp}&toTimestamp=${options.endTimestamp}`;
+  // API buckets by hour with both bounds inclusive; endTimestamp - 1 keeps the next window's first bucket out
+  const url = `${cetusApiURL}?fromTimestamp=${options.startTimestamp}&toTimestamp=${options.endTimestamp - 1}`;
   const { data }: CetusStats = await fetchURL(url);
   const swap_fees = data.fee;
   const rev_usd = data.protocolFee;
@@ -56,6 +57,7 @@ const fetch = async (options: FetchOptions) => {
 
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.SUI],
   fetch,
   start: '2024-01-01',

@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { addOneToken } from "../../helpers/prices";
@@ -19,23 +20,23 @@ const STABLE_SWAP_POOLS = {
   BTC_USD_USDC: {
     address: "0x840cf4522ed96cbbeb0924672ea170456eea3a4c",
     tokens: [
-      "0x6906ccda405926fc3f04240187dd4fad5df6d555", // BTCUSD
-      "0x640952e7984f2ecedead8fd97aa618ab1210a21c", // USDC
+      ADDRESSES.bfc.BitcoinUSD, // BTCUSD
+      ADDRESSES.bfc.UnifiedUSDC, // USDC
     ],
   },
   ST_BFC_WBFC: {
     address: "0x7fd303fca8c485955700ca7b5f71068878e8edba",
     tokens: [
       "0xeff8378c6419b50c9d87f749f6852d96d4cc5ae4", // stBFC
-      "0x1c1b06405058abe02e4748753aed1458befee3b9", // WBFC
+      ADDRESSES.bfc.WBFC, // WBFC
     ],
   },
   DAI_USDC_USDT: {
     address: "0xa455434802d8b530c77d2b7547ef93c798896581",
     tokens: [
-      "0xcdb9579db96eb5c8298df889d915d0ff668aff2a", // DAI
-      "0x640952e7984f2ecedead8fd97aa618ab1210a21c", // USDC
-      "0x3ea8654d5755e673599473ab37d92788b5ba12ae", // USDT
+      ADDRESSES.bfc.UnifiedDAI, // DAI
+      ADDRESSES.bfc.UnifiedUSDC, // USDC
+      ADDRESSES.bfc.UnifiedUSDT, // USDT
     ],
   },
 };

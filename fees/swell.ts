@@ -15,15 +15,14 @@ const PROGRAMMATIC_BURN_WALLETS = [
   '0x7815ba83da2e47b3d4386586216e2b1d57c36a6d',
 ]
 
-async function fetch(options: FetchOptions): Promise<FetchResultV2> {
-  const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
-  const dailyHoldersRevenue = options.createBalances()
+const REPRICING_ORACLE = '0x289d600447a74b952ad16f0bd53b8eaaac2d2d71'
+const REWARDS_CALCULATED_EVENT = 'event RewardsCalculatedV2(uint256 indexed blockAtSnapshot, uint256 blockOfLastSnapshot, int256 reserveAssetsChange, uint256 ethDepositsChange, uint256 rewardsPayableForFees, uint256 ethExitedChange)'
 
-  const totalBurns = options.createBalances()
-  const programmaticBurns = options.createBalances()
+// From 2026-10-21 23:02 UTC the repricing bot raised the swETH rate 1% per reprice with no rewards reported (Swell hack, suspected key compromise),
+// so from that day fees come from the rewards the oracle reports, which match the rate-based figure on normal days
+const ORACLE_REWARDS_FROM = Date.UTC(2026, 9, 21) / 1000
 
+async function getRateBasedRewards(options: FetchOptions): Promise<number> {
   const exchangeRateBefore = await options.fromApi.call({
     target: swETH,
     abi: 'uint256:getRate',
@@ -36,10 +35,24 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     target: swETH,
     abi: 'uint256:totalSupply',
   })
+  return Number(totalSupply) * (exchangeRateAfter - exchangeRateBefore) / 0.9 / 1e18
+}
 
-  // swell distribute 90% rewards to stakers post protocol revenue and node operators cut
-  // 90% to stakers, 5% to node operators, 5% to Swell treasury
-  const df = Number(totalSupply) * (exchangeRateAfter - exchangeRateBefore) / 0.9 / 1e18
+async function getOracleRewards(options: FetchOptions): Promise<number> {
+  const logs = await options.getLogs({ target: REPRICING_ORACLE, eventAbi: REWARDS_CALCULATED_EVENT })
+  return Number(logs.reduce((sum: bigint, log: any) => sum + BigInt(log.rewardsPayableForFees), 0n))
+}
+
+async function fetch(options: FetchOptions): Promise<FetchResultV2> {
+  const dailyFees = options.createBalances()
+  const dailyRevenue = options.createBalances()
+  const dailySupplySideRevenue = options.createBalances()
+  const dailyHoldersRevenue = options.createBalances()
+
+  const totalBurns = options.createBalances()
+  const programmaticBurns = options.createBalances()
+
+  const df = options.endTimestamp > ORACLE_REWARDS_FROM ? await getOracleRewards(options) : await getRateBasedRewards(options)
 
   const swellTreasuryRewards = df * 0.05
   const nodeOperatorsRewards = df * 0.05

@@ -50,6 +50,7 @@ export const gateSwapChainConfig: Record<string, { start: string; chainId: strin
   [CHAIN.GATE_LAYER]: { start: "2026-02-28", chainId: "10088" },
   [CHAIN.BERACHAIN]: { start: "2026-02-28", chainId: "80094" },
   [CHAIN.ENI]: { start: "2026-02-28", chainId: "173" },
+  [CHAIN.ARC]: { start: "2026-09-01", chainId: "5042" },
   [CHAIN.SONIC]: { start: "2026-02-28", chainId: "146" },
   [CHAIN.POLYGON]: { start: "2026-03-04", chainId: "137" },
   [CHAIN.ROBINHOOD]: { start: "2026-07-15", chainId: "4663" },

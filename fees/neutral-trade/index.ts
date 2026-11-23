@@ -2,63 +2,13 @@ import { SimpleAdapter, FetchOptions } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { getConfig, getCache, setCache } from "../../helpers/cache";
-import { getEnv } from "../../helpers/env";
-import { httpPost } from "../../utils/fetchURL";
-import crypto from "crypto";
+import { base58Decode, base58Encode, findProgramAddress, getMultipleAccounts } from "../../helpers/solana";
 
 const REGISTRY = "https://cdn.jsdelivr.net/gh/neutral-trade/sdk@main/src/registry/vaults.json";
 const V1 = "BUNDDh4P5XviMm1f3gCvnq2qKx6TGosAGnoUK12e7cXU";
 const V2 = "BUNDeH5A4c47bcEoAjBhN3sCjLgYnRsmt9ibMztqVkC9";
 const YEAR = 365 * 24 * 3600;
 const U64 = 2 ** 64; // for u128 → number conversion (values stay well below 2^53 after combining)
-
-// --- Base58 ---
-const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-function b58decode(s: string): Buffer {
-  let n = 0n; for (const c of s) n = n * 58n + BigInt(B58.indexOf(c));
-  return Buffer.from(n.toString(16).padStart(64, "0"), "hex");
-}
-function b58encode(b: Buffer): string {
-  if (b.every((x) => x === 0)) return "1".repeat(b.length);
-  let n = BigInt("0x" + b.toString("hex")), s = "";
-  while (n > 0n) { s = B58[Number(n % 58n)] + s; n /= 58n; }
-  for (const x of b) { if (x === 0) s = "1" + s; else break; }
-  return s;
-}
-
-// --- ed25519 PDA derivation ---
-const FP = 2n ** 255n - 19n;
-function modinv(a: bigint, m = FP): bigint {
-  let t = 0n, nt = 1n, r = m, nr = ((a % m) + m) % m;
-  while (nr) { const q = r / nr; [t, nt] = [nt, t - q * nt]; [r, nr] = [nr, r - q * nr]; }
-  return ((t % m) + m) % m;
-}
-function modpow(b: bigint, e: bigint, m = FP): bigint {
-  b = ((b % m) + m) % m; let r = 1n;
-  while (e) { if (e & 1n) r = r * b % m; b = b * b % m; e >>= 1n; }
-  return r;
-}
-function isCurvePoint(p: Buffer): boolean {
-  const D = (-121665n * modinv(121666n)) % FP;
-  const y = p.reduce((a, b, i) => a + BigInt(b) * 256n ** BigInt(i), 0n) & ((1n << 255n) - 1n);
-  const y2 = (y * y) % FP;
-  const num = (y2 - 1n + FP) % FP;
-  const den = ((D * y2 + 1n) % FP + FP) % FP;
-  if (den === 0n) return true;
-  const x2 = (num * modinv(den)) % FP;
-  return modpow(x2, (FP - 1n) / 2n) === 1n;
-}
-function derivePDA(seeds: Buffer[], prog: Buffer): Buffer {
-  const suf = Buffer.from("ProgramDerivedAddress");
-  for (let b = 255; b >= 0; b--) {
-    const h = crypto.createHash("sha256");
-    for (const s of seeds) h.update(s);
-    h.update(Buffer.from([b])).update(prog).update(suf);
-    const d = h.digest();
-    if (!isCurvePoint(d)) return d;
-  }
-  throw new Error("No valid PDA");
-}
 
 // --- Parse Bundle account (Anchor Borsh) ---
 function parseBundle(data: Buffer, isV2: boolean) {
@@ -72,7 +22,7 @@ function parseBundle(data: Buffer, isV2: boolean) {
   const pfeeShares = u128(o); o += 16 + 4 + 8; // pfeeShares + allocBps + oracleBuf
   if (isV2) o += 16; 
   const shares = u128(o); o += 16 + 8; // totalShares + assetPrecision
-  const mint = b58encode(data.subarray(o, o + 32)); // assetAddress
+  const mint = base58Encode(data.subarray(o, o + 32)); // assetAddress
   return { bal, mgmtBps, pfeeShares, shares, mint };
 }
 
@@ -88,18 +38,11 @@ const fetch = async (options: FetchOptions) => {
   const addrs: string[] = [];
   for (const v of bundles) {
     const prog = v.bundleProgramId === V2 ? V2 : V1;
-    addrs.push(v.vaultAddress, b58encode(derivePDA([Buffer.from("ORACLE"), b58decode(v.vaultAddress)], b58decode(prog))));
+    const [oracle] = findProgramAddress([Buffer.from("ORACLE"), base58Decode(v.vaultAddress)], prog);
+    addrs.push(v.vaultAddress, oracle);
   }
 
-  const accounts: any[] = [];
-  for (let i = 0; i < addrs.length; i += 100) {
-    const resp = await httpPost(getEnv("SOLANA_RPC"), {
-      jsonrpc: "2.0", id: 1, method: "getMultipleAccounts",
-      params: [addrs.slice(i, i + 100), { encoding: "base64" }],
-    });
-    if (!resp.result?.value) throw new Error(`RPC failed: ${JSON.stringify(resp.error ?? resp)}`);
-    accounts.push(...resp.result.value);
-  }
+  const accounts: any[] = await getMultipleAccounts({ accounts: addrs, encoding: "base64" });
 
   const timespan = options.toTimestamp - options.fromTimestamp;
 

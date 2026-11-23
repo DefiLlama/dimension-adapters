@@ -11,6 +11,11 @@ const OPERATIONAL_TREASURY = "0xec096ea6eB9aa5ea689b0CF00882366E92377371";
 const POSITIONS_MANAGER = "0x5fe380d68fee022d8acd42dc4d36fbfb249a76d5";
 export const USDCE = ADDRESSES.arbitrum.USDC; // settlement token: USDC.e (6dp)
 
+// Positions and payouts of these accounts are excluded.
+const EXPLOIT_ACCOUNTS = new Set([
+  "0x9234a8b43346c15e592d4a569196336d4b25594a", // 2026-11-17 bought 100 ETH puts of 12,089 ETH each for $86 in total, cashed out $1.43M on 2026-11-20
+]);
+
 // priceProvider() feed -> underlying decimals (for strategyData.amount).
 const SPOT_DECIMALS: Record<string, number> = {
   "0x639fe6ab55c921f74e7fac1ee960c0b6293ba612": 1e18, // ETH/USD -> ETH (18dp)
@@ -58,7 +63,9 @@ export async function loadPositions(options: FetchOptions): Promise<Position[]> 
     eventAbi: ERC721_TRANSFER,
     topics: [TRANSFER_TOPIC, topicAddress(ADDRESSES.null)] as any,
   });
-  const ids = mintLogs.map((log: any) => log.tokenId.toString());
+  const ids = mintLogs
+    .filter((log: any) => !EXPLOIT_ACCOUNTS.has(log.to.toLowerCase()))
+    .map((log: any) => log.tokenId.toString());
   if (!ids.length) return [];
 
   const locked = await options.api.multiCall({
@@ -114,7 +121,10 @@ async function addNotional(options: FetchOptions, balances: any, positions: Posi
 export async function getDailyPayoffs(options: FetchOptions) {
   const balances = options.createBalances();
   const paidLogs = await options.getLogs({ target: OPERATIONAL_TREASURY, eventAbi: PAID_EVENT });
-  for (const log of paidLogs) balances.add(USDCE, log.amount);
+  for (const log of paidLogs) {
+    if (EXPLOIT_ACCOUNTS.has(log.account.toLowerCase())) continue;
+    balances.add(USDCE, log.amount);
+  }
   return balances;
 }
 

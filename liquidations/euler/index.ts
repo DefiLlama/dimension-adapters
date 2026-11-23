@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from '../../adapters/types'
 import { CHAIN } from '../../helpers/chains'
 import { EulerChainConfigs } from '../../fees/euler/config'
+import { getEulerExcludedVaults } from '../../helpers/eulerExclusions'
 
 // stalls on this chain
 const SKIP_CHAINS = new Set<string>([CHAIN.TAC])
@@ -76,8 +77,11 @@ const fetch = async (options: FetchOptions) => {
     }
   }
 
+  const excludedVaults = await getEulerExcludedVaults(options)
+
   for (const { vault, event } of liquidationData) {
     const collateralVault = event.collateral.toLowerCase()
+    if (excludedVaults.has(collateralVault)) continue
     const collateralAsset = vaultAssetMap[collateralVault]
     if (collateralAsset) {
       const conversion = conversionMap[collateralVault]
@@ -100,7 +104,7 @@ const adapter: SimpleAdapter = {
       .map(([chain, { start }]) => [chain, { fetch, start }])
   ),
   methodology: {
-    CollateralLiquidated: 'Total USD value of collateral seized in Euler v2 eVault Liquidate events.',
+    CollateralLiquidated: 'Total USD value of collateral seized in Euler v2 eVault Liquidate events. Excludes seized shares of vaults whose loans have gone bad, since those shares cannot be withdrawn.',
   },
 }
 

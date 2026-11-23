@@ -15,7 +15,7 @@ import { METRIC } from "../../helpers/metrics";
  * protocol has no withdraw path to it, so it is liquidity provided to the coin rather than value retained.
  *
  * `burn` is EXCLUDED from both fees and supply-side revenue. It buys and burns the LAUNCHED coin's own supply,
- * so per fees/GUIDELINES.md ("subtract the buyback directly from fees rather than adding it to
+ * so per fees/AGENTS.md ("subtract the buyback directly from fees rather than adding it to
  * dailySupplySideRevenue") it is netted out rather than reported as supplier income. It is not
  * dailyHoldersRevenue either: that is reserved for the protocol's own value-accrual token, and this burns the
  * launched memecoin.

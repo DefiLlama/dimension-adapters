@@ -2,8 +2,8 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains";
 import { queryDuneSql } from "../../helpers/dune";
 
-// Cube DEX pool program (Solana mainnet). The on-chain Rust module is
-// named `cubic_pool` (legacy name from before the protocol rebrand to Cube).
+// Coffer DEX pool program (Solana mainnet). The on-chain Rust module is
+// named `cubic_pool` (legacy name from before the protocol rebrand to Coffer).
 const PROGRAM_ID = "8iQtGj9mcUfFUGaiCpPy89swC3s8YTC8FhVZWfgeZhwu";
 
 // Anchor instruction discriminator for `swap` (first 8 bytes of the
@@ -43,7 +43,7 @@ const fetch = async (options: FetchOptions) => {
   //    attribute it to the input token mint from account_arguments.
   const volumeRows = await queryDuneSql(
     options,
-    `WITH cube_swaps AS (
+    `WITH coffer_swaps AS (
       SELECT
         bytearray_to_bigint(bytearray_reverse(bytearray_substring(data, 9, 8))) AS amount_in,
         account_arguments[2] AS token_mint_in
@@ -57,7 +57,7 @@ const fetch = async (options: FetchOptions) => {
     SELECT
       token_mint_in,
       SUM(amount_in) AS total_amount
-    FROM cube_swaps
+    FROM coffer_swaps
     WHERE amount_in > 0
     GROUP BY token_mint_in`
   );
@@ -68,11 +68,11 @@ const fetch = async (options: FetchOptions) => {
 
   // 2) Fees: decode the Anchor `Swap` event payload from program logs
   //    and pull `fee_amount` + `protocol_fee_amount`. We pre-filter
-  //    transactions to ones that touched the Cube program so the
+  //    transactions to ones that touched the Coffer program so the
   //    log_messages scan stays bounded.
   const feeRows = await queryDuneSql(
     options,
-    `WITH cube_txs AS (
+    `WITH coffer_txs AS (
       SELECT DISTINCT tx_id
       FROM solana.instruction_calls
       WHERE executing_account = '${PROGRAM_ID}'
@@ -87,7 +87,7 @@ const fetch = async (options: FetchOptions) => {
           try(from_base64(split(l.log, ' ')[3])) AS event_data
         FROM solana.transactions t
         CROSS JOIN UNNEST(t.log_messages) AS l(log)
-        WHERE t.id IN (SELECT tx_id FROM cube_txs)
+        WHERE t.id IN (SELECT tx_id FROM coffer_txs)
           AND t.block_time >= from_unixtime(${options.startTimestamp})
           AND t.block_time < from_unixtime(${options.endTimestamp})
           AND l.log LIKE 'Program data: ${SWAP_EVENT_BASE64_PREFIX}%'
@@ -141,15 +141,15 @@ const adapter: SimpleAdapter = {
   isExpensiveAdapter: true,
   methodology: {
     Volume:
-      "Sum of `amount_in` parsed directly from on-chain Cube `swap` instructions on Solana, attributed to the input token mint. Computed via Dune SQL over `solana.instruction_calls` filtered by program id and the swap-instruction discriminator.",
+      "Sum of `amount_in` parsed directly from on-chain Coffer `swap` instructions on Solana, attributed to the input token mint. Computed via Dune SQL over `solana.instruction_calls` filtered by program id and the swap-instruction discriminator.",
     Fees:
-      "Sum of `fee_amount` parsed from the Anchor `Swap` event payload that the Cube program emits via `emit!()` into program logs. The event encodes both the total swap fee and the protocol's share — see the Anchor IDL at https://github.com/cubee-ee for the exact layout. Fees are accumulated per input-token mint and priced via the DefiLlama price layer.",
+      "Sum of `fee_amount` parsed from the Anchor `Swap` event payload that the Coffer program emits via `emit!()` into program logs. The event encodes both the total swap fee and the protocol's share — see the Anchor IDL at https://github.com/coffer-so for the exact layout. Fees are accumulated per input-token mint and priced via the DefiLlama price layer.",
     UserFees:
       "Same as Fees — all swap fees are paid by users.",
     Revenue:
       "Sum of `protocol_fee_amount` (the protocol's share of `fee_amount`) parsed from the same Anchor `Swap` event payload.",
     ProtocolRevenue:
-      "Same as Revenue — the protocol's share accrues to the Cube protocol fees authority PDA on-chain.",
+      "Same as Revenue — the protocol's share accrues to the Coffer protocol fees authority PDA on-chain.",
     SupplySideRevenue:
       "`fee_amount - protocol_fee_amount` per swap — the LPs' share of the swap fee.",
   },

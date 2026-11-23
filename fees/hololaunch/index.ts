@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -8,7 +9,7 @@ const HOLOLAUNCH_FACTORY = "0x5c8884546837066e3F3B573D3cb8B5C9eFbd7C77";
 // Uniswap V3 NonfungiblePositionManager on Robinhood Chain (graduated liquidity lives here)
 const POSITION_MANAGER = "0x73991a25c818bf1f1128deaab1492d45638de0d3";
 // WETH9 on Robinhood Chain, pair token of every graduated pool
-const WETH = "0x0bd7d308f8e1639fab988df18a8011f41eacad73";
+const WETH = ADDRESSES.robinhood.WETH;
 // Factory deployment block (2026-07-14)
 const START_BLOCK = 9292614;
 

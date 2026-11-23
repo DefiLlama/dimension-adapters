@@ -33,6 +33,7 @@ export interface ICurveDexConfig {
     }
   },
   blacklistedPools?: Array<string>;
+  blacklistedTokens?: Array<string>;
 }
 
 export interface IDexPool {

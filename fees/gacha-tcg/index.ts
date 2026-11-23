@@ -1,10 +1,17 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types"
 import { CHAIN } from "../../helpers/chains"
+import { PHYSICAL_CARD_COSTS } from "../../helpers/physicalCards"
 
-// Gacha Pull main contract on Abstract (pack purchases & buyback events)
-// https://abscan.org/address/0x268031de8363401d61b6a256bea009bb57277619
-const CONTRACT = '0x268031de8363401d61b6a256bea009bb57277619'
-const USDC_E = '0x84a71ccd554cc1b02749b35d22f684cc8ec987e1'
+// Gacha Pull main contract (pack purchases & buyback events), per chain.
+// Abstract: https://abscan.org/address/0x268031de8363401d61b6a256bea009bb57277619, paid in USDC.e;
+// sales paused 2026-11-17 (last Purchased 01:54 UTC, block 89275629).
+// Base: https://basescan.org/address/0xbc73621a1a8a3582f4e5eaeb6dc595607da88155 (gachaMall in the pull.gacha.game
+// Base config), paid in USDC; first Purchased 2026-11-17 07:36 UTC, tx 0xa12c19c87ca24c8ebe4dfe935b129e4bd410e670288dac7092455b24d9b5e77e
+const chainConfig: Record<string, { contract: string, token: string, start: string }> = {
+  [CHAIN.ABSTRACT]: { contract: '0x268031de8363401d61b6a256bea009bb57277619', token: ADDRESSES.abstract.USDC, start: '2025-09-18' },
+  [CHAIN.BASE]: { contract: '0xbc73621a1a8a3582f4e5eaeb6dc595607da88155', token: ADDRESSES.base.USDC, start: '2026-11-17' },
+}
 
 const PURCHASE_TOPIC = '0x7f13db84050d22dfb1e745ac7a5505f8d3cbbc4513e28555749286e28fc90d60'
 const BUYBACK_TOPIC = '0xc6d5275a2e779159157ae9621600816f3af8d899854cc629c70530785f781bb1'
@@ -14,63 +21,57 @@ const PURCHASED_ABI = 'event Purchased(uint256 indexed seqNo, uint32 indexed pre
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances()
-  const dailyRevenue = options.createBalances()
-  const dailySupplySideRevenue = options.createBalances()
+
+  const { contract, token } = chainConfig[options.chain]
 
   const [purchaseLogs, buybackLogs] = await Promise.all([
-    options.getLogs({ target: CONTRACT, eventAbi: PURCHASED_ABI, topics: [PURCHASE_TOPIC] }),
-    options.getLogs({ target: CONTRACT, eventAbi: BUYBACK_ABI, topics: [BUYBACK_TOPIC] }),
+    options.getLogs({ target: contract, eventAbi: PURCHASED_ABI, topics: [PURCHASE_TOPIC] }),
+    options.getLogs({ target: contract, eventAbi: BUYBACK_ABI, topics: [BUYBACK_TOPIC] }),
   ])
 
   purchaseLogs.forEach((log: any) => {
-    dailyFees.add(USDC_E, log.amount, 'Pack purchases')
-    dailyRevenue.add(USDC_E, log.amount, 'Pack purchases')
+    dailyFees.add(token, log.amount, 'Gacha Pack Sales')
   })
   buybackLogs.forEach((log: any) => {
-    dailySupplySideRevenue.add(USDC_E, log.amount, 'Buybacks')
-    dailyRevenue.add(USDC_E, -log.amount, 'Buybacks')
+    dailyFees.subtractToken(token, log.amount, 'Pack Buyback Spends')
   })
 
   return {
     dailyFees,
-    dailyRevenue,
-    dailySupplySideRevenue,
-    dailyUserFees: dailyRevenue,
+    dailyRevenue: dailyFees,
+    dailyUserFees: dailyFees,
+    dailyProtocolRevenue: dailyFees,
   }
 }
 
 const methodology = {
-  Fees: 'Gross USDC.e paid by players to mint card packs (Purchased event).',
-  Revenue: 'Net spread captured by the protocol: pack purchases minus USDC.e returned to players through the buyback program.',
-  SupplySideRevenue: 'USDC.e returned to players when they sell cards back to the protocol (Buyback event).',
-  UserFees: 'Net amount paid by players: pack purchases minus USDC.e received back through the buyback program.',
+  Fees: 'USDC (USDC.e on Abstract) paid by players to mint card packs, net of USDC paid back to players who sell cards back to the protocol.',
+  Revenue: 'Pack sales net of buybacks, all kept by the protocol.',
+  UserFees: 'Pack sales paid by players, net of buybacks.',
+  ProtocolRevenue: 'Pack sales net of buybacks, all kept by the protocol.',
+}
+
+const gachaBreakdown = {
+  'Gacha Pack Sales': 'USDC (USDC.e on Abstract) paid by players to mint card packs (Purchased event).',
+  'Pack Buyback Spends': 'USDC (USDC.e on Abstract) paid to players who sell cards back to the protocol (Buyback event); subtracted.',
 }
 
 const breakdownMethodology = {
-  Fees: {
-    'Pack purchases': 'USDC.e paid by players to mint card packs (Purchased event).',
-  },
-  Revenue: {
-    'Pack purchases': 'USDC.e paid by players to mint card packs (Purchased event).',
-    'Buybacks': 'USDC.e returned to players when they sell cards back to the protocol (Buyback event); subtracted from revenue.',
-  },
-  SupplySideRevenue: {
-    'Buybacks': 'USDC.e returned to players when they sell cards back to the protocol (Buyback event).',
-  },
+  Fees: gachaBreakdown,
+  Revenue: gachaBreakdown,
+  UserFees: gachaBreakdown,
+  ProtocolRevenue: gachaBreakdown,
 }
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  allowNegativeValue: true, // hourly buybacks can exceed hourly pack purchases
+  allowNegativeValue: true, // buybacks can exceed pack sales in a window
   methodology,
   breakdownMethodology,
-  adapter: {
-    [CHAIN.ABSTRACT]: {
-      fetch,
-      start: '2025-09-18',
-    },
-  },
+  unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
+  fetch,
+  adapter: chainConfig,
 }
 
 export default adapter

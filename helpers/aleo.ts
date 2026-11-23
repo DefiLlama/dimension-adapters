@@ -94,7 +94,7 @@ async function aleoGet(path: string, attempt = 0): Promise<unknown> {
  * distinguish `get` from `get_or_use`, so an absent key is a normal state, not an error.
  */
 export async function getAleoMappingValue(programId: string, mapping: string, key: string): Promise<string | null> {
-  const value = await aleoGet(`/program/${programId}/mapping/${mapping}/${key}`);
+  const value = await aleoGet(`/program/${programId}/mapping/${mapping}/${encodeURIComponent(key)}`);
   if (value === null || value === undefined) return null; // absent key, a normal finalizer state
   if (typeof value !== "string") throw new Error(`aleo: ${programId}/${mapping}/${key} is not a plaintext value`);
   return value;

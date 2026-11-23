@@ -1,3 +1,4 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 // source: https://ant.fun
 
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
@@ -32,7 +33,7 @@ const fetch: any = async (options: FetchOptions) => {
     options,
     targets: feeAddresses,
     blacklist_mints: [
-      'So11111111111111111111111111111111111111112',
+      ADDRESSES.solana.SOL,
     ],
   })
 

@@ -1,9 +1,10 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, FetchResultFees, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
 const MARKETS = "0xb212b1E9b00aD54fB5419E6231E0b4300dB9F40F";
-const TOKEN_CORE = "0x40375C92d9FAf44d2f9db9Bd9ba41a3317a2404f";
-const TOKEN_USDT = "0x900101d06A7426441Ae63e9AB3B9b0F63Be145F1";
+const TOKEN_CORE = ADDRESSES.core.WCORE;
+const TOKEN_USDT = ADDRESSES.core.USDT;
 
 const tokens = [
   TOKEN_CORE,

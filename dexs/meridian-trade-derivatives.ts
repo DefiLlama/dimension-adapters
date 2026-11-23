@@ -46,6 +46,7 @@ const adapter: SimpleAdapter = {
     fetch,
     chains: [CHAIN.BASE],
     start: '2023-08-12',
+    deadFrom: '2025-02-26',
 }
 
 export default adapter;

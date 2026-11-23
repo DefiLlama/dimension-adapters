@@ -15,7 +15,7 @@ const ADAPTER_TYPES = [
   'nft-volume', 'active-users', 'new-users', 'liquidations',
 ]
 const ADAPTER_TYPE_SET = new Set(ADAPTER_TYPES)
-const EXCLUDE_NAMES = new Set(['index', 'README', 'GUIDELINES', '.gitkeep'])
+const EXCLUDE_NAMES = new Set(['index', 'README', 'AGENTS', '.gitkeep'])
 
 const args = process.argv.slice(2)
 const subdir = args[0] // e.g. 'dexs', 'fees'; undefined => list mode across all types

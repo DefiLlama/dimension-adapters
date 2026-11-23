@@ -46,23 +46,18 @@ const TRON_HISTORY_API = "https://app-api.usdd.io/data-platform/collateral-histo
 const toWad = (rad: bigint) => rad / RAY;
 const blockOf = ({ blockNumber, block, block_number }: any) => Number(blockNumber ?? block ?? block_number);
 
-const tronRate = (markets: any[]) => {
-  let debt = 0;
-  let fees = 0;
-
-  markets.forEach(({ curMinted, stabilityFee }) => {
-    const minted = Number(curMinted ?? 0);
-    debt += minted;
-    fees += minted * Number(stabilityFee ?? 0);
-  });
-
-  return debt ? fees / debt : 0;
-};
+const tronAnnualFees = (markets: any[]) =>
+  markets.reduce((sum, { curMinted, stabilityFee }) =>
+    sum + Number(curMinted ?? 0) * Number(stabilityFee ?? 0), 0);
 
 const tronDebt = (items: any[], timestamp: number) => {
   const day = new Date(timestamp * 1000).toISOString().slice(0, 10);
   return Number(items.find((item) => item.time?.startsWith(day))?.debt ?? 0);
 };
+
+const tronLatestSupply = (items: any[]) =>
+  items.reduce((latest, item) =>
+    (item.time ?? '') > (latest?.time ?? '') ? item : latest, items[0]);
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
@@ -75,7 +70,12 @@ const fetch = async (options: FetchOptions) => {
     
     const YEAR = 365 * 24 * 3600;
     const timeframe = options.toTimestamp - options.fromTimestamp;
-    const fee = tronDebt(history.data?.items ?? [], options.fromTimestamp) * tronRate(collaterals.data?.items ?? []) * timeframe / YEAR;
+    const items = history.data?.items ?? [];
+    const supplyOnDay = tronDebt(items, options.fromTimestamp);
+    const supplyNow = Number(tronLatestSupply(items)?.debt ?? 0);
+    const annualFees = tronAnnualFees(collaterals.data?.items ?? []);
+    if (!supplyNow) throw new Error('usdd: tron collateral-history returned no dated supply rows');
+    const fee = annualFees * (supplyOnDay / supplyNow) * timeframe / YEAR;
 
     dailyFees.addUSDValue(fee, METRIC.BORROW_INTEREST);
 

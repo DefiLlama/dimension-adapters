@@ -19,6 +19,14 @@ const breakdownMethodology = {
 
 const correctedTotalRevenues: Record<string, number> = {
   '2026-06-04': 114.49, //api wrongly returns 0 vs 114.49 (previous day) and 113 (next day)
+  '2026-10-08': 124.51, //api returns 210.47: an ~86 ETH claim is counted in both total_claimed (118.66) and total_eth_transferred (88.11); counted once it is 3.70 + 32.70 + 88.11, vs 124.54 (previous day) and 124.39 (next day)
+  '2026-10-14': 124.73, //api returns 212.71: total_eth_transferred is 175.97, exactly double the ~88 ETH it reads on the surrounding days (87.82 / 87.88); counted once it is 4.04 + 32.70 + 87.99, vs 124.51 (previous day) and 124.67 (next day)
+  '2026-10-21': 125.26, //api returns 213.35: total_eth_transferred is 176.18, exactly double the ~88 ETH it reads on the surrounding days (87.81 / 88.06); counted once it is 3.62 + 33.55 + 88.09, vs 124.91 (previous day) and 125.29 (next day)
+}
+
+const correctedTotalFees: Record<string, number> = {
+  '2026-11-11': 925.82, //api returns 31,696,940.07 (claimed 243,945.57 and transferred 4,230,577.1 are blown up too) vs 925.68 (previous day) and 925.96 (next day); the midpoint leaves the 11-10 -> 11-12 total unchanged
+  '2026-11-15': 928.99, //api returns 991.31 (+68.61 ETH, then -56.03 ETH the next day; transferred 97.18 vs ~88-90 around it) vs 922.70 (previous day) and 935.28 (next day); the midpoint leaves the 11-14 -> 11-16 total unchanged
 }
 
 const fetchCumulativeData = async (dateStr: string) => {
@@ -27,7 +35,7 @@ const fetchCumulativeData = async (dateStr: string) => {
   if (data?.total_fees_eth_denominated == null) {
     throw new Error(`Obol API returned no fee data for ${dateStr}`);
   }
-  return { totalFees: Number(data.total_fees_eth_denominated), totalRevenue: correctedTotalRevenues[dateStr] ?? Number(data.total_revenue ?? 0) };
+  return { totalFees: correctedTotalFees[dateStr] ?? Number(data.total_fees_eth_denominated), totalRevenue: correctedTotalRevenues[dateStr] ?? Number(data.total_revenue ?? 0) };
 };
 
 const getPreviousDay = (dateStr: string) => {
@@ -43,6 +51,8 @@ const fetch = async (options: FetchOptions) => {
   ]);
 
   const dailyFeesETH = current.totalFees - previous.totalFees;
+  if (Math.abs(dailyFeesETH) > previous.totalFees * 0.05)
+    throw new Error(`Obol API cumulative fees jumped from ${previous.totalFees} to ${current.totalFees} ETH on ${options.dateString}, likely a corrupt row`);
   let dailyRevenueETH = current.totalRevenue - previous.totalRevenue;
 
   // The Obol API's total_revenue field intermittently returns 0 (the correctedTotalRevenues map

@@ -1,6 +1,6 @@
-import { time } from "console";
 import { Adapter, FetchOptions, } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { METRIC } from "../helpers/metrics";
 import { httpGet } from "../utils/fetchURL";
 
 const api = "https://openapi.sunpump.meme/pump-api/api/feeData"
@@ -9,6 +9,8 @@ interface IResponse {
   count: number;
   amount: number;
 }
+
+const TRADING_FEES_TO_PROTOCOL = 'Trading Fees To Protocol';
 
 const adapter: Adapter = {
   version: 1,
@@ -23,8 +25,8 @@ const adapter: Adapter = {
         const res: IResponse[] = (await httpGet(url)).data;
         const dailyFees = options.createBalances();
         const dayItem = res.find((item) => item.date === start);
-        dailyFees.addGasToken((dayItem?.amount || 0) * 1e6);
-        return { dailyFees, dailyRevenue: dailyFees };
+        dailyFees.addGasToken((dayItem?.amount || 0) * 1e6, METRIC.TRADING_FEES);
+        return { dailyFees, dailyRevenue: dailyFees.clone(1, TRADING_FEES_TO_PROTOCOL) };
       }) as any,
       start: '2024-08-11',
     },
@@ -32,8 +34,15 @@ const adapter: Adapter = {
   methodology: {
     Fees: 'Total trading fees paid by users',
     Revenue: 'Total trading fees paid by users collected by SunPump',
-  }
-
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.TRADING_FEES]: 'Trading fees paid by users on SunPump token trades.',
+    },
+    Revenue: {
+      [TRADING_FEES_TO_PROTOCOL]: 'All trading fees are collected by SunPump.',
+    },
+  },
 }
 
 export default adapter;

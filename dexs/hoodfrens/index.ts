@@ -1,3 +1,4 @@
+import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
@@ -49,8 +50,8 @@ const TOKENS_CLAIMED_ABI =
 const GET_CLAIM_CONDITION_ABI =
     "function getClaimConditionById(uint256 _tokenId, uint256 _conditionId) view returns ((uint256 startTimestamp, uint256 maxClaimableSupply, uint256 supplyClaimed, uint256 quantityLimitPerWallet, bytes32 merkleRoot, uint256 pricePerToken, address currency, string metadata) condition)";
 
-const NATIVE_ETH = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
-const NULL_ADDRESS = "0x0000000000000000000000000000000000000000";
+const NATIVE_ETH = ADDRESSES.GAS_TOKEN_2;
+const NULL_ADDRESS = ADDRESSES.null;
 
 // Trade.feeInWei carries the total user-paid fee on every fee-generating path
 // (IPO buy + all sells): the contract builds it as

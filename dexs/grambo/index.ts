@@ -67,6 +67,8 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.TON],
   fetch,
   start: '2026-06-26',
+  // api.grambo.fun and grambo.fun DNS records removed, no volume since 2026-10-21
+  deadFrom: '2026-11-11',
   methodology,
   breakdownMethodology,
   pullHourly: true,

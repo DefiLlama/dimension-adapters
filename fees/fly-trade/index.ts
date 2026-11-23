@@ -56,6 +56,7 @@ const chainConfig: Record<string, { router: string; start: string }> = {
   [CHAIN.TELOS]: { router: ROUTER_B, start: "2026-05-03" },
   [CHAIN.ERA]: { router: ROUTER_C, start: "2026-05-03" },
   [CHAIN.PHAROS]: { router: ROUTER_D, start: "2026-05-03" },
+  [CHAIN.ROBINHOOD]: { router: ROUTER_A, start: "2026-06-24" },
 };
 
 const swapEvent =

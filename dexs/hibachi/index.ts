@@ -38,9 +38,10 @@ const fetch: FetchV2 = async (options: FetchOptions) => {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: false, // API per-chain totals change with the range length
   fetch,
   start: '2025-06-01',
-  chains: [CHAIN.ARBITRUM, CHAIN.BASE],
+  chains: [CHAIN.ARBITRUM, CHAIN.BASE, CHAIN.ARC],
 };
 
 export default adapter;

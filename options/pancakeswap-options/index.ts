@@ -8,7 +8,7 @@ const url: { [s: string]: string } = {
 
 const query = gql`
   query getVolume($startTimestamp: BigInt!, $endTimestamp: BigInt!) {
-    optionMarketDailyStats(where: { startTimestamp_gte: $startTimestamp, startTimestamp_lte: $endTimestamp }) {
+    optionMarketDailyStats(where: { startTimestamp_gte: $startTimestamp, startTimestamp_lt: $endTimestamp }) {
       startTimestamp
       volume
       premium
@@ -37,7 +37,7 @@ const fetchOptions = async (fetchOptions: FetchOptions): Promise<any> => {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
+  version: 1, // daily stats keyed by day
   adapter: {
     [CHAIN.ARBITRUM]: {
       fetch: fetchOptions,

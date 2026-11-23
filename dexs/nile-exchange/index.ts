@@ -32,6 +32,7 @@ const getBribes = async (options: FetchOptions): Promise<sdk.Balances> => {
 // https://docs.ramses.exchange/ramses-cl-v2/concentrated-liquidity/fee-distribution
 const adapter: Adapter = {
   version: 2,
+  pullHourly: true,
   adapter: {
     [CHAIN.LINEA]: {
       fetch: async (options: FetchOptions) => {
@@ -45,19 +46,24 @@ const adapter: Adapter = {
         const dailyHoldersRevenue = options.createBalances()
         const dailyProtocolRevenue = options.createBalances()
 
-        dailyFees.add(response.dailyFees, 'Token Swap Fees')
+        // the uniswap helper returns plain 0 (not Balances) for a window with no swaps, which Balances.add rejects
+        const addPart = (target: sdk.Balances, part: any, label: string) => {
+          if (part && typeof part !== 'number') target.add(part, label)
+        }
+
+        addPart(dailyFees, response.dailyFees, 'Token Swap Fees')
         dailyFees.add(bribes, 'Bribes Rewards')
-        
-        dailyRevenue.add(response.dailyProtocolRevenue, 'Token Swap Fees To Protocol')
-        dailyRevenue.add(response.dailyHoldersRevenue, 'Token Swap Fees To Holders')
+
+        addPart(dailyRevenue, response.dailyProtocolRevenue, 'Token Swap Fees To Protocol')
+        addPart(dailyRevenue, response.dailyHoldersRevenue, 'Token Swap Fees To Holders')
         dailyRevenue.add(bribes, 'Bribes Revenue')
 
-        dailyHoldersRevenue.add(response.dailyHoldersRevenue, 'Token Swap Fees To Holders')
+        addPart(dailyHoldersRevenue, response.dailyHoldersRevenue, 'Token Swap Fees To Holders')
         dailyHoldersRevenue.add(bribes, 'Bribes Revenue')
 
-        dailySupplySideRevenue.add(response.dailySupplySideRevenue, 'Token Swap Fees To LPs')
+        addPart(dailySupplySideRevenue, response.dailySupplySideRevenue, 'Token Swap Fees To LPs')
 
-        dailyProtocolRevenue.add(response.dailyProtocolRevenue, 'Token Swap Fees To Protocol')
+        addPart(dailyProtocolRevenue, response.dailyProtocolRevenue, 'Token Swap Fees To Protocol')
 
         return {
           dailyVolume: response.dailyVolume,

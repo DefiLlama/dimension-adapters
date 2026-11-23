@@ -14,6 +14,9 @@ async function fetch(options: FetchOptions) {
   const url = `${baseUrl}?start=${options.fromTimestamp}&end=${options.toTimestamp}`;
   const data = await httpGet(url);
 
+  if (!data.totalSwaps)
+    throw new Error(`swapStat has no swaps for ${options.dateString} yet; every zero day this api has served was later backfilled with real volume`);
+
   return {
     dailyVolume: data.totalSwapVolume,
     dailyFees: data.totalFees,

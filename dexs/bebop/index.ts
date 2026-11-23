@@ -6,14 +6,16 @@ import { addOneToken } from "../../helpers/prices";
 const LEGACY_BOP_AMM = ["0x160141A205F5dDcf096BA3F48B7eD21EB52c62EA", "0xdB13ad0fcD134E9c48f2fDaEa8f6751a0F5349ca"];
 const legacySwapEvent = "event Swap(address indexed sender, address indexed srcToken, address indexed destToken, uint256 srcAmount, uint256 destAmount)";
 
-// Current BopAmm contract. Router fallback swaps settle via Bebop RFQ and do not emit this event.
-const BOP_AMM = "0xB09AaA5614916d7AEb59C295C52c92ca82aDdD76";
+// BopAmm swap contracts are listed separately so each emitter keeps its own start date.
 const bopAmmSwapEvent = "event Swapped(address indexed sender, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, address recipient)";
+
+const getStartTimestamp = (start: string) => Date.parse(`${start}T00:00:00Z`) / 1e3;
 
 const swapSources = [
   {
     label: "BopAMM (Legacy)",
     targets: LEGACY_BOP_AMM,
+    start: "2026-05-12",
     eventAbi: legacySwapEvent,
     tokenIn: "srcToken",
     amountIn: "srcAmount",
@@ -22,7 +24,18 @@ const swapSources = [
   },
   {
     label: "BopAmm",
-    target: BOP_AMM,
+    targets: ["0xB09AaA5614916d7AEb59C295C52c92ca82aDdD76"],
+    start: "2026-07-28",
+    eventAbi: bopAmmSwapEvent,
+    tokenIn: "tokenIn",
+    amountIn: "amountIn",
+    tokenOut: "tokenOut",
+    amountOut: "amountOut",
+  },
+  {
+    label: "BopAmm",
+    targets: ["0xB09AAA8933626d7E4C48D65dAd2D77021CFBCA9a"],
+    start: "2026-09-16",
     eventAbi: bopAmmSwapEvent,
     tokenIn: "tokenIn",
     amountIn: "amountIn",
@@ -35,10 +48,8 @@ async function fetch(options: FetchOptions) {
   const { getLogs, createBalances } = options;
   const dailyVolume = createBalances();
   for (const source of swapSources) {
-    const logParams = source.targets
-      ? { targets: source.targets, eventAbi: source.eventAbi }
-      : { target: source.target, eventAbi: source.eventAbi };
-    const logs = await getLogs(logParams);
+    if (options.endTimestamp <= getStartTimestamp(source.start)) continue;
+    const logs = await getLogs({ targets: source.targets, eventAbi: source.eventAbi });
     logs.forEach((log: any) => {
       addOneToken({
         chain: options.chain,

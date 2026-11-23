@@ -1,9 +1,10 @@
+import ADDRESSES from '../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { addTokensReceived } from "../helpers/token";
 
 const TAX_MANAGER = "0x061aD83969a6F9864f02265FB1ff103DDBCA5cDB";
-const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c";
+const WBNB = ADDRESSES.bsc.WBNB;
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = await addTokensReceived({

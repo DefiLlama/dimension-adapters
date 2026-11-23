@@ -28,50 +28,6 @@ export default (
       },
     },
     {
-      id: "parent#uniswap",
-      name: "Uniswap",
-      addresses: {
-        ethereum: [
-          // v2
-          "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
-          "0xf164fc0ec4e93095b804a4795bbe1e041497b92a",
-          //v3
-          "0xE592427A0AEce92De3Edee1F18E0157C05861564",
-          "0x075B36dE1Bd11cb361c5B3B1E80A9ab0e7aa8a60",
-          "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45",
-          "0x4C60051384bd2d3C01bfc845Cf5F4b44bcbE9de5", //universalrouter
-          "0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B", //universalrouter
-        ],
-        bsc: ["0x5Dc88340E1c5c6366864Ee415d6034cadd1A9897"],
-        celo: [
-          "0xC73d61d192FB994157168Fb56730FdEc64C9Cb8F",
-          // v3
-          "0x5615CDAb10dc425a742d643d949a7F474C01abc4",
-        ],
-        polygon: [
-          "0x4C60051384bd2d3C01bfc845Cf5F4b44bcbE9de5", //universalrouter
-          "0xE592427A0AEce92De3Edee1F18E0157C05861564", //v3
-          "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45", //v3
-          "0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B", //universalrouter2
-        ],
-        arbitrum: [
-          "0xE592427A0AEce92De3Edee1F18E0157C05861564", //v3
-          "0x075B36dE1Bd11cb361c5B3B1E80A9ab0e7aa8a60", //v3
-          "0x4C60051384bd2d3C01bfc845Cf5F4b44bcbE9de5",
-          "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45", //v3
-          "0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B", //universalrouter
-        ],
-        optimism: [
-          "0xE592427A0AEce92De3Edee1F18E0157C05861564", //v3
-          "0x075B36dE1Bd11cb361c5B3B1E80A9ab0e7aa8a60", //v3
-          "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45", //v3
-          "0xb555edF5dcF85f42cEeF1f3630a52A108E55A654", //universalrouter
-          "0xEf1c6E67703c7BD7107eed8303Fbe6EC2554BF6B", //universalrouter
-          "0x560DA69Ef841e1272C65eF9ebA538870F8C0c484", //universalrouter
-        ],
-      },
-    },
-    {
       id: "parent#sushi",
       name: "Sushiswap",
       addresses: {
@@ -221,26 +177,6 @@ export default (
       name: "Defi Swap",
       addresses: {
         ethereum: ["0xceb90e4c17d626be0facd78b79c9c87d7ca181b3"],
-      },
-    },
-    {
-      id: "parent#pancakeswap",
-      name: "Pancakeswap",
-      addresses: {
-        ethereum: [
-          "0x13f4EA83D0bd40E75C8222255bc855a974568Dd4", // v3
-          "0xEfF92A263d31888d860bD50809A8D171709b7b1c",
-        ],
-        bsc: [
-          "0x13f4EA83D0bd40E75C8222255bc855a974568Dd4", // v3
-          "0x10ED43C718714eb63d5aA57B78B54704E256024E",
-          "0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F",
-          "0x749fc0E64A3680531d31ACC1dAa8dda0bE438B02",
-        ],
-        aptos: ["0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa"],
-        base: [
-          "0x678Aa4bF4E210cf2166753e054d5b7c31cc7fa86", // smartrouter
-        ],
       },
     },
     {
@@ -496,13 +432,7 @@ export default (
         ],
       },
     },
-    {
-      id: "2675",
-      name: "Ramses Exchange",
-      addresses: {
-        arbitrum: ["0xAAA87963EFeB6f7E0a2711F397663105Acb1805e"],
-      },
-    } /*
+    /*
     {
         "id":"parent#apeswap",
         "name":"ApeSwap",
@@ -523,7 +453,7 @@ export default (
                 "0xb9667Cf9A495A123b0C43B924f6c2244f42817BE"
             ]
         }
-    },*/,
+    },*/
     {
       id: "2332",
       name: "Equalizer Exchange",
@@ -2457,6 +2387,23 @@ export default (
         base: ["0x4A88C44B8D9B9f3F2BA4D97236F737CF03DF76CD"],
         scroll: ["0x010931D4d82ff3F5Ae8bD94e0752570711f78959"],
         polygon: ["0x34E2F923bBa206358EcE221af73E8d121837F873"],
+      },
+    },
+    {
+      id: "7839",
+      name: "NARA Protocol",
+      addresses: {
+        base: [
+          "0x7F866a9fbe41D54F0d9C35b6892fcf27Ea766DB2", // NARAPrincipalLedgerV5
+          "0xC72671D9438388638547444524F6542b650C9264", // NARARewardLedgerV5
+          "0x04Ac83045d26259D46400Ce6beb9bBd0641df225", // NARAPositionSaleV5
+          "0xd93FbEbFb33FAc9288125074625D4750573B1a53", // NARAEpochEngineV5
+          "0x3f80aa68Fb4834d6E119EE1cf932C14419Cf63EB", // CryptoSlipVaultV32 (v33)
+          "0x2069CA17D45d3421D28f15F20262575333CECF51", // CryptoSlipTradeRouterV32 (v33)
+          "0x38BF0321FA7489576978353a6a8da4A3e85C2F18", // CryptoSlipVaultV32 (v32)
+          "0x295E72cB3dc09582F32e0fEB7e0e650752219a7f", // CryptoSlipTradeRouterV32 (v32)
+          "0x4Dc2b5A801A81b17b8d05C737c727FEd1f30699A", // CryptoSlipVaultV3
+        ],
       },
     },
   ] as ProtocolAddresses[]

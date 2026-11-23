@@ -20,7 +20,9 @@ usdc_by_chain AS (
       ('optimism',    0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85), 
       ('bnb',         0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d),
       ('bnb',         0x55d398326f99059fF775485246999027B3197955),
-      ('robinhood',   0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168) -- USDG
+      ('robinhood',   0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168), -- USDG
+      ('ink',         0x2D270e6886d130D724215A266106e6832161EAEd),
+      ('arc',         0x3600000000000000000000000000000000000000) -- USDC (native gas token)
   ) AS t(blockchain, contract_address)
 ),
 
@@ -38,7 +40,7 @@ filtered_transfers AS (
   CROSS JOIN params p
   WHERE t.block_time >= p.t0
     AND t.block_time < p.t1
-    AND t.blockchain IN ('base','ethereum','polygon','arbitrum','avalanche_c','optimism','bnb','robinhood')
+    AND t.blockchain IN ('base','ethereum','polygon','arbitrum','avalanche_c','optimism','bnb','robinhood','ink','arc')
     AND t."to" = p.collector
     AND t."tx_to" <> p.collector
     AND t."tx_from" <> p.zero_address    -- Early address filtering

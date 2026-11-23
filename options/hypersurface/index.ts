@@ -2,6 +2,7 @@ import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { request, gql } from "graphql-request";
 import PromisePool from "@supercharge/promise-pool";
+import BigNumber from "bignumber.js";
 
 // Hypersurface Protocol - DeFi Structured Products Platform
 // Website: https://hypersurface.io
@@ -23,8 +24,8 @@ const SUBGRAPH = (name: string) =>
 
 // One entry per chain, holding both the adapter config and the pools to query.
 // Each collateral pool is indexed by its own subgraph, so a chain can have
-// several: HyperEVM runs a USDT0-collateral pool and a USDC-collateral pool
-// side by side, and both must be summed to get the chain's real volume.
+// several: HyperEVM has legacy USDT0/USDC pools and the current USDC
+// PremiumPool. Keep the legacy sources so historical refills retain their trades.
 // The label is carried through to the returned balances so the per-pool
 // breakdown can be populated.
 const chainConfig: { [chain: string]: { start: string; pools: Pool[] } } = {
@@ -33,6 +34,9 @@ const chainConfig: { [chain: string]: { start: string; pools: Pool[] } } = {
     pools: [
       { label: USDT0_POOL, url: SUBGRAPH("hypersurface-sh-subgraph") },
       { label: USDC_POOL, url: SUBGRAPH("hypersurface-usdc-subgraph") },
+      // PremiumPool 0x6806c2c11d9aa3464792d10455a6480d793eedc1, USDC (6 decimals).
+      // Deployment/subgraph source: https://github.com/hypersurface-io/frontend-handoff/blob/3fd8c13dfd5bb1f488cc33baf7b4d123ca6b88bb/src/deployments/handoff.ts
+      { label: USDC_POOL, url: SUBGRAPH("hypersurface-hyperevm-subgraph") },
     ],
   },
   [CHAIN.BASE]: {
@@ -166,12 +170,12 @@ const fetch = async (options: FetchOptions) => {
     for (const trade of trades) {
       // Premium is stored in the pool's collateral decimals.
       // Every collateral in use (USDT0, USDC) is 6 decimals and dollar pegged.
-      dailyPremiumVolume.addUSDValue(Number(trade.totalPremium) / 1e6);
+      dailyPremiumVolume.addUSDValue(new BigNumber(trade.totalPremium).shiftedBy(-6).toNumber());
 
       // totalNotionalUSD is pre-calculated in the subgraph as:
       // (totalNotional x underlyingPrice) / 1e16
       // The division already happened in the subgraph, so this value is in whole USD
-      dailyNotionalVolume.addUSDValue(Number(trade.totalNotionalUSD));
+      dailyNotionalVolume.addUSDValue(trade.totalNotionalUSD);
     }
   });
 
