@@ -52,6 +52,7 @@ const breakdownMethodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: false,
   fetch,
   chains: [CHAIN.SOLANA],
   start: "2026-02-01",
