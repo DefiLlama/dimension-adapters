@@ -10,7 +10,7 @@ import { httpGet } from "../../utils/fetchURL";
 //
 // Relay's requests API cannot list PicoSwap's swaps for a third party (v3 filters by app only for the key that owns
 // the app, and by referrer only among keyless requests), so PicoSwap publishes its own daily rollup of the Relay
-// request ledger it syncs every minute, plus its direct 0x/Jupiter swaps:
+// request ledger it syncs every minute (with the referral earnings recorded per swap), plus its direct 0x/Jupiter swaps:
 // https://app.picoswap.xyz/api/stats/daily?date=YYYY-MM-DD (UTC day, per Relay origin chain id). A day is served with
 // `complete: true` only once the ledger sync has checked past its end; until then the adapter throws.
 // The same totals are on https://app.picoswap.xyz/treasury (fee ledger) and https://app.picoswap.xyz/api/fee-ledger.
@@ -27,7 +27,7 @@ export const CHAINS = [...new Set(PICOSWAP_CHAIN_IDS.map((id) => RELAY_CHAINS[id
 type Leg = { swaps: number; volumeUsd: number };
 export type PicoSwapChainDay = {
   chainId: number;
-  relay: { sameChain: Leg; crossChain: Leg; fees: { rewardsPoolUsd: number; picoswapUsd: number } };
+  relay: { sameChain: Leg; crossChain: Leg; fees: { rewardsPoolUsd: number; picoswapUsd: number; referralsUsd: number } };
   direct: { swaps: number; volumeUsd: number; feesUsd: number };
 };
 type PicoSwapDay = { date: string; complete: boolean; chains: PicoSwapChainDay[] };
@@ -41,8 +41,9 @@ export const fetchDay = async (options: FetchOptions): Promise<PicoSwapDay> => {
   if (!day || day.date !== options.dateString || !Array.isArray(day.chains)) throw new Error("picoswap: unexpected stats response");
   if (day.complete !== true) throw new Error(`picoswap: stats for ${options.dateString} are not complete yet`);
   for (const row of day.chains) {
-    const values = [row?.relay?.sameChain?.volumeUsd, row?.relay?.crossChain?.volumeUsd, row?.relay?.fees?.rewardsPoolUsd, row?.relay?.fees?.picoswapUsd, row?.direct?.volumeUsd, row?.direct?.feesUsd];
+    const values = [row?.relay?.sameChain?.volumeUsd, row?.relay?.crossChain?.volumeUsd, row?.relay?.fees?.rewardsPoolUsd, row?.relay?.fees?.picoswapUsd, row?.relay?.fees?.referralsUsd, row?.direct?.volumeUsd];
     if (!values.every(finite)) throw new Error(`picoswap: malformed stats row ${JSON.stringify(row)}`);
+    if (row.relay.fees.referralsUsd > row.relay.fees.picoswapUsd) throw new Error(`picoswap: referral earnings above PicoSwap's share ${JSON.stringify(row)}`);
     const active = values.some((value) => (value as number) > 0);
     if (active && !CHAINS.includes(RELAY_CHAINS[row.chainId])) throw new Error(`picoswap: activity on unlisted chain id ${row.chainId}`);
   }
