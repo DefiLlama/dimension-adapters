@@ -8,7 +8,7 @@ const MAX_BLOCK_RANGE: Record<string, number> = {
 }
 
 export function aaveLiquidationsExport(
-  config: { [chain: string]: { pools: string[]; start?: string } },
+  config: { [chain: string]: { pools: string[]; start?: string; excludeTxHashes?: string[] } },
   { pullHourly = true, ...otherRootOptions }: {
     pullHourly?: boolean
     [key: string]: any
@@ -16,19 +16,22 @@ export function aaveLiquidationsExport(
 ): SimpleAdapter {
   const exportObject: BaseAdapter = {}
 
-  Object.entries(config).forEach(([chain, { pools, start }]) => {
+  Object.entries(config).forEach(([chain, { pools, start, excludeTxHashes = [] }]) => {
+    const excludedTxs = new Set(excludeTxHashes.map((txHash) => txHash.toLowerCase()))
     exportObject[chain] = {
       fetch: async (options: FetchOptions) => {
         const dailyCollateralLiquidated = options.createBalances()
 
         for (const pool of pools) {
-          const events: any[] = await options.getLogs({
+          const logs: any[] = await options.getLogs({
             target: pool,
             eventAbi: AaveAbis.LiquidationEvent,
             maxBlockRange: MAX_BLOCK_RANGE[chain],
+            onlyArgs: false,
           })
-          for (const e of events) {
-            dailyCollateralLiquidated.add(e.collateralAsset, e.liquidatedCollateralAmount)
+          for (const log of logs) {
+            if (excludedTxs.has(log.transactionHash.toLowerCase())) continue
+            dailyCollateralLiquidated.add(log.args.collateralAsset, log.args.liquidatedCollateralAmount)
           }
         }
 

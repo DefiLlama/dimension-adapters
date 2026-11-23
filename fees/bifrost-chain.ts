@@ -1,32 +1,13 @@
+import { Adapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { FetchOptions } from "../adapters/types";
-import fetchURL from "../utils/fetchURL";
-let res: any;
+import { subscanFeeAdapter } from "../helpers/subscanFees";
 
-const BURN_START_DATE = "2025-11-01";
+const adapter: Adapter = subscanFeeAdapter(CHAIN.BIFROST);
 
-const fetch = async (options: FetchOptions) => {
-  const startTime = new Date(options.startTimestamp * 1000).toISOString().split("T")[0]
-  if (!res)
-    res = fetchURL('https://dapi.bifrost.io/api/dapp/stats/overview')
-  const v = (await res).find((v: { date: string }) => v.date === startTime)
-
-  if(!v) throw new Error(`No data returned from Bifrost for date ${options.dateString}`)
-
-  const dailyFees = options.createBalances();
-  dailyFees.addUSDValue(+v.txFee);
-
-  const dailyRevenue = options.dateString >= BURN_START_DATE ? dailyFees.clone(1 / 10) : options.createBalances();
-
-  return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue };
-};
-
-
-const adapter: any = {
-  version: 1,
-  chains: [CHAIN.BIFROST],
-  fetch,
-  start: '2024-11-08',
+adapter.methodology = {
+  Fees: "Transaction fees paid on Bifrost Polkadot, from Subscan's daily fee totals.",
+  Revenue: "10% of transaction fees, burned since 2025-11-01.",
+  HoldersRevenue: "10% of transaction fees, burned since 2025-11-01.",
 };
 
 export default adapter;

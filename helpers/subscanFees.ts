@@ -25,6 +25,7 @@ export const subscanConfigMap: Record<string, SubscanConfig> = {
     [CHAIN.HYDRADX]: { subscanName: 'hydration', CGToken: 'hydradx', start: '2022-04-07', decimals: 12, burnRatio: 0 },
     [CHAIN.ROBONOMICS]: { subscanName: 'robonomics', CGToken: 'robonomics-network', start: '2024-12-13', decimals: 9, burnRatio: 0 },
     [CHAIN.DARWINIA]: { subscanName: 'darwinia', CGToken: 'darwinia-network-native-token', start: '2023-04-26', decimals: 18, burnRatio: 1 },
+    [CHAIN.BIFROST]: { subscanName: 'bifrost', CGToken: 'bifrost-native-coin', start: '2024-11-08', decimals: 12, burnRatio: 0.1 },
 }
 
 // Asset Hub Migration moved balances, staking and governance from the relay chain to Asset Hub (Kusama 2025-10-07, Polkadot

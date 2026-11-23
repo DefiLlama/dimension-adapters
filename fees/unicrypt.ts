@@ -21,6 +21,7 @@ const config: Record<string, { start: string; contracts: string[] }> = {
       "0x7f5c649856f900d15c83741f45ae46f5c6858234",
       "0xFD235968e65B0990584585763f837A5b5330e6DE",
       "0x30529ac67D5AC5f33a4e7fE533149a567451F023",
+      "0x147aeca171a79466fe9e2c03f21b45155ff403f8", // UNCX V4 Lock
     ],
   },
   [CHAIN.BSC]: {
@@ -92,7 +93,7 @@ const addNativeRevenue = async (options: FetchOptions, contracts: string, collec
     SELECT COALESCE(SUM(raw_amount), 0) AS amount
     FROM ${getAlliumChain(options.chain)}.assets.native_token_transfers
     WHERE to_address IN ${collectors}
-      AND from_address IN ${contracts}
+      AND (from_address IN ${contracts} OR transaction_to_address IN ${contracts})
       AND transfer_type = 'value_transfer'
       AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
       AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
