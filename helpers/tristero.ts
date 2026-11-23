@@ -1151,13 +1151,15 @@ const TAKE_SELECTOR = ORDER_ROUTER_INTERFACE.getFunction('take')!.selector;
 
 // Tristero confirmed these operating wallets retain execution charges on 2026-11-09
 // (see the fee-accounting PR description).
-// Their principal funding and lender repayments are NOT revenue. Unknown recipients
-// leave the window's revenue split unavailable rather than silently receiving a 0% share.
+// Their principal funding and lender repayments are NOT revenue. Execution charges
+// paid to fillers outside this list are supply-side revenue, per the listing's attribution.
 const TRISTERO_FEE_RECIPIENTS = new Set([
   '0x3ac0fcec3fe9504a85485bb1407a094c8ff20506',
   '0x6161b0da58d4a6980c974ff3e679e292f6da15b0',
   '0xdf2e963646a2178ff90734a620f4661e412435be',
 ]);
+
+export const TRISTERO_FILLER_FEE_LABEL = 'Gas Abstraction To Fillers';
 
 type TristeroFeeTransfer = { token: string; amount: bigint; recipient: string };
 
@@ -1247,11 +1249,11 @@ export function getTristeroGasFeeTransfers(tx: TristeroFillTransaction, receipt:
   return fees;
 }
 
-/** Read source and destination execution fees and attribute only verified retained charges. */
+/** Split executed source/destination charges between Tristero and other fillers. */
 export async function fetchTristeroGasAbstractionFees(options: FetchOptions) {
   const fees = options.createBalances();
   const revenue = options.createBalances();
-  let hasUnattributedFees = false;
+  const supplySideRevenue = options.createBalances();
   const addresses = getActiveTristeroV3Routers(options.chain, options.dateString).map(({ router }) => normalizeAddress(router));
   const txs = (await getTristeroFillTransactions(options, addresses))
     .filter(tx => [ORDER_ROUTER_SEND_SELECTOR, TAKE_SELECTOR].includes(tx.input.slice(0, 10).toLowerCase()));
@@ -1262,9 +1264,9 @@ export async function fetchTristeroGasAbstractionFees(options: FetchOptions) {
     for (const fee of getTristeroGasFeeTransfers(tx, receipt)) {
       fees.add(fee.token, fee.amount, METRIC.TRANSACTION_GAS_FEES);
       if (TRISTERO_FEE_RECIPIENTS.has(fee.recipient)) revenue.add(fee.token, fee.amount, METRIC.TRANSACTION_GAS_FEES);
-      else hasUnattributedFees = true;
+      else supplySideRevenue.add(fee.token, fee.amount, TRISTERO_FILLER_FEE_LABEL);
     }
   });
-  return { fees, revenue, hasUnattributedFees };
+  return { fees, revenue, supplySideRevenue };
 }
 
