@@ -67,8 +67,12 @@ const TEAM_ADDRESSES = [
   '3nGNwiz1qevPjhEoQi1dLj16oTkjmbevTnpV9piWY7Kq', // buyback bot: its USDC funding from the gacha sink is not a pack buyback spend
 ]
 
-const EVM_GACHA = '0x4d56B148624e17FD53c08D1C4998e8e3945bDE28';
+const EVM_GACHA_CONTRACTS = [
+  '0x4d56B148624e17FD53c08D1C4998e8e3945bDE28',
+  '0xcAf560ff1Df73ab51FdB5eEDB834581cbc82611f', // https://gacha.collectorcrypt.com/api/evm/chains
+];
 const PAID_EVENT = 'event Paid(address indexed payer, address indexed token, uint256 amount, string memo)';
+const PAID_WITH_SIGNATURE_EVENT = 'event PaidWithSignature(address indexed payer, address indexed token, uint256 amount, string memo, uint8 v, bytes32 r, bytes32 s)';
 const SOLD_BACK_EVENT = 'event SoldBack(address indexed seller, uint256 indexed tokenId, uint256 amount, uint256 nonce)';
 
 const EVM_TEAM_ADDRESSES = new Set([
@@ -83,6 +87,7 @@ const chainConfig: Record<string, { start: string, paymentToken?: string }> = {
   [CHAIN.SOLANA]: { start: '2025-06-04' },
   [CHAIN.BASE]: { start: '2026-08-30', paymentToken: ADDRESSES.base.USDC },
   [CHAIN.ROBINHOOD]: { start: '2026-09-25', paymentToken: ADDRESSES.robinhood.USDG },
+  [CHAIN.ARBITRUM]: { start: '2026-11-03', paymentToken: ADDRESSES.arbitrum.USDC_CIRCLE },
 };
 
 const timeRange = (options: FetchOptions) =>
@@ -96,12 +101,12 @@ const fetchEvm = async (options: FetchOptions) => {
   const paymentToken = chainConfig[options.chain].paymentToken!;
   const isUser = (address: string) => !EVM_TEAM_ADDRESSES.has(address.toLowerCase());
 
-  const paid = await options.getLogs({ target: EVM_GACHA, eventAbi: PAID_EVENT });
-  const soldBack = await options.getLogs({ target: EVM_GACHA, eventAbi: SOLD_BACK_EVENT });
+  const [paid, paidWithSignature, soldBack] = await Promise.all([PAID_EVENT, PAID_WITH_SIGNATURE_EVENT, SOLD_BACK_EVENT]
+    .map(eventAbi => options.getLogs({ targets: EVM_GACHA_CONTRACTS, eventAbi })));
 
   const dailyVolume = options.createBalances();
   const dailyUserFees = options.createBalances();
-  for (const log of paid) {
+  for (const log of [...paid, ...paidWithSignature]) {
     if (log.token.toLowerCase() !== paymentToken.toLowerCase() || !isUser(log.payer)) continue;
     dailyVolume.add(paymentToken, log.amount);
     dailyUserFees.add(paymentToken, log.amount, 'Gacha Pack Sales');
@@ -264,8 +269,8 @@ const fetch = (options: FetchOptions) =>
   options.chain === CHAIN.SOLANA ? fetchSolana(options) : fetchEvm(options);
 
 const methodology = {
-  Volume: "Gacha pack sales across Collector Crypt and integrated storefronts, including Jupiter Gacha, settled onchain on Solana, Base and Robinhood Chain or through the CC fiat/credit-card rail.",
-  Fees: "Gacha card pack sales (on-chain on Solana, Base and Robinhood Chain, and fiat/credit-card) and marketplace royalties, net of gacha pack buybacks, plus the LP fees the treasury claims from the CARDS/USDC pool.",
+  Volume: "Gacha pack sales across Collector Crypt and integrated storefronts, including Jupiter Gacha, settled onchain on Solana, Base, Robinhood Chain and Arbitrum or through the CC fiat/credit-card rail.",
+  Fees: "Gacha card pack sales (on-chain on Solana, Base, Robinhood Chain and Arbitrum, and fiat/credit-card) and marketplace royalties, net of gacha pack buybacks, plus the LP fees the treasury claims from the CARDS/USDC pool.",
   Revenue: "Gacha card pack sales and marketplace royalties net of gacha pack buybacks, plus the LP fees the treasury claims from the CARDS/USDC pool, all kept by the protocol.",
   UserFees: "Gacha pack sales and marketplace royalties paid by users, net of gacha pack buybacks (LP fees excluded).",
   HoldersRevenue: "CARDS bought back with gacha revenue (since April 2026) and the CARDS side of the treasury's claimed LP fees, which the team burns.",
@@ -273,10 +278,10 @@ const methodology = {
 }
 
 const gachaBreakdown = {
-  "Gacha Pack Sales": "Gacha pack sales settled onchain: all non-team USDC inflows to the Solana gacha sink wallets across every price tier, and non-team pack payments to the Base (USDC) and Robinhood Chain (USDG) gacha contract.",
+  "Gacha Pack Sales": "Gacha pack sales settled onchain: all non-team USDC inflows to the Solana gacha sink wallets across every price tier, and non-team pack payments to the Base (USDC), Robinhood Chain (USDG) and Arbitrum (USDC) gacha contracts.",
   "Gacha Fiat Pack Sales": "Gacha pack sales settled via the CC fiat/credit-card rail: all non-team inflows to the fiat-rail wallet, which arrive bundled across packs.",
   "Royalty Fees": "Royalty fees from marketplace transactions.",
-  "Pack Buyback Spends": "Expenditures on gacha pack buybacks: USDC paid out by the Solana gacha sinks and card sell-back payouts of the Base and Robinhood Chain gacha contract.",
+  "Pack Buyback Spends": "Expenditures on gacha pack buybacks: USDC paid out by the Solana gacha sinks and card sell-back payouts of the Base, Robinhood Chain and Arbitrum gacha contracts.",
   "LP Fees": "USDC and CARDS LP fees claimed by the treasury from the CARDS/USDC pool (fee-only claims, liquidity withdrawals excluded).",
 }
 
