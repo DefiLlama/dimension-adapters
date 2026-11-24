@@ -252,9 +252,12 @@ export const LifiDiamonds: IContract = {
     id: '0x026F252016A7C47CDEf1F05a3Fc9E20C92a49C37',
     start: '2025-10-02'
   },
-  // deployments/arc.json; start is Arc's public launch, the first day of sustained swaps
+  // deployments/arc.json; start is Arc's public launch, the first day of sustained swaps.
+  // Fetched via the LI.FI analytics API: most Arc swaps pair USDC with tokens that have no
+  // DefiLlama price yet, so the getLogs path valued them at $0 (~13% of swap volume counted)
   [CHAIN.ARC]: {
     id: '0xA4072583658Fae592A3506A42431cb6316a8d40b',
+    chainId: '5042',
     start: '2026-09-16'
   },
   // Sei is fetched via the LI.FI analytics API (getLogs unreliable here); id is the LI.FI chainId
@@ -363,6 +366,8 @@ export const LifiDiamonds: IContract = {
 export const LIFI_API_CHAINS = [
   CHAIN.BITCOIN, CHAIN.SOLANA, CHAIN.SUI, CHAIN.SEI, CHAIN.ROOTSTOCK,
   CHAIN.TAIKO, CHAIN.FLARE, CHAIN.XDC,
+  // EVM chain whose tokens DefiLlama mostly cannot price yet (see its LifiDiamonds entry)
+  CHAIN.ARC,
   // low-volume chains not on the DefiLlama logs indexer: routed via API to avoid flaky RPC getLogs
   // CHAIN.BOBA, CHAIN.LENS, CHAIN.BOB: commented out like their LifiDiamonds entries
   CHAIN.MOONBEAM, CHAIN.FRAXTAL, CHAIN.CELO, CHAIN.LISK, CHAIN.APECHAIN, CHAIN.INK, CHAIN.MANTLE, CHAIN.METIS, CHAIN.FUSE, CHAIN.CRONOS, CHAIN.GRAVITY, CHAIN.KLAYTN, CHAIN.PLUME, CHAIN.IMX, CHAIN.WC, CHAIN.SWELLCHAIN, CHAIN.ETHERLINK, CHAIN.SUPERPOSITION, CHAIN.RONIN, CHAIN.VANA, CHAIN.SOPHON, CHAIN.PLASMA, CHAIN.FLOW, CHAIN.HEMI, CHAIN.STABLE,
