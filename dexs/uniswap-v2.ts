@@ -3,7 +3,7 @@
 
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
-import { getUniBurnRevenue, getUniV2LogAdapter } from "../helpers/uniswap";
+import { getUniBurnRevenue, getUniV2LogAdapter, uniBurnBreakdownMethodology, uniBurnMethodology } from "../helpers/uniswap";
 import { queryClickhouse } from "../helpers/indexer";
 import { getDefaultDexTokensWhitelisted, getDexTokensBlacklisted } from "../helpers/lists";
 import { METRIC } from "../helpers/metrics";
@@ -295,10 +295,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "User pays 0.3% fees on each swap.",
   UserFees: "User pays 0.3% fees on each swap.",
-  Revenue: 'The Uniswap v2 share of the UNI burned with the swap fees the fee switch collects (one sixth of v2 swap fees goes to the fee collector, 0% before the fee switch). From 28 Dec 2025 on Ethereum, from 8 Mar 2026 on Optimism, Arbitrum, Base, Zora, XLayer, from 2 Jun 2026 on Polygon, BSC, from 27 Jul 2026 on Robinhood, from 5 Oct 2026 on Arc.',
   ProtocolRevenue: 'Protocol make no revenue.',
-  SupplySideRevenue: 'Swap fees kept by liquidity providers: all of them before the fee switch, and the fees minus the v2 share of the UNI burn after it.',
-  HoldersRevenue: 'The Uniswap v2 share of the UNI burned with the swap fees the fee switch collects (one sixth of v2 swap fees goes to the fee collector, 0% before the fee switch). From 28 Dec 2025 on Ethereum, from 8 Mar 2026 on Optimism, Arbitrum, Base, Zora, XLayer, from 2 Jun 2026 on Polygon, BSC, from 27 Jul 2026 on Robinhood, from 5 Oct 2026 on Arc.',
+  ...uniBurnMethodology('v2'),
 }
 
 const breakdownMethodology = {
@@ -308,15 +306,7 @@ const breakdownMethodology = {
   UserFees: {
     [METRIC.SWAP_FEES]: 'User pays 0.3% fees on each swap.',
   },
-  Revenue: {
-    'Fees Used To Burn UNI': 'Swap fees collected by the fee switch are released to whoever burns UNI at the Firepit. Valued as the UNI burned, split across v2, v3 and v4 by what each paid into the fee collector, v2 share shown here.',
-  },
-  SupplySideRevenue: {
-    'Swap Fees To Liquidity Providers': 'v2 swap fees minus the v2 share of the UNI burn, can be negative in a window where a burn exceeds the fees.',
-  },
-  HoldersRevenue: {
-    'Fees Used To Burn UNI': 'Swap fees collected by the fee switch are released to whoever burns UNI at the Firepit. Valued as the UNI burned, split across v2, v3 and v4 by what each paid into the fee collector, v2 share shown here.',
-  },
+  ...uniBurnBreakdownMethodology('v2'),
 }
 
 const adapter: Adapter = {
