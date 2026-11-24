@@ -13,6 +13,13 @@ const LIDO_ORACLE_V1 = '0x442af784A788A5bd6F42A01Ebe9F287a871243fb'
 const LIDO_STAKING_ROUTER = '0xFdDf38947aFB03C621C71b06C9C70bce73f12999';
 const LIDO_AGENT = '0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c'
 const BUYBACKS_SAFE = '0xf6F0732c1e9971497342C295141566E6F1A31e96'
+// FEE_DISTRIBUTOR() of the StakingRouter modules that have one. rebateRecipient() on each is the Agent: on a performance-oracle
+// report with a rebate, processOracleReport sends it the part of the module fee that is not distributed to operators
+const MODULE_FEE_DISTRIBUTORS = [
+  '0xD99CC66fEC647E68294C6477B40fC7E0F6F618D0', // module 3, Community Staking
+  '0x367d23c756599c20DCc8D6943F4976E8F88D60d7', // module 4, Curated Module v2
+  '0x122CdeDD0da630B555050976052C262EA25f8335', // module 5, Community Staking 0x02, no rebate so far
+]
 
 // Rewards Share Easy Track registry: the Agent pays Rewards Share partners and, since the 2025-12-24 Curated Module fee change,
 // the tier rebates through it (https://research.lido.fi/t/11107/2)
@@ -181,6 +188,16 @@ const fetch = async (options: FetchOptions) => {
   dailyRevenue.subtract(rewardsShare, METRIC.STAKING_REWARDS)
   dailyRevenue.subtract(tierRebates, METRIC.STAKING_REWARDS)
 
+  // booked on the day the Agent receives it, like the payouts above
+  const moduleRebates = await addTokensReceived({
+    options,
+    target: LIDO_AGENT,
+    fromAdddesses: MODULE_FEE_DISTRIBUTORS,
+    tokens: [STETH]
+  })
+  dailySupplySideRevenue.subtract(moduleRebates, 'Staking rewards to node operators')
+  dailyRevenue.addBalances(moduleRebates, 'Module fee rebates to DAO treasury')
+
   const buybacks = await addTokensReceived({
     options,
     target: LIDO_AGENT,
@@ -214,10 +231,10 @@ const adapter: Adapter = {
   methodology: {
     Fees: "Staking rewards earned by all ETH staked with Lido: consensus-layer validator rewards plus execution-layer rewards (priority fees and MEV), as booked by each daily oracle report.",
     UserFees: "Lido takes no fees from users.",
-    Revenue: "Lido takes a 10% fee on staking rewards; Revenue is only the DAO-treasury portion of that fee (net of the node-operator share, which is a cost of production booked as SupplySideRevenue). From Lido V2 (first report 2023-05-16) the treasury/operator split is the validator-share-weighted aggregate read from the StakingRouter at the oracle report's block; before V2 the split was a fixed 5%/5%, so half the fee is treasury. Rewards Share payouts to partners and Curated Module tier rebates, which the DAO pays out of its share through the Rewards Share Easy Track, are deducted on the day they are paid.",
+    Revenue: "Lido takes a 10% fee on staking rewards; Revenue is only the DAO-treasury portion of that fee (net of the node-operator share, which is a cost of production booked as SupplySideRevenue). From Lido V2 (first report 2023-05-16) the treasury/operator split is the validator-share-weighted aggregate read from the StakingRouter at the oracle report's block; before V2 the split was a fixed 5%/5%, so half the fee is treasury. Rewards Share payouts to partners and Curated Module tier rebates, which the DAO pays out of its share through the Rewards Share Easy Track, are deducted on the day they are paid. The part of the module fee that staking modules do not distribute to operators and send back to the DAO treasury (rebates) is added on the day it is received.",
     HoldersRevenue: "Tracks LIDO bought back by the DAO as part of the LDO Accumulation Program",
-    ProtocolRevenue: "DAO-treasury portion of the 10% fee, minus the Rewards Share payouts and Curated Module tier rebates paid from it and the LDO bought back under the LDO Accumulation Program; excludes the node-operator share.",
-    SupplySideRevenue: "Staking rewards earned by stETH holders, the node-operator share of the 10% fee (paid to operators for running validators), and the Rewards Share payouts and Curated Module tier rebates the DAO pays out of its share."
+    ProtocolRevenue: "DAO-treasury portion of the 10% fee, plus the module fee rebates it receives from staking modules, minus the Rewards Share payouts and Curated Module tier rebates paid from it and the LDO bought back under the LDO Accumulation Program; excludes the node-operator share net of those rebates.",
+    SupplySideRevenue: "Staking rewards earned by stETH holders, the node-operator share of the 10% fee (paid to operators for running validators) minus the part staking modules send back to the DAO treasury, and the Rewards Share payouts and Curated Module tier rebates the DAO pays out of its share."
   },
   breakdownMethodology: {
     Fees: {
@@ -227,14 +244,15 @@ const adapter: Adapter = {
     Revenue: {
       [METRIC.STAKING_REWARDS]: 'DAO treasury share of staking rewards. From Lido V2 (first report 2023-05-16) the ratio is read from StakingRouter.getStakingFeeAggregateDistributionE4Precision() at the oracle report block — treasuryFee / (modulesFee + treasuryFee); before V2 it is the fixed 5%/5% split (treasury share 0.5). Net of the Rewards Share payouts and tier rebates paid that day (see SupplySideRevenue), so negative on some payout days.',
       [METRIC.MEV_REWARDS]: 'DAO treasury share of MEV rewards.',
+      'Module fee rebates to DAO treasury': 'Part of the module fee not distributed to node operators: stETH the fee distributors of the Community Staking modules and Curated Module v2 send to the DAO treasury, on the day it is received.',
     },
     ProtocolRevenue: {
-      'DAO treasury share': 'DAO treasury share of the 10% fee on staking and MEV rewards, minus Rewards Share payouts and tier rebates and minus LDO bought back under the LDO Accumulation Program (negative on some payout and buyback days).',
+      'DAO treasury share': 'DAO treasury share of the 10% fee on staking and MEV rewards, plus the module fee rebates received from staking modules, minus Rewards Share payouts and tier rebates and minus LDO bought back under the LDO Accumulation Program (negative on some payout and buyback days).',
     },
     SupplySideRevenue: {
       'Staking rewards to ETH stakers': 'Share of ETH rewards from running Beacon chain validators to stakers.',
       'MEV rewards to ETH stakers': 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to stakers.',
-      'Staking rewards to node operators': 'Share of ETH rewards from running Beacon chain validators to node operators.',
+      'Staking rewards to node operators': 'Share of ETH rewards from running Beacon chain validators to node operators, minus the module fee rebates (CL and EL) sent to the DAO treasury that day (see Revenue), so negative on some rebate days.',
       'MEV rewards to node operators': 'Share of ETH rewards from MEV tips on ETH execution layer paid by block builders to node operators.',
       'Rewards Share payouts to partners': 'stETH the DAO pays Rewards Share partners whose referral code or router brings stake (up to 50% of the DAO share of rewards on that stake, https://research.lido.fi/t/11107/2), on the day of each Easy Track top-up through the Rewards Share registry. May include stVaults Rewards Share, which the chain does not mark.',
       'Tier rebates to Curated Module operators': 'stETH the DAO pays Extra Effort, Decentralization and Public Good (client-team) Curated Module operators on top of the 3.5% module fee since the 2025-12-24 fee change, on the day it is paid.',
