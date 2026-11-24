@@ -10,6 +10,8 @@ export const HUBS: Record<string, string[]> = {
     // Global Dollar, deployed 2026-06-14 by the same deployer as Core; proxy admin owned by the Aave governance
     // executor 0x5300A1a1...; fees go to the same collector as Core (0xB9B0b861...)
     '0x62d63197660c080236193CA60b70E49A08E90368',
+    // Sentora, externally curated; same Hub bytecode as Core and proxy admin owned by 0x187AAE17... like Core's
+    '0xD138FcB0E8C52fDbB2Ac4573FA4d8925cf11e9c2',
   ],
   [CHAIN.AVAX]: [
     '0xd07369fAE4A5BB13c9Ce446B052c7867B1AbDf6e', // Core
@@ -26,7 +28,17 @@ export const HUBS: Record<string, string[]> = {
 // hubs deployed after their chain's start: calls to a hub with no code revert, so it is only read from this date
 const HUB_START: Record<string, string> = {
   '0x62d63197660c080236193CA60b70E49A08E90368': '2026-06-15', // Global Dollar
+  '0xD138FcB0E8C52fDbB2Ac4573FA4d8925cf11e9c2': '2026-10-15', // Sentora
 }
+
+// curator's cut (bps) of the protocol fees of an externally curated hub, reserve factor and liquidation fees alike
+// https://governance.aave.com/t/arfc-sentora-externally-curated-hub-spoke-framework-on-aave-v4/25723
+const CURATOR_SHARE_BPS: Record<string, bigint> = {
+  '0xd138fcb0e8c52fdbb2ac4573fa4d8925cf11e9c2': 5000n, // Sentora
+}
+
+const getCuratorFee = (hub: string, protocolFee: bigint): bigint =>
+  protocolFee * (CURATOR_SHARE_BPS[hub.toLowerCase()] ?? 0n) / 10000n
 
 export const getHubs = (chain: string, timestamp: number): string[] =>
   HUBS[chain].filter((hub) => !HUB_START[hub] || timestamp >= Date.parse(`${HUB_START[hub]}T00:00:00Z`) / 1000)
@@ -115,8 +127,10 @@ const fetch = async (options: FetchOptions) => {
     const supplySideRevenue = interestAccrued - protocolRevenue
 
     dailyFees.add(token, interestAccrued, METRIC.BORROW_INTEREST)
-    dailyProtocolRevenue.add(token, protocolRevenue, METRIC.BORROW_INTEREST)
+    const curatorFee = getCuratorFee(allCalls[i].target, protocolRevenue)
+    dailyProtocolRevenue.add(token, protocolRevenue - curatorFee, METRIC.BORROW_INTEREST)
     dailySupplySideRevenue.add(token, supplySideRevenue, METRIC.BORROW_INTEREST)
+    if (curatorFee > 0n) dailySupplySideRevenue.add(token, curatorFee, METRIC.CURATORS_FEES)
   }
 
   const spokes = await discoverSpokes(options.fromApi, hubs, assetCounts)
@@ -198,7 +212,9 @@ const fetch = async (options: FetchOptions) => {
 
       dailyFees.add(collateralToken, totalBonus, METRIC.LIQUIDATION_FEES)
       dailySupplySideRevenue.add(collateralToken, liquidatorBonus, METRIC.LIQUIDATION_FEES)
-      dailyProtocolRevenue.add(collateralToken, protocolFeeAmount, METRIC.LIQUIDATION_FEES)
+      const curatorFee = getCuratorFee(reserves[collateralReserveId].hub, protocolFeeAmount)
+      dailyProtocolRevenue.add(collateralToken, protocolFeeAmount - curatorFee, METRIC.LIQUIDATION_FEES)
+      if (curatorFee > 0n) dailySupplySideRevenue.add(collateralToken, curatorFee, METRIC.CURATORS_FEES)
     }
   }
 
@@ -213,9 +229,9 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: 'Borrow interest paid by borrowers plus protocol share of liquidation bonuses.',
-  Revenue: 'Protocol share of borrow interest plus protocol share of liquidation bonuses.',
-  SupplySideRevenue: 'Interest distributed to depositors after protocol fee.',
-  ProtocolRevenue: 'Protocol share of borrow interest plus protocol share of liquidation bonuses.',
+  Revenue: 'Protocol share of borrow interest plus protocol share of liquidation bonuses, excluding the 50% that goes to Sentora on the hub it curates.',
+  SupplySideRevenue: 'Interest distributed to depositors after protocol fee, liquidation bonuses received by liquidators, and the 50% of protocol fees that goes to Sentora on the hub it curates.',
+  ProtocolRevenue: 'Protocol share of borrow interest plus protocol share of liquidation bonuses, excluding the 50% that goes to Sentora on the hub it curates.',
   HoldersRevenue: 'No revenue shared to AAVE holders.',
 }
 
@@ -225,16 +241,17 @@ const breakdownMethodology = {
     [METRIC.LIQUIDATION_FEES]: 'Liquidation bonuses paid by borrowers.',
   },
   Revenue: {
-    [METRIC.BORROW_INTEREST]: 'Protocol share of borrow interest.',
-    [METRIC.LIQUIDATION_FEES]: 'Protocol share of liquidation bonuses.',
+    [METRIC.BORROW_INTEREST]: 'Protocol share of borrow interest, after the curator share on the Sentora hub.',
+    [METRIC.LIQUIDATION_FEES]: 'Protocol share of liquidation bonuses, after the curator share on the Sentora hub.',
   },
   SupplySideRevenue: {
     [METRIC.BORROW_INTEREST]: 'Interest distributed to depositors after protocol fee.',
     [METRIC.LIQUIDATION_FEES]: 'Liquidation bonuses received by liquidators.',
+    [METRIC.CURATORS_FEES]: 'Sentora\'s 50% of the protocol fees (borrow interest and liquidations) on the Sentora hub.',
   },
   ProtocolRevenue: {
-    [METRIC.BORROW_INTEREST]: 'Protocol share of borrow interest.',
-    [METRIC.LIQUIDATION_FEES]: 'Protocol share of liquidation bonuses.',
+    [METRIC.BORROW_INTEREST]: 'Protocol share of borrow interest, after the curator share on the Sentora hub.',
+    [METRIC.LIQUIDATION_FEES]: 'Protocol share of liquidation bonuses, after the curator share on the Sentora hub.',
   },
 }
 
