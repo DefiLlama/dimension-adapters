@@ -62,6 +62,11 @@ export const LifiDiamonds: IContract = {
     id: '9270000000000000',
     start: '2025-07-01'
   },
+  // Tron is fetched via the LI.FI analytics API; id is the LI.FI chainId
+  [CHAIN.TRON]: {
+    id: '728126428',
+    start: '2026-04-17'
+  },
   [CHAIN.MOONBEAM]: {
     id: '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE',
     chainId: '1284',
@@ -361,7 +366,7 @@ export const LifiDiamonds: IContract = {
 // param comes from LifiDiamonds[chain].chainId ?? id, so set a numeric chainId (or make id itself
 // the numeric LI.FI chainId), else the API returns 400.
 export const LIFI_API_CHAINS = [
-  CHAIN.BITCOIN, CHAIN.SOLANA, CHAIN.SUI, CHAIN.SEI, CHAIN.ROOTSTOCK,
+  CHAIN.BITCOIN, CHAIN.SOLANA, CHAIN.SUI, CHAIN.TRON, CHAIN.SEI, CHAIN.ROOTSTOCK,
   CHAIN.TAIKO, CHAIN.FLARE, CHAIN.XDC,
   // low-volume chains not on the DefiLlama logs indexer: routed via API to avoid flaky RPC getLogs
   // CHAIN.BOBA, CHAIN.LENS, CHAIN.BOB: commented out like their LifiDiamonds entries
