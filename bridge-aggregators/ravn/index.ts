@@ -8,21 +8,26 @@ import { httpGet } from "../../utils/fetchURL";
 //
 // Volume is read from RAVN's own swap record, the public list https://app.ravn.exchange/transactions shows:
 // https://app.ravn.exchange/api/defillama returns, for any window, completed cross-chain swap volume in USD by sending chain, and
-// every swap counted with its transaction or order link, so each figure can be checked on-chain. Only swaps with
-// such a link and a dollar value verified against a native coin, BTC or a stablecoin are counted (swaps paid into a
-// venue's deposit address, e.g. from Bitcoin, have no per-swap link and are left out). The venues RAVN routes
-// through are tracked by DefiLlama, and HyperDex's adapters count its RAVN-routed swaps, so this is double counted.
+// every swap counted with its transaction or order link, so each figure can be checked on-chain (a swap paid into a
+// venue's deposit address, e.g. from Bitcoin, links the user's funding tx as the venue's own record names it). A
+// swap counts only with such a link and a dollar value verified against a native coin, BTC or a stablecoin: the
+// swap's own anchor side, or for a swap between two tokens without one, the native/stablecoin leg its own tx moved
+// through the pools, at DefiLlama's price at that block. The venues RAVN routes through are tracked by DefiLlama,
+// and HyperDex's adapters count its RAVN-routed swaps, so this is double counted.
 
 const RAVN_API = "https://app.ravn.exchange/api/defillama";
 
 // chainId: the chain's id in RAVN's record (Bitcoin -1, Solana -2)
 const chainConfig: Record<string, { chainId: number; start: string }> = {
-  [CHAIN.ROBINHOOD]: { chainId: 4663, start: "2026-10-11" },
-  [CHAIN.ARBITRUM]: { chainId: 42161, start: "2026-10-11" },
-  [CHAIN.ETHEREUM]: { chainId: 1, start: "2026-10-13" },
-  [CHAIN.BSC]: { chainId: 56, start: "2026-10-14" },
-  [CHAIN.BASE]: { chainId: 8453, start: "2026-10-14" },
-  [CHAIN.SOLANA]: { chainId: -2, start: "2026-10-15" },
+  [CHAIN.BSC]: { chainId: 56, start: "2026-07-17" },
+  [CHAIN.BASE]: { chainId: 8453, start: "2026-07-17" },
+  [CHAIN.SOLANA]: { chainId: -2, start: "2026-07-26" },
+  [CHAIN.ETHEREUM]: { chainId: 1, start: "2026-07-27" },
+  [CHAIN.BITCOIN]: { chainId: -1, start: "2026-08-13" },
+  [CHAIN.ROBINHOOD]: { chainId: 4663, start: "2026-08-24" },
+  [CHAIN.TEMPO]: { chainId: 4217, start: "2026-09-15" },
+  [CHAIN.ARBITRUM]: { chainId: 42161, start: "2026-09-21" },
+  [CHAIN.ERA]: { chainId: 324, start: "2026-10-18" },
   [CHAIN.HYPERLIQUID]: { chainId: 999, start: "2026-10-18" },
   [CHAIN.POLYGON]: { chainId: 137, start: "2026-10-20" },
   [CHAIN.AVAX]: { chainId: 43114, start: "2026-10-28" },
@@ -57,7 +62,7 @@ const adapter: SimpleAdapter = {
   adapter: chainConfig,
   doublecounted: true,
   methodology: {
-    BridgeVolume: "Completed cross-chain swap volume in USD by sending chain from RAVN's public swap record (https://app.ravn.exchange/api/defillama), each swap with its transaction link. Counted only when the swap has a public tx or order link and a dollar value verified against a native coin, BTC or a stablecoin in the swap; each swap is valued in USD at its input, or at its output when only the output is priced, and dated by settlement.",
+    BridgeVolume: "Completed cross-chain swap volume in USD by sending chain from RAVN's public swap record (https://app.ravn.exchange/api/defillama), each swap with its transaction link. Counted only when the swap has a public tx or order link and a dollar value verified against a native coin, BTC or a stablecoin: its own anchor side (valued at its input, or its output when only that is priced), or for a swap between two tokens without one, the native/stablecoin leg its own transaction moved through the pools, at DefiLlama's price at that block. Dated by settlement.",
   },
 }
 
