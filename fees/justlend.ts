@@ -23,6 +23,30 @@ interface IAccrueInterestLog {
   interestAccumulated: BigNumberish;
   borrowIndexNew: BigNumberish;
   totalBorrowsNew: BigNumberish;
+  timestamp: number;
+}
+
+// Reserve factor changes since the adapter's start date, from each jToken's `NewReserveFactor` events, e.g.
+// https://tronscan.org/#/transaction/ca6ff3841fc4ed3c20a737bb4f1c3b4134c0d934f7becadee1b6347298014a12
+// The list in getContext holds each market's factor before its first change here.
+const reserveFactorChanges: Record<string, { timestamp: number, factor: string }[]> = {
+  '0xea09611b57e89d67fbb33a516eb90508ca95a3e5': [{ timestamp: 1719651690, factor: '100000000000000000' }], // jUSDT, 2024-06-29
+  '0x6ef7c4870977c6a2543b0e8cf4f659af883c96dc': [{ timestamp: 1751168907, factor: '1000000000000000000' }], // jUSDJ, 2025-06-29
+  '0xcba95c5726a36046503570496e2c5a457ed7c008': [{ timestamp: 1711638504, factor: '1000000000000000000' }], // jWBTT, 2024-03-28
+  '0xa60befaf69b18090b762a83177f09831773967ea': [{ timestamp: 1731900567, factor: '200000000000000000' }], // jETH, 2024-11-18
+  '0x88bb336c70a33fe2506240a19826c2ad487ae6d8': [ // jUSDC
+    { timestamp: 1711638564, factor: '100000000000000000' }, // 2024-03-28
+    { timestamp: 1729827780, factor: '1000000000000000000' }, // 2024-10-25
+  ],
+  '0xe7f8a90ede3d84c7c0166bd84a4635e4675accfc': [{ timestamp: 1752460533, factor: '1000000000000000000' }], // old jUSDD, 2025-07-14
+  '0xddcbbcb2f17db034fc970fbd87ffa7da51bebbfc': [{ timestamp: 1787309226, factor: '1000000000000000000' }], // jETHB, 2026-08-21
+  '0x22163f4926c1b7e1d22dbbc76fbef7f54d364d87': [{ timestamp: 1719651690, factor: '100000000000000000' }], // jwstUSDT, 2024-06-29
+};
+
+// A factor change accrues interest at the old factor in its own transaction, so it applies to later blocks only.
+const getReserveFactor = (market: string, initialFactor: string, timestamp: number): number => {
+  const changes = (reserveFactorChanges[market.toLowerCase()] ?? []).filter((change) => timestamp > change.timestamp);
+  return Number(changes.length ? changes[changes.length - 1].factor : initialFactor) / 1e18;
 }
 
 const fetch = async ({ createBalances, fromTimestamp, toTimestamp, }: FetchOptions): Promise<FetchResultFees> => {
@@ -71,7 +95,12 @@ const getContext = async (timestamp: number, _: ChainBlocks, { fromTimestamp, to
     ADDRESSES.tron.BUSD,
     'TU3kjFuhtEo42tsCBtfYUAZxoqQ4yuSLQ5',
     'TRFe3hT5oYhjSZ6f3ji5FJ7YCfrkWnHRvh',
-    'TGkxzkDKyMeq2T7edKnyjZoFypyzjkkssq'
+    'TGkxzkDKyMeq2T7edKnyjZoFypyzjkkssq',
+    'TXDk8mbtRbXeYuMNS83CfKPaYYT8XWv9Hz', // new USDD
+    'TPFqcBAaaUMCSVRCqPaQ9QnzKhmuoLR6Rc', // USD1
+    'TYhWwKpw43ENFWBTGpzLHn3882f2au7SMi', // WBTC
+    'TUPM7K8REVzD2UdV4R5fe5M8XbnR2DdoJ6', // HTX
+    'TFNirp6PbqYE1ZTtWuCMUKJWLNZkoCoeFJ' // U
   ];
 
   const allMarketAddressess: string[] = [
@@ -93,7 +122,12 @@ const getContext = async (timestamp: number, _: ChainBlocks, { fromTimestamp, to
     '0x71169CC742905196D4ae1b6330e5366B5459A3dC',
     '0x5C78c77bbAD44c3EBD2088E6B7b5D5f01Bb0a8F5',
     '0xDDCBbCb2F17Db034fC970fBD87ffa7Da51bebbfC',
-    '0x22163f4926c1B7e1d22dBbC76FBEF7F54d364d87'
+    '0x22163f4926c1B7e1d22dBbC76FBEF7F54d364d87',
+    '0x65c9fede72ba73cd1b0dca2a974c070153dc6fcb',
+    '0x0dd3f1b2e5781688d5cf8c350050c5c236535642',
+    '0xdb856d6b452971e16b9fc85169b14b781aa5d442',
+    '0x22f39357b77c4a2459e362ae4c6a822028dbeacc',
+    '0x83cdb09fe143998ab7fe4ad59075443a3fdac1f9'
   ];
 
   const reserveFactors: string[] = [
@@ -106,7 +140,9 @@ const getContext = async (timestamp: number, _: ChainBlocks, { fromTimestamp, to
     '50000000000000000', '200000000000000000',
     '50000000000000000', '1000000000000000000',
     '100000000000000000', '100000000000000000',
-    '50000000000000000'
+    '50000000000000000', '50000000000000000',
+    '100000000000000000', '50000000000000000',
+    '300000000000000000', '100000000000000000'
   ]
 
   return {
@@ -177,6 +213,7 @@ const getDailyProtocolFees = async ({
       interestAccumulated: x.result.interestAccumulated,
       borrowIndexNew: x.result.borrowIndex,
       totalBorrowsNew: x.result.totalBorrows,
+      timestamp: x.block_timestamp / 1000,
     }
   });
 
@@ -184,7 +221,7 @@ const getDailyProtocolFees = async ({
     const marketIndex = markets.findIndex((e: string) => e.toLowerCase() === log.market.toLowerCase());
     const underlying = underlyings[marketIndex].toLowerCase();
     dailyProtocolFees.add(underlying, Number(log.interestAccumulated), 'Borrow Interest');
-    dailyProtocolRevenue.add(underlying, Number(log.interestAccumulated) * Number(reserveFactors[marketIndex]) / 1e18, 'Protocol Reserve Share');
+    dailyProtocolRevenue.add(underlying, Number(log.interestAccumulated) * getReserveFactor(markets[marketIndex], reserveFactors[marketIndex], log.timestamp), 'Protocol Reserve Share');
   });
 };
 
