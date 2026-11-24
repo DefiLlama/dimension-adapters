@@ -3,7 +3,7 @@ import ADDRESSES from '../../helpers/coreAssets.json'
 // Users can reclaim SOL rent from closed Associated Token Accounts (ATAs)
 // Protocol charges 2% service fee on reclaimed rent, 100% goes to treasury
 
-import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { FetchOptions, SimpleAdapter, Dependencies } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { getSolanaReceived } from "../../helpers/token";
 import { METRIC } from "../../helpers/metrics";
@@ -58,6 +58,7 @@ const adapter: SimpleAdapter = {
   start: "2026-02-01",
   methodology,
   breakdownMethodology,
+  dependencies: [Dependencies.ALLIUM],
 };
 
 export default adapter;
