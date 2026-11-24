@@ -45,6 +45,9 @@ const dexsConfigs: Record<string, { builder: string; start: string; builderCode:
   // Syndicate (https://syndicate.trade): builder code listed at https://syndicate.trade/learn/custody-and-fees#onchain; first attributed trade 2026-09-25.
   // The v2 Data API leaderboard has no row for it, so the builder name below is the app's name, not a leaderboard name
   "syndicate-predictions": { builder: "Syndicate", start: "2026-09-25", builderCode: "0x629f43fadac903c36ff0310552bbc73749c96c939f0c85142f666c03282603d1" },
+  // eRival (https://erival.gg): builder name "eRival.gg" and code as listed in https://data-api.polymarket.com/v2/builders/volume
+  // (verified); the code is also set in the public client code of https://erival.gg/dashboard; first attributed trade 2026-09-26
+  "erival": { builder: "eRival.gg", start: "2026-09-26", builderCode: "0x887fb9c12a401879896f42a828178d0c29094df17a6e22a3475cfaeb2362ae84" },
 };
 
 const feesConfigs: Record<string, { builderName: string; builderCode: string; start: string; revenueToHolders?: boolean; holdersRevenueRatio?: number; supplySideRevenueRatio?: number }> = {
