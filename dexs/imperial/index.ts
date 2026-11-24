@@ -14,10 +14,13 @@ const PRIME_EXECUTE = "0x17";
 
 const BUILDER_FEES = "Builder Fees To Integrators";
 
+// Fill records: snrAcpt1 (184 bytes), and since the Nov 20, 2026 upgrade snrAcpt2 (the same fields plus 8 bytes at the end).
 const ACCEPT_EVENT_TAG = "c25yQWNwdDE=";
+const ACCEPT_V2_EVENT_TAG = "c25yQWNwdDI=";
 const ACCEPT_EVENT_BYTES = 184;
+const ACCEPT_V2_EVENT_BYTES = 192;
 const eventU64 = (offset: number) =>
-  `IF(bytearray_length(payload) = ${ACCEPT_EVENT_BYTES}, CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(payload, ${offset + 1}, 8))) AS DECIMAL(38,0)))`;
+  `IF(bytearray_length(payload) IN (${ACCEPT_EVENT_BYTES}, ${ACCEPT_V2_EVENT_BYTES}), CAST(bytearray_to_uint256(bytearray_reverse(bytearray_substring(payload, ${offset + 1}, 8))) AS DECIMAL(38,0)))`;
 
 const sql = `
   WITH accept_lines AS (
@@ -29,14 +32,14 @@ const sql = `
     WHERE s.executing_account = '${IMPERIAL_PROGRAM}'
       AND s.tx_success
       AND bytearray_substring(s.data, 1, 1) IN (${ACCEPT}, ${PRIME_EXECUTE})
-      AND (l.msg LIKE 'Program log: SunriseAccept %' OR l.msg LIKE 'Program data: ${ACCEPT_EVENT_TAG} %')
+      AND (l.msg LIKE 'Program log: SunriseAccept %' OR l.msg LIKE 'Program data: ${ACCEPT_EVENT_TAG} %' OR l.msg LIKE 'Program data: ${ACCEPT_V2_EVENT_TAG} %')
       AND TIME_RANGE
   ),
   fills AS (
     SELECT
       IF(payload IS NULL, CAST(regexp_extract(msg, ' filled_size_usd=([0-9]+)', 1) AS DECIMAL(38,0)), ${eventU64(16)}) AS notional,
       IF(payload IS NULL, CAST(regexp_extract(msg, ' fee=([0-9]+)', 1) AS DECIMAL(38,0)), ${eventU64(112)}) AS fee,
-      IF(payload IS NULL, COALESCE(CAST(regexp_extract(msg, ' builder_fee=([0-9]+)', 1) AS DECIMAL(38,0)), 0), ${eventU64(120)}) AS builder_fee
+      IF(payload IS NULL, COALESCE(CAST(regexp_extract(msg, ' builder_fee=([0-9]+)', 1) AS DECIMAL(38,0)), 0), ${eventU64(128)}) AS builder_fee
     FROM accept_lines
   )
   SELECT
