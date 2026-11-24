@@ -130,6 +130,13 @@ const getContext = async (timestamp: number, _: ChainBlocks, { fromTimestamp, to
     '0x83cdb09fe143998ab7fe4ad59075443a3fdac1f9'
   ];
 
+  // The last five (new jUSDD, jUSD1, jWBTC, jHTX, jU) are `reserveFactorMantissa()` on each jToken, read on 2026-11-24. They match the
+  // `reserveFactorMantissa` in each market's first `JTokenStatus` event, and none has emitted `NewReserveFactor`:
+  // new jUSDD https://tronscan.org/#/transaction/94bccc83e179139bcc01f224d99abbfaa087c14e21f9e2764c3982fc5c41f1cc
+  // jUSD1 https://tronscan.org/#/transaction/0daac63db1386cbdff258b825713092fb8e6f4c580041cf8208a13d5d42f63e3
+  // jWBTC https://tronscan.org/#/transaction/95331fbc1530836e78241f718a88c2d0e877a6ef6d5a9d9fa11baa0bcbe5f797
+  // jHTX https://tronscan.org/#/transaction/77d5c962f50222510c164b458f67c6e75ce665bbfe33ced3b72d4eab0f1e04ee
+  // jU https://tronscan.org/#/transaction/0240530ead801fea1377f44a178b3b30b2de6b0e72388cfede5236e988faef68
   const reserveFactors: string[] = [
     '100000000000000000', '50000000000000000',
     '50000000000000000', '1000000000000000000',
