@@ -50,15 +50,18 @@ const topicOf = (eventAbi: string) => ethers.EventFragment.from(eventAbi).topicH
 // Game settings a swap must meet to count. Units are the contract's: fees are 1e7 = 100%,
 // multiplier is 100 = 1x.
 // Minimum time to dispute a report: its settlement time less its dispute delay, in blocks or
-// seconds per the game's time mode.
+// seconds per the game's time mode. Games timed in blocks and created before Base's Denim upgrade
+// ran on 2 s blocks, so their minimum is 2 blocks (4 s); see DENIM_BLOCK below.
 const MIN_DISPUTE_WINDOW = 3n;
+const MIN_DISPUTE_WINDOW_BLOCKS_BEFORE_DENIM = 2n;
 const MAX_TOTAL_FEE = 500n; // swap fee + protocol fee, 0.005%
 // Cap on the game's configured token1 escalation multiplier, 2x. Flexible escalation lets a
 // disputer voluntarily post more, up to the game's escalation halt.
 const MAX_MULTIPLIER = 200n;
-// Contract constants: fee precision, and the flag that charges fees only once a game has
-// reached its escalation halt.
+// Contract constants: fee precision, the flag for games timed in seconds rather than blocks,
+// and the flag that charges fees only once a game has reached its escalation halt.
 const FEE_PRECISION = 10_000_000n;
+const FLAG_TIME_IN_SECONDS = 1n;
 const FLAG_FEES_ONLY_AT_HALT = 32n;
 
 // A dispute is counted only when the round it takes was open to others first, so never when both
@@ -130,13 +133,18 @@ function toRound(log: any, isDispute: boolean): Round {
 
 const byPosition = (a: Round, b: Round) => a.blockNumber - b.blockNumber || a.logIndex - b.logIndex;
 
+const minimumDisputeWindow = (round: Round) =>
+  (round.flags & FLAG_TIME_IN_SECONDS) === 0n && round.createdBlock < DENIM_BLOCK
+    ? MIN_DISPUTE_WINDOW_BLOCKS_BEFORE_DENIM
+    : MIN_DISPUTE_WINDOW;
+
 // Whether a game's swaps can count at all. Every field read here is fixed when the game is
 // created and repeated in each of its events, so any one round answers for the whole game.
 const isEligibleGame = (round: Round) =>
   ALLOWED_TOKENS.has(round.token1) && ALLOWED_TOKENS.has(round.token2)
   && !BLACKLISTED_TOKENS.has(round.token1) && !BLACKLISTED_TOKENS.has(round.token2)
   && [round.token1, round.token2].some((token) => token === USDC || token === ETH)
-  && round.settlementTime - round.disputeDelay >= MIN_DISPUTE_WINDOW
+  && round.settlementTime - round.disputeDelay >= minimumDisputeWindow(round)
   && round.swapFee + round.protocolFee <= MAX_TOTAL_FEE
   && round.multiplier <= MAX_MULTIPLIER;
 
