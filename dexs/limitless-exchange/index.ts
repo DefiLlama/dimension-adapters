@@ -28,6 +28,10 @@ const contracts = {
   FEE_MODULE_V4: "0xF94ef760884b0605E433853Aed17DA574160226E",
   NEG_RISK_FEE_MODULE_V4: "0x6978254F397B18Cf946eED8cBaF3eeE712a712b9",
 
+  // NegRiskCollateralFeeModule wrappers of CTF_EXCHANGE_V3 / NEG_RISK_CTF_EXCHANGE_V3, charge takers in USDC
+  COLLATERAL_FEE_MODULE: "0x7b6ffe5ba8b5ec7afb0aabae629d12da5bc62565",
+  NEG_RISK_COLLATERAL_FEE_MODULE: "0x01b7df643247b377d5c39fcc40b9c28b4a827524",
+
   WRAPPED_COLLATERAL_1: "0x5d6C6a4fEA600E0b1A3Ab3eF711060310E27886A",
   WRAPPED_COLLATERAL_2: "0x8f4fA186E00E376a9054968a03172cfa1c2EedfE",
   WRAPPED_COLLATERAL_3: "0x81140765fcf9D3a66CD9AA11cb972F9e07bc5deA",
@@ -44,6 +48,7 @@ const abi = {
   FPMM_BUY: 'event FPMMBuy (address indexed buyer, uint256 investmentAmount, uint256 feeAmount, uint256 indexed outcomeIndex, uint256 outcomeTokensBought)',
   FPMM_SELL: 'event FPMMSell(address indexed seller, uint256 returnAmount, uint256 feeAmount, uint256 indexed outcomeIndex, uint256 outcomeTokensSold)',
   ORDERS_MATCHED: 'event OrdersMatched (bytes32 indexed takerOrderHash, address indexed takerOrderMaker, uint256 makerAssetId, uint256 takerAssetId, uint256 makerAmountFilled, uint256 takerAmountFilled)',
+  TAKER_ORDER_MATCHED: 'event TakerOrderMatched(bytes32 indexed takerOrderHash, address indexed taker, uint256 indexed tokenId, uint8 side, uint256 takerFillAmount, uint256 notional, uint256 shares, uint256 takerFeeAmount, uint256 maxFeeRateBps, address feeRecipient, address operator)',
 };
 
 const FEE_LABELS = {
@@ -126,6 +131,12 @@ async function fetch(options: FetchOptions) {
     token: ADDRESSES.base.USDC
   });
 
+  const takerFeeLogs = await options.getLogs({
+    eventAbi: abi.TAKER_ORDER_MATCHED,
+    targets: [contracts.COLLATERAL_FEE_MODULE, contracts.NEG_RISK_COLLATERAL_FEE_MODULE],
+  });
+  takerFeeLogs.forEach(log => orderbookFees.add(ADDRESSES.base.USDC, log.takerFeeAmount));
+
   dailyFees.addBalances(orderbookFees, FEE_LABELS.ORDERBOOK);
   dailyFees.addBalances(ammFees, FEE_LABELS.AMM);
 
@@ -170,7 +181,7 @@ const methodology = {
 
 const breakdownMethodology = {
   Fees: {
-    [FEE_LABELS.ORDERBOOK]: "Orderbook trading fees collected by the protocol fee modules post fee refunds",
+    [FEE_LABELS.ORDERBOOK]: "Orderbook taker fees: USDC charged per trade by the collateral fee modules, plus fees swept from the older fee modules post fee refunds",
     [FEE_LABELS.AMM]: "FPMM (AMM) trading fees from FPMMBuy and FPMMSell events",
   },
   Revenue: {

@@ -7,6 +7,7 @@ import { CHAIN } from '../../helpers/chains';
 import { createFactoryExports } from '../../factory/registry';
 import { cache } from "@defillama/sdk";
 import { collectNamedSymbols, parseStuckReserveSymbols } from '../insolventMarkets';
+import ADDRESSES from '../coreAssets.json';
 
 export interface AaveLendingPoolConfig {
   version: 1 | 2 | 3;
@@ -24,6 +25,10 @@ export interface AaveLendingPoolConfig {
   // Requires identifiable positive LP index jumps after an earlier same-transaction update;
   // exclusions with a zero LP share or custom repayment callbacks need separate handling.
   excludeTxHashes?: Array<string>;
+
+  // Reserves stuck at 100% utilization at the max borrow rate with nobody repaying: from `from` (UTC day)
+  // their liquidity index growth is unpaid bad debt, not fees, so their interest is skipped.
+  stuckReserves?: Array<{ reserve: string, from: string, reason: string }>;
 
   // GHO on aave
   selfLoanAssets?: {
@@ -58,6 +63,12 @@ const LiquidityIndexDecimals = BigInt(1e27);
 function excludedTxSet(pool: AaveLendingPoolConfig): Set<string> | null {
   if (!pool.excludeTxHashes?.length) return null
   return new Set(pool.excludeTxHashes.map((txHash) => txHash.toLowerCase()))
+}
+
+function stuckReserveSet(pool: AaveLendingPoolConfig, options: FetchOptions): Set<string> {
+  return new Set((pool.stuckReserves ?? [])
+    .filter(({ from }) => options.startTimestamp >= Date.parse(from) / 1000)
+    .map(({ reserve }) => reserve.toLowerCase()))
 }
 
 const SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
@@ -223,9 +234,12 @@ export async function getPoolFees(pool: AaveLendingPoolConfig, options: FetchOpt
     }
   }
 
+  const stuckReserves = stuckReserveSet(pool, options)
+
   // all calculations use BigInt because aave math has 27 decimals
   for (let reserveIndex = 0; reserveIndex < reservesList.length; reserveIndex++) {
     if (skipReserveIndexes.has(reserveIndex)) continue
+    if (stuckReserves.has(reservesList[reserveIndex].toLowerCase())) continue
     if (!reserveDataBefore[reserveIndex] || !reserveDataAfter[reserveIndex]) continue
     if (pool.version !== 1 && !reserveConfigs[reserveIndex]) continue
 
@@ -862,6 +876,11 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
             version: 3,
             lendingPoolProxy: '0xea5c99a3cca5f95ef6870a1b989755f67b6b1939',
             dataProvider: '0x5f314b36412765f3e1016632fd1ad528929536ca',
+            stuckReserves: [
+              { reserve: ADDRESSES.merlin.WBTC, from: '2026-06-05', reason: 'WBTC borrowed against M-USDT priced at $1 by the oracle; borrowers underwater, no repayments' },
+              { reserve: ADDRESSES.merlin.WBTC_1, from: '2026-07-28', reason: 'M-BTC borrowed against M-USDT priced at $1 by the oracle; borrowers underwater, no repayments' },
+              { reserve: '0x41D9036454BE47d3745A823C4aaCD0e29cFB0f71', from: '2026-09-22', reason: 'SolvBTC.MERL borrowed against M-USDT priced at $1 by the oracle; borrowers underwater, no repayments' },
+            ],
           },
           {
             version: 3,
@@ -1108,6 +1127,9 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
             version: 3,
             lendingPoolProxy: '0xCf1af042f2A071DF60a64ed4BdC9c7deE40780Be',
             dataProvider: '0xddD3D480521bc027596e078BCd1b838d50Daa076',
+            stuckReserves: [
+              { reserve: ADDRESSES.klaytn.WKLAY_1, from: '2025-06-20', reason: '99% owed by 0x5577e8b9, left with no collateral after the 2025-06-12 liquidations' },
+            ],
           },
           {
             version: 3,
@@ -1460,6 +1482,10 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
             version: 2,
             lendingPoolProxy: '0x8a619D8E3BfAb54F7C30Ef39Ce16c53429c739C3',
             dataProvider: '0x7b7Cd09465ff2cab67360D5CD24A3Cc3ad0C856a',
+            stuckReserves: [
+              { reserve: ADDRESSES.base.USDC, from: '2026-06-15', reason: 'borrowed by psXDC-collateral wallets linked to the liquidation fee receiver 0xF2e2A496, never repaid' },
+              { reserve: ADDRESSES.base.WETH, from: '2026-07-13', reason: '100% utilized at the max rate since 07-08, $24 repaid since' },
+            ],
           },
         ],
       },
@@ -1470,6 +1496,11 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
             version: 2,
             lendingPoolProxy: '0xb339448E13E273f6F46e3390e0932Ab7fF9F113F',
             dataProvider: '0x3Bc108Ca0202739FC65bf453A255E5c49Ba6544a',
+            stuckReserves: [
+              { reserve: ADDRESSES.hyperliquid.USDC, from: '2026-09-04', reason: 'borrowed by psXDC-collateral wallets linked to the liquidation fee receiver 0xF2e2A496, never repaid' },
+              { reserve: ADDRESSES.hyperliquid.USDT0, from: '2026-09-04', reason: '92% owed by the liquidation fee receiver 0xF2e2A496, never repaid' },
+              { reserve: ADDRESSES.hyperliquid.WHYPE, from: '2026-09-27', reason: 'borrowers below HF 1 and not liquidated since 09-26' },
+            ],
           },
         ],
       },
@@ -1480,6 +1511,11 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
             version: 2,
             lendingPoolProxy: '0x8a619D8E3BfAb54F7C30Ef39Ce16c53429c739C3',
             dataProvider: '0x2E6bA568aaebadb4db3E018313ee34baD0328988',
+            stuckReserves: [
+              { reserve: '0xfA2958CB79b0491CC627c1557F441eF849Ca8eb1', from: '2026-04-22', reason: 'USDC 97% borrowed by psXDC-collateral wallets linked to the liquidation fee receiver 0xF2e2A496, never repaid' },
+              { reserve: ADDRESSES.xdc.WXDC, from: '2026-06-30', reason: '69% of the debt never repaid' },
+              { reserve: '0xcdA5b77E2E2268D9E09c874c1b9A4c3F07b37555', from: '2026-03-18', reason: 'USDT 67% borrowed by wallet 0x24bD, $41 repaid since' },
+            ],
           },
         ],
       },
