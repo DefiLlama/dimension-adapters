@@ -5,37 +5,33 @@ import { queryAllium } from "../../helpers/allium";
 import { assertComplete, programEventsSql, u64, u8 } from "../../helpers/alliumSolanaEvents";
 import { base58Decode } from "../../helpers/solana";
 
-// realize: Partner launches on Pump.fun backed by the realize Launch Reserve. Every lamport of protocol revenue goes
-// through the program's Revenue Router (`pay_revenue_v4` / `route_revenue_v4`), which splits it on-chain and emits one
-// `RevenueRecorded` event per payment with the exact amount of each leg.
-// Program: https://solscan.io/account/5BEMuVyRY43q8ZnsTVJHqj6fGjXrGew4HCXbNwWXCoKJ
+// realize program, its Revenue Router emits one RevenueRecorded event per payment
 const PROGRAM = "5BEMuVyRY43q8ZnsTVJHqj6fGjXrGew4HCXbNwWXCoKJ";
-// Anyone can open a Pool and a Router under their own authority; only realize's authority (the protocol operator) is
-// counted. https://solscan.io/account/Eqsq1vJRSuRUAp1siGM53Fq5ssaZ4Fteq5kuC1pKGtgN
+// realize's own pool authority, pools opened by others are ignored
 const AUTHORITY = "Eqsq1vJRSuRUAp1siGM53Fq5ssaZ4Fteq5kuC1pKGtgN";
 const AUTHORITY_HEX = Buffer.from(base58Decode(AUTHORITY)).toString("hex");
 
-// Anchor event discriminator of RevenueRecorded (sha256("event:RevenueRecorded")[0..8]), from the program's IDL.
-const REVENUE_RECORDED = "bc2bc242a0b9f4f0";
-// RevenueRecorded, byte offsets with the discriminator: authority 8, pool 40, payer 72, routing_version 104, kind 105,
-// lamports 106, recipients [4] 114, bps [4] 242, legs [5] 250 (buyback, operations, builder rewards, Reserve, POL),
-// to_suppliers 290, to_house 298, share_price_e9 306. 322 bytes in all.
+// RevenueRecorded (program IDL), byte offsets: authority 8, kind 105, lamports 106, legs 250 (buyback, operations,
+// builder rewards, Reserve, POL), to_suppliers 290, to_house 298
+const REVENUE_RECORDED = "BC2BC242A0B9F4F0";
 const REVENUE_RECORDED_LENGTH = 322;
 
-// `kind` of a payment (lib.rs RevenueKind)
-const KINDS: Record<number, string> = {
-  0: "Launch Creation Fees",
-  1: "Success Share",
-  2: "Creator Fee Share",
-  3: "Founder Purchase Fees",
-  4: "Other Protocol Fees",
-  5: "Launch Returns Above Principal",
-  6: "Launch Extension Fees",
-};
+// indexed by the program's RevenueKind
+const KINDS = [
+  { label: "Launch Creation Fees", description: "Fees Partner builders pay to create a launch." },
+  { label: "Success Share", description: "Success shares Partner launches pay to realize." },
+  { label: "Creator Fee Share", description: "realize's share of the Pump.fun creator fees of Partner launches." },
+  { label: "Founder Purchase Fees", description: "Fees on founder purchases in Partner launches." },
+  { label: "Other Protocol Fees", description: "Other fees Partner builders pay to realize." },
+  { label: "Launch Returns Above Principal", description: "The Launch Reserve's returns above the principal it put into each launch, from creator fees and token sales past purchase cost." },
+  { label: "Launch Extension Fees", description: "Fees Partner builders pay to extend a launch." },
+];
 
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
   const rows = await queryAllium(`
@@ -62,45 +58,55 @@ const fetch = async (options: FetchOptions) => {
 
   const check = rows.find((row: any) => String(row.row_kind).toLowerCase() === "check");
   assertComplete(check, "realize", options);
-  if (Number(check.unknown_layout) > 0) throw new Error(`realize: ${check.unknown_layout} RevenueRecorded events with an unknown layout, the program was likely upgraded`);
+  if (Number(check.unknown_layout) > 0) throw new Error(`realize: ${check.unknown_layout} RevenueRecorded events with an unknown layout`);
 
   const SOL = ADDRESSES.solana.SOL;
   rows.filter((row: any) => String(row.row_kind).toLowerCase() === "revenue").forEach((row: any) => {
-    const label = KINDS[Number(row.kind)];
-    if (!label) throw new Error(`realize: unknown revenue kind ${row.kind}`);
-    const total = BigInt(row.lamports), buyback = BigInt(row.buyback), operations = BigInt(row.operations);
-    const builders = BigInt(row.builders), suppliers = BigInt(row.suppliers), house = BigInt(row.house);
-    // the legs and the Reserve's two credits add up to the payment, to the lamport (checked by the program)
-    if (buyback + operations + builders + suppliers + house !== total) throw new Error(`realize: revenue legs of kind ${row.kind} do not add up`);
+    const kind = KINDS[Number(row.kind)];
+    if (!kind) throw new Error(`realize: unknown revenue kind ${row.kind}`);
+    const [total, buyback, operations, builders, suppliers, house] =
+      [row.lamports, row.buyback, row.operations, row.builders, row.suppliers, row.house].map((amount) => BigInt(amount));
+    if (buyback + operations + builders + suppliers + house !== total) throw new Error(`realize: revenue legs of ${kind.label} do not add up`);
 
+    const { label } = kind;
     dailyFees.add(SOL, total.toString(), label);
-    dailyRevenue.add(SOL, total.toString(), label);
-    // where each payment went, all of it protocol revenue
-    dailyProtocolRevenue.add(SOL, buyback.toString(), `${label} To Buyback Vault`);
+    dailySupplySideRevenue.add(SOL, suppliers.toString(), `${label} To Reserve Suppliers`);
+    dailySupplySideRevenue.add(SOL, builders.toString(), `${label} To Builder Rewards`);
+    dailyRevenue.add(SOL, buyback.toString(), `${label} To Buyback`);
+    dailyRevenue.add(SOL, operations.toString(), `${label} To Operations`);
+    dailyRevenue.add(SOL, house.toString(), `${label} To House Capital`);
+    dailyHoldersRevenue.add(SOL, buyback.toString(), `${label} To Buyback`);
     dailyProtocolRevenue.add(SOL, operations.toString(), `${label} To Operations`);
-    dailyProtocolRevenue.add(SOL, builders.toString(), `${label} To Builder Rewards`);
-    dailyProtocolRevenue.add(SOL, (suppliers + house).toString(), `${label} To Launch Reserve`);
+    dailyProtocolRevenue.add(SOL, house.toString(), `${label} To House Capital`);
   });
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue };
+  return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyHoldersRevenue, dailyProtocolRevenue };
 };
 
 const methodology = {
-  Fees: "All revenue paid into the realize Revenue Router, read from the program's RevenueRecorded events: the Launch Reserve's returns above the principal of each launch it funds (creator fees and program sales past purchase cost), launch creation fees, creator fee shares and the other fees builders pay to the protocol.",
-  Revenue: "All of it. Every payment into the Revenue Router is protocol revenue; the router then splits it on-chain between the buyback vault (40%), the Launch Reserve (40%), operations (15%) and Builder Rewards (5%).",
-  ProtocolRevenue: "Same as Revenue, broken down by the leg of the Revenue Router each lamport went to.",
+  Fees: "Fees Partner launches pay to realize (launch creation, extension and founder purchase fees, success and creator fee shares) plus the Launch Reserve's returns above the principal it puts into each launch; pools run by other operators are excluded.",
+  Revenue: "The part of realize's fees and Launch Reserve returns kept by the protocol: the buyback vault, operations and the house's share of the Launch Reserve.",
+  SupplySideRevenue: "The part of realize's fees and Launch Reserve returns paid to Launch Reserve suppliers (rSOL holders) and to the Builder Rewards vault for Partner builders.",
+  HoldersRevenue: "The part of realize's fees and Launch Reserve returns sent to the buyback vault for $REALIZE buy-and-burns.",
+  ProtocolRevenue: "The part of realize's fees and Launch Reserve returns sent to operations and to the house's capital in the Launch Reserve.",
 };
 
-const labels = Object.values(KINDS);
+const LEGS: Record<string, (label: string) => string> = {
+  "Buyback": (label) => `The buyback leg of ${label}, held in the buyback vault for $REALIZE buy-and-burns.`,
+  "Operations": (label) => `The operations and security leg of ${label}.`,
+  "House Capital": (label) => `The house's share of the Launch Reserve leg of ${label}.`,
+  "Reserve Suppliers": (label) => `The rSOL suppliers' share of the Launch Reserve leg of ${label}.`,
+  "Builder Rewards": (label) => `The Builder Rewards leg of ${label}, paid to Partner builders as milestone prizes.`,
+};
+const legBreakdown = (legs: string[]) =>
+  Object.fromEntries(KINDS.flatMap(({ label }) => legs.map((leg) => [`${label} To ${leg}`, LEGS[leg](label)])));
+
 const breakdownMethodology = {
-  Fees: Object.fromEntries(labels.map((l) => [l, `${l} paid into the Revenue Router.`])),
-  Revenue: Object.fromEntries(labels.map((l) => [l, `${l} paid into the Revenue Router.`])),
-  ProtocolRevenue: Object.fromEntries(labels.flatMap((l) => [
-    [`${l} To Buyback Vault`, `The buyback leg of ${l}, held in the program's buyback vault for $REALIZE buy-and-burns.`],
-    [`${l} To Operations`, `The operations and security leg of ${l}.`],
-    [`${l} To Builder Rewards`, `The Builder Rewards leg of ${l}, paid to Partner builders as milestone prizes.`],
-    [`${l} To Launch Reserve`, `The Launch Reserve leg of ${l}, credited to the Reserve's rSOL suppliers and house capital.`],
-  ])),
+  Fees: Object.fromEntries(KINDS.map(({ label, description }) => [label, description])),
+  Revenue: legBreakdown(["Buyback", "Operations", "House Capital"]),
+  SupplySideRevenue: legBreakdown(["Reserve Suppliers", "Builder Rewards"]),
+  HoldersRevenue: legBreakdown(["Buyback"]),
+  ProtocolRevenue: legBreakdown(["Operations", "House Capital"]),
 };
 
 const adapter: SimpleAdapter = {
