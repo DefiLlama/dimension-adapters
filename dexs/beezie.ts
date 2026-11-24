@@ -216,9 +216,44 @@ const fetchBase = async (options: FetchOptions) => {
 
 const SOLANA_USDC = ADDRESSES.solana.USDC;
 
-const SOLANA_CLAW_POOL_WALLET = "3K3MmyppnUDhd2o7qSYL8fmcw44f9gm4MdweFr1kF1xY";
-const SOLANA_CLAW_POOL_USDC_ACCOUNT =
-  "6a8h8nwXrvsJMPFbHqaQEQqZ18FzvsJzBiXj2SdTzB4C";
+// Every pool wallet the claw factory has pointed at, newest first. Old ones
+// stay so history keeps counting, and pool-to-pool moves between them are
+// excluded like any other transfer the pool sends itself.
+const SOLANA_CLAW_POOL_WALLETS = [
+  "5JBxgSMDiuzFviPvmhScxo8FbJgTkWS6PDy77qsDNmeQ",
+  "HxC3wwuMLgb44g8H2g2hYDDNdrWxtyuFiT9TNqUwHR82",
+  "3K3MmyppnUDhd2o7qSYL8fmcw44f9gm4MdweFr1kF1xY",
+];
+const SOLANA_CLAW_POOL_USDC_ACCOUNTS = [
+  "7WNczFwEYSrQSG7nWfDyJnVTSy3wB8PG8Ky99f4DReva",
+  "4GwfrCbTqFq6fGGbunX5jcxTdb2M2EoPYBcU5HZYuJ6Z",
+  "6a8h8nwXrvsJMPFbHqaQEQqZ18FzvsJzBiXj2SdTzB4C",
+];
+const SOLANA_CLAW_POOL_FUNDERS = [
+  "2PjQx7qUUYnNPqmyXtP1ScauG3eYbq65rMkju5FEc3gW",
+  "CPT6zgzC9nQvAXccJJCBfhPotbqXA2Yf9qNU97unFrCU",
+  "HPBSt5k8Lrm7zp3SJ7GECDocKn6TDxSP3bygWAKrU4Q5",
+  "AMA8rDnujbnDCe9m7UrS6CrcZGVRH7itJxyFwzadNU2m",
+  "6LY1JzAFVZsP2a2xKrtU6znQMQ5h4i7tocWdgrkZzkzF",
+  "8g1gYt8tFYP8Yo4Wvz1VpUsfouH1kL79wxeiRvyB4hND",
+  "4XgV4PgJsLEL1TrbTvKDxg1njoZuKouFHur4WAcWTt3o",
+  "EXj5URFQ1kWrWEbHJpK4kURvzrtA1dtCgCFrUG6Sx8ty",
+  "DCNrRnjXMjyMbdPHaEXfDik8LXZ3UCdvkzQRY6KvSu5E",
+  "RNXDmNbPCaSxmsft6My1U5HKj91ZagztxWALq24KMLL",
+  "HEcN54bX5HH2H6V5sQP6TX8ZbFJ7Aa1xr7krB6XTqWuf",
+  "ppUYoqfCmntA9MBtH5PjD1HS3WQQUw58PmpzbNA4e4p",
+  "37N2ww3itDNgQBNWzuDCYyv7ssX9uriKC868ibPFwm6S",
+  "DVNnFArZavoagFdyHyEYH9gmRRoma2vLW5dsy8Y2q9WR",
+  "GjCxW9PdP5AAa4gR6Gsfb4gA4Jk64Aza4ZqYgKyo3B2t",
+  "9DervLqafe1AJSgBiLxzf2S88eeYNnJurb8FZUcM919d",
+  "6tRZbWA2j5SwZFPTiKH6oPPj4pqZzMShzbFKg9dY9Ued",
+  "485uyGQxqU9FbV4hLmHLJswp8GbfukrgtxmijM4gPhmy",
+  "12pdcBF9rzQV6aJ7k3eRo28MTDnw9fU1XjCZVdfwWC6L",
+  "BvXzfF1K9VnkopbC2mK3i4X8mNUhdHyUbpbJAUTCMmxz",
+  "GLkMggn8Vr6dCc1E58ro4kjY1VoYpkRPeC9JgVCDkbZM",
+  "E1bQJ8eMMn3zmeSewW3HQ8zmJr7KR75JonbwAtWx2bux",
+  "6xTBTqJMBr5m7BKqVxmW2x11DfqUwtD3TJsqpxELx72L",
+];
 
 // BuybackExecuted borsh layout after the 8-byte Anchor event tag and 8-byte
 // discriminator: buyback_id u64, machine_id u64, user (32), nft_mints
@@ -264,9 +299,13 @@ const fetchSolana = async (options: FetchOptions) => {
   await getSolanaReceived({
     options,
     balances: dailyVolume,
-    targets: [SOLANA_CLAW_POOL_WALLET],
+    targets: SOLANA_CLAW_POOL_WALLETS,
     mints: [SOLANA_USDC],
-    blacklists: [SOLANA_CLAW_POOL_WALLET, SOLANA_CLAW_POOL_USDC_ACCOUNT],
+    blacklists: [
+      ...SOLANA_CLAW_POOL_WALLETS,
+      ...SOLANA_CLAW_POOL_USDC_ACCOUNTS,
+      ...SOLANA_CLAW_POOL_FUNDERS,
+    ],
   });
 
   dailyVolume.add(SOLANA_USDC, await fetchSolanaSwapVolume(options));
