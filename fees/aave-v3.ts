@@ -229,7 +229,7 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
 }
 
 const methodology = {
-  Fees: 'Include borrow interest, flashloan fee, liquidation fee, penalty paid by borrowers, swap fees from the Aave frontend (Paraswap, then CoW Swap), Chainlink SVR (MEV recapture from Ethereum liquidations), and GHO Stability Module swap fees on Ethereum.',
+  Fees: 'Include borrow interest, flashloan fee, liquidation fee, penalty paid by borrowers, swap fees from the Aave frontend (Paraswap, then CoW Swap), Chainlink SVR (MEV recapture from Ethereum liquidations; on Base and Arbitrum it is part of the liquidation bonus already counted), and GHO Stability Module swap fees on Ethereum.',
   Revenue: 'Amount of fees go to Aave treasury.',
   SupplySideRevenue: 'Amount of fees distributed to suppliers.',
   ProtocolRevenue: 'Amount of fees go to Aave treasury.',
@@ -255,14 +255,14 @@ const breakdownMethodology = {
     [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors.',
     'Paraswap Partner Fees': 'Swap fees share from Paraswap from users by using Aave frontend.',
     'CowSwap Partner Fees': 'All of the CoW Swap partner fee from the Aave frontend is paid to the Aave Collector.',
-    'Chainlink SVR': '100% of MEV recapture from Aave V3 Ethereum liquidations accrues to the Aave Collector.',
+    'Chainlink SVR': '100% of MEV recapture from Aave V3 Ethereum liquidations accrues to the Aave Collector. On Base since April 2026 and Arbitrum since May 2026, the 65% share of the SVR auction bids that Chainlink pays to the Aave Collector, counted when paid.',
     'GSM Swap Fees': 'All GHO Stability Module swap fees accrue to the Aave Collector, the GSM GHO treasury.',
     'Borrow Interest GSM': 'All interest on the waEthUSDC and waEthUSDT held by the GHO Stability Modules, which the modules turn into GHO fees for the Aave Collector.',
   },
   SupplySideRevenue: {
     [METRIC.BORROW_INTEREST]: 'Amount of interest distributed to lenders from all markets (excluding GHO).',
     'Borrow Interest GHO': 'No supply side revenue for lenders on GHO market, nor on the GHO supplied by the Aave DAO GHO facilitators in the Prime and Horizon markets.',
-    [METRIC.LIQUIDATION_FEES]: 'Fees from liquidation penalty and bonuses are distributed to lenders.',
+    [METRIC.LIQUIDATION_FEES]: 'Liquidation bonuses kept by liquidators, less the Chainlink SVR payouts to the Aave Collector on Base and Arbitrum, which liquidators fund out of the bonus. Negative on days a payout is larger than that day\'s bonuses.',
     [METRIC.FLASHLOAN_FEES]: 'Flashloan fees paid by flashloan borrowers and executors are distributed to lenders.',
     'Borrow Interest GSM': 'No supply side revenue on the waEthUSDC and waEthUSDT held by the GHO Stability Modules.',
   },
@@ -273,7 +273,7 @@ const breakdownMethodology = {
     [METRIC.FLASHLOAN_FEES]: 'A portion of fees paid by flashloan borrowers and executors are collected by Aave treasury.',
     'Paraswap Partner Fees': 'Swap fees share from Paraswap from users by using Aave frontend.',
     'CowSwap Partner Fees': 'All of the CoW Swap partner fee from the Aave frontend is paid to the Aave Collector.',
-    'Chainlink SVR': '100% of MEV recapture from Aave V3 Ethereum liquidations accrues to the Aave Collector.',
+    'Chainlink SVR': '100% of MEV recapture from Aave V3 Ethereum liquidations accrues to the Aave Collector. On Base since April 2026 and Arbitrum since May 2026, the 65% share of the SVR auction bids that Chainlink pays to the Aave Collector, counted when paid.',
     'GSM Swap Fees': 'All GHO Stability Module swap fees accrue to the Aave Collector, the GSM GHO treasury.',
     'Borrow Interest GSM': 'All interest on the waEthUSDC and waEthUSDT held by the GHO Stability Modules, which the modules turn into GHO fees for the Aave Collector.',
   },
@@ -307,6 +307,12 @@ const VeloraAugustusV6 = '0x6a000f20005980200259b80c5102003040001068';
 // of recaptured value to the Aave Collector. Weekly distributions started
 // 2025-04-08. Methodology: see Chainlink ARFC linked from #6464.
 const ChainlinkSVRDistributor = '0x149b41b1e4c00b5f9aa34b14fd9f84cfd2f014e5';
+// On Base and Arbitrum SVR runs on Chainlink's Atlas auctions. The winning bids collect in this Chainlink
+// RBACTimelock, which pays Aave's 65% share to the Collector in native ETH, usually weekly, since 2026-04-07 (Base)
+// and 2026-05-05 (Arbitrum). Sources: https://docs.chain.link/data-feeds/svr-feeds/searcher-onboarding-atlas and
+// https://governance.aave.com/t/arfc-svr-expansion-next-phase-of-multi-network-expansion/25332
+const ChainlinkAtlasSvrTimelock = '0x52b93fca1f672800b5fdbcbdaf7c76646470c506';
+const CallExecutedEvent = 'event CallExecuted(bytes32 indexed id, uint256 indexed index, address target, uint256 value, bytes data)';
 // CoW Protocol pays partner fees weekly, in the native token, from its "Solver payouts" Safe
 // (https://docs.cow.fi/governance/multisigs); on Arbitrum and Polygon it pays from 0x66331f0b..., a Safe that
 // shares its owners. Since 2026-04-23 the Aave frontend's CoW Swap partner fee (app codes aave-v3-interface-*)
@@ -351,6 +357,7 @@ export const chainConfig: Record<string, any> = {
     start: '2022-03-12',
     treasuryCollector: '0x053D55f9B5AF8694c503EB288a1B7E552f590710',
     veloraAugustus: VeloraAugustusV6,
+    chainlinkSvrTimelock: ChainlinkAtlasSvrTimelock,
     cowPartnerFeePayer: CowPayoutSafeArbitrumPolygon,
   },
   [CHAIN.POLYGON]: {
@@ -376,6 +383,7 @@ export const chainConfig: Record<string, any> = {
     start: '2023-08-09',
     treasuryCollector: '0xBA9424d650A4F5c80a0dA641254d1AcCE2A37057',
     veloraAugustus: VeloraAugustusV6,
+    chainlinkSvrTimelock: ChainlinkAtlasSvrTimelock,
     cowPartnerFeePayer: CowPayoutSafe,
   },
   [CHAIN.BSC]: {
@@ -517,6 +525,18 @@ const fetch = async (options: FetchOptions) => {
     }
   }
   
+  // Chainlink SVR on Base and Arbitrum, counted when the Collector is paid. The auction bids are paid out of the
+  // liquidation bonus, which the liquidation leg already books in full as fees and, net of the protocol fee, as supply
+  // side, so the share paid to the Collector moves from supply side to revenue and fees stay the same.
+  if (chainConfig[options.chain].chainlinkSvrTimelock) {
+    const calls = await options.getLogs({ target: chainConfig[options.chain].chainlinkSvrTimelock, eventAbi: CallExecutedEvent })
+    for (const call of calls) {
+      if (call.target.toLowerCase() !== chainConfig[options.chain].treasuryCollector.toLowerCase()) continue
+      dailyProtocolRevenue.addGasToken(call.value, 'Chainlink SVR')
+      dailySupplySideRevenue.subtractToken(ADDRESSES.null, call.value, METRIC.LIQUIDATION_FEES)
+    }
+  }
+
   // swap fees share from CoW Swap, paid to the collector by CoW Protocol's payout Safe through
   // Safe.execTransaction (internal value transfers), so read from Allium like the SVR leg above
   if (chainConfig[options.chain].cowPartnerFeePayer && options.endTimestamp > CowPartnerFeesToCollectorFrom) {
@@ -556,6 +576,7 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  allowNegativeValue: true, // an SVR payout on Base or Arbitrum covers a week or more of liquidations and can exceed the supply side of the hour it is paid
   methodology,
   breakdownMethodology,
   adapter: {}
