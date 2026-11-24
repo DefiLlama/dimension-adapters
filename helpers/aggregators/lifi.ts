@@ -357,6 +357,40 @@ export const LifiDiamonds: IContract = {
     id: '0x026F252016A7C47CDEf1F05a3Fc9E20C92a49C37',
     chainId: '988',
     start: '2025-11-11'
+  },
+  // Chains below are fetched via the LI.FI analytics API; id is the LI.FI chainId
+  // (https://li.quest/v1/chains). start = first DONE LI.FI transfer sent from the chain.
+  [CHAIN.MEGAETH]: {
+    id: '4326',
+    start: '2026-01-08'
+  },
+  [CHAIN.MORPH]: {
+    id: '2818',
+    start: '2026-03-10'
+  },
+  [CHAIN.TEMPO]: {
+    id: '4217',
+    start: '2026-03-30'
+  },
+  [CHAIN.PHAROS]: {
+    id: '1672',
+    start: '2026-04-28'
+  },
+  [CHAIN.SOMNIA]: {
+    id: '5031',
+    start: '2026-05-14'
+  },
+  [CHAIN.OG]: {
+    id: '16661',
+    start: '2026-06-12'
+  },
+  [CHAIN.INJECTIVE]: {
+    id: '1776',
+    start: '2026-07-17'
+  },
+  [CHAIN.ELYSIUM]: {
+    id: '99901',
+    start: '2026-11-06'
   }
 }
 
@@ -371,6 +405,7 @@ export const LIFI_API_CHAINS = [
   // low-volume chains not on the DefiLlama logs indexer: routed via API to avoid flaky RPC getLogs
   // CHAIN.BOBA, CHAIN.LENS, CHAIN.BOB: commented out like their LifiDiamonds entries
   CHAIN.MOONBEAM, CHAIN.FRAXTAL, CHAIN.CELO, CHAIN.LISK, CHAIN.APECHAIN, CHAIN.INK, CHAIN.MANTLE, CHAIN.METIS, CHAIN.FUSE, CHAIN.CRONOS, CHAIN.GRAVITY, CHAIN.KLAYTN, CHAIN.PLUME, CHAIN.IMX, CHAIN.WC, CHAIN.SWELLCHAIN, CHAIN.ETHERLINK, CHAIN.SUPERPOSITION, CHAIN.RONIN, CHAIN.VANA, CHAIN.SOPHON, CHAIN.PLASMA, CHAIN.FLOW, CHAIN.HEMI, CHAIN.STABLE,
+  CHAIN.MEGAETH, CHAIN.MORPH, CHAIN.TEMPO, CHAIN.PHAROS, CHAIN.SOMNIA, CHAIN.OG, CHAIN.INJECTIVE, CHAIN.ELYSIUM,
 ]
 
 // LI.FI dropped support for these chains: they are absent from li.quest/v1/chains and the analytics
