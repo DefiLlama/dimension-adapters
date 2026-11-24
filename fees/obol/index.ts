@@ -22,6 +22,7 @@ const correctedTotalRevenues: Record<string, number> = {
   '2026-10-08': 124.51, //api returns 210.47: an ~86 ETH claim is counted in both total_claimed (118.66) and total_eth_transferred (88.11); counted once it is 3.70 + 32.70 + 88.11, vs 124.54 (previous day) and 124.39 (next day)
   '2026-10-14': 124.73, //api returns 212.71: total_eth_transferred is 175.97, exactly double the ~88 ETH it reads on the surrounding days (87.82 / 87.88); counted once it is 4.04 + 32.70 + 87.99, vs 124.51 (previous day) and 124.67 (next day)
   '2026-10-21': 125.26, //api returns 213.35: total_eth_transferred is 176.18, exactly double the ~88 ETH it reads on the surrounding days (87.81 / 88.06); counted once it is 3.62 + 33.55 + 88.09, vs 124.91 (previous day) and 125.29 (next day)
+  '2026-11-23': 128.71, //api returns 215.80: total_eth_transferred is 176.38, double the ~88-90 ETH around it (88.66 / 89.76); midpoint of 128.07 (previous day) and 129.35 (next day)
 }
 
 const correctedTotalFees: Record<string, number> = {

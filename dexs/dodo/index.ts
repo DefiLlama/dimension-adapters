@@ -26,6 +26,10 @@ const DODO_SWAP = 'event DODOSwap(address fromToken, address toToken, uint256 fr
 // arbitrum 1839, scroll 1870, ethereum 4303, polygon 10353, bsc 25064 are hundreds+ of targets, so they scan the topic
 const MAX_SWAP_TARGETS = 200
 
+const EXCLUDED_POOLS = [
+  { chain: CHAIN.ETHEREUM, pool: '0x04571c32a4e1c5f39bc3a238cb95b215058c432c', fromBlock: 26480871, reason: 'USDC/USDT pool drained by flash-loan swap loops' },
+]
+
 // V1 pairs are registered by DODOZoo and emit their own events
 const DODO_BIRTH = 'event DODOBirth(address newBorn, address baseToken, address quoteToken)'
 const SELL_BASE = 'event SellBaseToken(address indexed seller, uint256 payBase, uint256 receiveQuote)'
@@ -202,12 +206,14 @@ const fetch = async (options: FetchOptions) => {
     // Reserve six decimal places for within-block order; assumes logIndex is below 1e6.
     return blockNumber * 1e6 + logIndex
   }
+  const excluded = EXCLUDED_POOLS.filter((entry) => entry.chain === options.chain)
+  const isExcluded = (log: any) => excluded.some((entry) => entry.pool === poolOf(log) && Number(log.blockNumber) >= entry.fromBlock)
   // the topic scan returns every DODOSwap on the chain, so keep only DODO's own pools
   const poolList = [...pools]
   const swapLogs = !poolList.length ? [] : (await options.getLogs({
     ...(poolList.length < MAX_SWAP_TARGETS ? { targets: poolList } : { noTarget: true }),
     eventAbi: DODO_SWAP, entireLog: true, parseLog: true,
-  })).filter((log: any) => pools.has(poolOf(log)))
+  })).filter((log: any) => pools.has(poolOf(log)) && !isExcluded(log))
   // V2 pools charge both fees on the output leg: toAmount = gross * (1 - lp - mt).
   // The mt rate is keyed on tx.origin, but only crowdpooling pools (not tracked here) make it user dependent.
   const swapPools = [...new Set(swapLogs.map(poolOf))] as string[]
