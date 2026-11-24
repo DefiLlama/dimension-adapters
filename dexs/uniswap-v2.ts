@@ -3,7 +3,7 @@
 
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
-import { fetchUniBurnInflows, getUniBurnRevenue, getUniV2LogAdapter } from "../helpers/uniswap";
+import { getUniBurnRevenue, getUniV2LogAdapter } from "../helpers/uniswap";
 import { queryClickhouse } from "../helpers/indexer";
 import { getDefaultDexTokensWhitelisted, getDexTokensBlacklisted } from "../helpers/lists";
 import { METRIC } from "../helpers/metrics";
@@ -324,7 +324,6 @@ const adapter: Adapter = {
   pullHourly: true,
   fetch,
   adapter: chainConfig,
-  prefetch: (async (options: FetchOptions) => ({ uniBurnInflows: await fetchUniBurnInflows(options) })) as any,
   methodology,
   breakdownMethodology,
   // burns land in lumps (2,000-4,000 UNI per release), so the burn share of an hourly window can exceed its swap fees and push supply side negative

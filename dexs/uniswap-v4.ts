@@ -64,7 +64,7 @@ import { getDexTokensBlacklisted } from "../helpers/lists";
 import { METRIC } from "../helpers/metrics";
 import { isCoreAsset } from "../helpers/prices";
 import {
-  fetchUniBurnInflows, getEstablishedTokens, getPhantomSwapKeys, getUniBurnRevenue, phantomSwapKey, washDayStart, WASH_DUST_USD,
+  getEstablishedTokens, getPhantomSwapKeys, getUniBurnRevenue, phantomSwapKey, washDayStart, WASH_DUST_USD,
   WASH_MIN_TRADES, WASH_MIN_USD, WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
 } from "../helpers/uniswap";
 import { formatAddress } from "../utils/utils";
@@ -349,16 +349,13 @@ const prefetch: any = async (options: FetchOptions) => {
     -- priced-but-dust pools are noise either way; NULL usd (unpriced by Dune) stays flagged
     AND NOT (u.usd IS NOT NULL AND u.usd < ${WASH_DUST_USD})`;
 
-  const [rows, uniBurnInflows]: [any[], any] = await Promise.all([
-    queryDune('3996608', { fullQuery }, options),
-    fetchUniBurnInflows(options),
-  ]);
+  const rows: any[] = await queryDune('3996608', { fullQuery }, options);
   const washPools: Record<string, Set<string>> = {};
   for (const row of rows) {
     if (!row.chain || !row.id) continue;
     (washPools[row.chain] ??= new Set()).add(String(row.id).toLowerCase());
   }
-  return { washPools, uniBurnInflows };
+  return { washPools };
 }
 
 async function fetch(options: FetchOptions) {

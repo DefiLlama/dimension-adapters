@@ -9,7 +9,7 @@ import { httpPost } from "../utils/fetchURL";
 import { DUNE_DEX_BLACKLIST_TABLE, getDexTokensBlacklisted } from "../helpers/lists";
 import { METRIC } from "../helpers/metrics";
 import {
-  defaultV3SwapEvent, fetchUniBurnInflows, getEstablishedTokens, getUniBurnRevenue, getUniV3LogAdapter, washDayStart, WASH_DUST_USD,
+  defaultV3SwapEvent, getEstablishedTokens, getUniBurnRevenue, getUniV3LogAdapter, washDayStart, WASH_DUST_USD,
   WASH_MIN_TRADES, WASH_MIN_USD, WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
 } from "../helpers/uniswap";
 
@@ -102,22 +102,21 @@ const prefetch: any = async (options: FetchOptions) => {
   const blockchains = Object.values(chainConfig)
     .filter((c) => c.fetch === fetchFromDune)
     .map((c) => c.blockchain);
-  const [rows, washPools, uniBurnInflows] = await Promise.all([
+  const [rows, washPools] = await Promise.all([
     queryDune('3996608', { fullQuery: buildQuery(blockchains, options) }, options) as Promise<any[]>,
     fetchWashPools(blockchains, options),
-    fetchUniBurnInflows(options),
   ]);
   if (rows.length >= DUNE_ROW_LIMIT) {
     console.error(`uniswap-v3: prefetch returned ${rows.length} rows (>= ${DUNE_ROW_LIMIT} cap), falling back to per-chain queries`);
     // null byChain sends each chain to its own query; the wash list still applies
-    return { byChain: null, washPools, uniBurnInflows };
+    return { byChain: null, washPools };
   }
   const byChain: Record<string, any[]> = {};
   for (const r of rows) {
     if (!r.blockchain) continue;
     (byChain[r.blockchain] ??= []).push(r);
   }
-  return { byChain, washPools, uniBurnInflows };
+  return { byChain, washPools };
 }
 
 async function fetchFromDune(options: FetchOptions) {
