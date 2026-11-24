@@ -224,34 +224,39 @@ const SOLANA_CLAW_POOL_WALLETS = [
   "HxC3wwuMLgb44g8H2g2hYDDNdrWxtyuFiT9TNqUwHR82",
   "3K3MmyppnUDhd2o7qSYL8fmcw44f9gm4MdweFr1kF1xY",
 ];
+// USDC accounts of the pool wallets above, same order.
 const SOLANA_CLAW_POOL_USDC_ACCOUNTS = [
   "7WNczFwEYSrQSG7nWfDyJnVTSy3wB8PG8Ky99f4DReva",
   "4GwfrCbTqFq6fGGbunX5jcxTdb2M2EoPYBcU5HZYuJ6Z",
   "6a8h8nwXrvsJMPFbHqaQEQqZ18FzvsJzBiXj2SdTzB4C",
 ];
+// Wallets that top up the pools, each followed by the USDC account(s) it sent
+// from. They only send plain transfers, never pay inside a claw-program tx, so
+// excluding them drops no plays. Snapshot from a scan of every pool tx since
+// 2026-06-28, taken 2026-11-24 (see PR #11312).
 const SOLANA_CLAW_POOL_FUNDERS = [
-  "2PjQx7qUUYnNPqmyXtP1ScauG3eYbq65rMkju5FEc3gW",
+  "2PjQx7qUUYnNPqmyXtP1ScauG3eYbq65rMkju5FEc3gW", // treasury multisig vault (Squads)
   "CPT6zgzC9nQvAXccJJCBfhPotbqXA2Yf9qNU97unFrCU",
-  "HPBSt5k8Lrm7zp3SJ7GECDocKn6TDxSP3bygWAKrU4Q5",
+  "HPBSt5k8Lrm7zp3SJ7GECDocKn6TDxSP3bygWAKrU4Q5", // treasury
   "AMA8rDnujbnDCe9m7UrS6CrcZGVRH7itJxyFwzadNU2m",
-  "6LY1JzAFVZsP2a2xKrtU6znQMQ5h4i7tocWdgrkZzkzF",
+  "6LY1JzAFVZsP2a2xKrtU6znQMQ5h4i7tocWdgrkZzkzF", // exchange hot wallet: withdrawals straight into the pool
   "8g1gYt8tFYP8Yo4Wvz1VpUsfouH1kL79wxeiRvyB4hND",
   "4XgV4PgJsLEL1TrbTvKDxg1njoZuKouFHur4WAcWTt3o",
-  "EXj5URFQ1kWrWEbHJpK4kURvzrtA1dtCgCFrUG6Sx8ty",
+  "EXj5URFQ1kWrWEbHJpK4kURvzrtA1dtCgCFrUG6Sx8ty", // swap-fee wallet sweeping fees into the pool
   "DCNrRnjXMjyMbdPHaEXfDik8LXZ3UCdvkzQRY6KvSu5E",
-  "RNXDmNbPCaSxmsft6My1U5HKj91ZagztxWALq24KMLL",
+  "RNXDmNbPCaSxmsft6My1U5HKj91ZagztxWALq24KMLL", // swap-fee wallet sweeping fees into the pool
   "HEcN54bX5HH2H6V5sQP6TX8ZbFJ7Aa1xr7krB6XTqWuf",
-  "ppUYoqfCmntA9MBtH5PjD1HS3WQQUw58PmpzbNA4e4p",
+  "ppUYoqfCmntA9MBtH5PjD1HS3WQQUw58PmpzbNA4e4p", // marketplace platform-fee wallet
   "37N2ww3itDNgQBNWzuDCYyv7ssX9uriKC868ibPFwm6S",
-  "DVNnFArZavoagFdyHyEYH9gmRRoma2vLW5dsy8Y2q9WR",
+  "DVNnFArZavoagFdyHyEYH9gmRRoma2vLW5dsy8Y2q9WR", // marketplace creator-fee wallet
   "GjCxW9PdP5AAa4gR6Gsfb4gA4Jk64Aza4ZqYgKyo3B2t",
-  "9DervLqafe1AJSgBiLxzf2S88eeYNnJurb8FZUcM919d",
+  "9DervLqafe1AJSgBiLxzf2S88eeYNnJurb8FZUcM919d", // drop program vault (drop sale proceeds)
   "6tRZbWA2j5SwZFPTiKH6oPPj4pqZzMShzbFKg9dY9Ued",
-  "485uyGQxqU9FbV4hLmHLJswp8GbfukrgtxmijM4gPhmy",
+  "485uyGQxqU9FbV4hLmHLJswp8GbfukrgtxmijM4gPhmy", // custody wallet
   "12pdcBF9rzQV6aJ7k3eRo28MTDnw9fU1XjCZVdfwWC6L",
-  "BvXzfF1K9VnkopbC2mK3i4X8mNUhdHyUbpbJAUTCMmxz",
+  "BvXzfF1K9VnkopbC2mK3i4X8mNUhdHyUbpbJAUTCMmxz", // moved the HxC3… balance to 5JBx… on 2026-11-16
   "GLkMggn8Vr6dCc1E58ro4kjY1VoYpkRPeC9JgVCDkbZM",
-  "E1bQJ8eMMn3zmeSewW3HQ8zmJr7KR75JonbwAtWx2bux",
+  "E1bQJ8eMMn3zmeSewW3HQ8zmJr7KR75JonbwAtWx2bux", // CCTP: USDC bridged in from Base
   "6xTBTqJMBr5m7BKqVxmW2x11DfqUwtD3TJsqpxELx72L",
 ];
 
