@@ -4,10 +4,12 @@ import { CHAIN } from "../../helpers/chains";
 // Elysium canonical mining grid and its V2 Treasury, from round 1.
 const grid = "0xFa5856b6f352C0E7863D7F5502564130215bf80F";
 const treasury = "0xDB7CEA5D88492330BBd9FD3E9c7cd91A3604BB95";
+// Round 1 settlement: https://elysium.kinetiq.xyz/tx/0x2caef5fc10adf6a1491b4161232f8959df68926b79919c2bafa0dfe4399e496e
 const firstSettlementBlock = 5534257;
 const settledEvent = "event RoundSettled(uint64 indexed roundId,uint8 winningBlock,address topMiner,uint256 totalWinnings,uint256 topMinerReward,uint256 motherlodeAmount,bool isSplit,uint256 topMinerSeed,uint256 winnersDeployed,uint256 rot,uint256 manualOnWinning,uint256 topMinerTarget,uint256 totalDeployed,uint256 vaultAmount)";
 const epochAbi = "function epoch(uint256) view returns (((uint16,uint16,uint16,uint16,uint16,address,address,address,address,address),uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256,uint256))";
 const bps = 10000n;
+// Treasury v14 assigned its 15% stream to this router: https://elysium.kinetiq.xyz/tx/0x12f9b4324d789bed0f7b9a17cf4664406de0cec8eaa219a6dec87a889c161a48
 const taxRouter = "0xae707ebe0819b36a4d5cbee6b1a267a9bda6e205";
 
 // Epoch revenue and referral earnings are cumulative. The buyback allocation
@@ -16,18 +18,18 @@ async function treasuryTotals(api: FetchOptions["api"], block: number) {
   const total = { received: 0n, referral: 0n, holder: 0n, pending: 0n };
   if (block < firstSettlementBlock) return total;
   const version = Number(await api.call({ target: treasury, abi: "uint256:currentVersion", block }));
-  const epochs = await api.multiCall({
-    abi: epochAbi, target: treasury, block,
-    calls: Array.from({ length: version }, (_, i) => ({ params: [i + 1] })),
-  });
+  const calls = Array.from({ length: version }, (_, i) => ({ params: [i + 1] }));
+  const [epochs, extraStreams] = await Promise.all([
+    api.multiCall({ abi: epochAbi, target: treasury, block, calls }),
+    api.multiCall({ abi: "function extraStreams(uint256) view returns ((bytes32,address,uint16)[])", target: treasury, block, calls }),
+  ]);
   for (const [i, epoch] of epochs.entries()) {
     const rates = Array.from(epoch[0]).slice(0, 5).map(v => BigInt(String(v)));
     const [burn, staking, reserve, referral, gas] = rates;
     const baseBps = burn + staking + reserve + referral + gas;
     const routerBps = bps - baseBps;
-    if (routerBps !== 0n) {
-      const streams = await api.call({ target: treasury, block, params: [i + 1],
-        abi: "function extraStreams(uint256) view returns ((bytes32,address,uint16)[])" });
+    const streams = extraStreams[i];
+    if (routerBps !== 0n || streams.length !== 0) {
       if (streams.length !== 1 || streams[0][1].toLowerCase() !== taxRouter || BigInt(streams[0][2]) !== routerBps)
         throw Error("Unclassified extra Treasury stream");
     }
@@ -53,7 +55,8 @@ const fetch = async (options: FetchOptions) => {
   for (const round of rounds) {
     const deployed = BigInt(round.totalDeployed);
     const treasuryShare = BigInt(round.vaultAmount);
-    // Grid splits local HYPE between winners, the fee collector and Treasury.
+    // The canonical grid charges 1% of deployed HYPE (round settlement policy).
+    // https://elysium.kinetiq.xyz/address/0xFa5856b6f352C0E7863D7F5502564130215bf80F
     const collector = deployed - BigInt(round.totalWinnings) - treasuryShare;
     if (collector < 0n || collector !== deployed / 100n) throw Error("Unrecognized mining fee policy");
     volume += deployed;
@@ -64,20 +67,20 @@ const fetch = async (options: FetchOptions) => {
   const earned = after.referral - before.referral;
   const pendingChange = after.pending - before.pending;
   const holders = after.holder - before.holder;
-  const revenue = admin + vault - earned - pendingChange;
+  const referralAllocation = earned + pendingChange;
+  const revenue = admin + vault - referralAllocation;
   const balance = (wei: bigint, label: string) => {
     const balances = options.createBalances();
-    balances.addGasToken(wei.toString(), label);
+    // A net release is a signed total; breakdown labels only represent positive allocations.
+    balances.addGasToken(wei.toString(), wei > 0n ? label : undefined);
     return balances;
   };
   const dailyFees = balance(admin, "Mining admin fee");
   dailyFees.addGasToken(vault.toString(), "Mining Treasury share");
-  const dailySupplySideRevenue = balance(earned, "Earned referrals");
-  dailySupplySideRevenue.addGasToken(pendingChange.toString(), "Change in pending referral reserves");
   return {
     dailyVolume: balance(volume, "Settled mining principal"), dailyFees,
     dailyRevenue: balance(revenue, "Mining revenue"),
-    dailySupplySideRevenue,
+    dailySupplySideRevenue: balance(referralAllocation, "Net referral allocation"),
     dailyProtocolRevenue: balance(revenue - holders, "Protocol share"),
     dailyHoldersRevenue: balance(holders, "Buyback allocation"),
   };
@@ -93,11 +96,13 @@ const methodology = {
 };
 const adapter: SimpleAdapter = {
   version: 2, pullHourly: true, chains: [CHAIN.ELYSIUM], start: "2026-11-12", fetch, methodology,
+  // Releases of previously reserved referrals can exceed new accruals in a period.
+  allowNegativeValue: true,
   breakdownMethodology: {
     Fees: { "Mining admin fee": "Fee paid to the mining fee collector.", "Mining Treasury share": "HYPE received by Treasury from settled rounds." },
     Revenue: { "Mining revenue": methodology.Revenue },
     ProtocolRevenue: { "Protocol share": methodology.ProtocolRevenue },
-    SupplySideRevenue: { "Earned referrals": "Referral earnings confirmed by Treasury reports.", "Change in pending referral reserves": "Closing less opening unclassified referral reserves; excludes amounts already recognized as earned." },
+    SupplySideRevenue: { "Net referral allocation": methodology.SupplySideRevenue },
     HoldersRevenue: { "Buyback allocation": methodology.HoldersRevenue },
     Volume: { "Settled mining principal": methodology.Volume },
   },
