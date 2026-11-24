@@ -8,12 +8,12 @@ import fetchURL from '../../utils/fetchURL'
 import PromisePool from '@supercharge/promise-pool'
 
 // Lighter runs the same spot exchange on two deployments and dexs/lighter-spot already
-// reports both; the fees side only ever read the zkLighter one. Robinhood's account-level
-// transfer/withdraw fees are counted by fees/lighter-rh, so only the per-market trading
-// fees are taken here.
-const chainConfig: Record<string, { API: string; start: string; globalFees: boolean }> = {
-  [CHAIN.ZK_LIGHTER]: { API: 'https://mainnet.zklighter.elliot.ai/api/v1', start: '2025-10-22', globalFees: true },
-  [CHAIN.ROBINHOOD]: { API: 'https://api.rh.lighter.xyz/api/v1', start: '2026-06-26', globalFees: false },
+// reports both; the fees side only ever read the zkLighter one. Account-level transfer/withdraw
+// fees are exchange-wide and counted by fees/lighterv2 (zkLighter) and fees/lighter-rh (Robinhood),
+// so only the per-market trading fees are taken here.
+const chainConfig: Record<string, { API: string; start: string }> = {
+  [CHAIN.ZK_LIGHTER]: { API: 'https://mainnet.zklighter.elliot.ai/api/v1', start: '2025-10-22' },
+  [CHAIN.ROBINHOOD]: { API: 'https://api.rh.lighter.xyz/api/v1', start: '2026-06-26' },
 }
 const RATE_LIMIT_PER_MINUTE = 200
 
@@ -42,34 +42,18 @@ async function fetchExchangeMetricByMarket(API_BASE: string, kind: string, symbo
     `${API_BASE}/exchangeMetrics?period=all&kind=${kind}&filter=byMarket&value=${encodeURIComponent(symbol)}`
   )
   
-  if (!response?.metrics || !Array.isArray(response.metrics)) {
-    return 0
-  }
+  // Every market's series has an entry for every day of the deployment, so a missing one is missing data
+  const metric = response?.metrics?.find(m => m.timestamp === startOfDay)
+  if (!metric) throw new Error(`Lighter Spot: no ${kind} entry for ${symbol} at ${startOfDay}`)
 
-  // Find the metric matching the startOfDay timestamp
-  const metric = response.metrics.find(m => m.timestamp === startOfDay)
-  return metric?.data || 0
-}
-
-async function fetchExchangeMetricGlobal(API_BASE: string, kind: string, startOfDay: number): Promise<number> {
-  const response: ExchangeMetricResponse = await fetchURL(
-    `${API_BASE}/exchangeMetrics?period=all&kind=${kind}`
-  )
-  
-  if (!response?.metrics || !Array.isArray(response.metrics)) {
-    return 0
-  }
-
-  // Find the metric matching the startOfDay timestamp
-  const metric = response.metrics.find(m => m.timestamp === startOfDay)
-  return metric?.data || 0
+  return metric.data
 }
 
 async function getActiveSpotMarkets(API_BASE: string, api: any): Promise<OrderBookDetail[]> {
   const response: OrderBookDetailsResponse = await fetchURL(`${API_BASE}/orderBookDetails`)
   
   if (!response?.spot_order_book_details || !Array.isArray(response.spot_order_book_details)) {
-    return []
+    throw new Error('Lighter Spot: orderBookDetails returned no spot markets list')
   }
 
   // Filter for active spot markets only
@@ -83,7 +67,7 @@ async function getActiveSpotMarkets(API_BASE: string, api: any): Promise<OrderBo
 }
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
-  const { API: API_BASE, globalFees } = chainConfig[options.chain]
+  const { API: API_BASE } = chainConfig[options.chain]
 
   // Get all active spot markets
   const markets = await getActiveSpotMarkets(API_BASE, options.api)
@@ -99,6 +83,7 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
   let processedCount = 0
 
   await PromisePool.withConcurrency(concurrency)
+    .handleError((error) => { throw error })
     .for(markets)
     .process(async (market: OrderBookDetail) => {
       const [makerFee, takerFee] = await Promise.all([
@@ -117,22 +102,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
       }
     })
 
-  // Fetch global fees once. They are exchange-wide rather than spot-only, so on Robinhood
-  // they belong to fees/lighter-rh and taking them here as well would double count.
-  const [totalTransferFee, totalWithdrawFee] = globalFees
-    ? await Promise.all([
-      fetchExchangeMetricGlobal(API_BASE, 'transfer_fee', options.startOfDay),
-      fetchExchangeMetricGlobal(API_BASE, 'withdraw_fee', options.startOfDay),
-    ])
-    : [0, 0]
-
   const tradingFees = totalMakerFee + totalTakerFee
 
   const dailyFees = options.createBalances()
 
   dailyFees.addUSDValue(tradingFees, METRIC.TRADING_FEES)
-  dailyFees.addUSDValue(totalTransferFee, 'Transfer Fees')
-  dailyFees.addUSDValue(totalWithdrawFee, METRIC.DEPOSIT_WITHDRAW_FEES)
 
   return {
     dailyFees,
@@ -142,16 +116,14 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 }
 
 const methodology = {
-  Fees: 'Maker and taker fees paid by traders on the Lighter DEX',
-  Revenue: 'Protocol revenue from maker fees, taker fees, transfer fees, and withdraw fees.',
-  ProtocolRevenue: 'All trading and operational fees collected by the protocol treasury',
+  Fees: 'Maker and taker fees paid by traders on Lighter spot markets. Transfer and withdraw fees are exchange-wide and counted under the perps listings.',
+  Revenue: 'Protocol revenue from spot maker and taker fees.',
+  ProtocolRevenue: 'All spot maker and taker fees collected by the protocol treasury',
 }
 
 const breakdownMethodology = {
   Fees: {
     [METRIC.TRADING_FEES]: 'Maker and taker fees from spot trading.',
-    'Transfer Fees': 'Transfer fees paid by traders on the Lighter DEX',
-    [METRIC.DEPOSIT_WITHDRAW_FEES]: 'Withdraw fees paid by traders on the Lighter DEX',
   },
 }
 
