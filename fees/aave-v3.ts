@@ -351,32 +351,8 @@ const CowPartnerFeesToCollectorFrom = 1776902400; // 2026-04-23, the first payou
 // On Ethereum (GHO facilitators, since 2026-03-04 GhoReserve entities) each is only live in its own era: USDC and USDT
 // (2024-01-29 to 2025-03-17), GSM 4626 waEthUSDC and waEthUSDT (2025-03-17 to 2026-03-04), and the current GSM 4626
 // waEthUSDC and waEthUSDT. The other chains have one GSM 4626 each:
-// https://github.com/aave-dao/aave-address-book/tree/main/src/ts (GhoPlasma.ts, GhoArbitrum.ts, GhoMonad.ts)
-const GhoStabilityModules: Record<string, { gho: string, modules: Array<string> }> = {
-  [CHAIN.ETHEREUM]: {
-    gho: '0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f',
-    modules: [
-      '0x0d8effc11df3f229aa1ea0509bc9dfa632a13578',
-      '0x686f8d21520f4ecec7ba577be08354f4d1eb8262',
-      '0xfeeb6fe430b7523fef2a38327241ee7153779535',
-      '0x535b2f7c20b9c83d70e519cf9991578ef9816b7b',
-      '0x3a3868898305f04bec7fea77becff04c13444112',
-      '0x882285e62656b9623af136ce3078c6bdcc33f5e3',
-    ],
-  },
-  [CHAIN.ARBITRUM]: {
-    gho: '0x7dff72693f6a4149b17e7c6314655f6a9f7c8b33',
-    modules: ['0x1aee7a618b0cc687cced9ab796e464062f1508ca'],
-  },
-  [CHAIN.PLASMA]: {
-    gho: '0xb77e872a68c62cfc0dfb02c067ecc3da23b4bbf3',
-    modules: ['0xd06114f714becd6f373e5ce94e07278ef46ebf37'],
-  },
-  [CHAIN.MONAD]: {
-    gho: '0xfc421ad3c883bf9e7c4f42de845c4e4405799e73',
-    modules: ['0x3cf3779eef770931543acd2c7f6ecd1b37e35cab'],
-  },
-}
+// https://github.com/aave-dao/aave-address-book/tree/main/src/ts (GhoPlasma.ts, GhoArbitrum.ts, GhoMonad.ts);
+// addresses are in chainConfig[chain].gsm
 const GsmBuyAssetEvent = 'event BuyAsset(address indexed originator, address indexed receiver, uint256 underlyingAmount, uint256 ghoAmount, uint256 fee)';
 const GsmSellAssetEvent = 'event SellAsset(address indexed originator, address indexed receiver, uint256 underlyingAmount, uint256 ghoAmount, uint256 fee)';
 export const chainConfig: Record<string, any> = {
@@ -386,6 +362,17 @@ export const chainConfig: Record<string, any> = {
     veloraAugustus: VeloraAugustusV6,
     chainlinkSvrDistributor: ChainlinkSVRDistributor,
     cowPartnerFeePayer: CowPayoutSafe,
+    gsm: {
+      gho: '0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f',
+      modules: [
+        '0x0d8effc11df3f229aa1ea0509bc9dfa632a13578',
+        '0x686f8d21520f4ecec7ba577be08354f4d1eb8262',
+        '0xfeeb6fe430b7523fef2a38327241ee7153779535',
+        '0x535b2f7c20b9c83d70e519cf9991578ef9816b7b',
+        '0x3a3868898305f04bec7fea77becff04c13444112',
+        '0x882285e62656b9623af136ce3078c6bdcc33f5e3',
+      ],
+    },
     start: '2023-01-01',
   },
   [CHAIN.OPTIMISM]: {
@@ -400,6 +387,10 @@ export const chainConfig: Record<string, any> = {
     treasuryCollector: '0x053D55f9B5AF8694c503EB288a1B7E552f590710',
     veloraAugustus: VeloraAugustusV6,
     cowPartnerFeePayer: CowPayoutSafeArbitrumPolygon,
+    gsm: {
+      gho: '0x7dff72693f6a4149b17e7c6314655f6a9f7c8b33',
+      modules: ['0x1aee7a618b0cc687cced9ab796e464062f1508ca'],
+    },
   },
   [CHAIN.POLYGON]: {
     pools: AaveMarkets[CHAIN.POLYGON],
@@ -473,6 +464,10 @@ export const chainConfig: Record<string, any> = {
   [CHAIN.PLASMA]: {
     pools: AaveMarkets[CHAIN.PLASMA],
     start: '2025-09-25',
+    gsm: {
+      gho: '0xb77e872a68c62cfc0dfb02c067ecc3da23b4bbf3',
+      modules: ['0xd06114f714becd6f373e5ce94e07278ef46ebf37'],
+    },
   },
   [CHAIN.MEGAETH]: {
     pools: AaveMarkets[CHAIN.MEGAETH],
@@ -489,6 +484,10 @@ export const chainConfig: Record<string, any> = {
   [CHAIN.MONAD]: {
     pools: AaveMarkets[CHAIN.MONAD],
     start: '2026-06-17',
+    gsm: {
+      gho: '0xfc421ad3c883bf9e7c4f42de845c4e4405799e73',
+      modules: ['0x3cf3779eef770931543acd2c7f6ecd1b37e35cab'],
+    },
   },
 }
 
@@ -557,7 +556,7 @@ const fetch = async (options: FetchOptions) => {
   }
 
   // GHO Stability Module swap fees, counted at swap time rather than when distributeFeesToTreasury sends them
-  const gsm = GhoStabilityModules[options.chain]
+  const { gsm } = chainConfig[options.chain]
   if (gsm) {
     for (const eventAbi of [GsmBuyAssetEvent, GsmSellAssetEvent]) {
       const swaps = await options.getLogs({ targets: gsm.modules, eventAbi })
