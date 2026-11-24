@@ -7,13 +7,18 @@ import { CHAIN } from "../../helpers/chains";
 // Current: https://monadscan.com/address/0x8964d7c989bf4b9bbd179ecd205544d3bb5b10f8
 // Legacy: https://monadscan.com/address/0x968279784d780c02a79b1c58ad69aaa832f09342
 // Legacy: https://monadscan.com/address/0x7b9256fd345b6dfa78017094cae64b153de21fb2
+// Launch: https://monadscan.com/address/0x0a2fbf2dbe08880d8d0d7f2f34b4cc3761f729b1
 const MARKET_CONTRACTS = [
   "0x8964d7C989bF4B9bbd179ecd205544d3bb5B10F8",
   "0x968279784d780c02a79b1c58ad69aaa832f09342",
   "0x7b9256fd345b6dFa78017094caE64B153dE21fb2",
+  "0x0a2fbf2dbe08880d8d0d7f2f34b4cc3761f729b1",
 ];
 // USDC (6 decimals): https://monadscan.com/token/0x754704bc059f8c67012fed69bc8a327a5aafb603
 const USDC = ADDRESSES.monad.USDC;
+
+// Seed wallet funded by the market deployer: https://monadscan.com/tx/0x15c9b045e456bb90bec9eeddc1c336bb9f52768d1736006fa5d28e844c098474
+const SEED_WALLET = "0x4c689e1055fa53fc5381c58ec8c89518422f783f";
 
 const BET_PLACED_EVENT =
   "event BetPlaced(uint256 indexed marketId, address indexed user, uint8 option, uint256 amount, uint256 weightBps, uint256 weightedAmount, uint256 impactAmount)";
@@ -25,7 +30,10 @@ const fetch = async (options: FetchOptions) => {
     eventAbi: BET_PLACED_EVENT,
   });
 
-  for (const log of logs) dailyVolume.add(USDC, log.amount);
+  for (const log of logs) {
+    if (log.user.toLowerCase() === SEED_WALLET) continue;
+    dailyVolume.add(USDC, log.amount);
+  }
 
   return { dailyVolume };
 };
@@ -35,10 +43,10 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.MONAD],
-  start: "2026-07-31",
+  start: "2026-07-12",
   methodology: {
     Volume:
-      "USDC entry amounts from BetPlaced events emitted by CRSH's current and legacy parimutuel market contracts on Monad. Each bet is counted once; treasury seed liquidity is excluded.",
+      "USDC entry amounts from BetPlaced events emitted by CRSH's current and legacy parimutuel market contracts on Monad. Each bet is counted once; bets placed by CRSH's own seed wallet are excluded.",
   },
 };
 
