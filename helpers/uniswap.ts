@@ -100,9 +100,25 @@ export async function getEstablishedTokens(chain: string, tokens: string[]): Pro
 }
 
 // UNI burn (fee switch), split across v2 / v3 / v4.
-// Each chain has one TokenJar that v2, v3 and v4 protocol fees are paid into and
-// one Firepit that releases the jar to whoever burns `threshold` UNI. The burn
-// carries no version, so it is split by what each version paid into the jar.
+//
+// How swap fees end up as burned UNI (contracts: github.com/Uniswap/protocol-fees,
+// flow checked on-chain on Robinhood, 16-22 Nov 2026):
+//  1. Accrual, where the fee is earned.
+//     v2: 1/6 of the 0.3% fee. It stays in the pair and is minted to the chain's
+//         TokenJar as LP tokens the next time liquidity is added or removed.
+//     v3: a fraction of the swap fee set per fee tier (1/4 on 0.01% and 0.05%,
+//         1/6 on 0.3% and 1%), held inside each pool.
+//     v4: a per-pool rate set by a policy contract, held inside the PoolManager.
+//  2. Burn. Anyone can pay `threshold` UNI to the chain's Firepit and take up to
+//     20 assets, the full balance of each, out of the TokenJar. Burners do it all
+//     in one tx: collect v3 and v4 fees into the jar (collect is permissionless on
+//     both fee adapters), take the assets, and redeem any v2 LP they took. About
+//     100% of v3/v4 fee value reaches the jar inside a release tx on every chain
+//     (64% for v3 on Ethereum).
+//  3. The UNI goes to the burn address, through the bridge on L2s.
+//
+// The burn carries no version and its size is fixed, so each version's share is
+// what the burner took from it on the burn's day (see uniBurnInflowsSql).
 // tokenJar is firepit.TOKEN_JAR(), poolManager is the chain's v4 PoolManager (dexs/uniswap-v4.ts).
 // noV2Listing: uniswap-v2 does not report the chain, so its share stays on v3.
 export const UNI_BURN_CONFIG: Record<string, { feeSwitchDate: string; firepit: string; tokenJar: string; poolManager: string; duneChain: string; noV2Listing?: boolean }> = {
@@ -126,59 +142,68 @@ export const UNI_BURN_CONFIG: Record<string, { feeSwitchDate: string; firepit: s
 
 export type UniVersion = 'v2' | 'v3' | 'v4';
 const UNI_BURN_LABEL = 'Fees Used To Burn UNI';
-// UTC days of jar inflows the split is measured over, ending with the window's own
-// day. Busy chains pay the jar every day; on quiet ones the burner collects the fees
-// and burns on the same day, so every burn day of Sep-Nov 2026 had inflows in range.
-const UNI_BURN_INFLOW_DAYS = 3;
-
 // Saved Dune query holding uniBurnInflowsSql for every day since the first fee
 // switch (toDay = current_date). Refills read its stored result, which runs
 // nothing on Dune; rerun the saved query to extend it before a refill.
 const UNI_BURN_HISTORY_QUERY_ID = '9181964';
 
-// USD each version paid into each chain's TokenJar, one row per day and chain, for
-// the days in [fromDay, toDay) (SQL date expressions). A transfer into the jar is
-// v4 when the PoolManager sent it and v3 otherwise, since v3 pools pay the jar
-// themselves. v2 pays in LP tokens minted to the jar, which have no price, so v2
-// is its 1/6 share of the 0.3% fee (0.05% of volume) on chains whose pairs minted
-// LP to the jar in range.
-// Known limit: the v2 figure is what accrued, not what reached the jar. A pair only
-// mints its fee LP on a liquidity add/remove, so locked-liquidity pairs never pay;
-// on Robinhood (16-22 Nov 2026) this reads ~3x the LP actually minted, moving ~5%
-// of the burn to v2. Value the LP mints from the same tx's deposit if v2 matters.
+// USD the burners took from each version, one row per day and chain, for the days
+// in [fromDay, toDay) (SQL date expressions).
+//  v4: transfers into the TokenJar sent by the PoolManager.
+//  v3: every other transfer into the jar, since v3 pools pay it themselves.
+//  v2: what a pair paid out when the burner redeemed LP it took from the jar,
+//      which burners do in the release tx itself. A redeemed pair is a token
+//      that leaves the jar, is burned in the same tx, and whose own contract
+//      pays out exactly two other tokens. If only one side has a price the pair
+//      counts as twice that side.
+// Known limit: a burner that also swaps through a pair it is redeeming adds the
+// swap output to that pair's v2 figure.
 export function uniBurnInflowsSql(fromDay: string, toDay: string): string {
   const configs = Object.values(UNI_BURN_CONFIG);
   const chains = configs.map((c) => `'${c.duneChain}'`).join(', ');
-  const lookback = `INTERVAL '${UNI_BURN_INFLOW_DAYS - 1}' DAY`;
-  const scanned = (alias: string) => `${alias}.block_date >= ${fromDay} - ${lookback} AND ${alias}.block_date < ${toDay}`;
+  const scanned = (alias: string) => `${alias}.blockchain IN (${chains}) AND ${alias}.block_date >= ${fromDay} AND ${alias}.block_date < ${toDay}`;
+  const notBlacklisted = (alias: string, b: string) => `LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} ${b} ON ${b}.address = ${alias}.contract_address AND ${b}.chain IN ('any', ${alias}.blockchain)`;
   return `
     WITH cfg (blockchain, jar, pool_manager) AS (
       VALUES ${configs.map((c) => `('${c.duneChain}', ${c.tokenJar.toLowerCase()}, ${c.poolManager.toLowerCase()})`).join(', ')}
-    ), daily AS (
+    ), paid_in AS (
       SELECT t.blockchain, t.block_date AS day,
-        CASE WHEN t."from" = c.pool_manager THEN 'v4' WHEN t."from" = ${ZERO_ADDRESS} THEN 'v2_lp_mints' ELSE 'v3' END AS source,
-        SUM(t.amount_usd) AS usd
+        SUM(CASE WHEN t."from" = c.pool_manager THEN t.amount_usd END) AS v4,
+        SUM(CASE WHEN t."from" NOT IN (c.pool_manager, ${ZERO_ADDRESS}) THEN t.amount_usd END) AS v3
       FROM tokens.transfers t
       JOIN cfg c ON c.blockchain = t.blockchain AND c.jar = t."to"
-      LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b ON b.address = t.contract_address AND b.chain IN ('any', t.blockchain)
-      WHERE t.blockchain IN (${chains}) AND ${scanned('t')} AND b.address IS NULL
-      GROUP BY 1, 2, 3
-      UNION ALL
-      SELECT d.blockchain, d.block_date, 'v2_volume', SUM(d.amount_usd)
-      FROM dex.trades d
-      LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b0 ON b0.address = d.token_bought_address AND b0.chain IN ('any', d.blockchain)
-      LEFT JOIN ${DUNE_DEX_BLACKLIST_TABLE} b1 ON b1.address = d.token_sold_address AND b1.chain IN ('any', d.blockchain)
-      WHERE d.blockchain IN (${chains}) AND d.project = 'uniswap' AND d.version = '2' AND ${scanned('d')}
-        AND b0.address IS NULL AND b1.address IS NULL
+      ${notBlacklisted('t', 'b')}
+      WHERE ${scanned('t')} AND b.address IS NULL
+      GROUP BY 1, 2
+    ), released AS (
+      SELECT o.blockchain, o.block_date, o.tx_hash, o.contract_address AS token
+      FROM tokens.transfers o
+      JOIN cfg c ON c.blockchain = o.blockchain AND c.jar = o."from"
+      WHERE ${scanned('o')}
+    ), redeemed AS (
+      SELECT r.blockchain, r.block_date AS day, r.tx_hash, r.token,
+        CASE WHEN p.contract_address <> r.token THEN p.contract_address END AS underlying,
+        MAX(CASE WHEN p.contract_address = r.token AND p."to" = ${ZERO_ADDRESS} THEN 1 ELSE 0 END) AS lp_burned,
+        SUM(CASE WHEN p.contract_address <> r.token THEN p.amount_usd END) AS usd
+      FROM released r
+      JOIN tokens.transfers p ON p.blockchain = r.blockchain AND p.block_date = r.block_date AND p.tx_hash = r.tx_hash
+        AND (p."from" = r.token OR p.contract_address = r.token)
+      ${notBlacklisted('p', 'b')}
+      WHERE ${scanned('p')} AND p.contract_address <> ${ZERO_ADDRESS} AND b.address IS NULL
+      GROUP BY 1, 2, 3, 4, 5
+    ), v2 AS (
+      SELECT blockchain, day, SUM(pair_usd) AS v2
+      FROM (
+        SELECT blockchain, day, CASE WHEN COUNT(usd) >= 2 THEN SUM(usd) ELSE 2 * MAX(usd) END AS pair_usd
+        FROM redeemed GROUP BY blockchain, day, tx_hash, token
+        HAVING MAX(lp_burned) = 1 AND COUNT(underlying) = 2
+      )
       GROUP BY 1, 2
     )
-    SELECT CAST(x.day AS VARCHAR) AS day, d.blockchain,
-      CASE WHEN COUNT_IF(d.source = 'v2_lp_mints') > 0 THEN COALESCE(SUM(d.usd) FILTER (WHERE d.source = 'v2_volume'), 0) * 0.0005 ELSE 0 END AS v2,
-      COALESCE(SUM(d.usd) FILTER (WHERE d.source = 'v3'), 0) AS v3,
-      COALESCE(SUM(d.usd) FILTER (WHERE d.source = 'v4'), 0) AS v4
-    FROM UNNEST(sequence(${fromDay}, ${toDay} - INTERVAL '1' DAY, INTERVAL '1' DAY)) AS x (day)
-    JOIN daily d ON d.day BETWEEN x.day - ${lookback} AND x.day
-    GROUP BY 1, 2`;
+    SELECT CAST(COALESCE(i.day, v.day) AS VARCHAR) AS day, COALESCE(i.blockchain, v.blockchain) AS blockchain,
+      COALESCE(v.v2, 0) AS v2, COALESCE(i.v3, 0) AS v3, COALESCE(i.v4, 0) AS v4
+    FROM paid_in i
+    FULL OUTER JOIN v2 v ON v.blockchain = i.blockchain AND v.day = i.day`;
 }
 
 // One lookup per UTC day per process, shared by every chain and hourly window of
@@ -201,8 +226,8 @@ function fetchUniBurnInflows(options: FetchOptions): Promise<Record<string, Reco
 }
 
 // This version's share of the UNI burned in the window (Released events x threshold).
-// The burn itself is read on-chain and the three versions' shares add up to 1, so
-// v2 + v3 + v4 always equals the chain's burn.
+// The burn itself is read on-chain and the three versions' shares of the day add
+// up to 1, so v2 + v3 + v4 always equals the chain's burn.
 export async function getUniBurn(options: FetchOptions, version: UniVersion): Promise<Balances> {
   const dailyHoldersRevenue = options.createBalances();
   const config = UNI_BURN_CONFIG[options.chain];
@@ -217,8 +242,9 @@ export async function getUniBurn(options: FetchOptions, version: UniVersion): Pr
   // only a window with a burn needs the split, so Dune is not touched otherwise
   const { v2 = 0, v3 = 0, v4 = 0 } = (await fetchUniBurnInflows(options))[config.duneChain] ?? {};
   const usd: Record<UniVersion, number> = config.noV2Listing ? { v2: 0, v3: v3 + v2, v4 } : { v2, v3, v4 };
-  // no priced v3/v4 inflow in range (v2 alone is only an estimate): the whole burn stays on v3, as it was before the split
-  const share = usd.v3 + usd.v4 > 0 ? usd[version] / (usd.v2 + usd.v3 + usd.v4) : Number(version === 'v3');
+  const total = usd.v2 + usd.v3 + usd.v4;
+  // nothing priced was taken that day: the whole burn stays on v3, as it was before the split
+  const share = total > 0 ? usd[version] / total : Number(version === 'v3');
   dailyHoldersRevenue.addCGToken("uniswap", releaseLogs.length * Number(threshold) / 1e18 * share, UNI_BURN_LABEL);
   return dailyHoldersRevenue;
 }
