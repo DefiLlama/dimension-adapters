@@ -197,6 +197,12 @@ export const MorphoBlues: Record<string, MorphoBlueConfig> = {
     fromBlock: 23180020,
     start: "2026-05-22",
   },
+  [CHAIN.XLAYER]: {
+    chainId: 196,
+    fromBlock: 73110254,
+    blue: "0xeb00C490E888286357dC5B0a35D37D9260D11Ab5",
+    start: "2026-10-13",
+  },
   // TAC deferred: not in Morpho API, and its CreateMarket log scan isn't indexed.
   // blue 0x918B9F2E4B44E20c6423105BB6cCEB71473aD35c, block 853025.
 };
