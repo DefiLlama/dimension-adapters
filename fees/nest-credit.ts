@@ -24,6 +24,7 @@ const chainConfig: Record<string, { start: string, chainNameInApi: string }> = {
     [CHAIN.ARBITRUM]: { start: "2025-03-01", chainNameInApi: "arbitrum" },
     [CHAIN.PLASMA]: { start: "2025-11-01", chainNameInApi: "plasma" },
     [CHAIN.WC]: { start: "2025-12-17", chainNameInApi: "worldchain" },
+    [CHAIN.MONAD]: { start: "2026-09-30", chainNameInApi: "monad" },
 }
 
 async function prefetch() {
@@ -46,6 +47,10 @@ const fetch = async (options: FetchOptions): Promise<FetchResultV2> => {
 
     const vaults = options.preFetchedResults.filter((v: any) => v.chains.includes(chainNameInApi)).map((v: any) => (v.vault));
     const accountants = options.preFetchedResults.filter((v: any) => v.chains.includes(chainNameInApi)).map((v: any) => (v.accountant));
+
+    if (vaults.length === 0) {
+        return { dailyFees, dailyRevenue: dailyProtocolRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
+    }
 
     const [totalSupplies, decimals, tokens, accountantStates] = await Promise.all([
         options.api.multiCall({
