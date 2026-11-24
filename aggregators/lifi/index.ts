@@ -1,5 +1,5 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
-import { LifiDiamonds, LIFI_API_CHAINS, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
+import { LifiDiamonds, LIFI_API_CHAINS, fetchVolumeFromLIFIAPI, getLifiCoreAssets } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
 import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from "../../helpers/lists";
 import { nullAddress } from "../../helpers/token";
@@ -19,34 +19,42 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
   }
 
   const dailyVolume = options.createBalances();
-  let logs: any[] = await options.getLogs({
+  const logs: any[] = await options.getLogs({
     target: LifiDiamonds[options.chain].id,
     topic: '0x38eee76fd911eabac79da7af16053e809be0e12c8637f156e77e1af309b99537',
     eventAbi: LifiSwapEvent,
     maxBlockRange: 10000, // chunk the RPC-fallback range so chains not on the indexer (e.g. cronos) don't blow the eth_getLogs limit over a full day
   })
 
-  // count volune only from whitelisted tokens
   const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
   const whitelistedTokens = await getDefaultDexTokensWhitelisted({chain: options.chain})
-  if (whitelistedTokens.length > 0) {
-    logs = logs.filter(log => (whitelistedTokens.includes(formatAddress(log.fromAssetId)) || whitelistedTokens.includes(formatAddress(log.toAssetId)))
-      && !blacklistedTokens.includes(formatAddress(log.fromAssetId))
-      && !blacklistedTokens.includes(formatAddress(log.toAssetId))
-    )
-  } else if (blacklistedTokens.length > 0) {
-    logs = logs.filter(log => !blacklistedTokens.includes(formatAddress(log.fromAssetId)) && !blacklistedTokens.includes(formatAddress(log.toAssetId)))
-  }
+  const coreAssets = getLifiCoreAssets(options.chain)
 
   logs.forEach((log: any) => {
+    const fromAsset = formatAddress(log.fromAssetId)
+    const toAsset = formatAddress(log.toAssetId)
+    if (blacklistedTokens.includes(fromAsset) || blacklistedTokens.includes(toAsset)) return;
+
     // count all integrators, including Jumper
-    // Native-in facets (e.g. swapTokensSingleV3NativeToERC20) always emit fromAssetId=0x0
-    // and a caller-declared fromAmount that can be unrelated to msg.value. Count the
-    // ERC20 out instead — that amount is measured from the diamond's balance.
-    if (formatAddress(log.fromAssetId) === NATIVE) {
-      dailyVolume.add(log.toAssetId, log.toAmount);
-    } else {
+    if (whitelistedTokens.length === 0 || whitelistedTokens.includes(fromAsset) || whitelistedTokens.includes(toAsset)) {
+      // Native-in facets (e.g. swapTokensSingleV3NativeToERC20) always emit fromAssetId=0x0
+      // and a caller-declared fromAmount that can be unrelated to msg.value. Count the
+      // ERC20 out instead — that amount is measured from the diamond's balance.
+      if (fromAsset === NATIVE) {
+        dailyVolume.add(log.toAssetId, log.toAmount);
+      } else {
+        dailyVolume.add(log.fromAssetId, log.fromAmount);
+      }
+      return;
+    }
+
+    // Neither token is on the chain's DEX token list. Keep the swap only when one side is a
+    // DefiLlama core asset (or native received) and value it on that side, so a mispriced
+    // long-tail token never sets the value. Native in is never used (see above).
+    if (fromAsset !== NATIVE && coreAssets.has(fromAsset)) {
       dailyVolume.add(log.fromAssetId, log.fromAmount);
+    } else if (toAsset === NATIVE || coreAssets.has(toAsset)) {
+      dailyVolume.add(log.toAssetId, log.toAmount);
     }
   });
 

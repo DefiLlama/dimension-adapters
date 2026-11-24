@@ -1,10 +1,12 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
-import { LifiDiamonds, LIFI_API_CHAINS, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
+import { LifiDiamonds, LIFI_API_CHAINS, fetchVolumeFromLIFIAPI, getLifiCoreAssets } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
 import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from "../../helpers/lists";
+import { nullAddress } from "../../helpers/token";
 import { formatAddress } from "../../utils/utils";
 
 const LifiSwapEvent = "event LiFiGenericSwapCompleted(bytes32 indexed transactionId, string integrator, string referrer, address receiver, address fromAssetId, address toAssetId, uint256 fromAmount, uint256 toAmount)"
+const NATIVE = nullAddress
 const integrators = ['jumper.exchange', 'transferto.xyz', 'jumper.exchange.gas', 'lifi-gasless-jumper']
 
 const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => {
@@ -14,28 +16,35 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
   }
 
   const dailyVolume = options.createBalances();
-  let logs: any[] = await options.getLogs({
+  const logs: any[] = await options.getLogs({
     target: LifiDiamonds[options.chain].id,
     topic: '0x38eee76fd911eabac79da7af16053e809be0e12c8637f156e77e1af309b99537',
     eventAbi: LifiSwapEvent,
     maxBlockRange: 10000, // chunk the RPC-fallback range so chains not on the indexer (e.g. cronos) don't blow the eth_getLogs limit over a full day
   });
 
-  // count volume only from whitelisted tokens (same filter as the LI.FI dex adapter)
+  // same token rules as the LI.FI dex adapter
   const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
   const whitelistedTokens = await getDefaultDexTokensWhitelisted({ chain: options.chain })
-  if (whitelistedTokens.length > 0) {
-    logs = logs.filter(log => (whitelistedTokens.includes(formatAddress(log.fromAssetId)) || whitelistedTokens.includes(formatAddress(log.toAssetId)))
-      && !blacklistedTokens.includes(formatAddress(log.fromAssetId))
-      && !blacklistedTokens.includes(formatAddress(log.toAssetId))
-    )
-  } else if (blacklistedTokens.length > 0) {
-    logs = logs.filter(log => !blacklistedTokens.includes(formatAddress(log.fromAssetId)) && !blacklistedTokens.includes(formatAddress(log.toAssetId)))
-  }
+  const coreAssets = getLifiCoreAssets(options.chain)
 
   logs.forEach((log: any) => {
-    if (integrators.includes(log.integrator)) {
+    if (!integrators.includes(log.integrator)) return;
+    const fromAsset = formatAddress(log.fromAssetId)
+    const toAsset = formatAddress(log.toAssetId)
+    if (blacklistedTokens.includes(fromAsset) || blacklistedTokens.includes(toAsset)) return;
+
+    if (whitelistedTokens.length === 0 || whitelistedTokens.includes(fromAsset) || whitelistedTokens.includes(toAsset)) {
       dailyVolume.add(log.toAssetId, log.toAmount);
+      return;
+    }
+
+    // neither token on the DEX token list: keep it only with a core asset (or native received),
+    // valued on that side; native in is never used (its fromAmount is caller-declared)
+    if (toAsset === NATIVE || coreAssets.has(toAsset)) {
+      dailyVolume.add(log.toAssetId, log.toAmount);
+    } else if (fromAsset !== NATIVE && coreAssets.has(fromAsset)) {
+      dailyVolume.add(log.fromAssetId, log.fromAmount);
     }
   });
 
