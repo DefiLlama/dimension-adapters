@@ -27,6 +27,9 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
+  // Open interest is a snapshot read at the window end; hourly records would be summed
+  // into the daily value and inflate it 24x.
+  pullHourly: false,
   chains: [CHAIN.LINEA],
   fetch,
   start: "2025-12-15",

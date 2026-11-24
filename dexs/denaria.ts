@@ -10,6 +10,8 @@ const DENARIA_PERP_PAIRS: Array<string> = [
   DENARIA_PERP_PAIR_NEW,
 ]
 
+const TRADING_FEES = 'Trading Fees';
+
 const EXECUTED_TRADE_EVENT = "event ExecutedTrade(address indexed user, bool direction, uint256 tradeSize, uint256 tradeReturn, uint256 currentPrice, uint256 leverage)";
 
 async function fetch(options: FetchOptions) {
@@ -29,14 +31,16 @@ async function fetch(options: FetchOptions) {
     const tradeReturn = Number(log.tradeReturn) / 1e18;
     const price = Number(log.currentPrice) / 1e8;
 
+    // Fees are derived as input minus output value, capped at zero per trade. None of the
+    // 9,346 trades from 2025-12-15 to the last one (2026-04-06) has a negative value.
     if (isLong) {
       // LONG: volume = tradeSize(USD), fees = tradeSize - (tradeReturn(BTC)*price)
       dailyVolume.addUSDValue(tradeSize);
-      dailyFees.addUSDValue(tradeSize - (tradeReturn * price));
+      dailyFees.addUSDValue(Math.max(0, tradeSize - (tradeReturn * price)), TRADING_FEES);
     } else {
       // SHORT: volume = tradeSize(BTC)*price, fees = tradeSize(BTC)*price - tradeReturn(USD)
       dailyVolume.addUSDValue(tradeSize * price);
-      dailyFees.addUSDValue(tradeSize * price - tradeReturn);
+      dailyFees.addUSDValue(Math.max(0, tradeSize * price - tradeReturn), TRADING_FEES);
     }
   }
 
@@ -55,6 +59,18 @@ const methodology = {
   ProtocolRevenue: "All the revenue goes to the protocol.",
 };
 
+const breakdownMethodology = {
+  Fees: {
+    [TRADING_FEES]: "Trading fees and slippage paid on each ExecutedTrade: the trade input value minus the value returned, priced at the trade's oracle price.",
+  },
+  Revenue: {
+    [TRADING_FEES]: "All trading fees are kept by Denaria.",
+  },
+  ProtocolRevenue: {
+    [TRADING_FEES]: "All trading fees go to the Denaria protocol.",
+  },
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
@@ -66,6 +82,7 @@ const adapter: SimpleAdapter = {
   // exploit; no trades from then to the sunset. GMX activity lives in dexs/denaria-gmx.ts.
   deadFrom: "2026-09-03",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
