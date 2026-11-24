@@ -90,12 +90,15 @@ const methodology = {
   Volume: "Native HYPE deployed in settled mining rounds, including automatic participation. Mining activity only.",
   Fees: "HYPE collected at mining settlement by the fee collector and Treasury.",
   Revenue: "Settlement fees less earned referrals and the increase in unclassified referral liabilities. Unused referral reserves enter revenue when classified.",
-  SupplySideRevenue: "Earned referrals plus the signed change in amounts reserved for referrals. Releasing unused reserves reduces this total in the classification period.",
+  SupplySideRevenue: "Daily net of earned referrals and the change in pending referral reserves. The label shows the positive daily net; a net release remains signed in the total.",
   ProtocolRevenue: "Recognized revenue retained for the protocol, including the admin fee, reserve, operating allocations and funding routed to the protocol-controlled tax router.",
   HoldersRevenue: "Treasury mining revenue allocated to buy ELO for burning or staking rewards, at the historical version's rates. Executions are counted only at funding accrual.",
 };
 const adapter: SimpleAdapter = {
-  version: 2, pullHourly: true, chains: [CHAIN.ELYSIUM], start: "2026-11-12", fetch, methodology,
+  // Hourly positive labels would overstate referrals when a later hour releases reserves.
+  // Net the entire reporting day before emitting its single referral breakdown.
+  pullHourly: false,
+  version: 2, chains: [CHAIN.ELYSIUM], start: "2026-11-12", fetch, methodology,
   // Releases of previously reserved referrals can exceed new accruals in a period.
   allowNegativeValue: true,
   breakdownMethodology: {
