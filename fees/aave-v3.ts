@@ -88,7 +88,17 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x794a61358d6845594f94dc1db02a252b5b4814ad',
       dataProvider: '0x69fa688f1dc47d4b5d8029d5a35fb7a548310654',
-      dataProvider2: '0x7F23D86Ee20D869112572136221e173428DD740B'
+      dataProvider2: '0x7F23D86Ee20D869112572136221e173428DD740B',
+      // GSM 4626 holding waArbUSDCn, see Core market
+      daoSupplierAssets: {
+        '0xaf88d065e77c8cc2239327c5edb3a432268e5831': {
+          symbol: 'GSM',
+          aToken: '0x724dc807b04555b71ed48a6896b6f41593b8c637',
+          wrapper: '0x7f6501d3b98ee91f9b9535e4b0ac710fb0f9e0bc', // waArbUSDCn
+          suppliers: ['0x1aee7a618b0cc687cced9ab796e464062f1508ca'], // GSM_USDCn
+          start: 1789516800, // 2026-09-16
+        },
+      },
     },
   ],
   [CHAIN.POLYGON]: [
@@ -196,6 +206,16 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x925a2A7214Ed92428B5b1B090F80b25700095e12',
       dataProvider: '0xf2D6E38B407e31E7E7e4a16E6769728b76c7419F',
+      // GSM 4626 holding waPlaUSDT0, see Core market
+      daoSupplierAssets: {
+        '0xb8ce59fc3717ada4c02eadf9682a9e934f625ebb': {
+          symbol: 'GSM',
+          aToken: '0x5d72a9d9a9510cd8cbdba12ac62593a58930a948',
+          wrapper: '0xe0126f0c4451b2b917064a93040fd4770d6774b5', // waPlaUSDT0
+          suppliers: ['0xd06114f714becd6f373e5ce94e07278ef46ebf37'], // GSM_USDT
+          start: 1773014400, // 2026-03-09
+        },
+      },
     },
   ],
   [CHAIN.MEGAETH]: [
@@ -224,12 +244,22 @@ export const AaveMarkets: {[key: string]: Array<AaveLendingPoolConfig>} = {
       version: 3,
       lendingPoolProxy: '0x69a5F9AD4f96ebf0a0C792dD42a01cC5C0102fef',
       dataProvider: '0xB65A68B98274ef7D9a60E0C0747dD1BEc3D32fad',
+      // GSM 4626 holding waMonUSDC, see Core market
+      daoSupplierAssets: {
+        '0x754704bc059f8c67012fed69bc8a327a5aafb603': {
+          symbol: 'GSM',
+          aToken: '0x35a73bacb179d3740395a3cecc87ff2e581d6042',
+          wrapper: '0xc554affe2f581f5e0811e0d42d484ecac5c6b8e2', // waMonUSDC
+          suppliers: ['0x3cf3779eef770931543acd2c7f6ecd1b37e35cab'], // GSM_USDC
+          start: 1788307200, // 2026-09-02
+        },
+      },
     },
   ]
 }
 
 const methodology = {
-  Fees: 'Include borrow interest, flashloan fee, liquidation fee, penalty paid by borrowers, swap fees from the Aave frontend (Paraswap, then CoW Swap), Chainlink SVR (MEV recapture from Ethereum liquidations), and GHO Stability Module swap fees on Ethereum.',
+  Fees: 'Include borrow interest, flashloan fee, liquidation fee, penalty paid by borrowers, swap fees from the Aave frontend (Paraswap, then CoW Swap), Chainlink SVR (MEV recapture from Ethereum liquidations), and GHO Stability Module swap fees on Ethereum, Arbitrum, Plasma and Monad.',
   Revenue: 'Amount of fees go to Aave treasury.',
   SupplySideRevenue: 'Amount of fees distributed to suppliers.',
   ProtocolRevenue: 'Amount of fees go to Aave treasury.',
@@ -245,8 +275,8 @@ const breakdownMethodology = {
     'Paraswap Partner Fees': 'Swap fees share from Paraswap from users by using Aave frontend.',
     'CowSwap Partner Fees': 'Partner fee on swaps made through CoW Swap from the Aave frontend, paid weekly by CoW Protocol to the Aave Collector since 23 April 2026.',
     'Chainlink SVR': 'MEV recapture from Aave V3 Ethereum liquidations via Chainlink Smart Value Recapture infrastructure (Flashbots MEV-Share). 100% of recaptured value is forwarded to the Aave Collector. Available from April 2025.',
-    'GSM Swap Fees': 'GHO fee charged on each swap between GHO and USDC or USDT (or their waEthUSDC and waEthUSDT wrappers) in the GHO Stability Modules on Ethereum, counted when the swap happens.',
-    'Borrow Interest GSM': 'Supplier interest in the Core market on the USDC and USDT held as waEthUSDC and waEthUSDT by the GHO Stability Modules since 17 March 2025.',
+    'GSM Swap Fees': 'GHO fee charged on each swap between GHO and USDC or USDT (or their Aave waToken wrappers) in the GHO Stability Modules on Ethereum, Arbitrum, Plasma and Monad, counted when the swap happens.',
+    'Borrow Interest GSM': 'Supplier interest on the USDC and USDT that the GHO Stability Modules hold as Aave waTokens: in the Ethereum Core market since 17 March 2025, on Plasma since 9 March 2026, on Monad since 2 September 2026 and on Arbitrum since 16 September 2026.',
   },
   Revenue: {
     [METRIC.BORROW_INTEREST]: 'A portion of interest paid by borrowers from all markets (excluding GHO).',
@@ -257,14 +287,14 @@ const breakdownMethodology = {
     'CowSwap Partner Fees': 'All of the CoW Swap partner fee from the Aave frontend is paid to the Aave Collector.',
     'Chainlink SVR': '100% of MEV recapture from Aave V3 Ethereum liquidations accrues to the Aave Collector.',
     'GSM Swap Fees': 'All GHO Stability Module swap fees accrue to the Aave Collector, the GSM GHO treasury.',
-    'Borrow Interest GSM': 'All interest on the waEthUSDC and waEthUSDT held by the GHO Stability Modules, which the modules turn into GHO fees for the Aave Collector.',
+    'Borrow Interest GSM': 'All interest on the USDC and USDT waTokens held by the GHO Stability Modules, which the modules turn into GHO fees for the Aave Collector.',
   },
   SupplySideRevenue: {
     [METRIC.BORROW_INTEREST]: 'Amount of interest distributed to lenders from all markets (excluding GHO).',
     'Borrow Interest GHO': 'No supply side revenue for lenders on GHO market, nor on the GHO supplied by the Aave DAO GHO facilitators in the Prime and Horizon markets.',
     [METRIC.LIQUIDATION_FEES]: 'Fees from liquidation penalty and bonuses are distributed to lenders.',
     [METRIC.FLASHLOAN_FEES]: 'Flashloan fees paid by flashloan borrowers and executors are distributed to lenders.',
-    'Borrow Interest GSM': 'No supply side revenue on the waEthUSDC and waEthUSDT held by the GHO Stability Modules.',
+    'Borrow Interest GSM': 'No supply side revenue on the USDC and USDT waTokens held by the GHO Stability Modules.',
   },
   ProtocolRevenue: {
     [METRIC.BORROW_INTEREST]: 'Amount of interest distributed to lenders from all markets (excluding GHO) are collected by Aave treasury.',
@@ -275,7 +305,7 @@ const breakdownMethodology = {
     'CowSwap Partner Fees': 'All of the CoW Swap partner fee from the Aave frontend is paid to the Aave Collector.',
     'Chainlink SVR': '100% of MEV recapture from Aave V3 Ethereum liquidations accrues to the Aave Collector.',
     'GSM Swap Fees': 'All GHO Stability Module swap fees accrue to the Aave Collector, the GSM GHO treasury.',
-    'Borrow Interest GSM': 'All interest on the waEthUSDC and waEthUSDT held by the GHO Stability Modules, which the modules turn into GHO fees for the Aave Collector.',
+    'Borrow Interest GSM': 'All interest on the USDC and USDT waTokens held by the GHO Stability Modules, which the modules turn into GHO fees for the Aave Collector.',
   },
   HoldersRevenue: {
     [METRIC.TOKEN_BUY_BACK]: "Aave starts buy back AAVE tokens using Aave Treasury after 9th April 2025. They bought daily basic, but there are days they didn't."
@@ -316,19 +346,37 @@ const ChainlinkSVRDistributor = '0x149b41b1e4c00b5f9aa34b14fd9f84cfd2f014e5';
 const CowPayoutSafe = '0xa03be496e67ec29bc62f01a428683d7f9c204930';
 const CowPayoutSafeArbitrumPolygon = '0x66331f0b9cb30d38779c786bda5a3d57d12fba50';
 const CowPartnerFeesToCollectorFrom = 1776902400; // 2026-04-23, the first payout to a Collector
-// GHO Stability Modules on Ethereum (GHO facilitators, since 2026-03-04 GhoReserve entities), each only live in its
-// own era: USDC and USDT (2024-01-29 to 2025-03-17), GSM 4626 waEthUSDC and waEthUSDT (2025-03-17 to 2026-03-04),
-// and the current GSM 4626 waEthUSDC and waEthUSDT. Swap fees are charged in GHO and accrue to the Collector
+// GHO Stability Modules (GSM) and the GHO token of each chain. Swap fees are charged in GHO and accrue to the Collector
 // (getGhoTreasury). Source: https://github.com/aave/gho-core/tree/main/src/contracts/facilitators/gsm
-const GHO = '0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f';
-const GhoStabilityModules = [
-  '0x0d8effc11df3f229aa1ea0509bc9dfa632a13578',
-  '0x686f8d21520f4ecec7ba577be08354f4d1eb8262',
-  '0xfeeb6fe430b7523fef2a38327241ee7153779535',
-  '0x535b2f7c20b9c83d70e519cf9991578ef9816b7b',
-  '0x3a3868898305f04bec7fea77becff04c13444112',
-  '0x882285e62656b9623af136ce3078c6bdcc33f5e3',
-];
+// On Ethereum (GHO facilitators, since 2026-03-04 GhoReserve entities) each is only live in its own era: USDC and USDT
+// (2024-01-29 to 2025-03-17), GSM 4626 waEthUSDC and waEthUSDT (2025-03-17 to 2026-03-04), and the current GSM 4626
+// waEthUSDC and waEthUSDT. The other chains have one GSM 4626 each:
+// https://github.com/aave-dao/aave-address-book/tree/main/src/ts (GhoPlasma.ts, GhoArbitrum.ts, GhoMonad.ts)
+const GhoStabilityModules: Record<string, { gho: string, modules: Array<string> }> = {
+  [CHAIN.ETHEREUM]: {
+    gho: '0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f',
+    modules: [
+      '0x0d8effc11df3f229aa1ea0509bc9dfa632a13578',
+      '0x686f8d21520f4ecec7ba577be08354f4d1eb8262',
+      '0xfeeb6fe430b7523fef2a38327241ee7153779535',
+      '0x535b2f7c20b9c83d70e519cf9991578ef9816b7b',
+      '0x3a3868898305f04bec7fea77becff04c13444112',
+      '0x882285e62656b9623af136ce3078c6bdcc33f5e3',
+    ],
+  },
+  [CHAIN.ARBITRUM]: {
+    gho: '0x7dff72693f6a4149b17e7c6314655f6a9f7c8b33',
+    modules: ['0x1aee7a618b0cc687cced9ab796e464062f1508ca'],
+  },
+  [CHAIN.PLASMA]: {
+    gho: '0xb77e872a68c62cfc0dfb02c067ecc3da23b4bbf3',
+    modules: ['0xd06114f714becd6f373e5ce94e07278ef46ebf37'],
+  },
+  [CHAIN.MONAD]: {
+    gho: '0xfc421ad3c883bf9e7c4f42de845c4e4405799e73',
+    modules: ['0x3cf3779eef770931543acd2c7f6ecd1b37e35cab'],
+  },
+}
 const GsmBuyAssetEvent = 'event BuyAsset(address indexed originator, address indexed receiver, uint256 underlyingAmount, uint256 ghoAmount, uint256 fee)';
 const GsmSellAssetEvent = 'event SellAsset(address indexed originator, address indexed receiver, uint256 underlyingAmount, uint256 ghoAmount, uint256 fee)';
 export const chainConfig: Record<string, any> = {
@@ -506,13 +554,16 @@ const fetch = async (options: FetchOptions) => {
       dailyFees.addGasToken(amount, 'Chainlink SVR')
       dailyProtocolRevenue.addGasToken(amount, 'Chainlink SVR')
     }
+  }
 
-    // GHO Stability Module swap fees, counted at swap time rather than when distributeFeesToTreasury sends them
+  // GHO Stability Module swap fees, counted at swap time rather than when distributeFeesToTreasury sends them
+  const gsm = GhoStabilityModules[options.chain]
+  if (gsm) {
     for (const eventAbi of [GsmBuyAssetEvent, GsmSellAssetEvent]) {
-      const swaps = await options.getLogs({ targets: GhoStabilityModules, eventAbi })
+      const swaps = await options.getLogs({ targets: gsm.modules, eventAbi })
       for (const swap of swaps) {
-        dailyFees.add(GHO, swap.fee, 'GSM Swap Fees')
-        dailyProtocolRevenue.add(GHO, swap.fee, 'GSM Swap Fees')
+        dailyFees.add(gsm.gho, swap.fee, 'GSM Swap Fees')
+        dailyProtocolRevenue.add(gsm.gho, swap.fee, 'GSM Swap Fees')
       }
     }
   }
