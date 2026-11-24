@@ -83,6 +83,21 @@ const builderConfigs: Record<string, BuilderConfig> = {
       ProtocolRevenue: "Builder code fees on perpetual trades placed through EasyPerp, all kept by EasyPerp.",
     },
   },
+  "perpslap": {
+    // PerpSlap (https://perpslap.eth.limo), a Hyperliquid perpetuals trading interface.
+    // Its orders use this builder address with a 0.05% fee on top of Hyperliquid's own fees.
+    // Verifiable: the public app configuration and the builder field on Hyperliquid fills.
+    addresses: ["0xe7cc5aeb5d88913305fccb9ada23b355e5dc882d"],
+    // Earliest confirmed daily builder_fills archive: 2026-11-20.
+    start: "2026-11-20",
+    methodology: {
+      Volume: "Notional volume of Hyperliquid perpetual trades placed through PerpSlap with its builder code.",
+      Fees: "0.05% builder code fees paid by users on Hyperliquid perpetual trades placed through PerpSlap; excludes Hyperliquid's own trading fees.",
+      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through PerpSlap, all kept by PerpSlap.",
+      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through PerpSlap, all kept by PerpSlap.",
+    },
+    breakdownFees: true,
+  },
   "picoswap-perps": {
     // PicoSwap (https://picoswap.xyz, app https://app.picoswap.xyz, https://x.com/picoswapxyz), a non-custodial
     // cross-chain swap and trading app. Its Hyperliquid perps page attaches this builder code with a 0.03% fee
