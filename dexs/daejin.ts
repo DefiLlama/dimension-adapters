@@ -171,24 +171,101 @@ const ORDER_LEN = 74;
 const ORDER_OUTCOME = 41;
 const MARKET_MINT_OFFSET = 16;
 
-// Every signature of a program inside the window, oldest pages last. Both programs see a few
-// dozen transactions a day, so walking back from the newest is cheap.
-const signaturesInWindow = async (address: string, from: number, to: number) => {
-  const signatures: string[] = [];
-  let before: string | undefined;
-  while (true) {
-    const page = await getSignaturesForAddress({ address, limit: 1000, before });
-    if (!page?.length) break;
-    for (const entry of page) {
-      const time = entry.blockTime;
-      if (!entry.err && time != null && time >= from && time < to) signatures.push(entry.signature);
+// Which of a program's transactions are fills is only known once the transaction is read (a
+// busy day is mostly deposits, withdrawals and market setup), so every one is fetched. The
+// runner fetches several windows at once, so the limit on requests in flight is shared by the
+// whole process, and a rate-limited request waits and is retried rather than failing the day.
+const MAX_IN_FLIGHT = 4;
+let inFlight = 0;
+const waiting: (() => void)[] = [];
+const limited = async <T>(task: () => Promise<T>): Promise<T> => {
+  if (inFlight >= MAX_IN_FLIGHT) await new Promise<void>((resolve) => waiting.push(resolve));
+  inFlight++;
+  try { return await task(); }
+  finally { inFlight--; waiting.shift()?.(); }
+};
+
+const rateLimited = (e: any) => /429|Too many requests/i.test(String(e?.message));
+const rpc = async <T>(task: () => Promise<T>): Promise<T> => {
+  for (let attempt = 0; ; attempt++) {
+    try { return await limited(task); }
+    catch (e) {
+      if (attempt >= 5 || !rateLimited(e)) throw e;
+      await new Promise((resolve) => setTimeout(resolve, 2000 * 2 ** attempt));
     }
-    // A signature without a blockTime yet says nothing about where the window ends; keep paging.
-    const oldest = [...page].reverse().find((entry) => entry.blockTime != null)?.blockTime;
-    if (page.length < 1000 || (oldest != null && oldest < from)) break;
-    before = page[page.length - 1].signature;
   }
-  return signatures;
+};
+
+// Signatures can only be listed newest first, so finding one hour means paging back from the
+// newest transaction. With pullHourly the runner asks for 24 windows a day, several at once,
+// and walking the list again for each one is what got the public RPC to answer 429. Instead
+// each program's list is walked once per process and shared: every window extends the walk
+// only as far back as it needs, and the walks are serialised so concurrent windows wait for
+// one walk rather than each starting their own.
+type SignatureWalk = {
+  entries: { signature: string; blockTime: number; failed: boolean }[]; // newest first
+  newest?: string;      // newest signature seen, the `until` bound for refreshing the head
+  oldest?: string;      // oldest signature seen, the `before` cursor for going further back
+  oldestTime: number;   // blockTime the walk has reached back to
+  headTime: number;     // when the head was last read; later windows refresh it first
+  exhausted: boolean;   // the program's first transaction has been reached
+  queue: Promise<unknown>;
+};
+const signatureWalks = new Map<string, SignatureWalk>();
+const PAGE = 1000;
+
+const readPages = async (address: string, bounds: { before?: string; until?: string }, stopBefore = -Infinity) => {
+  const entries: SignatureWalk["entries"] = [];
+  let before = bounds.before;
+  let complete = false;
+  while (true) {
+    const page = await rpc(() => getSignaturesForAddress({ address, limit: PAGE, before, until: bounds.until }));
+    for (const entry of page ?? []) {
+      // A signature without a blockTime yet cannot be placed in a window; the next head
+      // refresh picks it up once it has one.
+      if (entry.blockTime != null)
+        entries.push({ signature: entry.signature, blockTime: entry.blockTime, failed: !!entry.err });
+    }
+    if (!page?.length || page.length < PAGE) { complete = true; break; }
+    before = page[page.length - 1].signature;
+    const oldest = entries[entries.length - 1]?.blockTime;
+    if (oldest != null && oldest < stopBefore) break;
+  }
+  return { entries, before, complete };
+};
+
+const signaturesInWindow = async (address: string, from: number, to: number) => {
+  let walk = signatureWalks.get(address);
+  if (!walk) {
+    walk = { entries: [], oldestTime: Infinity, headTime: 0, exhausted: false, queue: Promise.resolve() };
+    signatureWalks.set(address, walk);
+  }
+  const w = walk;
+  const run = w.queue.then(async () => {
+    // Head: a window ending after the last read may hold newer transactions.
+    if ((w.newest || w.exhausted) && to > w.headTime) {
+      const startedAt = Math.floor(Date.now() / 1000);
+      const { entries } = await readPages(address, { until: w.newest });
+      if (entries.length) { w.entries = [...entries, ...w.entries]; w.newest = entries[0].signature; }
+      w.headTime = startedAt;
+    }
+    // Tail: page back until the walk reaches the start of the window.
+    if (!w.exhausted && !(w.oldestTime < from)) {
+      const startedAt = Math.floor(Date.now() / 1000);
+      const { entries, before, complete } = await readPages(address, { before: w.oldest }, from);
+      if (!w.newest) { w.newest = entries[0]?.signature; w.headTime = startedAt; }
+      w.entries.push(...entries);
+      w.oldest = before ?? w.oldest;
+      if (entries.length) w.oldestTime = entries[entries.length - 1].blockTime;
+      w.exhausted = complete;
+    }
+  });
+  // A failed walk must not poison the windows queued behind it; they retry it.
+  w.queue = run.catch(() => undefined);
+  await run;
+  return w.entries
+    .filter((entry) => !entry.failed && entry.blockTime >= from && entry.blockTime < to)
+    .map((entry) => entry.signature);
 };
 
 // Top-level and inner instructions addressed to `programId` (program_fill only ever arrives as
@@ -203,20 +280,17 @@ const programInstructions = (tx: any, programId: string) => {
     .map((ix: any) => ({ accounts: ix.accounts as string[], data: Buffer.from(base58Decode(ix.data)) }));
 };
 
-const loadTransactions = async (signatures: string[]) => {
-  const txs: any[] = [];
-  const BATCH = 10;
-  for (let i = 0; i < signatures.length; i += BATCH) {
-    const batch = await Promise.all(signatures.slice(i, i + BATCH).map((signature) =>
-      getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 })));
-    batch.forEach((tx, j) => {
-      // A node that cannot serve the transaction is not a transaction without volume.
-      if (!tx?.meta) throw new Error(`daejin: solana rpc returned no transaction for ${signatures[i + j]}`);
-      txs.push(tx);
-    });
-  }
-  return txs;
+const fetchTransaction = async (signature: string) => {
+  const tx = await rpc(() =>
+    getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }));
+  // A node that cannot serve the transaction is not a transaction without volume.
+  if (!tx?.meta) throw new Error(`daejin: solana rpc returned no transaction for ${signature}`);
+  return tx;
 };
+
+const loadTransactions = (signatures: string[]) => Promise.all(signatures.map(fetchTransaction));
+
+const marketMints = new Map<string, string>();
 
 const fetchSolana = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
@@ -259,15 +333,17 @@ const fetchSolana = async (options: FetchOptions) => {
   }
   if (!fills.length) return { dailyVolume };
 
-  const markets = [...new Set(fills.map((fill) => fill.market))];
-  const buffers = await getAccountBuffers({ accounts: markets });
-  const mintOf = new Map<string, string>();
-  markets.forEach((market, i) => {
-    const buffer = buffers[i];
-    if (!buffer) throw new Error(`daejin: market account ${market} unreadable`);
-    mintOf.set(market, base58Encode(buffer.subarray(MARKET_MINT_OFFSET, MARKET_MINT_OFFSET + 32)));
-  });
-  for (const fill of fills) dailyVolume.add(mintOf.get(fill.market)!, fill.cash);
+  // A market's payment mint never changes, so it is read once per process.
+  const unknown = [...new Set(fills.map((fill) => fill.market))].filter((market) => !marketMints.has(market));
+  if (unknown.length) {
+    const buffers = await rpc(() => getAccountBuffers({ accounts: unknown }));
+    unknown.forEach((market, i) => {
+      const buffer = buffers[i];
+      if (!buffer) throw new Error(`daejin: market account ${market} unreadable`);
+      marketMints.set(market, base58Encode(buffer.subarray(MARKET_MINT_OFFSET, MARKET_MINT_OFFSET + 32)));
+    });
+  }
+  for (const fill of fills) dailyVolume.add(marketMints.get(fill.market)!, fill.cash);
 
   return { dailyVolume };
 };
