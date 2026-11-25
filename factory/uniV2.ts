@@ -1165,6 +1165,10 @@ const configs: Record<string, Record<string, any>> = {
     // PancakeSwap V2 fork: 0.25% swap fee, 32% of it (8/25 in _mintFee) minted to feeTo, the treasury multisig
     [CHAIN.BASE]: { factory: '0xFDa619b6d20975be80A10332cD39b9a4b0FAa8BB', start: '2023-07-28', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0.32, protocolRevenueRatio: 0.32, holdersRevenueRatio: 0 },
   },
+  "alienbase": {
+    // 0.16% swap fee. Deployed _mintFee uses rootK + rootKLast, so half of fee growth is taken and paid to esALB holders.
+    [CHAIN.BASE]: { factory: '0x3E84D913803b02A4a7f027165E8cA42C14C0FdE7', start: '2023-08-09', fees: 0.0016, userFeesRatio: 1, revenueRatio: 0.5, protocolRevenueRatio: 0, holdersRevenueRatio: 0.5 },
+  },
   "voltswap-v1": {
     // all swap fees go to VOLT stakers
     [CHAIN.METER]: { factory: '0x56aD9A9149685b290ffeC883937caE191e193135', revenueRatio: 1, protocolRevenueRatio: 0, holdersRevenueRatio: 1 },
@@ -1799,6 +1803,15 @@ const methodologyMap: Record<string, any> = {
     SupplySideRevenue: "All user fees are distributed among LPs.",
     HoldersRevenue: "Stakers received $GLINT in staking rewards.",
   },
+  "alienbase": {
+    Volume: "Swap volume on Alien Base V2.",
+    Fees: "Traders pay 0.16% on each swap.",
+    UserFees: "Traders pay 0.16% on each swap.",
+    Revenue: "Half of swap fees is paid to esALB holders.",
+    ProtocolRevenue: "The protocol keeps no V2 swap fees.",
+    SupplySideRevenue: "Half of swap fees stays with liquidity providers.",
+    HoldersRevenue: "Half of swap fees is paid to esALB holders.",
+  },
   "baseswap-v2": {
     Fees: "Traders pay a 0.25% fee on every swap in BaseSwap V2 pairs.",
     UserFees: "All fees are the 0.25% swap fee paid by traders.",
@@ -2394,6 +2407,14 @@ protocols['baseswap-v2'].breakdownMethodology = {
   ProtocolRevenue: { 'Protocol fees': "32% of swap fees (0.08% of volume) collected by the BaseSwap treasury multisig." },
   SupplySideRevenue: { 'LP fees': "68% of swap fees (0.17% of volume) kept by liquidity providers." },
   HoldersRevenue: { 'Tokenholder fees': "No fixed share of swap fees goes to BSX/xBSX holders." },
+}
+
+protocols['alienbase'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': "0.16% swap fee." },
+  UserFees: { 'Trading fees': "0.16% swap fee." },
+  Revenue: { 'Protocol fees': "Half of swap fees, paid to esALB holders." },
+  SupplySideRevenue: { 'LP fees': "Half of swap fees, kept by liquidity providers." },
+  HoldersRevenue: { 'Tokenholder fees': "Half of swap fees, paid to esALB holders." },
 }
 
 protocols['potatoswap'].breakdownMethodology = {

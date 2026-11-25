@@ -304,9 +304,6 @@ const configs: Record<string, Record<string, any>> = {
   "warpgate": {
     [CHAIN.IMX]: { factory: '0x464Ea59a3AA5Ea35e961Ff8aA4CCC7183eAA197e' },
   },
-  "alienbase-v3": {
-    [CHAIN.BASE]: { factory: '0x0Fd83557b2be93617c9C1C1B6fd549401C74558C' },
-  },
   "apertureSwap": {
     [CHAIN.MANTA]: { factory: '0x5bd1F6735B80e58aAC88B8A94836854d3068a13a' },
   },

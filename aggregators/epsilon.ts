@@ -1,65 +1,111 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import { getTransactions } from "../helpers/getTxReceipts";
+import { getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
 
-const ROUTER = "0x303ca5c65AabCb1CE242DF93F478c41E0E4D2580";
+const ROUTER = "0x303ca5c65aabcb1ce242df93f478c41e0e4d2580";
+const FEE_COLLECTOR = "0x7b7a3028acccc4a22767b0853d72afbfdb4032dd";
+// 10% of the protocol fee goes to esALB holders, paid out later from the fee collector EOA
+const HOLDER_SHARE_DENOMINATOR = 10n;
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
-// Direct swaps carry the full token pair in the event.
 const SWAPPED =
   "event Swapped(address indexed user, address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut)";
-
-// Order fills (the bulk of activity) carry only hash + amounts, NOT the pair.
 const ORDER_FILLED =
   "event OrderFilled(bytes32 indexed orderHash, address indexed maker, address indexed keeper, uint256 amountIn, uint256 amountOut, uint256 remaining)";
 
-// The pair lives in the `Order` struct — the first, fully-static arg of the
-// keeper's execute* call: struct Order { uint256 salt; address maker; address
-// receiver; address tokenIn; ... }. So tokenIn is the 4th ABI word after the
-// selector; its address is the last 20 of that 32-byte word. In 0x-prefixed
-// hex: 2 + (4 + 3*32)*2 + 24 = 226 .. 266.
-const TOKEN_IN_START = 226;
-const TOKEN_IN_END = 266;
+const METRIC = {
+  DIRECT_SWAPS: "Direct Swaps",
+  ORDER_FILLS: "Order Fills",
+  PROTOCOL_FEES: "Protocol Fees",
+  HOLDER_FEES: "Protocol Fees To esALB Holders",
+  KEEPER_FEES: "Keeper Execution Fees",
+};
+
+const topicToAddress = (topic: string) => "0x" + topic.slice(26).toLowerCase();
 
 const fetch = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-  // 1) Direct swaps — value the input leg straight from the event.
-  const swaps = await options.getLogs({ target: ROUTER, eventAbi: SWAPPED });
-  for (const s of swaps) dailyVolume.add(s.tokenIn, s.amountIn);
+  const swaps = await options.getLogs({ target: ROUTER, eventAbi: SWAPPED, entireLog: true, parseLog: true });
+  const fills = await options.getLogs({ target: ROUTER, eventAbi: ORDER_FILLED, entireLog: true, parseLog: true });
+  for (const swap of swaps) dailyVolume.add(swap.args.tokenIn, swap.args.amountIn, METRIC.DIRECT_SWAPS);
 
-  // 2) Order fills — amountIn is the filled slice (from the event); tokenIn is
-  //    recovered from the fill-tx calldata. Fetch each unique fill-tx once.
-  const fills: any[] = await options.getLogs({ target: ROUTER, eventAbi: ORDER_FILLED, entireLog: true, parseLog: true });
-  if (fills.length) {
-    const txHashes = [...new Set(fills.map((l) => l.transactionHash))];
-    const txs = await getTransactions(options.chain, txHashes);
-    const inputByTx: Record<string, string> = {};
-    for (let i = 0; i < txHashes.length; i++) {
-      const hash = txHashes[i].toLowerCase();
-      const tx = txs[i];
-      if (!tx?.hash) throw new Error(`Missing transaction for OrderFilled tx ${hash}`);
-      const input = tx.data ?? "0x";
-      if (input.length < TOKEN_IN_END) {
-        throw new Error(`Unexpected calldata for OrderFilled tx ${hash}`);
+  const txHashes: string[] = [...new Set<string>([...swaps, ...fills].map((log: any) => log.transactionHash.toLowerCase()))];
+  const receipts = await getTxReceiptsWithRetry(options.chain, txHashes);
+  const transfersByTx: Record<string, { token: string; from: string; to: string; amount: bigint }[]> = {};
+  txHashes.forEach((hash, i) => {
+    if (!receipts[i]) throw new Error(`Missing receipt for Epsilon tx ${hash}`);
+    transfersByTx[hash] = receipts[i]!.logs
+      .filter((log) => log.topics[0] === TRANSFER_TOPIC && log.topics.length === 3)
+      .map((log) => ({ token: log.address.toLowerCase(), from: topicToAddress(log.topics[1]), to: topicToAddress(log.topics[2]), amount: BigInt(log.data) }));
+  });
+
+  // OrderFilled carries no tokenIn: the router pulls it from the maker in the same tx
+  const keepersByTx: Record<string, Set<string>> = {};
+  for (const fill of fills) {
+    const hash = fill.transactionHash.toLowerCase();
+    const maker = fill.args.maker.toLowerCase();
+    const pull = transfersByTx[hash].find((t) => t.from === maker && t.to === ROUTER);
+    if (!pull) throw new Error(`Epsilon fill in tx ${hash}: no tokenIn transfer from maker ${maker} to the router`);
+    dailyVolume.add(pull.token, fill.args.amountIn, METRIC.ORDER_FILLS);
+    (keepersByTx[hash] ??= new Set()).add(fill.args.keeper.toLowerCase());
+  }
+
+  for (const hash of txHashes) {
+    for (const { token, from, to, amount } of transfersByTx[hash]) {
+      if (from !== ROUTER) continue;
+      if (to === FEE_COLLECTOR) {
+        const holderAmount = amount / HOLDER_SHARE_DENOMINATOR;
+        for (const balances of [dailyFees, dailyRevenue, dailyProtocolRevenue]) balances.add(token, amount - holderAmount, METRIC.PROTOCOL_FEES);
+        for (const balances of [dailyFees, dailyRevenue, dailyHoldersRevenue]) balances.add(token, holderAmount, METRIC.HOLDER_FEES);
+      } else if (keepersByTx[hash]?.has(to)) {
+        dailyFees.add(token, amount, METRIC.KEEPER_FEES);
+        dailySupplySideRevenue.add(token, amount, METRIC.KEEPER_FEES);
       }
-      inputByTx[hash] = input;
-    }
-
-    for (const log of fills) {
-      const txHash = log.transactionHash.toLowerCase();
-      const input = inputByTx[txHash];
-      if (!input) throw new Error(`Missing calldata for OrderFilled log in tx ${txHash}`);
-      const tokenIn = "0x" + input.slice(TOKEN_IN_START, TOKEN_IN_END);
-      dailyVolume.add(tokenIn, log.args.amountIn);
     }
   }
 
-  return { dailyVolume };
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 
 const methodology = {
-  Volume: "Sum of swap volumes and order fill volumes routed through the alpha base epsilon protocol router",
-}
+  Volume: "Direct swaps and order fills (limit, stop-loss, DCA and trailing-stop executions) routed through the Epsilon router of Alien Base on Base, valued on the input token.",
+  Fees: "Protocol fee sent to the Epsilon fee collector on each swap and fill, plus the execution fee paid to the keeper that fills an order.",
+  Revenue: "Protocol fee sent to the Epsilon fee collector: 90% kept by the protocol and 10% paid to esALB holders.",
+  ProtocolRevenue: "90% of the protocol fee sent to the Epsilon fee collector.",
+  HoldersRevenue: "10% of the protocol fee sent to the Epsilon fee collector, paid to esALB holders.",
+  SupplySideRevenue: "Execution fees paid to the keepers that fill orders.",
+};
+
+const breakdownMethodology = {
+  Volume: {
+    [METRIC.DIRECT_SWAPS]: "Market swaps executed directly through the router (Swapped events), valued on the input token.",
+    [METRIC.ORDER_FILLS]: "Keeper executions of limit, stop-loss, DCA and trailing-stop orders (OrderFilled events), valued on the input token.",
+  },
+  Fees: {
+    [METRIC.PROTOCOL_FEES]: "90% of the protocol fee, kept by the protocol.",
+    [METRIC.HOLDER_FEES]: "10% of the protocol fee, paid to esALB holders.",
+    [METRIC.KEEPER_FEES]: "Execution fee paid to the keeper that fills an order.",
+  },
+  Revenue: {
+    [METRIC.PROTOCOL_FEES]: "90% of the protocol fee, kept by the protocol.",
+    [METRIC.HOLDER_FEES]: "10% of the protocol fee, paid to esALB holders.",
+  },
+  ProtocolRevenue: {
+    [METRIC.PROTOCOL_FEES]: "90% of the protocol fee, kept by the protocol.",
+  },
+  HoldersRevenue: {
+    [METRIC.HOLDER_FEES]: "10% of the protocol fee, paid to esALB holders.",
+  },
+  SupplySideRevenue: {
+    [METRIC.KEEPER_FEES]: "Execution fee paid to the keeper that fills an order.",
+  },
+};
 
 const adapter: SimpleAdapter = {
   version: 2,
@@ -68,6 +114,7 @@ const adapter: SimpleAdapter = {
   fetch,
   start: "2026-05-19",
   methodology,
+  breakdownMethodology,
 };
 
 export default adapter;
