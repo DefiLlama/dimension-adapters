@@ -11,8 +11,16 @@ import { base58Decode, base58Encode, findProgramAddress, getAccountBuffers, getP
 // https://solscan.io/account/ridehgpxLaFr17WQUwmnTrHgDpKTpF9SNPNQoeui3GF
 const LAUNCHPAD = "ridehgpxLaFr17WQUwmnTrHgDpKTpF9SNPNQoeui3GF";
 const LAUNCH_DISCRIMINATOR = "R7vQE78exjo"; // base58 of the Anchor `Launch` account discriminator 903333a3ce55d526
-// https://solscan.io/account/4gg862r92UbSzMMo9oVVJ5JMkqrg841yAuRbpp2dj1UT
-const DBC_CONFIG = "4gg862r92UbSzMMo9oVVJ5JMkqrg841yAuRbpp2dj1UT";
+// Ride's DBC configs. Configs can't be edited, so a new curve means a new config: new launches use the latest one and
+// existing launches keep the config their pool was made on.
+const DBC_CONFIGS = [
+  // https://solscan.io/account/4gg862r92UbSzMMo9oVVJ5JMkqrg841yAuRbpp2dj1UT, created 2026-10-27; Ride's LP share is
+  // permanently locked
+  "4gg862r92UbSzMMo9oVVJ5JMkqrg841yAuRbpp2dj1UT",
+  // https://solscan.io/account/FLARGmBZSs35tEhE64UHnGyMrnyZw7eeyUXs48zHUK8Z, created 2026-11-21 11:22 UTC; Ride's LP
+  // share is unlocked (partner_liquidity_percentage 20), so Ride can withdraw it
+  "FLARGmBZSs35tEhE64UHnGyMrnyZw7eeyUXs48zHUK8Z",
+];
 const DBC_PROGRAM = "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN";
 const DAMM_PROGRAM = "cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG";
 const TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
@@ -24,21 +32,25 @@ const EVENT_CPI_TAG = "e445a52e51cb9a1d";
 const DBC_EVT_SWAP2 = "bd4233a826507599";
 const DBC_EVT_SWAP3 = "bb77f80dafff403f";
 const DAMM_EVT_SWAP2 = "bd4233a826507599";
+// DAMM v2 events that change a position's liquidity (idls/cp_amm.json). EvtLiquidityChange: change_type 0 add, 1 remove.
+const DAMM_EVT_LIQUIDITY_CHANGE = "c5ab4e7fe0d3570d";
+const DAMM_EVT_SPLIT_POSITION2 = "a520cbae4864e967";
+const DAMM_EVT_SPLIT_POSITION3 = "e875beda55a2cf4e";
 // event lengths in bytes, tag and discriminator included
 const DBC_EVT_SWAP2_LENGTH = 195;
 const DBC_EVT_SWAP3_LENGTH = 172;
 const DAMM_EVT_SWAP2_LENGTH = 196;
+const DAMM_EVT_LIQUIDITY_CHANGE_LENGTH = 193;
 
-const DBC_CONFIG_HEX = Buffer.from(base58Decode(DBC_CONFIG)).toString("hex");
+const toHex = (address: string) => Buffer.from(base58Decode(address)).toString("hex");
 const u128 = (data: Buffer, offset: number) => BigInt("0x" + (Buffer.from(data.subarray(offset, offset + 16)).reverse().toString("hex")));
 
 type AmmPool = { rideLiquidity: bigint; sqrtMinPrice: bigint };
 
-// Ride's DAMM v2 pools, with the liquidity Ride owns in each. At migration the DBC config gives the partner 20% of
-// the pool's liquidity as a permanently locked position (partnerPermanentLockedLiquidityPercentage 20,
-// partnerLiquidityPercentage 0), held by the config's fee claimer. Locked liquidity can never be withdrawn, so
-// reading it now gives the amount Ride held at any earlier time the pool existed.
-const getRideAmmPools = async (feeClaimer: string): Promise<Record<string, AmmPool>> => {
+// Ride's DAMM v2 pools, with the liquidity Ride owns in each now. At migration the DBC config gives the partner 20% of
+// the pool's liquidity in a position held by the config's fee claimer: permanently locked on the first config, unlocked
+// on the second. Unlocked liquidity can be withdrawn, so fetch replays Ride's liquidity changes back to each swap.
+const getRideAmmPools = async (feeClaimers: string[]): Promise<Record<string, AmmPool>> => {
   // Launch (glide IDL): creator, base_mint, dbc_pool, three u8 splits, staking enum, vault_treasury Option<Pubkey>,
   // state enum (1 = Bonded), damm_pool
   const launches = await getProgramAccounts({
@@ -56,19 +68,23 @@ const getRideAmmPools = async (feeClaimer: string): Promise<Record<string, AmmPo
   });
   if (!ammPools.length) return {};
 
-  // Ride's DAMM positions are the position NFTs (Token-2022, amount 1) held by the fee claimer
-  const nfts = await solanaRpc("getTokenAccountsByOwner", [feeClaimer, { programId: TOKEN_2022_PROGRAM }, { encoding: "base64" }]);
-  const positions = nfts.value
-    .map((account: any) => Buffer.from(account.account.data[0], "base64"))
-    .filter((data: Buffer) => data.readBigUInt64LE(64) === 1n)
-    .map((data: Buffer) => findProgramAddress([Buffer.from("position"), data.subarray(0, 32)], DAMM_PROGRAM)[0]);
-  // DAMM Position (idls/cp_amm.json): pool at 8, permanent_locked_liquidity at 184
+  // Ride's DAMM positions are the position NFTs (Token-2022, amount 1) held by the fee claimers
+  const positions: string[] = [];
+  for (const feeClaimer of feeClaimers) {
+    const nfts = await solanaRpc("getTokenAccountsByOwner", [feeClaimer, { programId: TOKEN_2022_PROGRAM }, { encoding: "base64" }]);
+    nfts.value
+      .map((account: any) => Buffer.from(account.account.data[0], "base64"))
+      .filter((data: Buffer) => data.readBigUInt64LE(64) === 1n)
+      .forEach((data: Buffer) => positions.push(findProgramAddress([Buffer.from("position"), data.subarray(0, 32)], DAMM_PROGRAM)[0]));
+  }
+  // DAMM Position (idls/cp_amm.json): pool at 8, unlocked_liquidity at 152, vested_liquidity at 168,
+  // permanent_locked_liquidity at 184
   const rideLiquidity: Record<string, bigint> = {};
   const positionBuffers = await getAccountBuffers({ chain: "solana", accounts: positions });
   positionBuffers.forEach((data: Buffer | null) => {
     if (!data) return;
     const pool = base58Encode(data.subarray(8, 40));
-    rideLiquidity[pool] = (rideLiquidity[pool] ?? 0n) + u128(data, 184);
+    rideLiquidity[pool] = (rideLiquidity[pool] ?? 0n) + u128(data, 152) + u128(data, 168) + u128(data, 184);
   });
 
   // DAMM Pool (idls/cp_amm.json): token_b_mint at 200, sqrt_min_price at 424, collect_fee_mode at 484
@@ -80,8 +96,8 @@ const getRideAmmPools = async (feeClaimer: string): Promise<Record<string, AmmPo
     if (base58Encode(data.subarray(200, 232)) !== ADDRESSES.solana.USDC) throw new Error(`ride-launchpad: DAMM pool ${pool} is not quoted in USDC`);
     // 1 = fees only in token B (USDC)
     if (data[484] !== 1) throw new Error(`ride-launchpad: DAMM pool ${pool} collects fees in mode ${data[484]}`);
-    if (!rideLiquidity[pool]) throw new Error(`ride-launchpad: no Ride position found in DAMM pool ${pool}`);
-    pools[pool] = { rideLiquidity: rideLiquidity[pool], sqrtMinPrice: u128(data, 424) };
+    // 0 when Ride has since withdrawn everything; fetch throws if Ride held no liquidity at a swap
+    pools[pool] = { rideLiquidity: rideLiquidity[pool] ?? 0n, sqrtMinPrice: u128(data, 424) };
   });
   return pools;
 };
@@ -89,24 +105,33 @@ const getRideAmmPools = async (feeClaimer: string): Promise<Record<string, AmmPo
 // Swap fees in USDC (raw units). DBC: `trading_fee` is the swap fee after Meteora's protocol and referral cut, split
 // between the coin's creator (the config's creator_trading_fee_percentage) and Ride as the partner.
 // DAMM v2: `claiming_fee` is the swap fee paid to the pool's LPs, shared by liquidity, so Ride's part is its
-// liquidity over the pool's. The pool's liquidity is not in the event; its full-range reserve gives it exactly:
-// reserve_b = liquidity * (sqrt_price - sqrt_min_price) >> 128.
+// liquidity at the swap over the pool's. The pool's liquidity is not in the event; its full-range reserve gives it
+// exactly: reserve_b = liquidity * (sqrt_price - sqrt_min_price) >> 128. Ride's liquidity at the swap is its liquidity
+// now minus its net adds since the swap.
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
   // DBC PoolConfig (idls/dynamic_bonding_curve.json): fee_claimer at 40, creator_trading_fee_percentage at 245.
-  // The config is immutable, so its current values apply to every past swap.
-  const [config] = await getAccountBuffers({ chain: "solana", accounts: [DBC_CONFIG] });
-  if (!config) throw new Error(`ride-launchpad: DBC config ${DBC_CONFIG} not found`);
-  const creatorPercentage = BigInt(config.readUInt8(245));
-  const ammPools = await getRideAmmPools(base58Encode(config.subarray(40, 72)));
-  const ammPoolHexes = Object.keys(ammPools).map((pool) => `'${Buffer.from(base58Decode(pool)).toString("hex")}'`);
+  // Configs are immutable, so their current values apply to every past swap.
+  const configs = await getAccountBuffers({ chain: "solana", accounts: DBC_CONFIGS });
+  const creatorPercentages: Record<string, bigint> = {};
+  const feeClaimers = new Set<string>();
+  DBC_CONFIGS.forEach((address, i) => {
+    const config = configs[i];
+    if (!config) throw new Error(`ride-launchpad: DBC config ${address} not found`);
+    creatorPercentages[toHex(address)] = BigInt(config.readUInt8(245));
+    feeClaimers.add(base58Encode(config.subarray(40, 72)));
+  });
+  const ammPools = await getRideAmmPools([...feeClaimers]);
+  const ammPoolHexes = Object.keys(ammPools).map((pool) => `'${toHex(pool)}'`);
+  const configHexes = DBC_CONFIGS.map((address) => `'${toHex(address)}'`);
+  const feeClaimerHexes = [...feeClaimers].map((address) => `'${toHex(address)}'`);
 
   const rows = await queryAllium(`
     WITH events AS (
-      SELECT txn_id, program_id, SUBSTR(data_hex, 17, 16) AS event, LENGTH(data_hex) / 2 AS len, data_hex
+      SELECT txn_id, block_timestamp, program_id, SUBSTR(data_hex, 17, 16) AS event, LENGTH(data_hex) / 2 AS len, data_hex
       FROM solana.raw.inner_instructions
       WHERE program_id IN ('${DBC_PROGRAM}', '${DAMM_PROGRAM}')
         AND parent_tx_success
@@ -115,14 +140,14 @@ const fetch = async (options: FetchOptions) => {
         AND (
           -- DBC EvtSwap2 / EvtSwap3: pool, then config
           (program_id = '${DBC_PROGRAM}' AND SUBSTR(data_hex, 17, 16) IN ('${DBC_EVT_SWAP2}', '${DBC_EVT_SWAP3}')
-            AND SUBSTR(data_hex, 97, 64) = '${DBC_CONFIG_HEX}')
+            AND SUBSTR(data_hex, 97, 64) IN (${configHexes.join(", ")}))
           -- DAMM EvtSwap2: pool first
           OR (program_id = '${DAMM_PROGRAM}' AND SUBSTR(data_hex, 17, 16) = '${DAMM_EVT_SWAP2}'
             AND ${ammPoolHexes.length ? `SUBSTR(data_hex, 33, 64) IN (${ammPoolHexes.join(", ")})` : "FALSE"})
         )
     ),
     curve AS (
-      -- EvtSwap3: trading_fee at 116, fee_on_base_token at 83
+      -- EvtSwap3: config at 48, trading_fee at 116, fee_on_base_token at 83
       SELECT data_hex FROM events
       WHERE program_id = '${DBC_PROGRAM}' AND event = '${DBC_EVT_SWAP3}' AND len = ${DBC_EVT_SWAP3_LENGTH}
         AND ${u8("data_hex", 83)} = '00'
@@ -130,9 +155,27 @@ const fetch = async (options: FetchOptions) => {
     amm AS (
       -- EvtSwap2: pool at 16, collect_fee_mode at 49, next_sqrt_price at 100, claiming_fee at 116,
       -- compounding_fee at 132, reserve_b_amount at 188
-      SELECT data_hex FROM events
+      SELECT block_timestamp, data_hex FROM events
       WHERE program_id = '${DAMM_PROGRAM}' AND len = ${DAMM_EVT_SWAP2_LENGTH}
         AND ${u8("data_hex", 49)} = '01' AND ${u64("data_hex", 132)} = 0
+    ),
+    -- Ride's liquidity changes in its pools from the window start to now, to replay back to each swap.
+    -- EvtLiquidityChange: pool at 16, owner at 80, liquidity_delta at 160, change_type at 192.
+    -- EvtSplitPosition2/3 (first_owner at 48, second_owner at 80) are not replayed, so a split of a Ride position throws.
+    ride_liquidity AS (
+      SELECT block_timestamp, SUBSTR(data_hex, 17, 16) AS event, LENGTH(data_hex) / 2 AS len, data_hex
+      FROM solana.raw.inner_instructions
+      WHERE program_id = '${DAMM_PROGRAM}'
+        AND parent_tx_success
+        AND block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND LEFT(data_hex, 16) = '${EVENT_CPI_TAG}'
+        AND (
+          (SUBSTR(data_hex, 17, 16) = '${DAMM_EVT_LIQUIDITY_CHANGE}'
+            AND ${ammPoolHexes.length ? `SUBSTR(data_hex, 33, 64) IN (${ammPoolHexes.join(", ")})` : "FALSE"}
+            AND SUBSTR(data_hex, 161, 64) IN (${feeClaimerHexes.join(", ")}))
+          OR (SUBSTR(data_hex, 17, 16) IN ('${DAMM_EVT_SPLIT_POSITION2}', '${DAMM_EVT_SPLIT_POSITION3}')
+            AND (SUBSTR(data_hex, 97, 64) IN (${feeClaimerHexes.join(", ")}) OR SUBSTR(data_hex, 161, 64) IN (${feeClaimerHexes.join(", ")})))
+        )
     ),
     unpaired AS (
       SELECT txn_id
@@ -147,18 +190,30 @@ const fetch = async (options: FetchOptions) => {
           - (SELECT COUNT(*) FROM events WHERE program_id = '${DBC_PROGRAM}' AND event = '${DBC_EVT_SWAP2}' AND len = ${DBC_EVT_SWAP2_LENGTH}) AS unknown_layout,
         (SELECT COUNT(*) FROM unpaired) AS unpaired_txs,
         (SELECT MIN(txn_id) FROM unpaired) AS unpaired_tx,
+        (SELECT COUNT(*) FROM ride_liquidity WHERE event <> '${DAMM_EVT_LIQUIDITY_CHANGE}' OR len <> ${DAMM_EVT_LIQUIDITY_CHANGE_LENGTH}
+          OR ${u8("data_hex", 192)} NOT IN ('00', '01')) AS unknown_liquidity_changes,
         -- the transfers table is built from the raw ones, so rows past the window mean the window is complete
         EXISTS (SELECT 1 FROM solana.assets.transfers
           WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.endTimestamp}) AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp + 900})) AS indexed
     )
-    SELECT 'check' AS kind, unknown_layout, unpaired_txs, unpaired_tx, indexed, NULL AS pool, NULL AS fee, NULL AS sqrt_price, NULL AS reserve
+    SELECT 'check' AS kind, unknown_layout, unpaired_txs, unpaired_tx, unknown_liquidity_changes, indexed,
+      NULL AS pool, NULL AS fee, NULL AS sqrt_price, NULL AS reserve, NULL AS ts, NULL AS change_type
     FROM checks
     UNION ALL
-    SELECT 'curve', NULL, NULL, NULL, NULL, NULL, COALESCE(SUM(${u64("data_hex", 116)}), 0), NULL, NULL
+    -- curve fees per config, in its pool column
+    SELECT 'curve', NULL, NULL, NULL, NULL, NULL, SUBSTR(data_hex, 97, 64), SUM(${u64("data_hex", 116)}), NULL, NULL, NULL, NULL
     FROM curve
+    GROUP BY SUBSTR(data_hex, 97, 64)
     UNION ALL
-    SELECT 'amm', NULL, NULL, NULL, NULL, SUBSTR(data_hex, 33, 64), ${u64("data_hex", 116)}, SUBSTR(data_hex, 201, 32), ${u64("data_hex", 188)}
+    SELECT 'amm', NULL, NULL, NULL, NULL, NULL, SUBSTR(data_hex, 33, 64), ${u64("data_hex", 116)}, SUBSTR(data_hex, 201, 32), ${u64("data_hex", 188)},
+      DATE_PART(EPOCH_SECOND, block_timestamp), NULL
     FROM amm
+    UNION ALL
+    -- liquidity_delta in the sqrt_price column (both u128)
+    SELECT 'liquidity', NULL, NULL, NULL, NULL, NULL, SUBSTR(data_hex, 33, 64), NULL, SUBSTR(data_hex, 321, 32), NULL,
+      DATE_PART(EPOCH_SECOND, block_timestamp), ${u8("data_hex", 192)}
+    FROM ride_liquidity
+    WHERE event = '${DAMM_EVT_LIQUIDITY_CHANGE}'
   `);
 
   const check = rows.find((row: any) => String(row.kind).toLowerCase() === "check");
@@ -166,15 +221,38 @@ const fetch = async (options: FetchOptions) => {
   if (!check.indexed) throw new Error(`ride-launchpad: Allium has not indexed Solana past ${new Date(options.endTimestamp * 1e3).toISOString()} yet`);
   if (Number(check.unknown_layout) > 0) throw new Error(`ride-launchpad: ${check.unknown_layout} Meteora swap events with an unknown layout, the program was likely upgraded`);
   if (Number(check.unpaired_txs) > 0) throw new Error(`ride-launchpad: DBC swaps in ${check.unpaired_tx} (and ${Number(check.unpaired_txs) - 1} others) do not emit one EvtSwap3 per EvtSwap2`);
+  if (Number(check.unknown_liquidity_changes) > 0) throw new Error(`ride-launchpad: ${check.unknown_liquidity_changes} splits or unknown liquidity changes on Ride's DAMM positions`);
+
+  // Ride's net liquidity added to each pool, per second, from the window start to now
+  const liquidityChanges: Record<string, { ts: number; delta: bigint }[]> = {};
+  rows.forEach((row: any) => {
+    if (String(row.kind).toLowerCase() !== "liquidity") return;
+    const delta = u128(Buffer.from(row.sqrt_price, "hex"), 0);
+    (liquidityChanges[row.pool] ??= []).push({ ts: Number(row.ts), delta: row.change_type === "00" ? delta : -delta });
+  });
 
   let curveFees = 0n;
+  let curveCreatorFees = 0n;
   let ammFees = 0n;
   let ammRideFees = 0n;
   rows.forEach((row: any) => {
     const kind = String(row.kind).toLowerCase();
-    if (kind === "curve") curveFees = BigInt(row.fee);
+    if (kind === "curve") {
+      const fee = BigInt(row.fee);
+      curveFees += fee;
+      curveCreatorFees += (fee * creatorPercentages[row.pool]) / 100n;
+    }
     if (kind !== "amm") return;
-    const { rideLiquidity, sqrtMinPrice } = ammPools[base58Encode(Buffer.from(row.pool, "hex"))];
+    const pool = base58Encode(Buffer.from(row.pool, "hex"));
+    const { sqrtMinPrice } = ammPools[pool];
+    let rideLiquidity = ammPools[pool].rideLiquidity;
+    const ts = Number(row.ts);
+    (liquidityChanges[row.pool] ?? []).forEach((change) => {
+      // the swap and the change can't be ordered within the same second
+      if (change.ts === ts) throw new Error(`ride-launchpad: Ride's liquidity in DAMM pool ${pool} changed in the same second as a swap`);
+      if (change.ts > ts) rideLiquidity -= change.delta;
+    });
+    if (rideLiquidity <= 0n) throw new Error(`ride-launchpad: no Ride liquidity in DAMM pool ${pool} at ${new Date(ts * 1e3).toISOString()}`);
     const fee = BigInt(row.fee);
     const sqrtPrice = u128(Buffer.from(row.sqrt_price, "hex"), 0);
     const reserve = BigInt(row.reserve);
@@ -183,7 +261,6 @@ const fetch = async (options: FetchOptions) => {
     // fee * rideLiquidity / poolLiquidity, with poolLiquidity = (reserve << 128) / (sqrtPrice - sqrtMinPrice)
     ammRideFees += (fee * rideLiquidity * (sqrtPrice - sqrtMinPrice)) / (reserve << 128n);
   });
-  const curveCreatorFees = (curveFees * creatorPercentage) / 100n;
 
   const usdc = ADDRESSES.solana.USDC;
   dailyFees.add(usdc, curveFees.toString(), "Launchpad Bonding Curve Fees");
@@ -203,7 +280,7 @@ const fetch = async (options: FetchOptions) => {
 
 const methodology = {
   Fees: "Trading fees paid in USDC on coins launched through the Ride Launchpad, while they trade on their bonding curve and after they graduate to an AMM pool.",
-  Revenue: "Ride's share of the trading fees on coins launched through the Ride Launchpad: its cut of bonding curve fees and the AMM fees earned by its locked liquidity.",
+  Revenue: "Ride's share of the trading fees on coins launched through the Ride Launchpad: its cut of bonding curve fees and the AMM fees earned by its liquidity in the coins' pools.",
   ProtocolRevenue: "Ride's share of the trading fees on coins launched through the Ride Launchpad, kept by the protocol.",
   SupplySideRevenue: "Trading fees on coins launched through the Ride Launchpad that are paid to the coins' creators and to the other liquidity providers in their AMM pools.",
 };
