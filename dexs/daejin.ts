@@ -3,6 +3,7 @@ import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTransactionsWithRetry } from "../helpers/getTxReceipts";
 import ADDRESSES from "../helpers/coreAssets.json";
+import { base58Decode, base58Encode, getAccountBuffers, getSignaturesForAddress, getTransaction } from "../helpers/solana";
 
 // Daejin runs two kinds of prediction market on each chain:
 //  - AMM markets (PredictionMarket): every bet emits BetPlaced with the cash paid and the token.
@@ -68,7 +69,7 @@ const legCash = (outcome: bigint, execPrice: bigint, size: bigint): bigint => {
   return (px * size) / PRICE_TICKS;
 };
 
-const fetch = async (options: FetchOptions) => {
+const fetchEvm = async (options: FetchOptions) => {
   const { predictionMarket, clobExchange, collateral } = CONTRACTS[options.chain];
   const dailyVolume = options.createBalances();
 
@@ -142,15 +143,146 @@ const fetch = async (options: FetchOptions) => {
   return { dailyVolume };
 };
 
+// Solana. The two programs are Anchor programs that emit no events, so volume is read from the
+// arguments of the instructions that move value, which carry the same numbers the EVM events do.
+//  prediction_market (AMM) https://solscan.io/account/GgMXNkJR4Vmfd8ievZRBp8Uf8NJX5bdBX96u9FfYComC
+//  clob_settlement   (order book) https://solscan.io/account/EJMhw3BibsxMj8az8DsE1D8qUpUDyPSssX2tKpWQ3jeM
+// Borsh layout: 8 byte instruction discriminator (sha256("global:<name>")[0..8]), then the args.
+//  place_bet(is_yes: bool, amount: u64)                       amount = gross stake, mint units
+//  settle_fill(order_a, order_b, hash_a, hash_b, exec_price: u64, size: u64)
+//  amm_fill(order, hash, exec_price: u64, size: u64)
+//  program_fill(outcome: u8, action: u8, exec_price: u64, size: u64)   leveraged trades, a CPI
+//                                                                       from leverage_pool
+// An order is (user: Pubkey, market: u64, action: u8, outcome: u8, price, size, salt: u64,
+// expiry: i64), 74 bytes, outcome at byte 41. Prices are ticks out of PRICE_TICKS = 1000 and
+// size is in the market's payment-mint units, so a leg costs price * size / 1000 of the mint,
+// exactly legCash above with a share unit of 1 (the program has no share unit).
+// The collateral mint is ClobMarket.payment_mint (bytes 16..48 of the market account, which is
+// the first account of each fill instruction); the AMM's is the mint of its vault (3rd account).
+const SOLANA_AMM = "GgMXNkJR4Vmfd8ievZRBp8Uf8NJX5bdBX96u9FfYComC";
+const SOLANA_CLOB = "EJMhw3BibsxMj8az8DsE1D8qUpUDyPSssX2tKpWQ3jeM";
+const IX = {
+  placeBet: "de3e43dc3fa67e21",
+  settleFill: "c5518732bf03ab4b",
+  ammFill: "0576f116c5d5d16e",
+  programFill: "f93fc68acd1d9076",
+};
+const ORDER_LEN = 74;
+const ORDER_OUTCOME = 41;
+const MARKET_MINT_OFFSET = 16;
+
+// Every signature of a program inside the window, oldest pages last. Both programs see a few
+// dozen transactions a day, so walking back from the newest is cheap.
+const signaturesInWindow = async (address: string, from: number, to: number) => {
+  const signatures: string[] = [];
+  let before: string | undefined;
+  while (true) {
+    const page = await getSignaturesForAddress({ address, limit: 1000, before });
+    if (!page?.length) break;
+    for (const entry of page) {
+      const time = entry.blockTime;
+      if (!entry.err && time != null && time >= from && time < to) signatures.push(entry.signature);
+    }
+    // A signature without a blockTime yet says nothing about where the window ends; keep paging.
+    const oldest = [...page].reverse().find((entry) => entry.blockTime != null)?.blockTime;
+    if (page.length < 1000 || (oldest != null && oldest < from)) break;
+    before = page[page.length - 1].signature;
+  }
+  return signatures;
+};
+
+// Top-level and inner instructions addressed to `programId` (program_fill only ever arrives as
+// an inner instruction, through leverage_pool).
+const programInstructions = (tx: any, programId: string) => {
+  const all = [
+    ...tx.transaction.message.instructions,
+    ...(tx.meta.innerInstructions ?? []).flatMap((group: any) => group.instructions),
+  ];
+  return all
+    .filter((ix: any) => ix.programId === programId && typeof ix.data === "string")
+    .map((ix: any) => ({ accounts: ix.accounts as string[], data: Buffer.from(base58Decode(ix.data)) }));
+};
+
+const loadTransactions = async (signatures: string[]) => {
+  const txs: any[] = [];
+  const BATCH = 10;
+  for (let i = 0; i < signatures.length; i += BATCH) {
+    const batch = await Promise.all(signatures.slice(i, i + BATCH).map((signature) =>
+      getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 })));
+    batch.forEach((tx, j) => {
+      // A node that cannot serve the transaction is not a transaction without volume.
+      if (!tx?.meta) throw new Error(`daejin: solana rpc returned no transaction for ${signatures[i + j]}`);
+      txs.push(tx);
+    });
+  }
+  return txs;
+};
+
+const fetchSolana = async (options: FetchOptions) => {
+  const dailyVolume = options.createBalances();
+  const from = options.startTimestamp;
+  const to = options.endTimestamp;
+
+  // AMM bets: the stake in the vault's mint.
+  for (const tx of await loadTransactions(await signaturesInWindow(SOLANA_AMM, from, to))) {
+    const keys: string[] = tx.transaction.message.accountKeys.map((key: any) => key.pubkey ?? key);
+    for (const ix of programInstructions(tx, SOLANA_AMM)) {
+      if (ix.data.subarray(0, 8).toString("hex") !== IX.placeBet) continue;
+      const vault = ix.accounts[2];
+      const balance = [...(tx.meta.postTokenBalances ?? []), ...(tx.meta.preTokenBalances ?? [])]
+        .find((b: any) => keys[b.accountIndex] === vault);
+      if (!balance) throw new Error(`daejin: no vault balance in ${tx.transaction.signatures[0]}`);
+      dailyVolume.add(balance.mint, ix.data.readBigUInt64LE(9));
+    }
+  }
+
+  // Order-book fills: one side of each trade, as on the EVM chains.
+  const fills: { market: string; cash: bigint }[] = [];
+  for (const tx of await loadTransactions(await signaturesInWindow(SOLANA_CLOB, from, to))) {
+    for (const ix of programInstructions(tx, SOLANA_CLOB)) {
+      const d = ix.data;
+      const kind = d.subarray(0, 8).toString("hex");
+      if (kind === IX.settleFill) {
+        const at = 8 + 2 * ORDER_LEN + 64;
+        const execPrice = d.readBigUInt64LE(at);
+        const size = d.readBigUInt64LE(at + 8);
+        const cashA = legCash(BigInt(d[8 + ORDER_OUTCOME]), execPrice, size);
+        const cashB = legCash(BigInt(d[8 + ORDER_LEN + ORDER_OUTCOME]), execPrice, size);
+        fills.push({ market: ix.accounts[0], cash: (cashA + cashB) / 2n });
+      } else if (kind === IX.ammFill) {
+        const at = 8 + ORDER_LEN + 32;
+        fills.push({ market: ix.accounts[0], cash: legCash(BigInt(d[8 + ORDER_OUTCOME]), d.readBigUInt64LE(at), d.readBigUInt64LE(at + 8)) });
+      } else if (kind === IX.programFill) {
+        fills.push({ market: ix.accounts[0], cash: legCash(BigInt(d[8]), d.readBigUInt64LE(10), d.readBigUInt64LE(18)) });
+      }
+    }
+  }
+  if (!fills.length) return { dailyVolume };
+
+  const markets = [...new Set(fills.map((fill) => fill.market))];
+  const buffers = await getAccountBuffers({ accounts: markets });
+  const mintOf = new Map<string, string>();
+  markets.forEach((market, i) => {
+    const buffer = buffers[i];
+    if (!buffer) throw new Error(`daejin: market account ${market} unreadable`);
+    mintOf.set(market, base58Encode(buffer.subarray(MARKET_MINT_OFFSET, MARKET_MINT_OFFSET + 32)));
+  });
+  for (const fill of fills) dailyVolume.add(mintOf.get(fill.market)!, fill.cash);
+
+  return { dailyVolume };
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch,
-  chains: [CHAIN.ETHEREUM, CHAIN.BSC],
-  start: "2026-08-01",
+  adapter: {
+    [CHAIN.ETHEREUM]: { fetch: fetchEvm, start: "2026-08-01" },
+    [CHAIN.BSC]: { fetch: fetchEvm, start: "2026-08-01" },
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-09-09" },
+  },
   methodology: {
     Volume:
-      "AMM markets: collateral paid per bet (BetPlaced cashAmount), gross of fees, in the bet token. Order-book markets: collateral exchanged per settled fill, one side counted (average of both legs at the execution price), gross of fees, in USDC. LP deposits, claims and refunds are not counted.",
+      "AMM markets: collateral paid per bet (BetPlaced cashAmount on EVM, place_bet amount on Solana), gross of fees, in the bet token. Order-book markets: collateral exchanged per settled fill (settleFill/ammFill on EVM; settle_fill, amm_fill and leveraged program_fill on Solana), one side counted (average of both legs at the execution price), gross of fees, in USDC. LP deposits, claims and refunds are not counted.",
   },
 };
 
