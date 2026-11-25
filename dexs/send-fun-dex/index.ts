@@ -25,13 +25,19 @@ function normalizeQuoteMint(mint: string | null | undefined): string {
 }
 
 const fetch = async (options: FetchOptions) => {
+  // Dune decodes each event under several IDL versions, one row each, so keep one row per event.
   const sql = `
+    WITH trade_events AS (
+      SELECT DISTINCT evt_tx_id, evt_outer_instruction_index, evt_inner_instruction_index, quote_mint, quote_amount_gross
+      FROM ${TRADE_TABLE}
+      WHERE evt_block_time >= from_unixtime(${options.startTimestamp})
+        AND evt_block_time < from_unixtime(${options.endTimestamp})
+        AND quote_mint IS NOT NULL
+    )
     SELECT
       quote_mint AS token,
       COALESCE(SUM(CAST(quote_amount_gross AS decimal(38, 0))), 0) AS volume
-    FROM ${TRADE_TABLE}
-    WHERE evt_block_time >= from_unixtime(${options.startTimestamp})
-      AND evt_block_time < from_unixtime(${options.endTimestamp})
+    FROM trade_events
     GROUP BY quote_mint
   `;
 
