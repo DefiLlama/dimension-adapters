@@ -19,10 +19,8 @@ const PLATFORM_WALLET = "0xfB1302F5D6c5F107a0715b8Ce7303D1e3C647807";
 // Base: https://basescan.org/address/0x04eaa73b518783010a5A5dc471eEa89C4C34eF44
 const VAULT_PAYMENT_WALLET = "0x04eaa73b518783010a5A5dc471eEa89C4C34eF44";
 // Claim-then-sell helper: transfers the cards to DYLI and pays USDC from the treasury atomically.
-// First live sale, 2026-11-05: https://basescan.org/tx/0xfea41735367a7d5e0fc22ad07ca7b0480747cd5a206ff5f5fa8d227c1e644eba
 const BASE_SELLBACK_HELPER = "0x4E86614c26f22f3bDDd93AEeE07479159159Fa54"; // https://basescan.org/address/0x4E86614c26f22f3bDDd93AEeE07479159159Fa54#code
 // Base cash auctions escrow bids and remit seller proceeds/premiums only on settlement.
-// Deployed 2026-11-23: https://basescan.org/tx/0x61b05b139931150fa32b65fd0eb16fc087c18712e200d9b7fde9539bde2afe48
 const BASE_AUCTIONS = "0xED6947F6fF6B0C7e861891D3F5F4cAD4D8667834"; // https://basescan.org/address/0xED6947F6fF6B0C7e861891D3F5F4cAD4D8667834#code
 
 const VENDING_MACHINES = [
@@ -158,17 +156,14 @@ const getStripeSales = async (options: FetchOptions, boughtLogs: any[], internal
   for (let from = fromBlock; from <= toBlock; from += 43200) {
     const to = Math.min(toBlock, from + 43199);
     const data = await httpGet(EVIDENCE_API, { params: { chainId: 8453, fromBlock: from, toBlock: to }, timeout: 30000 });
-    if (data.version !== 1 || data.chainId !== 8453 || data.fromBlock !== from || data.toBlock !== to ||
-        data.complete !== true || !Array.isArray(data.stripeSales)) throw new Error("Incomplete DYLI Stripe evidence");
+    if (data.complete !== true || !Array.isArray(data.stripeSales)) throw new Error("Incomplete DYLI Stripe evidence");
     for (const sale of data.stripeSales) {
       const log = pending.get(sale.paymentReference);
-      if (!log || sale.transactionHash !== log.transactionHash.toLowerCase() || sale.blockNumber !== Number(log.blockNumber) ||
-          sale.blockNumber < from || sale.blockNumber > to || sale.grossAmount !== String(log.args.grossAmount) ||
-          typeof sale.recognizedAmount !== "string" || !/^\d+$/.test(sale.recognizedAmount) ||
-          BigInt(sale.recognizedAmount) > BigInt(log.args.grossAmount))
+      const recognized = BigInt(sale.recognizedAmount);
+      if (!log || sale.transactionHash !== log.transactionHash.toLowerCase() || recognized < 0n || recognized > BigInt(log.args.grossAmount))
         throw new Error(`DYLI Stripe sale ${sale.paymentReference} does not match a Bought event`);
       pending.delete(sale.paymentReference); // each purchase counts once
-      amount += BigInt(sale.recognizedAmount);
+      amount += recognized;
     }
   }
   return amount;
@@ -256,28 +251,22 @@ const fetch = async (originalOptions: FetchOptions) => {
   }) : [];
 
   const getBaseCardPayouts = async () => {
-    const sellbacks = options.createBalances();
-    const deductions = options.createBalances();
-    // These events prove a completed sale/refund. Do not count raw treasury payments,
-    // per-card ClaimBought events, initial NFT delivery, or later restocking again.
+    const payouts = options.createBalances();
     const finalized = await options.getLogs({ target: config.vendingMachines[0], eventAbi: FINALIZED });
     for (const log of finalized) {
       if (INTERNAL_ADDRESSES.has(normalize(log.user))) continue;
-      sellbacks.add(USDC, log.totalBuyBack);
-      deductions.add(USDC, log.totalBuyBack);
-      deductions.add(USDC, log.totalRefund);
+      payouts.add(USDC, log.totalBuyBack);
+      payouts.add(USDC, log.totalRefund);
     }
     const cancelled = await options.getLogs({ target: config.vendingMachines[0], eventAbi: EXPIRED_BUY_CANCELLED });
     for (const log of cancelled) {
-      if (!INTERNAL_ADDRESSES.has(normalize(log.user))) deductions.add(USDC, log.refund);
+      if (!INTERNAL_ADDRESSES.has(normalize(log.user))) payouts.add(USDC, log.refund);
     }
     const settled = await options.getLogs({ target: BASE_SELLBACK_HELPER, eventAbi: BUYBACK_SETTLED });
     for (const log of settled) {
-      if (INTERNAL_ADDRESSES.has(normalize(log.seller))) continue;
-      sellbacks.add(USDC, log.payout);
-      deductions.add(USDC, log.payout);
+      if (!INTERNAL_ADDRESSES.has(normalize(log.seller))) payouts.add(USDC, log.payout);
     }
-    return { sellbacks, deductions };
+    return payouts;
   };
 
   const getAuctionPayments = async () => {
@@ -289,22 +278,14 @@ const fetch = async (originalOptions: FetchOptions) => {
     if (!logs.length) return { volume, fees }; // No-bid returns and uncompleted bids are not trades.
     const lots = await options.toApi.multiCall({ target: BASE_AUCTIONS, abi: AUCTION_STATE,
       calls: logs.map((log) => ({ params: [log.id] })) });
-    if (lots.length !== logs.length) throw new Error("Incomplete DYLI auction settlement state");
-    logs.forEach((log, i) => {
-      const lot = lots[i];
-      if (!lot || lot[8] !== true || lot[9] !== false || normalize(lot[5]) !== normalize(log.recipient) || BigInt(lot[6]) !== BigInt(log.amount))
-        throw new Error("DYLI auction state does not match its settlement");
-    });
+    // premiumBps is frozen per lot; the onchain function rounds the premium up to the cent.
     const premiums = await options.toApi.multiCall({ target: BASE_AUCTIONS, abi: AUCTION_PREMIUM,
-      calls: logs.map((log, i) => ({ params: [log.amount, lots[i][10]] })) });
-    if (premiums.length !== logs.length) throw new Error("Incomplete DYLI auction premiums");
+      calls: logs.map((log, i) => ({ params: [log.amount, lots[i].premiumBps] })) });
     logs.forEach((log, i) => {
-      const lot = lots[i];
-      // premiumBps is frozen per lot; the onchain function applies its exact cent rounding.
       const hammer = BigInt(log.amount), premium = BigInt(premiums[i]);
       volume.add(USDC, hammer + premium);
       fees.add(USDC, premium);
-      if (INTERNAL_ADDRESSES.has(normalize(lot[0]))) fees.add(USDC, hammer);
+      if (INTERNAL_ADDRESSES.has(normalize(lots[i].seller))) fees.add(USDC, hammer);
     });
     return { volume, fees };
   };
@@ -345,25 +326,20 @@ const fetch = async (originalOptions: FetchOptions) => {
         const to = getLogTo(log);
         return !to || !INTERNAL_ADDRESSES.has(to);
       },
-      // Legacy outflows combine buybacks and refunds; retain the fee deduction only.
-    }).then((outflows) => ({ sellbacks: options.createBalances(), deductions: outflows })),
+    }),
     getAuctionPayments(),
   ]);
 
   const serviceFees = serviceFeeInflows.clone(1, METRIC.SERVICE_FEES);
   const cardSales = cardSaleInflows.clone(1, CARD_SALES);
 
-  // Gross payment/trading turnover: a purchase and a later sell-back are two
-  // distinct settled trades. Refunds are not another trade and never add volume.
   dailyVolume.add(serviceFeeInflows);
   dailyVolume.add(cardSaleInflows);
-  dailyVolume.add(cardPayouts.sellbacks);
   dailyVolume.add(auctionPayments.volume);
 
   dailyFees.add(serviceFees, METRIC.SERVICE_FEES);
   dailyFees.add(cardSales, CARD_SALES);
-  // Physical TCG fees are net of sell-backs and refunds under the same label.
-  dailyFees.subtract(cardPayouts.deductions, CARD_SALES);
+  dailyFees.subtract(cardPayouts, CARD_SALES);
   dailyFees.add(auctionPayments.fees, AUCTION_RECEIPTS);
 
   addMarketplaceLogs(listingBoughtLogs, dailyVolume, dailyFees, USDC);
@@ -417,38 +393,30 @@ const fetch = async (originalOptions: FetchOptions) => {
   return result();
 };
 
+const FEES_METHODOLOGY = "Pack purchases (USDC and verified Stripe) minus sell-backs and refunds paid to users, plus service payments, marketplace/P2P commissions, cash-auction buyer premiums and the winning bid on DYLI-owned lots. Can be negative when sell-backs exceed purchases.";
+const REVENUE_METHODOLOGY = "All fees are kept by DYLI, before offchain physical-card costs.";
+
 const methodology = {
   Volume:
-    "Gross tracked payment/trading turnover: paid purchases, verified Stripe-funded Base Gacha purchases, full marketplace/P2P settlements, settled cash auctions including buyer premiums and Base sell-backs to DYLI, plus tracked service receipts; excludes treasury funding, internal bridges, NFT claims/restocking, uncompleted bids and refund payouts, and is not pack-only GMV.",
-  Fees:
-    "Tracked service receipts, marketplace/P2P commissions, settled cash-auction premiums and DYLI-owned auction sales, plus crypto/verified Stripe Gacha purchases net of sell-backs to DYLI and refunds; Base includes direct and claim-then-sell payouts, allows negative periods and excludes other offchain sales and diamond auctions.",
-  UserFees: "Tracked service payments, marketplace/P2P commissions and settled cash-auction income, plus crypto/verified Stripe pack receipts after sell-backs and refunds; excludes internal funding and unverified offchain sales.",
-  Revenue: "Tracked service receipts, marketplace/P2P commissions, cash-auction premiums and DYLI-owned auction sales, plus crypto/verified Stripe Gacha purchases retained after sell-backs and refunds, before undisclosed offchain card procurement, grading, shipping and vaulting costs.",
-  ProtocolRevenue: "Tracked service receipts, marketplace/P2P commissions, cash-auction premiums and DYLI-owned auction sales, plus crypto/verified Stripe Gacha purchases allocated to DYLI after sell-backs and refunds, before undisclosed offchain physical-card costs.",
+    "Pack purchases (USDC and verified Stripe), full marketplace/P2P settlements, settled cash auctions (winning bid plus buyer premium) and service payments. Sell-backs, refunds, internal transfers and treasury bridges are excluded.",
+  Fees: FEES_METHODOLOGY,
+  UserFees: FEES_METHODOLOGY,
+  Revenue: REVENUE_METHODOLOGY,
+  ProtocolRevenue: REVENUE_METHODOLOGY,
 };
 
 const feeBreakdown = {
-  [METRIC.SERVICE_FEES]: "USDC transfers into DYLI mint, platform-wallet, vault-payment, and batchRedeem fee paths, including nonrefundable cash-auction launch charges.",
-  [CARD_SALES]: "Crypto and verified Stripe pack receipts net of sell-backs to DYLI and refunds; includes treasury-funded BuybackSettled payouts once per quote, not again per ClaimBought card.",
+  [METRIC.SERVICE_FEES]: "USDC transfers into DYLI mint, platform-wallet, vault-payment, and batchRedeem fee paths, including cash-auction listing charges.",
+  [CARD_SALES]: "USDC and verified Stripe pack purchases, minus sell-backs (direct and claim-then-sell) and refunds paid to users.",
   [METRIC.TRADING_FEES]: "5% of secondary marketplace volume; P2P fees are 2.5% of accepted trade USDC volume on Abstract and the USDC paid to the DYLI platform wallet in accepted trades on Base.",
-  [AUCTION_RECEIPTS]: "Settled cash-auction buyer premiums, plus the hammer price when DYLI is the seller; each lot uses its frozen onchain rate and cent rounding, excluding external seller proceeds and bid/refund escrow.",
+  [AUCTION_RECEIPTS]: "Buyer premiums on settled cash auctions, plus the winning bid when DYLI is the seller.",
 };
 
 const breakdownMethodology = {
   Fees: feeBreakdown,
   UserFees: feeBreakdown,
-  Revenue: {
-    [METRIC.SERVICE_FEES]: "USDC service-fee flows retained by DYLI.",
-    [CARD_SALES]: "Crypto and verified Stripe pack receipts retained by DYLI after sell-backs and refunds, before undisclosed offchain physical-card costs.",
-    [METRIC.TRADING_FEES]: "Marketplace and P2P trade fees retained by DYLI.",
-    [AUCTION_RECEIPTS]: "Cash-auction buyer premiums and DYLI-owned hammer-price receipts retained at settlement, before undisclosed physical-card costs; launch charges remain under Service Fees.",
-  },
-  ProtocolRevenue: {
-    [METRIC.SERVICE_FEES]: "USDC service-fee flows retained by DYLI.",
-    [CARD_SALES]: "Crypto and verified Stripe pack receipts allocated to DYLI after sell-backs and refunds, before undisclosed offchain physical-card costs.",
-    [METRIC.TRADING_FEES]: "Marketplace and P2P trade fees retained by DYLI.",
-    [AUCTION_RECEIPTS]: "Cash-auction buyer premiums and DYLI-owned hammer-price receipts allocated to DYLI at settlement, before undisclosed physical-card costs.",
-  },
+  Revenue: feeBreakdown,
+  ProtocolRevenue: feeBreakdown,
 };
 
 const adapter: SimpleAdapter = {
