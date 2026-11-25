@@ -1,8 +1,8 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-// FlatEx: flat-fee DEX aggregator on Base. Routes swaps through the 1inch
-// AggregationRouter, charging a flat ETH fee per trade-size tier via the
+// FlatEx: flat-fee DEX aggregator. Routes swaps through the KyberSwap
+// MetaRouter, charging a flat ETH fee per trade-size tier via the
 // FlatExRouter contract. https://flatex.trade
 //
 // FlatExRouter versions (all emit the same SwapExecuted event):
@@ -19,6 +19,10 @@ const chainConfig: Record<string, { targets: string[]; start: string }> = {
   },
   [CHAIN.ARBITRUM]: {
     targets: ["0x297370EeAAf8729407689Ef01d922A8015e611A2"],
+    start: "2026-11-25",
+  },
+  [CHAIN.ETHEREUM]: {
+    targets: ["0xa93F686B6c775B4e63Fb6162Edbc42dD3C9e32F1"],
     start: "2026-11-25",
   },
 };
