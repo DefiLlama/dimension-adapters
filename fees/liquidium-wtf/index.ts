@@ -70,8 +70,7 @@ async function fetchBitcoin(options: FetchOptions) {
   const dailyHoldersRevenue = options.createBalances();
 
   dailyFees.addCGToken("bitcoin", activationFees, ACTIVATION_FEES);
-  dailyFees.addCGToken("bitcoin", protocolInterestFees, INTEREST_TO_PROTOCOL);
-  dailyFees.addCGToken("bitcoin", lenderInterest, INTEREST_TO_LENDERS);
+  dailyFees.addCGToken("bitcoin", protocolInterestFees + lenderInterest, METRIC.BORROW_INTEREST);
 
   dailyRevenue.addCGToken("bitcoin", activationFees, ACTIVATION_FEES);
   dailyRevenue.addCGToken("bitcoin", protocolInterestFees, INTEREST_TO_PROTOCOL);
@@ -128,8 +127,7 @@ async function fetchEvm(options: FetchOptions) {
     const { asset, principal } = loans[i];
     const interest = BigInt(log.repayment) - BigInt(principal);
     const protocolFee = BigInt(log.fee);
-    dailyFees.add(asset, protocolFee, INTEREST_TO_PROTOCOL);
-    dailyFees.add(asset, interest - protocolFee, INTEREST_TO_LENDERS);
+    dailyFees.add(asset, interest, METRIC.BORROW_INTEREST);
     addRevenue(asset, protocolFee, INTEREST_TO_PROTOCOL);
     dailySupplySideRevenue.add(asset, interest - protocolFee, INTEREST_TO_LENDERS);
   });
@@ -156,13 +154,11 @@ const methodology = {
 const breakdownMethodology = {
   Fees: {
     [ACTIVATION_FEES]: "One-time fee charged to the borrower when a loan starts on-chain.",
-    [INTEREST_TO_PROTOCOL]: "Liquidium's share of the interest on repaid loans, after LIQ holder discounts.",
-    [INTEREST_TO_LENDERS]: "Interest credited to lenders on repaid loans.",
+    [METRIC.BORROW_INTEREST]: "Interest paid by borrowers on repaid loans, after LIQ holder discounts.",
   },
   UserFees: {
     [ACTIVATION_FEES]: "One-time fee charged to the borrower when a loan starts on-chain.",
-    [INTEREST_TO_PROTOCOL]: "Liquidium's share of the interest on repaid loans, after LIQ holder discounts.",
-    [INTEREST_TO_LENDERS]: "Interest credited to lenders on repaid loans.",
+    [METRIC.BORROW_INTEREST]: "Interest paid by borrowers on repaid loans, after LIQ holder discounts.",
   },
   Revenue: {
     [ACTIVATION_FEES]: "One-time fee charged to the borrower when a loan starts on-chain.",
