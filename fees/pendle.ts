@@ -37,9 +37,12 @@ const PT_LOOPER = '0xF82Ef4080A53b71093f9c470676Fc80E2ADC4263'
 const EXIT_FEES_LABEL = 'sPENDLE Instant Exit Fees'
 const LOOPER_FEES_LABEL = 'PT Looper Service Fees And Gas'
 const ERC20_TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+// The looper upgrade on 2026-11-12 (all chains, Ethereum block 26397560) dropped `nonce`, both forms are read so older days still resolve.
 const LOOPER_POSITION_EVENTS = [
   'event PositionIncreased(address indexed owner, bytes32 indexed boxId, bytes32 requestHash, uint256 nonce, uint256 preInBalance, uint256 netPtToMM, uint256 postDebtBalance)',
   'event PositionDecreased(address indexed owner, bytes32 indexed boxId, bytes32 requestHash, uint256 nonce, uint256 preDebtBalance, uint256 netPtToSwap, uint256 postDebtBalance)',
+  'event PositionIncreased(address indexed owner, bytes32 indexed boxId, bytes32 requestHash, uint256 preInBalance, uint256 netPtToMM, uint256 postDebtBalance)',
+  'event PositionDecreased(address indexed owner, bytes32 indexed boxId, bytes32 requestHash, uint256 preDebtBalance, uint256 netPtToSwap, uint256 postDebtBalance)',
 ]
 
 const BRIDGED_ASSETS = [
