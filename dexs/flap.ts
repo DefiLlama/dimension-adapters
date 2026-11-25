@@ -57,6 +57,15 @@ const chainConfig: Record<string, {
     safe: "0xA77dc19CF7CB7ab50b661Ce5AB6D37954F8022f4",
     wrappedNative: ADDRESSES.monad.WMON,
   },
+  [CHAIN.BASE]: {
+    start: "2026-08-05",
+    portal: "0x0000BC1c4fD15Dd79029AF8F5d77D68ae4490000",
+    fromBlock: 49568394,
+    useIndexer: true,
+    // same three owners as the Monad Safe
+    safe: "0x826feA08DEA99aaF9a3e500464CCD006e30652D9",
+    wrappedNative: ADDRESSES.base.WETH,
+  },
 };
 
 const eventAbis = {
