@@ -44,7 +44,10 @@ async function fetchVolume({ startTimestamp: start, endTimestamp: end, createBal
 }
 
 const adapter: SimpleAdapter = {
-  adapter: { [CHAIN.BITCOIN_CASH]: { fetch: fetchVolume, start: "2026-09-06" } },
+  version: 2,
+  chains: [CHAIN.BITCOIN_CASH],
+  start: "2026-09-06",
+  fetch: fetchVolume,
   methodology: { Volume: "Sum the BCH side of confirmed swap legs from Guanaco pools across CashToken markets using the Guanaco Bitcoin Cash indexer." },
 };
 export default adapter;
