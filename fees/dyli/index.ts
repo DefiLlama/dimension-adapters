@@ -394,7 +394,7 @@ const fetch = async (originalOptions: FetchOptions) => {
 };
 
 const FEES_METHODOLOGY = "Pack purchases (USDC and verified Stripe) minus sell-backs and refunds paid to users, plus service payments, marketplace/P2P commissions, cash-auction buyer premiums and the winning bid on DYLI-owned lots. Can be negative when sell-backs exceed purchases.";
-const REVENUE_METHODOLOGY = "All fees are kept by DYLI, before offchain physical-card costs.";
+const REVENUE_METHODOLOGY = "Pack purchases (USDC and verified Stripe) minus sell-backs and refunds, plus service payments, marketplace/P2P commissions, cash-auction buyer premiums and the winning bid on DYLI-owned lots, all kept by DYLI. The cost of buying, grading, shipping and vaulting the physical cards behind the packs is paid offchain and not deducted.";
 
 const methodology = {
   Volume:
