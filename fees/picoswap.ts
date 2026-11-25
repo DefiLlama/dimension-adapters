@@ -45,27 +45,27 @@ const adapter: SimpleAdapter = {
   chains: CHAINS,
   start: START,
   methodology: {
-    Fees: "PicoSwap's app fee on swaps through Relay (0.2%, 0.1% on major pairs, 0% between stablecoins; 0.5% on 2026-11-15), as Relay recorded it paid on each swap in PicoSwap's Relay request ledger, plus, from 2026-11-24, PicoSwap's CoW Protocol partner fee on filled limit orders (0.1% of the fill). Fees on the direct 0x / Jupiter route are not included; Jupiter limit orders and DCA carry no PicoSwap fee.",
-    Revenue: "PicoSwap's half of the Relay app fee, less the referral earnings owed on those swaps, plus the CoW limit order partner fee.",
-    ProtocolRevenue: "Same as Revenue.",
-    SupplySideRevenue: "Half of the Relay app fee, paid into the Rewards pool and back to traders in USDC each season, plus the referral earnings (levels 1 and 2) owed to referrers out of PicoSwap's half.",
+    Fees: "PicoSwap's app fee on same-chain and cross-chain swaps routed through Relay (0.2%, 0.1% on major pairs, 0% between stablecoins; 0.5% on launch day 2026-11-15), plus its 0.1% partner fee on filled CoW Protocol limit orders since 2026-11-24; excludes swaps on the direct 0x / Jupiter route and the fees charged by Relay, 0x, Jupiter, CoW and the underlying DEXs.",
+    Revenue: "PicoSwap's half of the Relay app fee after paying referrers, plus the full CoW limit order partner fee.",
+    ProtocolRevenue: "PicoSwap's half of the Relay app fee after paying referrers, plus the full CoW limit order partner fee, kept by PicoSwap.",
+    SupplySideRevenue: "Half of the Relay app fee, paid back to traders in USDC through the seasonal Rewards pool, plus the referral earnings paid to referrers out of PicoSwap's half.",
   },
   breakdownMethodology: {
     Fees: {
-      [SWAP_FEES]: "PicoSwap's app fee on Relay swaps, as recorded per swap.",
-      [LIMIT_ORDER_FEES]: "PicoSwap's CoW Protocol partner fee on filled limit orders (0.1% of the fill), from 2026-11-24.",
+      [SWAP_FEES]: "PicoSwap's app fee on same-chain and cross-chain swaps routed through Relay.",
+      [LIMIT_ORDER_FEES]: "PicoSwap's 0.1% partner fee on filled CoW Protocol limit orders, since 2026-11-24.",
     },
     Revenue: {
-      [PICOSWAP_SHARE]: "PicoSwap's half of the Relay app fee, less referral earnings.",
-      [LIMIT_ORDER_SHARE]: "The CoW limit order partner fee, paid entirely to PicoSwap.",
+      [PICOSWAP_SHARE]: "PicoSwap's half of the Relay app fee, after referral earnings.",
+      [LIMIT_ORDER_SHARE]: "The full CoW limit order partner fee, kept by PicoSwap.",
     },
     ProtocolRevenue: {
-      [PICOSWAP_SHARE]: "PicoSwap's half of the Relay app fee, less referral earnings.",
-      [LIMIT_ORDER_SHARE]: "The CoW limit order partner fee, paid entirely to PicoSwap.",
+      [PICOSWAP_SHARE]: "PicoSwap's half of the Relay app fee, after referral earnings.",
+      [LIMIT_ORDER_SHARE]: "The full CoW limit order partner fee, kept by PicoSwap.",
     },
     SupplySideRevenue: {
-      [REWARDS_POOL]: "Half of the Relay app fee, paid back to traders as USDC Rewards.",
-      [REFERRERS]: "Referral earnings owed to referrers on the swaps of wallets they invited, out of PicoSwap's half.",
+      [REWARDS_POOL]: "Half of the Relay app fee, paid back to traders in USDC each Rewards season.",
+      [REFERRERS]: "Referral earnings paid to referrers on swaps by wallets they invited, out of PicoSwap's half.",
     },
   },
 };
