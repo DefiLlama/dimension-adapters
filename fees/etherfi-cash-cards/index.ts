@@ -96,7 +96,8 @@ const fetch = async (options: FetchOptions) => {
             targets
         });
         logs.forEach(log => {
-            for (const amount of log.amountInUsd) {
+            const amounts = Array.isArray(log.amountInUsd) ? log.amountInUsd : [log.amountInUsd];
+            for (const amount of amounts) {
               if (amount > 0) {
                     dailyVolume.addUSDValue(Number(amount) / 1e6);
                 
