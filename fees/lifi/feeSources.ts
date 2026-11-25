@@ -1,3 +1,4 @@
+import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions } from "../../adapters/types";
 import ADDRESSES from "../../helpers/coreAssets.json";
 import { fetchTransfersFromLIFIAPI, LifiDiamonds, LifiTransfer } from "../../helpers/aggregators/lifi";
@@ -88,6 +89,7 @@ export const getFeeTransactions = async (options: FetchOptions): Promise<Map<str
 
 // LI.FI API fee names on Solana; the other feeCosts belong to the bridges
 const SolanaFeeNames = ['LIFI Fee', 'LIFI Fixed Fee', 'LIFI Shared Fee'];
+// LI.FI's fee wallet on Solana, as listed in fees/jumper-exchange
 const SolanaFeeWallet = '34FKjAdVcTax2DHqV2XnbXa9J3zmyKcFuFKWbcmgxjgm';
 const SolanaNative = '11111111111111111111111111111111';
 // 'LIFI Fee' legs list only LI.FI's own amount. The integrator is paid by the next transfer in the same token,
@@ -97,10 +99,10 @@ const getSolanaIntegratorFee = async (signature: string, token: string, sending:
   if (!transaction?.meta) throw new Error(`lifi: solana rpc returned no transaction ${signature}`);
   const accounts = transaction.transaction.message.accountKeys.map((key: any) => key.pubkey);
   const signers = transaction.transaction.message.accountKeys.filter((key: any) => key.signer).map((key: any) => key.pubkey);
-  const tokenAccounts = new Map<string, any>([...transaction.meta.preTokenBalances, ...transaction.meta.postTokenBalances]
+  const tokenAccounts = new Map<string, any>([...(transaction.meta.preTokenBalances ?? []), ...(transaction.meta.postTokenBalances ?? [])]
     .map((balance: any) => [accounts[balance.accountIndex], balance]));
   // LI.FI's transfer is a plain instruction, or one inside a program call: look in the list it sits in
-  const lists: any[][] = [transaction.transaction.message.instructions, ...transaction.meta.innerInstructions.map((inner: any) => inner.instructions)];
+  const lists: any[][] = [transaction.transaction.message.instructions, ...(transaction.meta.innerInstructions ?? []).map((inner: any) => inner.instructions)];
   for (const list of lists) {
     const transfers = list
       .filter((instruction: any) => ['transfer', 'transferChecked', 'transferCheckedWithFee'].includes(instruction.parsed?.type))
@@ -125,22 +127,25 @@ export type SolanaFee = { token: string; integratorFee: string | bigint; lifiFee
 // LI.FI fees on bridges sent from Solana; refunded bridges report Solana as receiving chain
 export const getSolanaBridgeFees = async (options: FetchOptions): Promise<SolanaFee[]> => {
   const transfers = await fetchTransfersFromLIFIAPI(options.startTimestamp, options.endTimestamp, [], CHAIN.SOLANA);
-  const fees: SolanaFee[] = [];
+  const legs = [];
   for (const { sending, receiving, substatus, metadata, feeCosts } of transfers) {
     if (receiving.chainId === sending.chainId && substatus !== 'REFUNDED') continue;
     for (const { name, token, feeSplit } of feeCosts ?? []) {
       // legs without a split are not paid in the transaction
       if (!SolanaFeeNames.includes(name) || token.chainId !== sending.chainId || !feeSplit) continue;
-      const isListedByLifiOnly = name === 'LIFI Fee' && Number(feeSplit.integratorFee) === 0 && Number(feeSplit.lifiFee) > 0;
-      // serial: one transaction read per 'LIFI Fee' leg
-      const integratorFee = isListedByLifiOnly ? await getSolanaIntegratorFee(sending.txHash, token.address, sending) : feeSplit.integratorFee;
-      fees.push({
-        token: token.address === SolanaNative ? ADDRESSES.solana.SOL : token.address,
-        integratorFee,
-        lifiFee: feeSplit.lifiFee,
-        integrator: metadata.integrator,
-      });
+      legs.push({ sending, integrator: metadata.integrator, name, token, feeSplit });
     }
   }
+  const fees: SolanaFee[] = [];
+  await PromisePool.withConcurrency(5).for(legs).handleError((error) => { throw error; }).process(async ({ sending, integrator, name, token, feeSplit }) => {
+    const isListedByLifiOnly = name === 'LIFI Fee' && Number(feeSplit.integratorFee) === 0 && Number(feeSplit.lifiFee) > 0;
+    const integratorFee = isListedByLifiOnly ? await getSolanaIntegratorFee(sending.txHash, token.address, sending) : feeSplit.integratorFee;
+    fees.push({
+      token: token.address === SolanaNative ? ADDRESSES.solana.SOL : token.address,
+      integratorFee,
+      lifiFee: feeSplit.lifiFee,
+      integrator,
+    });
+  });
   return fees;
 };
