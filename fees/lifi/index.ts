@@ -1,6 +1,6 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
-import { LifiFeeCollectors } from "../../helpers/aggregators/lifi";
+import { LifiDiamonds, LifiFeeCollectors } from "../../helpers/aggregators/lifi";
 import { getDefaultDexTokensBlacklisted } from "../../helpers/lists"
 import { FeeCollectedEvent, FeesForwardedEvent, getFeeForwarders, getFeeTransactions, isJumperTransaction, JumperFeeStart, LifiRecipient } from './feeSources'
 
@@ -76,7 +76,7 @@ export const createLifiFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapter
 	fetch: fetch(category),
 	// copy per adapter: the runner writes fetch onto each chain entry, so a shared object makes
 	// lifi-dex-aggregator run the bridge fetch (or vice versa)
-	adapter: Object.fromEntries(Object.entries(LifiFeeCollectors).map(([chain, config]) => [chain, { ...config }])),
+	adapter: Object.fromEntries(Object.entries(LifiFeeCollectors).map(([chain, config]) => [chain, { ...config, deadFrom: config.deadFrom ?? LifiDiamonds[chain]?.deadFrom }])),
 	methodology: {
 		Fees: `All fees paid by users on LI.FI ${category === 'bridge' ? 'bridges' : 'swaps'}, including integrator fees.`,
 		Revenue: 'Share of fees kept by LI.FI.',
