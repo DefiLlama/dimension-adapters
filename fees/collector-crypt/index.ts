@@ -65,6 +65,8 @@ const TEAM_ADDRESSES = [
   '96DULv1BqYfe5wyMr6pVUNC6Uyrtj6yr3tNi6VtfwW9s',
   'jrS7Pbn38wKiPsXbyNhGCr3icfXuJxdytZr1N4TwdFu', // CC bot wallet, sends USDC into the gacha sink
   '3nGNwiz1qevPjhEoQi1dLj16oTkjmbevTnpV9piWY7Kq', // buyback bot: its USDC funding from the gacha sink is not a pack buyback spend
+  TREASURY,
+  'DwMFE83LZM8AsHyyPTPncp2BD7uqHFmc4Q4CV6Yejqwa', // CC ops wallet, forwards USDC to DFEstp
 ]
 
 const EVM_GACHA_CONTRACTS = [
