@@ -24,16 +24,27 @@ import { base58Decode, base58Encode, getAccountBuffers, getSignaturesForAddress,
 //                    https://bscscan.com/token/0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d
 // The collateral is the paymentToken of every order-book market created so far on each chain
 // (ClobExchange.markets(id).paymentToken); the AMM path takes the token from the event itself.
-const CONTRACTS: Record<string, { predictionMarket: string; clobExchange: string; collateral: string }> = {
+// On Solana the two entries are the program ids (described above fetchSolana), and there is no
+// fixed collateral: each order-book market account names its own payment mint.
+// start is the first day with data: the EVM deployments, and the first transaction of the
+// Solana programs.
+const chainConfig: Record<string, { predictionMarket: string; clobExchange: string; collateral?: string; start: string }> = {
   [CHAIN.ETHEREUM]: {
     predictionMarket: "0xA528f636bAE87FF2c3e4d5718313cfC38C1B0be9",
     clobExchange: "0x9b00A64FF4a8F72D6Ff463fFe3acBC01cf5DB24f",
     collateral: ADDRESSES.ethereum.USDC,
+    start: "2026-08-01",
   },
   [CHAIN.BSC]: {
     predictionMarket: "0x7B8F913097242e21895F3731206F07d753170c07",
     clobExchange: "0x792a699e6A35566Ae293AD560698C41917B27b02",
     collateral: ADDRESSES.bsc.USDC,
+    start: "2026-08-01",
+  },
+  [CHAIN.SOLANA]: {
+    predictionMarket: "GgMXNkJR4Vmfd8ievZRBp8Uf8NJX5bdBX96u9FfYComC",
+    clobExchange: "EJMhw3BibsxMj8az8DsE1D8qUpUDyPSssX2tKpWQ3jeM",
+    start: "2026-09-09",
   },
 };
 
@@ -70,7 +81,8 @@ const legCash = (outcome: bigint, execPrice: bigint, size: bigint): bigint => {
 };
 
 const fetchEvm = async (options: FetchOptions) => {
-  const { predictionMarket, clobExchange, collateral } = CONTRACTS[options.chain];
+  const { predictionMarket, clobExchange, collateral } = chainConfig[options.chain];
+  if (!collateral) throw new Error(`daejin: no collateral configured for ${options.chain}`);
   const dailyVolume = options.createBalances();
 
   const bets = await options.getLogs({ target: predictionMarket, eventAbi: BET_PLACED });
@@ -159,8 +171,7 @@ const fetchEvm = async (options: FetchOptions) => {
 // exactly legCash above with a share unit of 1 (the program has no share unit).
 // The collateral mint is ClobMarket.payment_mint (bytes 16..48 of the market account, which is
 // the first account of each fill instruction); the AMM's is the mint of its vault (3rd account).
-const SOLANA_AMM = "GgMXNkJR4Vmfd8ievZRBp8Uf8NJX5bdBX96u9FfYComC";
-const SOLANA_CLOB = "EJMhw3BibsxMj8az8DsE1D8qUpUDyPSssX2tKpWQ3jeM";
+const { predictionMarket: SOLANA_AMM, clobExchange: SOLANA_CLOB } = chainConfig[CHAIN.SOLANA];
 const IX = {
   placeBet: "de3e43dc3fa67e21",
   settleFill: "c5518732bf03ab4b",
@@ -174,12 +185,15 @@ const MARKET_MINT_OFFSET = 16;
 // Which of a program's transactions are fills is only known once the transaction is read (a
 // busy day is mostly deposits, withdrawals and market setup), so every one is fetched. The
 // runner fetches several windows at once, so the limit on requests in flight is shared by the
-// whole process.
+// whole process. 4 is well under the public RPC's 10 requests per 10 seconds per method (see
+// the cooldown below), so few requests are in flight when a 429 arrives; the Solana test runs
+// complete on the public RPC at this value.
 const MAX_IN_FLIGHT = 4;
 let inFlight = 0;
 const waiting: (() => void)[] = [];
 const limited = async <T>(task: () => Promise<T>): Promise<T> => {
-  if (inFlight >= MAX_IN_FLIGHT) await new Promise<void>((resolve) => waiting.push(resolve));
+  // A loop: the slot a waiter was woken for can be taken before the waiter resumes.
+  while (inFlight >= MAX_IN_FLIGHT) await new Promise<void>((resolve) => waiting.push(resolve));
   inFlight++;
   try { return await task(); }
   finally { inFlight--; waiting.shift()?.(); }
@@ -226,6 +240,8 @@ type SignatureWalk = {
   queue: Promise<unknown>;
 };
 const signatureWalks = new Map<string, SignatureWalk>();
+// The most getSignaturesForAddress returns per call
+// (https://solana.com/docs/rpc/http/getsignaturesforaddress); a shorter page is the last one.
 const PAGE = 1000;
 
 const readPages = async (address: string, bounds: { before?: string; until?: string }, stopBefore = -Infinity) => {
@@ -235,10 +251,12 @@ const readPages = async (address: string, bounds: { before?: string; until?: str
   while (true) {
     const page = await rpc(() => getSignaturesForAddress({ address, limit: PAGE, before, until: bounds.until }));
     for (const entry of page ?? []) {
-      // A signature without a blockTime yet cannot be placed in a window; the next head
-      // refresh picks it up once it has one.
-      if (entry.blockTime != null)
-        entries.push({ signature: entry.signature, blockTime: entry.blockTime, failed: !!entry.err });
+      // The RPC may answer blockTime: null. Such a signature cannot be placed in a window, and
+      // skipping it would lose its volume for good once the walk has moved past it, so the walk
+      // fails and is retried. None of the programs' signatures has had one so far; if a node
+      // ever answers null persistently, read the slot's time with getBlockTime instead.
+      if (entry.blockTime == null) throw new Error(`daejin: no block time yet for ${entry.signature}`);
+      entries.push({ signature: entry.signature, blockTime: entry.blockTime, failed: !!entry.err });
     }
     if (!page?.length || page.length < PAGE) { complete = true; break; }
     before = page[page.length - 1].signature;
@@ -362,14 +380,13 @@ const fetchSolana = async (options: FetchOptions) => {
   return { dailyVolume };
 };
 
+const fetch = (options: FetchOptions) => (options.chain === CHAIN.SOLANA ? fetchSolana(options) : fetchEvm(options));
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  adapter: {
-    [CHAIN.ETHEREUM]: { fetch: fetchEvm, start: "2026-08-01" },
-    [CHAIN.BSC]: { fetch: fetchEvm, start: "2026-08-01" },
-    [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-09-09" },
-  },
+  fetch,
+  adapter: chainConfig, // start dates are read from chainConfig per chain
   methodology: {
     Volume:
       "AMM markets: collateral paid per bet (BetPlaced cashAmount on EVM, place_bet amount on Solana), gross of fees, in the bet token. Order-book markets: collateral exchanged per settled fill (settleFill/ammFill on EVM; settle_fill, amm_fill and leveraged program_fill on Solana), one side counted (average of both legs at the execution price), gross of fees, in USDC. LP deposits, claims and refunds are not counted.",
