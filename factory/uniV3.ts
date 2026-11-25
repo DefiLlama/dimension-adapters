@@ -3,6 +3,9 @@ import { getUniV3LogAdapter, UniGetRevenueRatioProps, uniV3Exports } from "../he
 import { createFactoryExports } from "./registry";
 import { FetchOptions } from "../adapters/types";
 import { getLogsSplitAtCap } from "../helpers/logs";
+import { ChainApi } from "@defillama/sdk";
+import { ethers } from "ethers";
+import { IJSON } from "../adapters/types";
 
 const algebraV3SwapEvent = 'event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick, uint24 overrideFee, uint24 pluginFee)'
 const algebraV3PoolCreatedEvent = 'event Pool (address indexed token0, address indexed token1, address pool)'
@@ -123,7 +126,78 @@ const kellerClCustomLogic = async ({ pairObject, dailyFees, fetchOptions, filter
   return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue }
 }
 
+// Theorem (Algebra Integral 1.2.0): the pool plugin overrides the swap fee on every swap and the Swap log does not carry it,
+// so neither fee() nor globalState().fee is what traders paid (measured 0% to 0.25% per pool against a stored 0.05%).
+// Fees are measured instead from the community fee the pool sets aside on each swap (globalState().communityFee / 1000 of
+// the swap fee): what accrued in the window = change in getCommunityFeePending() + transfers from the pool to its community vault.
+// The vault's algebraFee (1000 = 100% on 2026-11-25) is the part of the community fee paid to Algebra, the rest is Theorem's.
+const theoremCustomLogic = async ({ pairObject, dailyVolume, filteredPairs, fetchOptions }: any) => {
+  const { createBalances, getLogs, chain, toApi, getFromBlock } = fetchOptions
+  const pendingAbi = 'function getCommunityFeePending() view returns (uint128 pending0, uint128 pending1)'
+  const stateAbi = 'function globalState() view returns (uint160 price, int24 tick, uint16 fee, uint8 pluginConfig, uint16 communityFee, bool unlocked)'
+  const transferEvent = 'event Transfer(address indexed from, address indexed to, uint256 value)'
+  const transferTopic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+
+  const dailyFees = createBalances()
+  const dailyRevenue = createBalances()
+  const dailySupplySideRevenue = createBalances()
+
+  const pools = Object.keys(filteredPairs)
+  if (!pools.length) return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
+
+  const startApi = new ChainApi({ chain, block: (await getFromBlock()) - 1 })
+  const pendingStart = await startApi.multiCall({ abi: pendingAbi, calls: pools, permitFailure: true })
+  const pendingEnd = await toApi.multiCall({ abi: pendingAbi, calls: pools, permitFailure: true })
+  const states = await toApi.multiCall({ abi: stateAbi, calls: pools, permitFailure: true })
+  const vaults = await toApi.multiCall({ abi: 'address:communityVault', calls: pools, permitFailure: true })
+  const uniqueVaults = [...new Set(vaults.filter((v: any) => !!v).map((v: string) => v.toLowerCase()))] as string[]
+  const algebraFees = await toApi.multiCall({ abi: 'uint16:algebraFee', calls: uniqueVaults, permitFailure: true })
+  const algebraShare: IJSON<number> = {}
+  uniqueVaults.forEach((vault, i) => { if (algebraFees[i] != null) algebraShare[vault] = Number(algebraFees[i]) / 1e3 })
+
+  // community fee paid out during the window: token transfers from a pool to its community vault
+  const paidOut: IJSON<bigint> = {}
+  const tokens = [...new Set(pools.flatMap((pool) => pairObject[pool].map((t: string) => t.toLowerCase())))] as string[]
+  for (const vault of uniqueVaults) {
+    const vaultTopic = ethers.zeroPadValue(vault, 32)
+    for (const token of tokens) {
+      const logs = await getLogs({ target: token, eventAbi: transferEvent, topics: [transferTopic, null as any, vaultTopic] })
+      logs.forEach((log: any) => {
+        const key = `${String(log.from).toLowerCase()}-${token}-${vault}`
+        paidOut[key] = (paidOut[key] ?? 0n) + BigInt(log.value)
+      })
+    }
+  }
+
+  pools.forEach((pool, i) => {
+    // a pool that cannot be read at either end of the window is skipped (this includes a pool created inside the window)
+    if (pendingStart[i] == null || pendingEnd[i] == null || states[i] == null || !vaults[i]) return
+    const vault = vaults[i].toLowerCase()
+    if (algebraShare[vault] === undefined) return
+    const communityFeeRatio = Number(states[i].communityFee) / 1e3
+    if (!communityFeeRatio) throw new Error(`theorem: community fee is 0 on ${pool}, swap fees cannot be measured from it`)
+    pairObject[pool].forEach((token: string, side: number) => {
+      const paid = paidOut[`${pool.toLowerCase()}-${token.toLowerCase()}-${vault}`] ?? 0n
+      const accrued = BigInt(pendingEnd[i][side]) - BigInt(pendingStart[i][side]) + paid
+      if (accrued < 0n) throw new Error(`theorem: negative community fee accrual on ${pool}`)
+      const community = Number(accrued)
+      const fee = community / communityFeeRatio
+      const algebra = community * algebraShare[vault]
+      dailyFees.add(token, fee, 'Token Swap Fees')
+      dailyRevenue.add(token, community - algebra, 'Protocol fees')
+      dailySupplySideRevenue.add(token, fee - community, 'LP fees')
+      dailySupplySideRevenue.add(token, algebra, 'Algebra fees')
+    })
+  })
+
+  return { dailyVolume, dailyFees, dailyUserFees: dailyFees.clone(1, 'Trading fees'), dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue }
+}
+
 const configs: Record<string, Record<string, any>> = {
+  "theorem": {
+    // https://app.theorem.markets/markets, Algebra Integral fork (factory Pool event, 7-field Swap event). Factory deployed at block 24924425.
+    [CHAIN.ETHEREUM]: { factory: '0xd265f57c36AC60d3F7931eC5c7396966F0C246A7', start: '2026-04-20', isAlgebraV3: true, poolCreatedEvent: algebraV3PoolCreatedEvent, swapEvent: algebraV2SwapEvent, customLogic: theoremCustomLogic },
+  },
   "pepu-v3": {
     // Verified Uniswap V3 factory and pool source: https://pepuscan.com/api/v2/smart-contracts/0x5984B8BF2d4dB9C0aCB1d7924762e4474D80C807
     // Deployed 2025-06-05: https://pepuscan.com/tx/0xf703800d13f6989b1abd1dbcd6dab89e4e5d4e573d9093ef6e6cb169f1bfd6a6
@@ -775,12 +849,22 @@ const configs: Record<string, Record<string, any>> = {
   },
 }
 
+const theoremMethodology = {
+  Volume: "Value swapped across the Theorem (Algebra Integral) pools created by the Theorem factory on Ethereum, counting one side of each trade.",
+  Fees: "Swap fees paid by traders. The fee is set per swap by each pool's plugin, so it is measured from the community fee the pool sets aside on every swap (3% of the swap fee) rather than from a fee tier.",
+  UserFees: "Swap fees paid by traders.",
+  Revenue: "The part of the community fee (3% of swap fees) kept by Theorem. The community vault currently pays all of it to Algebra, so this is zero.",
+  ProtocolRevenue: "The part of the community fee (3% of swap fees) kept by Theorem. The community vault currently pays all of it to Algebra, so this is zero.",
+  SupplySideRevenue: "Swap fees earned by liquidity providers (97%), plus the part of the community fee paid to Algebra.",
+}
+
 const methodologyMap: Record<string, any> = {
   "electroswap-v3": {
     Volume: "Swap volume on ElectroSwap V3 pools on Electroneum that hold a major asset.",
     Fees: "Swap fees paid by traders, at each pool's fee tier.",
     UserFees: "Swap fees paid by traders, at each pool's fee tier.",
   },
+  "theorem": theoremMethodology,
   "comet-swap-v3": {
     Volume: "Swap volume on CometSwap V3 pools on Astar.",
     Fees: "Swap fees paid by traders, at each pool's fee tier.",
@@ -1400,6 +1484,18 @@ protocols['fluxion-network'].breakdownMethodology = {
   ProtocolRevenue: { 'Protocol fees': 'The protocol share of swap fees (slot0().feeProtocol per pool), collectable by the factory owner, excluding swaps by the listed wash and incentive-farming wallets.' },
   SupplySideRevenue: { 'LP fees': 'The part of swap fees earned by liquidity providers, excluding swaps by the listed wash and incentive-farming wallets.' },
 }
+
+protocols['theorem'].breakdownMethodology = {
+  Fees: { 'Token Swap Fees': 'Swap fees paid by traders in Theorem pools, measured from the community fee each pool sets aside per swap.' },
+  UserFees: { 'Trading fees': 'Swap fees paid by traders in Theorem pools.' },
+  Revenue: { 'Protocol fees': 'The part of the community fee (3% of swap fees) the community vault keeps for Theorem, currently none.' },
+  ProtocolRevenue: { 'Protocol fees': 'The part of the community fee (3% of swap fees) the community vault keeps for Theorem, currently none.' },
+  SupplySideRevenue: {
+    'LP fees': 'The 97% of swap fees earned by liquidity providers.',
+    'Algebra fees': 'The part of the community fee (3% of swap fees) the community vault pays to Algebra, currently all of it.',
+  },
+}
+protocols['theorem'].skipBreakdownValidation = false
 
 export const { protocolList, getAdapter } = createFactoryExports(protocols)
 export const fees = createFactoryExports(feesProtocols)
