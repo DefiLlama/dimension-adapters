@@ -119,7 +119,7 @@ export async function getEstablishedTokens(chain: string, tokens: string[]): Pro
 // three adapters always compute the same split and add up to the burn.
 // tokenJar is firepit.TOKEN_JAR(), poolManager is the chain's v4 PoolManager (dexs/uniswap-v4.ts).
 // noV2Listing: uniswap-v2 does not report the chain, so its share stays on v3.
-export const UNI_BURN_CONFIG: Record<string, { feeSwitchDate: string; firepit: string; tokenJar: string; poolManager: string; noV2Listing?: boolean }> = {
+const UNI_BURN_CONFIG: Record<string, { feeSwitchDate: string; firepit: string; tokenJar: string; poolManager: string; noV2Listing?: boolean }> = {
   [CHAIN.ETHEREUM]: { feeSwitchDate: "2025-12-29", firepit: '0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721', tokenJar: '0xf38521f130fcCF29dB1961597bc5d2B60F995f85', poolManager: '0x000000000004444c5dc75cB358380D2e3dE08A90' },
   [CHAIN.OPTIMISM]: { feeSwitchDate: "2026-03-08", firepit: '0x94460443Ca27FFC1baeCa61165fde18346C91AbD', tokenJar: '0xb13285DF724ea75f3f1E9912010B7e491dCd5EE3', poolManager: '0x9a13f98cb987694c9f086b1f5eb990eea8264ec3' },
   [CHAIN.ARBITRUM]: { feeSwitchDate: "2026-03-08", firepit: '0xB8018422bcE25D82E70cB98FdA96a4f502D89427', tokenJar: '0x95E337C5B155385945D407f5396387D0c2a3A263', poolManager: '0x360e68faccca8ca495c1b759fd9eee466db9fb32' },
@@ -273,7 +273,7 @@ async function getV4Collections(options: FetchOptions, config: typeof UNI_BURN_C
 }
 
 // This version's share of the UNI burned in the window, summed burn tx by burn tx.
-export async function getUniBurn(options: FetchOptions, version: UniVersion): Promise<Balances> {
+async function getUniBurn(options: FetchOptions, version: UniVersion): Promise<Balances> {
   const dailyHoldersRevenue = options.createBalances();
   const config = UNI_BURN_CONFIG[options.chain];
   if (!config || options.dateString < config.feeSwitchDate) return dailyHoldersRevenue;
