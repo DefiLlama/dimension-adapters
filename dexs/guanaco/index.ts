@@ -4,9 +4,9 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 
 const api = "https://api.guanaco.fi/v1";
-const day = 86400;
 
 async function fetchVolume({ startTimestamp: start, endTimestamp: end, createBalances }: FetchOptions) {
+  const step = end - start;
   const markets = await fetchURL(`${api}/market-history?protocol=guanaco`);
   if (markets.protocol !== "guanaco" || markets.includesMempool !== false ||
       !(markets.indexedThrough >= end) || !markets.assets?.length)
@@ -22,7 +22,7 @@ async function fetchVolume({ startTimestamp: start, endTimestamp: end, createBal
   }
 
   const { results, errors } = await PromisePool.withConcurrency(3).for(active).process(async (category) => {
-    const result = await fetchURL(`${api}/candles/${category}?protocol=guanaco&start=${start}&end=${end}&step=${day}`);
+    const result = await fetchURL(`${api}/candles/${category}?protocol=guanaco&start=${start}&end=${end}&step=${step}`);
     if (Array.isArray(result.candles) && result.candles.length === 0) {
       const check = await fetchURL(`${api}/trades/${category}?protocol=guanaco&start=${start}&end=${end}&limit=1`);
       if (check.protocol === "guanaco" && check.includesMempool === false && check.start === start &&
@@ -31,7 +31,7 @@ async function fetchVolume({ startTimestamp: start, endTimestamp: end, createBal
       throw new Error(`Missing candle for active Guanaco market ${category}`);
     }
     if (result.protocol !== "guanaco" || result.includesMempool !== false || result.start !== start ||
-        result.end !== end || result.candles?.length !== 1 || result.candles[0].time !== start ||
+        result.end !== end || result.step !== step || result.candles?.length !== 1 || result.candles[0].time !== start ||
         !/^\d+$/.test(result.candles[0].volumeSatoshis))
       throw new Error(`Incomplete Guanaco candle for ${category}`);
     return BigInt(result.candles[0].volumeSatoshis);
@@ -45,6 +45,7 @@ async function fetchVolume({ startTimestamp: start, endTimestamp: end, createBal
 
 const adapter: SimpleAdapter = {
   version: 2,
+  pullHourly: true,
   chains: [CHAIN.BITCOIN_CASH],
   start: "2026-09-06",
   fetch: fetchVolume,
