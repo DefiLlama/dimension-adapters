@@ -28,13 +28,13 @@ const fetch = async ({ getLogs, createBalances }: FetchOptions) => {
   const logs = await getLogs({ targets: ROUTERS, eventAbi: SWAP_EXECUTED });
 
   for (const log of logs) {
-    dailyVolume.add(log.srcToken, log.srcAmount, "Swap Volume");
+    dailyVolume.add(log.srcToken, log.srcAmount);
     // feePaid is native ETH collected by the FlatEx FeeCollector.
     dailyFees.addGasToken(log.feePaid, "Swap Fees");
     dailyRevenue.addGasToken(log.feePaid, "Swap Fees To Treasury");
   }
 
-  return { dailyVolume, dailyFees, dailyRevenue };
+  return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue };
 };
 
 const adapter: SimpleAdapter = {
@@ -45,15 +45,15 @@ const adapter: SimpleAdapter = {
   // First FlatExRouter deployment on Base: 2026-11-24.
   start: "2026-11-24",
   methodology: {
-    Volume:
-      "Value of the source tokens users sell in swaps routed through FlatExRouter on Base, counted once per swap.",
-    Fees: "Flat ETH fee paid by the user per swap, sized by trade-size tier.",
-    Revenue: "All fees are sent to the FlatEx FeeCollector owned by the protocol.",
+    Volume: "Value of the tokens users sell in swaps made through FlatEx on Base.",
+    Fees: "Flat fee in ETH that users pay on each swap, set by the size of the trade.",
+    Revenue: "All flat ETH swap fees paid by users, kept by FlatEx.",
+    ProtocolRevenue: "All flat ETH swap fees paid by users, sent to the FlatEx fee collector.",
   },
   breakdownMethodology: {
-    dailyVolume: { "Swap Volume": "Source-token value of each SwapExecuted event." },
-    dailyFees: { "Swap Fees": "ETH fee (msg.value) forwarded to the FeeCollector per swap." },
-    dailyRevenue: { "Swap Fees To Treasury": "Same fees; 100% accrues to the protocol-owned FeeCollector." },
+    dailyFees: { "Swap Fees": "Flat ETH fee users pay on each swap, set by trade-size tier." },
+    dailyRevenue: { "Swap Fees To Treasury": "All flat ETH swap fees, sent to the FlatEx fee collector." },
+    dailyProtocolRevenue: { "Swap Fees To Treasury": "All flat ETH swap fees, sent to the FlatEx fee collector." },
   },
 };
 
