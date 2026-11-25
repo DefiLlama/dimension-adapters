@@ -4,10 +4,13 @@ import { METRIC } from "../../helpers/metrics"
 import { getERC4626VaultsYield } from "../../helpers/erc4626"
 import ADDRESSES from "../../helpers/coreAssets.json";
 
-const vaults = [
-    '0x48afbbd342f64ef8a9ab1c143719b63c2ad81710', // old
-    '0xd06f6a56c5f599cb375b616df306f32b7f6f4a0e', // new
-];
+const MPETH = '0x48afbbd342f64ef8a9ab1c143719b63c2ad81710'; // old
+const SPETH = '0xd06f6a56c5f599cb375b616df306f32b7f6f4a0e'; // new
+
+// mpETH was exploited at block 22722394 (2025-06-17 06:18 UTC): 9,785 mpETH were minted through
+// ERC4626 mint() without any ETH. Its rate keeps moving, so after that point its yield is computed
+// on a supply that is ~93% unbacked. The real stake was reissued as spETH on 2025-06-24.
+const MPETH_EXPLOIT_TS = 1750141139;
 
 // https://docs.metapool.app/master/faq-frequently-asked-questions/faq-by-chain/ethereum#does-meta-pool-charge-for-the-service
 const PROTOCOL_FEE = 0.1; // 10%
@@ -16,6 +19,7 @@ const PROTOCOL_FEE = 0.1; // 10%
 const DEPOSIT_FEE = 0.01; // 1%
 
 const fetch = async (options: FetchOptions) => {
+    const vaults = options.endTimestamp <= MPETH_EXPLOIT_TS ? [MPETH, SPETH] : [SPETH]
     const dailyYield = await getERC4626VaultsYield({options, vaults })
 
     const dailyFees = dailyYield.clone(1 / (1 - PROTOCOL_FEE), METRIC.STAKING_REWARDS);
