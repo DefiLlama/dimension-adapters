@@ -1,8 +1,9 @@
 import ADDRESSES from '../../helpers/coreAssets.json'
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { LifiFeeCollectors } from "../../helpers/aggregators/lifi";
+import { CHAIN } from "../../helpers/chains";
 import { getDefaultDexTokensBlacklisted } from "../../helpers/lists"
-import { FeeCollectedEvent, FeesForwardedEvent, getFeeForwarders, getFeeTransactions, isJumperTransaction, JumperFeeStart, LifiRecipient } from './feeSources'
+import { FeeCollectedEvent, FeesForwardedEvent, getFeeForwarders, getFeeTransactions, getSolanaBridgeFees, isJumperTransaction, JumperFeeStart, JumperIntegrators, LifiRecipient } from './feeSources'
 
 const IntegratorFee = 'Integration & Partnership Fees'
 const LifiProtocolFee = 'LiFi Fees'
@@ -24,6 +25,16 @@ const fetch = (category: 'swap' | 'bridge') => async (options: FetchOptions) => 
 		dailyFees.add(token, amount, source);
 		(isLifi ? dailyRevenue : dailySupplySideRevenue).add(token, amount, label);
 	};
+
+	const separateJumper = options.startTimestamp >= Date.parse(JumperFeeStart) / 1000;
+
+	if (options.chain === CHAIN.SOLANA) {
+		for (const fee of await getSolanaBridgeFees(options)) {
+			addFee(fee.token, fee.integratorFee, false, BridgeFee);
+			addFee(fee.token, fee.lifiFee, !(separateJumper && JumperIntegrators.has(fee.integrator)), BridgeFee);
+		}
+		return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
+	}
 
 	const legacy: any[] = await options.getLogs({
 		target: LifiFeeCollectors[options.chain].id,
@@ -49,7 +60,6 @@ const fetch = (category: 'swap' | 'bridge') => async (options: FetchOptions) => 
 		addFee(log.args._token, log.args._lifiFee, true, source);
 	});
 
-	const separateJumper = options.startTimestamp >= Date.parse(JumperFeeStart) / 1000;
 	forwarded.forEach((log: any) => {
 		const hash = String(log.transactionHash);
 		// Jumper is a separate integrator whose fee is paid into LI.FI's wallet as a single leg (2/5 bps,
@@ -76,7 +86,11 @@ export const createLifiFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapter
 	fetch: fetch(category),
 	// copy per adapter: the runner writes fetch onto each chain entry, so a shared object makes
 	// lifi-dex-aggregator run the bridge fetch (or vice versa)
-	adapter: Object.fromEntries(Object.entries(LifiFeeCollectors).map(([chain, config]) => [chain, { ...config }])),
+	adapter: Object.fromEntries([
+		...Object.entries(LifiFeeCollectors).map(([chain, config]) => [chain, { ...config }]),
+		// first Solana bridge fee of the LI.FI API over a dollar
+		...(category === 'bridge' ? [[CHAIN.SOLANA, { start: '2024-09-03' }]] : []),
+	]),
 	methodology: {
 		Fees: `All fees paid by users on LI.FI ${category === 'bridge' ? 'bridges' : 'swaps'}, including integrator fees.`,
 		Revenue: 'Share of fees kept by LI.FI.',
