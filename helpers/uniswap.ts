@@ -9,6 +9,7 @@ import { addOneToken, isCoreAsset } from "./prices";
 import { queryDune } from "./dune";
 import { CHAIN } from "./chains";
 import { getTxReceiptsWithRetry } from "./getTxReceipts";
+import { getBlock } from "./getBlock";
 import { ethers } from "ethers";
 import { toPositionedLogArgs } from "./logs";
 
@@ -113,8 +114,9 @@ export async function getEstablishedTokens(chain: string, tokens: string[]): Pro
 //  3. The UNI goes to the burn address, through the bridge on L2s.
 //
 // The burn carries no version, so each burn is split by what the burner took from
-// each version, read from the burn tx's own logs (see splitBurnTx). Those never
-// change, so the three adapters always compute the same split and add up to the burn.
+// each version, read from the burn tx's own logs plus earlier v4 fee collections still
+// in the jar (see splitBurnTx, getV4CollectedEarlier). Past logs never change, so the
+// three adapters always compute the same split and add up to the burn.
 // tokenJar is firepit.TOKEN_JAR(), poolManager is the chain's v4 PoolManager (dexs/uniswap-v4.ts).
 // noV2Listing: uniswap-v2 does not report the chain, so its share stays on v3.
 export const UNI_BURN_CONFIG: Record<string, { feeSwitchDate: string; firepit: string; tokenJar: string; poolManager: string; noV2Listing?: boolean }> = {
@@ -143,7 +145,10 @@ const RELEASED_INTERFACE = new ethers.Interface([RELEASED_EVENT]);
 const RELEASED_TOPIC = ethers.id('Released(uint256,address,address[])');
 const TRANSFER_TOPIC = ethers.id('Transfer(address,address,uint256)');
 // V4FeeAdapter: FeesCollected(Currency indexed currency, uint256 amount)
+const FEES_COLLECTED_EVENT = 'event FeesCollected(address indexed currency, uint256 amount)';
 const FEES_COLLECTED_TOPIC = ethers.id('FeesCollected(address,uint256)');
+// v4 PoolManager (IProtocolFees): emitted when governance sets the protocol fee controller
+const CONTROLLER_UPDATED_EVENT = 'event ProtocolFeeControllerUpdated(address indexed protocolFeeController)';
 const topicAddress = (topic: string) => '0x' + topic.slice(26).toLowerCase();
 const logAmount = (data: string) => BigInt(data === '0x' ? 0 : data);
 const addAmount = (map: Record<string, bigint>, key: string, amount: bigint) => { map[key] = (map[key] ?? 0n) + amount; };
@@ -164,14 +169,15 @@ function isV4FeeAdapter(chain: string, config: typeof UNI_BURN_CONFIG[string], t
 // window grouping gets the same split.
 //  UNI burned: the Firepit's UNI token sent to its RESOURCE_RECIPIENT in the tx (the
 //    threshold can decay between blocks, so it is not read from state).
-//  v4: fees the V4FeeAdapter collected into the jar earlier in the tx that the burner
-//      then took out. Fees collected after the withdrawal, or left in the jar, don't count.
+//  v4: fees the V4FeeAdapter collected into the jar, in an earlier tx since the asset's
+//      previous release (collectedEarlier) or earlier in this tx, that the burner then
+//      took out. Fees collected after the withdrawal don't count.
 //  v2: a token that left the jar, was burned in the tx and whose own contract paid
 //      out exactly two other tokens is a redeemed pair, worth twice its core-asset side.
 //  v3: the rest of what left the jar, including v3 fees collected in an earlier tx.
 // Priced with the price API at the start of the burn's hour: the SDK's Balances would
 // use spot prices for a burn under an hour old.
-async function splitBurnTx(options: FetchOptions, config: typeof UNI_BURN_CONFIG[string], resource: { token: string; recipient: string }, receipt: any): Promise<Record<UniVersion, number>> {
+async function splitBurnTx(options: FetchOptions, config: typeof UNI_BURN_CONFIG[string], resource: { token: string; recipient: string }, receipt: any, collectedEarlier: Record<string, bigint>): Promise<Record<UniVersion, number>> {
   const { chain } = options, firepit = config.firepit.toLowerCase(), jar = config.tokenJar.toLowerCase();
   const logs: any[] = receipt.logs; // in execution order
   const emitters = [...new Set(logs.filter((log) => log.topics[0] === FEES_COLLECTED_TOPIC).map((log) => lower(log.address)))];
@@ -179,7 +185,7 @@ async function splitBurnTx(options: FetchOptions, config: typeof UNI_BURN_CONFIG
   const v4Emitters = new Set(emitters.filter((_, i) => isAdapter[i]));
 
   let uniBurned = 0n;
-  const pendingV4: Record<string, bigint> = {}, v4: Record<string, bigint> = {}, leftJar: Record<string, bigint> = {};
+  const pendingV4: Record<string, bigint> = { ...collectedEarlier }, v4: Record<string, bigint> = {}, leftJar: Record<string, bigint> = {};
   const transfers: { token: string; from: string; to: string; amount: bigint }[] = [];
   for (const log of logs) {
     const emitter = lower(log.address);
@@ -234,6 +240,51 @@ async function splitBurnTx(options: FetchOptions, config: typeof UNI_BURN_CONFIG
   return { v2: uni * value.v2 / total, v3: uni * value.v3 / total, v4: uni * value.v4 / total };
 }
 
+// v4 fees collected into the jar in a separate tx before the burn (`collect` is
+// permissionless). The jar pays out only through releases, each taking an asset's full
+// balance, so those fees go to the next release of that asset: per burn tx, every
+// FeesCollected of an asset it takes since that asset's previous release.
+// Example: Ethereum 0x9cde57c74e8e7b5fc772de932c9ee6ba7b17d8a1c7d02e34c62676b98aa8f689
+// collects v4 WETH/USDT, burn 0xa8e01f768f9147f71b73bed8f9c4163f64525f31831df41a15528e8e39ecc6e3 takes them.
+// History starts at the fee switch: every chain's v4 fee controller was set after it
+// (2026-07-27). Controllers come from the PoolManager's own events, so a replaced
+// one still counts.
+async function getV4CollectedEarlier(options: FetchOptions, config: typeof UNI_BURN_CONFIG[string], burns: any[]): Promise<Record<string, Record<string, bigint>>> {
+  const position = (log: any) => Number(log.blockNumber) * 1e6 + Number(log.logIndex);
+  const fromBlock = await getBlock(Math.floor(Date.parse(config.feeSwitchDate) / 1000), options.chain);
+  const toBlock = Math.max(...burns.map((log) => Number(log.blockNumber)));
+  const [releases, controllerUpdates] = await Promise.all([
+    options.getLogs({ target: config.firepit, eventAbi: RELEASED_EVENT, fromBlock, toBlock, onlyArgs: false }),
+    options.getLogs({ target: config.poolManager, eventAbi: CONTROLLER_UPDATED_EVENT, fromBlock, toBlock }),
+  ]);
+  const candidates = [...new Set<string>(controllerUpdates.map((log: any) => lower(log.protocolFeeController)))];
+  const isAdapter = await Promise.all(candidates.map((target) => isV4FeeAdapter(options.chain, config, target)));
+  const adapters = candidates.filter((_, i) => isAdapter[i]);
+  if (!adapters.length) return {};
+
+  // per burn tx: its first release and, per asset it takes, that asset's previous release
+  const txs: Record<string, { start: number; previous: Record<string, number> }> = {};
+  for (const burn of burns) {
+    const tx = txs[lower(burn.transactionHash)] ??= { start: position(burn), previous: {} };
+    tx.start = Math.min(tx.start, position(burn));
+    for (const asset of burn.args.assets) tx.previous[lower(asset)] = 0;
+  }
+  for (const release of releases) for (const tx of Object.values(txs)) {
+    if (position(release) >= tx.start) continue;
+    for (const asset of release.args.assets) if (lower(asset) in tx.previous) tx.previous[lower(asset)] = position(release);
+  }
+  const lookFrom = Math.min(...Object.values(txs).flatMap((tx) => Object.values(tx.previous)).map((p) => p ? Math.floor(p / 1e6) : fromBlock));
+  const collections = await options.getLogs({ targets: adapters, eventAbi: FEES_COLLECTED_EVENT, fromBlock: lookFrom, toBlock, onlyArgs: false });
+
+  const earlier: Record<string, Record<string, bigint>> = {};
+  for (const [hash, tx] of Object.entries(txs)) for (const log of collections) {
+    const currency = lower(log.args.currency), previous = tx.previous[currency];
+    if (previous === undefined || lower(log.transactionHash) === hash) continue; // not taken, or collected in the burn tx itself
+    if (position(log) > previous && position(log) < tx.start) addAmount(earlier[hash] ??= {}, currency, BigInt(log.args.amount));
+  }
+  return earlier;
+}
+
 // One split per burn tx per process, shared by the three versions.
 const burnSplits: Record<string, Promise<Record<UniVersion, number>>> = {};
 
@@ -248,16 +299,17 @@ export async function getUniBurn(options: FetchOptions, version: UniVersion): Pr
 
   const txHashes = [...new Set<string>(burns.map((log: any) => log.transactionHash.toLowerCase()))];
   // RESOURCE and RESOURCE_RECIPIENT are immutable, so latest state is enough
-  const [token, recipient, receipts] = await Promise.all([
+  const [token, recipient, receipts, collectedEarlier] = await Promise.all([
     api2.abi.call({ chain: options.chain, target: config.firepit, abi: 'address:RESOURCE' }),
     api2.abi.call({ chain: options.chain, target: config.firepit, abi: 'address:RESOURCE_RECIPIENT' }),
     getTxReceiptsWithRetry(options.chain, txHashes),
+    getV4CollectedEarlier(options, config, burns),
   ]);
   const resource = { token: lower(token), recipient: lower(recipient) };
   const splits = await Promise.all(receipts.map((receipt, i) => {
     if (!receipt) throw new Error(`uniswap: missing receipt for a UNI burn tx on ${options.chain}`);
     const key = `${options.chain}:${txHashes[i]}`;
-    return burnSplits[key] ??= splitBurnTx(options, config, resource, receipt).catch((e) => { delete burnSplits[key]; throw e; });
+    return burnSplits[key] ??= splitBurnTx(options, config, resource, receipt, collectedEarlier[txHashes[i]] ?? {}).catch((e) => { delete burnSplits[key]; throw e; });
   }));
   dailyHoldersRevenue.addCGToken("uniswap", splits.reduce((sum, split) => sum + split[version], 0), UNI_BURN_LABEL);
   return dailyHoldersRevenue;
