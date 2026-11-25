@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 
-// BTR: oracle-priced multi-asset AMM. One protocol, one series across pool versions.
+// BTR: oracle-priced multi-asset AMM. Each pool generation has its own listing: this file is V1, dexs/btr-v2 reuses its fetch.
 // Every fill emits one canonical `Swapped` event on the pool:
 // `amounts` is packed `amountIn | amountOut << 128` and `fees` is `protoFee | lpFee << 128`. The
 // whole fee is charged on the output leg, in `tokenOut` units; there is no input-leg fee and no
@@ -37,19 +37,19 @@ import { CHAIN } from "../../helpers/chains";
 // `LiabilitySwapped` carries the route fee (`fees`, route-only, tokenOut units), booked like a swap
 // fee, protocol and LP shares apart; its `tolls`, like a swap's coverage toll, are not fees.
 // Event shapes match dex-evm abi/events.json (Swapped, LiabilitySwapped, Withdrawn).
-// Pools come from the PoolFactory contracts (official pools), resolved at the window's end block,
-// so a new pool or factory generation needs no change here beyond a new factory address. The first
-// generation stays listed: it keeps pre-v2 days resolving and holds its LPs' liquidity while it
-// winds down. Both emit `Swapped` and `Withdrawn` alike; `LiabilitySwapped` has two shapes (below).
+// Pools come from the generation's PoolFactory (official pools), resolved at the window's end block.
+// Both generations emit `Swapped` and `Withdrawn` alike; `LiabilitySwapped` has two shapes (below).
 const factoryAbi = {
   count: "uint256:getOfficialPoolsCount",
   pool: "function officialPools(uint256) view returns (address)",
 };
 
-const getPools = async (options: FetchOptions): Promise<string[]> => {
+export type BtrConfig = Record<string, { start: string; factories: { address: string; from: number }[] }>;
+
+const getPools = async (options: FetchOptions, config: BtrConfig): Promise<string[]> => {
   // A factory is skipped only before its first pool exists (`from`). Every other factory must
   // resolve: a failed call throws, it never becomes zero pools.
-  const factories = chainConfig[options.chain].factories
+  const factories = config[options.chain].factories
     .filter((f) => options.toTimestamp >= f.from)
     .map((f) => f.address);
   const counts = await options.api.multiCall({ abi: factoryAbi.count, calls: factories });
@@ -82,25 +82,21 @@ const abi = {
 const U128 = (1n << 128n) - 1n;
 
 // Only chains with a live deployment are listed (Monad, chain 143).
-const chainConfig: Record<string, { start: string; factories: { address: string; from: number }[] }> = {
+const chainConfig: BtrConfig = {
   [CHAIN.MONAD]: {
     start: "2026-10-01", // first pool, block 109610388
-    factories: [
-      // current generation (pool deployed at block 121555891, 2026-11-12)
-      { address: "0xbbbbbbb16b9B5Fa94AD8CD35e696bEA55DB9C8B0", from: 1794472602 },
-      // first generation
-      { address: "0xbbbbbbbbbd5e955E20F323cA1F95f8191fD0E0BF", from: 0 },
-    ],
+    // first generation, V2 pools are in dexs/btr-v2
+    factories: [{ address: "0xbbbbbbbbbd5e955E20F323cA1F95f8191fD0E0BF", from: 0 }],
   },
 };
 
-const fetch = async (options: FetchOptions) => {
+const btrFetch = (config: BtrConfig) => async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const pools = await getPools(options);
+  const pools = await getPools(options, config);
   if (!pools.length) return { dailyVolume, dailyFees, dailyUserFees: dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue };
   const logs = await options.getLogs({ targets: pools, eventAbi: SWAPPED });
 
@@ -206,13 +202,13 @@ const breakdownMethodology = {
   },
 };
 
-const adapter: SimpleAdapter = {
+export const btrAdapter = (config: BtrConfig): SimpleAdapter => ({
   version: 2,
   pullHourly: true,
-  fetch,
-  adapter: chainConfig,
+  fetch: btrFetch(config),
+  adapter: config,
   methodology,
   breakdownMethodology,
-};
+});
 
-export default adapter;
+export default btrAdapter(chainConfig);
