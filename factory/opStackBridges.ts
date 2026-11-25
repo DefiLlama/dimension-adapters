@@ -137,6 +137,8 @@ const configs: Record<string, OpStackBridgeConfig> = {
     portal: "0x78e794d10a355468A0e7A14AA1a9F9A253D78784", // L1StandardBridge.messenger().portal() on Base
     bridge: "0xf4a6cc4171fda694439f856d912777aa6ab05369",
     start: "2025-11-17", // first TransactionDeposited on the portal
+    // Horizen L3 retired: Base block 56515873 (2026-11-12) swapped the portal for PortalTombstone, every call reverts
+    deadFrom: "2026-11-13",
   },
 };
 

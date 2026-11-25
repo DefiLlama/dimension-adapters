@@ -14,6 +14,7 @@ export type OpStackBridgeConfig = {
   portal: string; // OptimismPortal (L1CrossDomainMessenger.portal())
   bridge: string; // L1StandardBridge
   start: string;
+  deadFrom?: string; // the rollup was retired and its bridge can no longer move funds
   // chain the L1StandardBridge and OptimismPortal live on, Ethereum unless the rollup is an L3
   settlementChain?: string;
   // pre-Bedrock chains had no Portal: windows before this date read ETH deposits from the bridge's ETHDepositInitiated
@@ -126,6 +127,7 @@ export const opStackBridgeExport = (config: OpStackBridgeConfig): SimpleAdapter 
     fetch: (options: FetchOptions) => fetchOpStack(options, config),
     chains: [chain],
     start: config.start,
+    deadFrom: config.deadFrom,
     methodology: {
       OutgoingVolume: `Value of ETH and tokens deposited from ${chainName} into ${config.name} through the canonical bridge and OptimismPortal.`,
       IncomingVolume: `Value of ETH and tokens withdrawn from ${config.name} through the canonical bridge and released on ${chainName}. ETH withdrawn directly through the OptimismPortal is not included.`,
