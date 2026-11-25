@@ -11,7 +11,7 @@ const EXTENDED_BUILDER_NAMES = ["Tread.fi"];
 // 2bps builder fee on Tread-routed Extended volume
 // https://docs.tread.fi/account-creation-and-api-key-connection/connecting-to-exchanges/extended
 const EXTENDED_BUILDER_FEE_RATE = 0.0002;
-const TREADTOOLS_API_URL = "https://treadtools.vercel.app/api/defillama-volume";
+const TREADTOOLS_API_URL = "https://tools.tread.fi/api/defillama-volume";
 
 interface TreadToolsApiResponse {
   status: string;
