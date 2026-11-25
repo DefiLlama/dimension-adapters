@@ -76,7 +76,7 @@ export const LifiDiamonds: IContract = {
   [CHAIN.MOONRIVER]: {
     id: '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE',
     start: '2023-10-18',
-    deadFrom: '2026-01-06', // dropped by LI.FI: not in li.quest/v1/chains; last LI.FI transfer 2026-01-06 (the runner still runs the deadFrom day)
+    deadFrom: '2026-01-06', // LI.FI dropped the chain (not in li.quest/v1/chains); last transfer on this day
   },
   [CHAIN.FRAXTAL]: {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
@@ -92,7 +92,7 @@ export const LifiDiamonds: IContract = {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     chainId: '1135',
     start: '2024-12-09',
-    deadFrom: '2026-11-08', // dropped by LI.FI: not in li.quest/v1/chains; last LI.FI transfer 2026-11-08 (the runner still runs the deadFrom day)
+    deadFrom: '2026-11-08', // LI.FI dropped the chain (not in li.quest/v1/chains); last transfer on this day
   },
   [CHAIN.ABSTRACT]: {
     id: '0x4f8C9056bb8A3616693a76922FA35d53C056E5b3',
@@ -128,7 +128,7 @@ export const LifiDiamonds: IContract = {
   [CHAIN.OP_BNB]: {
     id: '0x1231DEB6f5749EF6cE6943a275A1D3E7486F4EaE',
     start: '2023-10-24',
-    deadFrom: '2026-10-14', // dropped by LI.FI: not in li.quest/v1/chains; last LI.FI transfer 2026-10-14 (the runner still runs the deadFrom day)
+    deadFrom: '2026-10-14', // LI.FI dropped the chain (not in li.quest/v1/chains); last transfer on this day
   },
   [CHAIN.SONEIUM]: {
     id: '0x864b314D4C5a0399368609581d3E8933a63b9232',
@@ -137,7 +137,7 @@ export const LifiDiamonds: IContract = {
   [CHAIN.AURORA]: {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     start: '2022-10-21',
-    deadFrom: '2026-01-07', // dropped by LI.FI: not in li.quest/v1/chains; last LI.FI transfer 2026-01-07 (the runner still runs the deadFrom day)
+    deadFrom: '2026-01-07', // LI.FI dropped the chain (not in li.quest/v1/chains); last transfer on this day
   },
   [CHAIN.ARBITRUM]: {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
@@ -179,12 +179,12 @@ export const LifiDiamonds: IContract = {
   [CHAIN.POLYGON_ZKEVM]: {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     start: '2023-06-01',
-    deadFrom: '2026-01-07', // dropped by LI.FI: not in li.quest/v1/chains; last LI.FI transfer 2026-01-07 (the runner still runs the deadFrom day)
+    deadFrom: '2026-01-07', // LI.FI dropped the chain (not in li.quest/v1/chains); last transfer on this day
   },
   [CHAIN.FANTOM]: {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     start: '2022-10-18',
-    deadFrom: '2025-11-11', // dropped by LI.FI: not in li.quest/v1/chains; last LI.FI transfer 2025-11-11 (the runner still runs the deadFrom day)
+    deadFrom: '2025-11-11', // LI.FI dropped the chain (not in li.quest/v1/chains); last transfer on this day
   },
   [CHAIN.MODE]: {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
@@ -215,7 +215,7 @@ export const LifiDiamonds: IContract = {
   [CHAIN.BLAST]: {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     start: '2024-05-17',
-    deadFrom: '2026-10-14', // dropped by LI.FI: not in li.quest/v1/chains; last LI.FI transfer 2026-10-14 (the runner still runs the deadFrom day)
+    deadFrom: '2026-10-14', // LI.FI dropped the chain (not in li.quest/v1/chains); last transfer on this day
   },
   // [CHAIN.BOBA]: {
   //   id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
@@ -236,7 +236,7 @@ export const LifiDiamonds: IContract = {
     id: '0x1231deb6f5749ef6ce6943a275a1d3e7486f4eae',
     chainId: '1625',
     start: '2024-07-30',
-    deadFrom: '2026-11-03', // dropped by LI.FI: not in li.quest/v1/chains; last LI.FI transfer 2026-11-03 (the runner still runs the deadFrom day)
+    deadFrom: '2026-11-03', // LI.FI dropped the chain (not in li.quest/v1/chains); last transfer on this day
   },
   [CHAIN.KATANA]: {
     id: '0xC59fe32C9549e3E8B5dCcdAbC45BD287Bd5bA2bc',
