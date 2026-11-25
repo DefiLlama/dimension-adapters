@@ -11,7 +11,8 @@ import { PHYSICAL_CARD_COSTS } from '../../helpers/physicalCards'
 //   as the buyback reserve for those cards (users can melt a card back for 85% of its value). A big hit makes it negative.
 // - RemainderPaid: the positive remainder balance is paid to stakers once the house bucket sits above its reserve floor.
 // - RewardFunded: a manual top-up the operator can move from the house bucket to stakers. Rare and usually zero: nothing
-//   calls it on a schedule. Melts are paid at the current index x 85% against the reserve booked at dealing; the
+//   calls it on a schedule. It moves funds the house bucket already holds, so it is not new fees: it is reclassified from
+//   protocol revenue to holders revenue (fees/AGENTS.md, accrual basis). Melts are paid at the current index x 85% against the reserve booked at dealing; the
 //   difference, positive or negative, stays in the house bucket and is not distributed.
 // Fees are pack sales net of the buyback reserve, like other physical card platforms (helpers/physicalCards.ts); gross pack
 // sales are reported as volume. We deduct the reserve booked when the cards are dealt, not the melt payouts made later.
@@ -59,9 +60,10 @@ const fetch = async (options: FetchOptions) => {
   reserve -= remainder
   dailyFees.add(USDC, -reserve, LABEL.BUYBACK_RESERVE)
 
+  let funded = 0n
   for (const log of rewardFunded) {
-    dailyFees.add(USDC, log.amount, LABEL.HOUSE_TOP_UP)
     dailyHoldersRevenue.add(USDC, log.amount, LABEL.HOUSE_TOP_UP)
+    funded += BigInt(log.amount)
   }
   let paid = 0n
   for (const log of remainderPaid) {
@@ -69,9 +71,10 @@ const fetch = async (options: FetchOptions) => {
     paid += BigInt(log.amount)
   }
 
-  // Revenue - HoldersRevenue = remainder booked - remainder paid: what the house bucket keeps until the remainder balance is
-  // paid out (or uses to restock shipped cards), so it is close to zero over time
-  dailyProtocolRevenue.add(USDC, remainder - paid, LABEL.REMAINDER_RETAINED)
+  // Revenue - HoldersRevenue = remainder booked - remainder paid - house top-ups: what the house bucket keeps until the
+  // remainder balance is paid out (or uses to restock shipped cards), so it is close to zero over time. A top-up is moved
+  // from here to holders revenue under the same label, so the label nets instead of showing a separate negative row.
+  dailyProtocolRevenue.add(USDC, remainder - paid - funded, LABEL.REMAINDER_RETAINED)
 
   return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue, dailyProtocolRevenue }
 }
@@ -79,7 +82,6 @@ const fetch = async (options: FetchOptions) => {
 const breakdownFees = {
   [LABEL.PACK_SALES]: 'USDC paid for card packs (DrawDebited cost), including the 5% rip fee.',
   [LABEL.BUYBACK_RESERVE]: 'Buyback reserve set aside when the cards are dealt: 85% of the locked index price of the dealt cards (pack cost minus rip fee minus the DrawRemainder remainder). Users melt cards back against this reserve; later melt payouts are not deducted again.',
-  [LABEL.HOUSE_TOP_UP]: 'Rare manual top-up the operator moves from the house bucket to $ORIPA stakers (RewardFunded). Nothing sends it on a schedule; usually zero.',
 }
 
 const adapter: SimpleAdapter = {
@@ -92,10 +94,10 @@ const adapter: SimpleAdapter = {
   allowNegativeValue: true,
   methodology: {
     Volume: 'USDC paid for card packs (DrawDebited cost on OripaExchange).',
-    Fees: 'Pack sales net of the 85% buyback reserve set aside for the cards dealt, plus any rare manual top-up from the house bucket to $ORIPA stakers (usually zero). The reserve is booked when the cards are dealt, not when users melt them. Shipping fees are not counted: they pay offchain logistics and handling. Can be negative in an hour with a big hit.',
+    Fees: 'Pack sales net of the 85% buyback reserve set aside for the cards dealt. The reserve is booked when the cards are dealt, not when users melt them. Shipping fees are not counted: they pay offchain logistics and handling. Can be negative in an hour with a big hit.',
     Revenue: 'Same as fees. The cost of buying, grading and vaulting the physical cards is paid offchain and not disclosed.',
-    HoldersRevenue: 'USDC distributed to $ORIPA stakers: the 5% rip fee on every pack and the ticket remainder paid after settlement, plus any rare manual top-up from the house bucket.',
-    ProtocolRevenue: 'Ticket remainder booked but not yet paid to stakers, or used to restock cards users chose to ship. Close to zero over time; negative when a big hit is paid back from later remainders.',
+    HoldersRevenue: 'USDC distributed to $ORIPA stakers: the 5% rip fee on every pack and the ticket remainder paid after settlement, plus any rare manual top-up from the house bucket (moved from protocol revenue, not counted again in fees).',
+    ProtocolRevenue: 'Ticket remainder booked but not yet paid to stakers, or used to restock cards users chose to ship, minus any manual top-up moved from the house bucket to stakers. Close to zero over time; negative when a big hit is paid back from later remainders or when a top-up is made.',
   },
   breakdownMethodology: {
     Fees: breakdownFees,
@@ -103,10 +105,10 @@ const adapter: SimpleAdapter = {
     HoldersRevenue: {
       [LABEL.RIP_FEES]: '5% rip fee on every pack, sent to $ORIPA stakers when the pack is paid (DrawDebited fee).',
       [LABEL.TICKET_REMAINDER]: 'Positive ticket remainder paid to $ORIPA stakers after settlement, once the house bucket sits above its reserve floor (RemainderPaid).',
-      [LABEL.HOUSE_TOP_UP]: 'Rare manual top-up the operator moves from the house bucket to $ORIPA stakers (RewardFunded); usually zero.',
+      [LABEL.HOUSE_TOP_UP]: 'Rare manual top-up the operator moves from the house bucket to $ORIPA stakers (RewardFunded); usually zero. Funded from protocol revenue, so it is not added to fees.',
     },
     ProtocolRevenue: {
-      [LABEL.REMAINDER_RETAINED]: 'Ticket remainder booked at settlement (DrawRemainder) minus the remainder paid to stakers (RemainderPaid). Includes the restock gap of cards users chose to ship, which buys the replacement physical card offchain.',
+      [LABEL.REMAINDER_RETAINED]: 'Ticket remainder booked at settlement (DrawRemainder) minus the remainder paid to stakers (RemainderPaid) and minus any manual top-up to stakers (RewardFunded). Includes the restock gap of cards users chose to ship, which buys the replacement physical card offchain.',
     },
   },
   unknownBreakdownMethodology: PHYSICAL_CARD_COSTS,
