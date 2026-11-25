@@ -1,6 +1,7 @@
-import { FetchOptions, SimpleAdapter } from '../adapters/types';
+import { Dependencies, FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
 import ADDRESSES from '../helpers/coreAssets.json';
+import { queryDuneSql } from '../helpers/dune';
 
 // QHooks (https://qhooks.com): an ecosystem for launching and trading tokens, built for people and AI agents alike.
 // Launches open Uniswap v4 pools whose hook is the QHooks launch contract itself; trades made through the QHooks
@@ -27,6 +28,16 @@ const ROUTER = '0x79d211f5137d22b0fe3bfda81fbb8b7f53248bff'; // QFeeRouter
 // referrer gets 20%; the router pushes the rest to the platform in the same call.
 const CASHBACK_PCT = 30n, HOLDER_CASHBACK_PCT = 40n;
 const FLYWHEEL = '0xb85e67cf7728572033a9d36aee3218dadf85baa2'; // QFlywheel on Robinhood Chain (router platform + holder check)
+
+const SOLANA_DBC_CONFIG = 'AFBWuEXpP78Sgk6BZuHc2eHNJKdabFwrGk57kscvurmd';
+const SOLANA_START = '2026-11-11';
+const SOLANA_LABEL = {
+  fees: 'Solana DBC Trading Fees',
+  revenue: 'Solana DBC Fees To QHooks',
+  creators: 'Solana DBC Fees To Creators',
+  meteora: 'Solana DBC Protocol Fees',
+  referrals: 'Solana DBC Referral Fees',
+};
 
 const LABEL = {
   swap: 'Launch pool swap fees',
@@ -122,6 +133,48 @@ const fetch = async (options: FetchOptions) => {
   const dailyProtocolRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
+
+  if (options.chain === CHAIN.SOLANA) {
+    const rows: { quote_mint: string; trading_fee: number; protocol_fee: number; referral_fee: number; partner_fee: number; creator_fee: number }[] = await queryDuneSql(options, `
+      WITH config AS (
+        SELECT config, quote_mint,
+          COALESCE(
+            CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.creator_trading_fee_percentage') AS INTEGER),
+            CAST(JSON_EXTRACT_SCALAR(config_parameters, '$.ConfigParameters.creator_trading_fee_percentage') AS INTEGER), 0
+          ) AS creator_pct
+        FROM meteora_solana.dynamic_bonding_curve_evt_evtcreateconfigv2
+        WHERE config = '${SOLANA_DBC_CONFIG}'
+      ), swaps AS (
+        SELECT c.quote_mint, c.creator_pct,
+          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.trading_fee') AS DECIMAL(38,0)) AS trading_fee,
+          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.protocol_fee') AS DECIMAL(38,0)) AS protocol_fee,
+          CAST(JSON_EXTRACT_SCALAR(s.swap_result, '$.SwapResult2.referral_fee') AS DECIMAL(38,0)) AS referral_fee
+        FROM meteora_solana.dynamic_bonding_curve_evt_evtswap2 s
+        JOIN config c ON c.config = s.config
+        WHERE s.evt_executing_account = 'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN'
+          AND s.evt_block_time >= from_unixtime(${options.startTimestamp})
+          AND s.evt_block_time < from_unixtime(${options.endTimestamp})
+      )
+      SELECT quote_mint,
+        SUM(COALESCE(trading_fee, 0)) AS trading_fee,
+        SUM(COALESCE(protocol_fee, 0)) AS protocol_fee,
+        SUM(COALESCE(referral_fee, 0)) AS referral_fee,
+        SUM(FLOOR(COALESCE(trading_fee, 0) * (100 - creator_pct) / 100)) AS partner_fee,
+        SUM(FLOOR(COALESCE(trading_fee, 0) * creator_pct / 100)) AS creator_fee
+      FROM swaps GROUP BY quote_mint
+    `);
+    for (const row of rows) {
+      const trading = Number(row.trading_fee ?? 0), protocol = Number(row.protocol_fee ?? 0), referral = Number(row.referral_fee ?? 0);
+      const partner = Number(row.partner_fee ?? 0), creator = Number(row.creator_fee ?? 0);
+      dailyFees.add(row.quote_mint, trading + protocol + referral, SOLANA_LABEL.fees);
+      dailyRevenue.add(row.quote_mint, partner, SOLANA_LABEL.revenue);
+      dailyProtocolRevenue.add(row.quote_mint, partner, SOLANA_LABEL.revenue);
+      dailySupplySideRevenue.add(row.quote_mint, creator, SOLANA_LABEL.creators);
+      dailySupplySideRevenue.add(row.quote_mint, protocol, SOLANA_LABEL.meteora);
+      dailySupplySideRevenue.add(row.quote_mint, referral, SOLANA_LABEL.referrals);
+    }
+    return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailySupplySideRevenue };
+  }
   const revenue = (currency: string, amount: bigint, label: string) => {
     const c = lower(currency), native = c === ADDRESSES.null;
     const add = (b: any, a: bigint, l: string) => { if (a > 0n) native ? b.addGasToken(a, l) : b.add(c, a, l); };
@@ -215,14 +268,14 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: chainConfig,
+  adapter: { ...chainConfig, [CHAIN.SOLANA]: { start: SOLANA_START } },
   doublecounted: true, // launch pool LP fees are also counted by the Uniswap v4 adapter
   methodology: {
-    Fees: 'Swap fees paid by traders in QHooks launch pools (the Uniswap v4 pools created by QHooks token launches), flat fees paid to launch a token, and the QHooks terminal fee (up to 1%) on trades made through the QHooks website, bot and agent tools.',
-    Revenue: 'The protocol share of launch pool swap fees, launch fees, and the terminal fee left after trader cashback and referral rewards, kept by QHooks.',
+    Fees: 'Swap fees paid by traders in QHooks launch pools (Uniswap v4 on EVM and pre-graduation Meteora DBC pools on Solana), flat fees paid to launch a token, and the QHooks terminal fee (up to 1%) on trades made through the QHooks website, bot and agent tools.',
+    Revenue: 'The QHooks share of launch-pool fees (the configured partner share on Solana DBC and the protocol share on EVM), launch fees, and the terminal fee left after trader cashback and referral rewards.',
     ProtocolRevenue: 'The protocol share of launch pool swap fees, launch fees, and the terminal fee left after trader cashback and referral rewards, sent to the QHooks platform wallets, less the Robinhood Chain QHOOKS buyback share.',
     HoldersRevenue: 'On Robinhood Chain all revenue goes to QFlywheel, which keeps a fixed 25% of what it receives in WETH or ETH to buy back QHOOKS (half burned, half to the QHooks Safe). Counted when the fee is received.',
-    SupplySideRevenue: 'Launch pool LP fees earned by token creators, the share of the terminal fee returned to traders as cashback (30%, or 40% for QHOOKS holders on Robinhood Chain), and referral rewards (20% of the terminal fee) paid to referrers.',
+    SupplySideRevenue: 'Launch pool LP fees earned by token creators, Meteora protocol and referral fees on Solana DBC swaps, the share of the terminal fee returned to traders as cashback (30%, or 40% for QHOOKS holders on Robinhood Chain), and referral rewards (20% of the terminal fee) paid to referrers.',
   },
   breakdownMethodology: {
     Fees: {
@@ -249,6 +302,8 @@ const adapter: SimpleAdapter = {
       [LABEL.referral]: 'Share of the terminal fee (20%) paid to the trader\'s referrer, when one is set.',
     },
   },
+  dependencies: [Dependencies.DUNE],
+  start: SOLANA_START,
 };
 
 export default adapter;
