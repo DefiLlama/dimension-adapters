@@ -17,9 +17,9 @@ const INTEREST_TO_LENDERS = "Borrow Interest To Lenders";
 const PROTOCOL_SHARE = "Revenue Kept By Protocol";
 
 // NFT-collateral loans on EVM chains run through one LoanCore contract per chain.
-const LOAN_CORE: Record<string, string> = {
-  [CHAIN.ROBINHOOD]: "0x853918Ed9f97944ed50Dc50f3C9Fc50469ba7B02",
-  [CHAIN.ETHEREUM]: "0xEC79B5DC18c5B859b785AFD0f6914B479B295F9b",
+const EVM_CHAINS: Record<string, { loanCore: string; start: string }> = {
+  [CHAIN.ROBINHOOD]: { loanCore: "0x853918Ed9f97944ed50Dc50f3C9Fc50469ba7B02", start: "2026-09-14" },
+  [CHAIN.ETHEREUM]: { loanCore: "0xEC79B5DC18c5B859b785AFD0f6914B479B295F9b", start: "2026-10-07" },
 };
 const LOAN_ORIGINATED_EVENT =
   "event LoanOriginated(uint256 indexed loanId, bytes32 indexed offerHash, address indexed borrower, address lender, address collection, address asset, uint256 tokenId, uint256 collectionValue, uint256 principal, uint256 repayment, uint64 maturity, uint16 feeBps, uint256 activationFee)";
@@ -96,7 +96,7 @@ async function fetchBitcoin(options: FetchOptions) {
 // Fees accrue in the loan asset (WETH or USDG). The activation fee is kept from the principal
 // at origination; on repayment the protocol keeps `fee` of the interest and the lender the rest.
 async function fetchEvm(options: FetchOptions) {
-  const target = LOAN_CORE[options.chain];
+  const target = EVM_CHAINS[options.chain].loanCore;
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
@@ -183,8 +183,9 @@ const adapter: SimpleAdapter = {
   version: 2,
   adapter: {
     [CHAIN.BITCOIN]: { fetch: fetchBitcoin, start: "2024-03-09" },
-    [CHAIN.ROBINHOOD]: { fetch: fetchEvm, start: "2026-09-14" },
-    [CHAIN.ETHEREUM]: { fetch: fetchEvm, start: "2026-10-07" },
+    ...Object.fromEntries(
+      Object.entries(EVM_CHAINS).map(([chain, { start }]) => [chain, { fetch: fetchEvm, start }]),
+    ),
   },
   pullHourly: true,
   methodology,
