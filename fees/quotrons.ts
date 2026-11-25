@@ -34,6 +34,11 @@ const CREATOR = "0x7171e64e979265aed6588577d1c6b60a701d7866";
 const DIRECT_RECIPIENTS = new Set([KEEPER, CREATOR]);
 const SEAPORT = "0x0000000000000068F116a894984e2DB1123eB395";
 const FEE_EVENT = "event FeeTaken(bytes32 indexed poolId, address indexed swapper, uint256 feeBps, uint256 total, uint256 toReflections, uint256 toBurn, uint256 toLp, uint256 toCreator)";
+// Robinhood deployment retired on 2026-11-18; the Ink hook takes 300 bps of the ETH side in WETH,
+// split 200 rewards / 70 platform / 30 creator: https://quotrons.cash/integration/manifest.json
+const INK_HOOK = "0x4430996A106caF74658c4D6F62b4336fb263e5DC";
+const INK_FEE_EVENT = "event FeeTaken(bytes32 indexed poolId, address indexed sender, uint256 total, uint256 toRewards, uint256 toPlatform, uint256 toCreator)";
+const PLATFORM_LABEL = "Swap Fees To Platform";
 const SALE_EVENT = "event OrderFulfilled(bytes32 orderHash, address indexed offerer, address indexed zone, address recipient, (uint8 itemType, address token, uint256 identifier, uint256 amount)[] offer, (uint8 itemType, address token, uint256 identifier, uint256 amount, address recipient)[] consideration)";
 const SWAP_LABEL = "Swap Fees";
 const ROYALTY_LABEL = "NFT Royalties";
@@ -207,34 +212,59 @@ const fetch = async (options: FetchOptions) => {
   return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyHoldersRevenue };
 };
 
+const fetchInk = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailyProtocolRevenue = options.createBalances();
+  const dailyHoldersRevenue = options.createBalances();
+  const logs = await options.getLogs({ target: INK_HOOK, eventAbi: INK_FEE_EVENT });
+  for (const log of logs) {
+    dailyFees.add(ADDRESSES.ink.WETH, log.total, SWAP_LABEL);
+    dailySupplySideRevenue.add(ADDRESSES.ink.WETH, log.toCreator, CREATOR_LABEL);
+    dailyRevenue.add(ADDRESSES.ink.WETH, log.toRewards, REFLECTION_LABEL);
+    dailyRevenue.add(ADDRESSES.ink.WETH, log.toPlatform, PLATFORM_LABEL);
+    dailyProtocolRevenue.add(ADDRESSES.ink.WETH, log.toPlatform, PLATFORM_LABEL);
+    dailyHoldersRevenue.add(ADDRESSES.ink.WETH, log.toRewards, REFLECTION_LABEL);
+  }
+  return { dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue };
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  chains: [CHAIN.ROBINHOOD],
-  start: "2026-08-12",
-  fetch,
+  adapter: {
+    [CHAIN.ROBINHOOD]: { fetch, start: "2026-08-12" },
+    [CHAIN.INK]: { fetch: fetchInk, start: "2026-11-18" },
+  },
   methodology: {
-    Fees: "Total Quotrons V1 and V2 hook swap fees plus NFT royalties paid directly through Seaport or released by the royalty splitter on Robinhood Chain, excluding direct royalties from mixed-collection orders, marketplace fees and subsequent redistribution of the same funds.",
-    SupplySideRevenue: "Hook fee allocations to LP reinvestment, STONKBROKER burns and the creator, plus the creator portion of NFT royalties, recorded at accrual or royalty receipt/release; allocations precede any later treasury recovery.",
-    Revenue: "Hook fees allocated to terminal rewards and the keeper portion of NFT royalties, before conversion and distribution to terminals; later treasury recoveries are excluded.",
-    HoldersRevenue: "V2 trading and royalty rewards recognized on allocation at actual USDG conversion cost, with USDG valued at $1. V1 allocated stocks and PAXG use historical token prices. Unallocated pots, queued conversion funds, migration credits and subsequent claims are excluded.",
+    Fees: "Total Quotrons V1 and V2 hook swap fees plus NFT royalties paid directly through Seaport or released by the royalty splitter on Robinhood Chain, excluding direct royalties from mixed-collection orders, marketplace fees and subsequent redistribution of the same funds. On Ink, the hook's 3% fee on the ETH side of each swap, paid in WETH.",
+    SupplySideRevenue: "Hook fee allocations to LP reinvestment, STONKBROKER burns and the creator, plus the creator portion of NFT royalties, recorded at accrual or royalty receipt/release; allocations precede any later treasury recovery. On Ink, the hook's 0.3% creator share.",
+    Revenue: "Hook fees allocated to terminal rewards and the keeper portion of NFT royalties, before conversion and distribution to terminals; later treasury recoveries are excluded. On Ink, the hook's 2% terminal rewards share and 0.7% platform share.",
+    ProtocolRevenue: "On Ink, the hook's 0.7% platform share of each swap, kept by the protocol.",
+    HoldersRevenue: "V2 trading and royalty rewards recognized on allocation at actual USDG conversion cost, with USDG valued at $1. V1 allocated stocks and PAXG use historical token prices. Unallocated pots, queued conversion funds, migration credits and subsequent claims are excluded. On Ink, the hook's 2% terminal rewards share in WETH, recognized at the swap.",
   },
   breakdownMethodology: {
     Fees: {
-      [SWAP_LABEL]: "Actual V1 and V2 hook fee totals in floor stocks or WETH, including FeeTaken events emitted by recovery swaps; recovered principal and flash-loan transfers are excluded.",
+      [SWAP_LABEL]: "Actual V1, V2 and Ink hook fee totals in floor stocks or WETH, including FeeTaken events emitted by recovery swaps; recovered principal and flash-loan transfers are excluded.",
       [ROYALTY_LABEL]: "Direct royalties on Quotrons-only Seaport orders and royalty splitter releases in their payment currencies; ERC-20 splitter royalties are recognized when released.",
     },
     SupplySideRevenue: {
       [LP_LABEL]: "Actual toLp amounts allocated by the V1 and V2 hooks to LP reinvestment, recorded at the swap.",
-      [CREATOR_LABEL]: "Actual toCreator amounts allocated by the V1 and V2 hooks to the creator, recorded at the swap.",
+      [CREATOR_LABEL]: "Actual toCreator amounts allocated by the V1, V2 and Ink hooks to the creator, recorded at the swap.",
       [BURN_LABEL]: "Actual toBurn amounts earmarked by the V1 and V2 hooks for the separate STONKBROKER token; the immutable V2 allocation continues after the advisory vote and periodic recoveries.",
       [ROYALTY_CREATOR_LABEL]: "Direct NFT royalty payments to the creator and creatorAmount from the dedicated splitter's release events.",
     },
     Revenue: {
-      [REFLECTION_LABEL]: "Hook fee totals less toLp, toCreator and toBurn, retained for terminal reward conversion and distribution.",
+      [REFLECTION_LABEL]: "V1 and V2 hook fee totals less toLp, toCreator and toBurn, and the Ink hook's toRewards amounts, retained for terminal reward conversion and distribution.",
       [ROYALTY_KEEPER_LABEL]: "Direct NFT royalty payments to the keeper and splitter totals less creatorAmount, retained for the royalty reward pipeline.",
+      [PLATFORM_LABEL]: "The Ink hook's toPlatform amounts in WETH, recorded at the swap.",
+    },
+    ProtocolRevenue: {
+      [PLATFORM_LABEL]: "The Ink hook's toPlatform amounts in WETH, kept by the protocol.",
     },
     HoldersRevenue: {
+      [REFLECTION_LABEL]: "The Ink hook's toRewards amounts in WETH for terminal rewards, recognized at the swap.",
       [SWAP_REWARDS_LABEL]: "V2 FloorConverted.usdgOut measures USDG spent acquiring stocks allocated to holders, at $1 per USDG. V1 stock notifications exclude gold and unallocated floor shares, adding first-holder pot releases; PAXG counts only when deposited. V1 stocks retain historical token pricing. Migration credits and claims are excluded.",
       [ROYALTY_REWARDS_LABEL]: "Royalty FloorConverted.usdgIn measures USDG spent acquiring stocks allocated to holders, at $1 per USDG, reconciled to reward notifications. Keeper receipts, queued funds and subsequent claims are excluded.",
     },
