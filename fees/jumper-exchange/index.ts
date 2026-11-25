@@ -95,7 +95,9 @@ export const createJumperFeeAdapter = (category: 'swap' | 'bridge'): SimpleAdapt
   // chains launched after JumperFeeStart (Arc) start at their own fee collector start
   adapter: Object.fromEntries([...OnchainChains, ...ApiChains].map((chain) => {
     const chainStart = LifiFeeCollectors[chain]?.start;
-    return [chain, { start: chainStart && chainStart > JumperFeeStart ? chainStart : JumperFeeStart }];
+    // a chain LI.FI dropped stops at its deadFrom (fee collector entry first, else the diamond entry)
+    const deadFrom = LifiFeeCollectors[chain]?.deadFrom ?? LifiDiamonds[chain]?.deadFrom;
+    return [chain, { start: chainStart && chainStart > JumperFeeStart ? chainStart : JumperFeeStart, deadFrom }];
   })),
   methodology: {
     Fees: `Jumper platform fees (0-5 bps depending on the assets) paid by users on ${product}.`,
