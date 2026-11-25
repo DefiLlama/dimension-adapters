@@ -31,16 +31,14 @@ async function fetch(options: FetchOptions) {
     const tradeReturn = Number(log.tradeReturn) / 1e18;
     const price = Number(log.currentPrice) / 1e8;
 
-    // Fees are derived as input minus output value, capped at zero per trade. None of the
-    // 9,346 trades from 2025-12-15 to the last one (2026-04-06) has a negative value.
     if (isLong) {
       // LONG: volume = tradeSize(USD), fees = tradeSize - (tradeReturn(BTC)*price)
       dailyVolume.addUSDValue(tradeSize);
-      dailyFees.addUSDValue(Math.max(0, tradeSize - (tradeReturn * price)), TRADING_FEES);
+      dailyFees.addUSDValue(tradeSize - (tradeReturn * price), TRADING_FEES);
     } else {
       // SHORT: volume = tradeSize(BTC)*price, fees = tradeSize(BTC)*price - tradeReturn(USD)
       dailyVolume.addUSDValue(tradeSize * price);
-      dailyFees.addUSDValue(Math.max(0, tradeSize * price - tradeReturn), TRADING_FEES);
+      dailyFees.addUSDValue(tradeSize * price - tradeReturn, TRADING_FEES);
     }
   }
 
@@ -77,9 +75,7 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.LINEA],
   fetch,
   start: "2025-12-15",
-  // Denaria's own vAMM engine on Linea was sunset when trading moved to GMX V2 on
-  // Arbitrum (2026-09-03). Last ExecutedTrade 2026-04-06 23:07 UTC, after the 2026-04-05
-  // exploit; no trades from then to the sunset. GMX activity lives in dexs/denaria-gmx.ts.
+  // Linea vAMM sunset; trading moved to GMX V2 on Arbitrum (dexs/denaria-gmx.ts).
   deadFrom: "2026-09-03",
   methodology,
   breakdownMethodology,

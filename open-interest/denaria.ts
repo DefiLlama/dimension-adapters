@@ -27,17 +27,12 @@ const methodology = {
 
 const adapter: SimpleAdapter = {
   version: 2,
-  // Open interest is a snapshot read at the window end; hourly records would be summed
-  // into the daily value and inflate it 24x.
+  // OI is a snapshot at the window end; hourly slices would be summed 24x.
   pullHourly: false,
   chains: [CHAIN.LINEA],
   fetch,
   start: "2025-12-15",
-  // Trading stopped after the 2026-04-05 exploit (last ExecutedTrade 2026-04-06 23:07 UTC)
-  // and the vault was drained. totalTraderExposure has been frozen at 2.1183 BTC since
-  // 2026-04-06, so later reads are a stale contract value priced at the BTC rate, not open
-  // positions. The engine was formally sunset on 2026-09-03 (GMX activity lives in
-  // open-interest/denaria-gmx.ts).
+  // Trading stopped after the 2026-04-05 exploit; totalTraderExposure has been frozen since.
   deadFrom: "2026-04-07",
   methodology,
 };
