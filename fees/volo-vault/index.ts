@@ -45,11 +45,7 @@ const fetch = async ({ dateString, createBalances }: FetchOptions) => {
       SENTIO_API_URL,
       {
         sqlQuery: { sql: DAILY_FEE_SQL, size: 10000 },
-        cachePolicy: {
-          noCache: false,
-          cacheTtlSecs: 1036800,
-          cacheRefreshTtlSecs: 43200,
-        },
+        cachePolicy: { noCache: true },
         engine: "DEFAULT",
       },
       {
