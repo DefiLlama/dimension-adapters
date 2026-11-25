@@ -3830,33 +3830,6 @@
         "runAtCurrTime": false
       }
     },
-    "denaria": {
-      "commit": "f87f9543a7906b671a14395ef1e44db86a181100",
-      "codePath": "dexs/denaria.ts",
-      "module": {
-        "version": 2,
-        "pullHourly": true,
-        "chains": [
-          "linea"
-        ],
-        "fetch": "_f",
-        "start": "2025-12-15",
-        "deadFrom": "2026-09-03",
-        "methodology": {
-          "Volume": "All volume of Denaria's own vAMM perp engine on Linea, computed from ExecutedTrade notional in virtual USD across PerpPair deployments. Sunset on 2026-09-03: Denaria trading moved to GMX V2 on Arbitrum, tracked by the separate denaria-gmx adapter.",
-          "Fees": "Denaria Perp trading fees (fees + slippage) derived from ExecutedTrade, summed across PerpPair deployments.",
-          "Revenue": "All the fees are revenue.",
-          "ProtocolRevenue": "All the revenue goes to the protocol."
-        },
-        "adapter": {
-          "linea": {
-            "fetch": "_f",
-            "start": "2025-12-15"
-          }
-        },
-        "runAtCurrTime": false
-      }
-    },
     "desk": {
       "commit": "3421bf3209146a1a889651437915efb3a48a787d",
       "codePath": "dexs/desk",
@@ -15352,29 +15325,6 @@
           }
         },
         "version": 1
-      }
-    },
-    "denaria": {
-      "commit": "f87f9543a7906b671a14395ef1e44db86a181100",
-      "codePath": "open-interest/denaria.ts",
-      "module": {
-        "version": 2,
-        "chains": [
-          "linea"
-        ],
-        "fetch": "_f",
-        "start": "2025-12-15",
-        "deadFrom": "2026-09-03",
-        "methodology": {
-          "OpenInterest": "Trader exposure (totalTraderExposure, in BTC) of Denaria's own vAMM perp engine on Linea. Sunset on 2026-09-03: Denaria trading moved to GMX V2 on Arbitrum, tracked by the separate denaria-gmx adapter."
-        },
-        "adapter": {
-          "linea": {
-            "fetch": "_f",
-            "start": "2025-12-15"
-          }
-        },
-        "runAtCurrTime": false
       }
     },
     "derive-options": {
