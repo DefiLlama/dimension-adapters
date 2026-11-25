@@ -16,14 +16,14 @@ const fetch = async (options: FetchOptions) => {
   const ois = await options.toApi.multiCall({ abi: 'uint256:getOI', calls: markets.map((log: any) => log.market) });
 
   markets.forEach((log: any, i: number) => {
-    openInterestAtEnd.addCGToken(getCgId(Number(log.immData.k_tokenId)), Number(ois[i]) / 2 / 1e18);
+    openInterestAtEnd.addCGToken(getCgId(Number(log.immData.k_tokenId)), Number(ois[i]) / 1e18);
   });
 
   return { openInterestAtEnd };
 }
 
 const methodology = {
-  OpenInterest: "Notional size of open positions in all unmatured Boros markets at the end of the period, read from each market contract and priced in the market's collateral token. Each contract is counted once.",
+  OpenInterest: "Notional size of open positions in all unmatured Boros markets at the end of the period, read from each market contract and priced in the market's collateral token. Matches the contract's getOI(), which counts both sides (long + short).",
 };
 
 const adapter: SimpleAdapter = {
