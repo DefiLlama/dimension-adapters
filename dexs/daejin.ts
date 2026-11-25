@@ -174,7 +174,7 @@ const MARKET_MINT_OFFSET = 16;
 // Which of a program's transactions are fills is only known once the transaction is read (a
 // busy day is mostly deposits, withdrawals and market setup), so every one is fetched. The
 // runner fetches several windows at once, so the limit on requests in flight is shared by the
-// whole process, and a rate-limited request waits and is retried rather than failing the day.
+// whole process.
 const MAX_IN_FLIGHT = 4;
 let inFlight = 0;
 const waiting: (() => void)[] = [];
@@ -185,13 +185,27 @@ const limited = async <T>(task: () => Promise<T>): Promise<T> => {
   finally { inFlight--; waiting.shift()?.(); }
 };
 
+// A 429 pauses every request, not only the one that got it. The public RPC allows 10 requests
+// per 10 seconds per method and counts the rejected ones too (response headers
+// x-ratelimit-method-limit: 10 and retry-after: 10, api.mainnet-beta.solana.com, 2026-11-25),
+// so a request backing off alone keeps being rejected while the others refill the window.
+// The pause is that retry-after plus a second; an endpoint that never answers 429 never waits.
+const COOLDOWN_MS = 11_000;
+const MAX_RATE_LIMIT_RETRIES = 8; // a request is rejected about once per cooldown at worst
+let pausedUntil = 0;
 const rateLimited = (e: any) => /429|Too many requests/i.test(String(e?.message));
 const rpc = async <T>(task: () => Promise<T>): Promise<T> => {
   for (let attempt = 0; ; attempt++) {
-    try { return await limited(task); }
-    catch (e) {
-      if (attempt >= 5 || !rateLimited(e)) throw e;
-      await new Promise((resolve) => setTimeout(resolve, 2000 * 2 ** attempt));
+    try {
+      return await limited(async () => {
+        // Re-checked after each wait: another request may have extended the pause meanwhile.
+        while (pausedUntil > Date.now())
+          await new Promise((resolve) => setTimeout(resolve, pausedUntil - Date.now()));
+        return task();
+      });
+    } catch (e) {
+      if (attempt >= MAX_RATE_LIMIT_RETRIES || !rateLimited(e)) throw e;
+      pausedUntil = Math.max(pausedUntil, Date.now() + COOLDOWN_MS);
     }
   }
 };
