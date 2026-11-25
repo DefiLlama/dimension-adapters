@@ -1,6 +1,7 @@
 // helpers/aggregators/soheil.ts — shared by aggregators/soheil and bridge-aggregators/soheil: every network Soheil.fi supports
 // (LI.FI's numbering for EVM chains, LI.FI-style ids for the rest) → DefiLlama chain keys. A network missing here would be left
-// out of the volume, so this list follows https://soheil.fi/api/chains (101 of its 102 networks as of 2026-10-27; Quantus has no DefiLlama chain yet).
+// out of the volume, so this list follows https://soheil.fi/api/chains (115 of its 117 networks as of 2026-11-25; Quantus and Verona
+// have no DefiLlama chain key yet).
 import { CHAIN } from "../chains";
 import { FetchOptions } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
@@ -114,6 +115,26 @@ export const SOHEIL_CHAINS: Record<string, string> = {
   "8900000812963649": CHAIN.AKASH,
   "8900002587681917": CHAIN.INJECTIVE, // Injective (Cosmos side)
   "8900000601483365": CHAIN.DYMENSION,
+  "8900002209341897": CHAIN.ARCHWAY,
+  "8900003884064725": CHAIN.AXELAR,
+  "8900003884949950": CHAIN.BABYLON, // Babylon Genesis
+  "8900001594093417": CHAIN.CHEQD,
+  "8900002832003572": CHAIN.CHIHUAHUA,
+  "8900001736338659": CHAIN.FETCHHUB, // Fetch.ai
+  "8900002291057114": CHAIN.JACKAL,
+  "8900000068694929": CHAIN.JUNO,
+  "8900002458843027": CHAIN.KYVE,
+  "8900002813992621": CHAIN.NOLUS,
+  "8900000012791824": CHAIN.ORAI, // Oraichain
+  "8900000505381003": CHAIN.PERSISTENCE,
+  "8900002771478709": CHAIN.REGEN,
+  "8900001517468709": CHAIN.SAGA,
+  "8900002298077933": CHAIN.SEI, // Sei's Cosmos side: the same chain as Sei's EVM (1329) on DefiLlama
+  "8900002529607729": CHAIN.SENTINEL,
+  "8900003395289013": CHAIN.SHENTU,
+  "8900000541282276": CHAIN.ZIGCHAIN,
+  // 8900001523427247 (Verona): no DefiLlama chain key yet, left out
+  "99901": CHAIN.ELYSIUM,
 };
 
 export const SOHEIL_START = "2026-10-01";
