@@ -52,10 +52,8 @@ export const logIndex = (log: EventLog) => {
 };
 export const logOrder = (a: EventLog, b: EventLog) => a.blockNumber - b.blockNumber || logIndex(a) - logIndex(b);
 
-// getFromBlock is the snapshot preceding this interval. Excluding it prevents
-// adjacent hourly windows from counting the same boundary block twice.
 export async function period(options: FetchOptions) {
-  return { fromBlock: (await options.getFromBlock()) + 1, toBlock: await options.getToBlock() };
+  return { fromBlock: await options.getFromBlock(), toBlock: await options.getToBlock() };
 }
 
 export async function getCurveTrades(options: FetchOptions) {

@@ -89,7 +89,7 @@ const fetch = async (options: FetchOptions) => {
   const c = config[options.chain];
   const fromBlock = await options.getFromBlock();
   const toBlock = await options.getToBlock();
-  const getLogs: FetchOptions['getLogs'] = args => options.getLogs({ fromBlock: fromBlock + 1, toBlock, ...args });
+  const getLogs: FetchOptions['getLogs'] = args => options.getLogs({ fromBlock, toBlock, ...args });
   const dailyFees = options.createBalances(), dailyRevenue = options.createBalances(), dailySupplySideRevenue = options.createBalances();
   const allocate = (asset: string, creator: bigint, treasury: bigint, rewards = 0n, reinvest = 0n, label = 'Hook Fees') => {
     dailyFees.add(asset, creator + treasury + rewards + reinvest, label);

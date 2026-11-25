@@ -91,7 +91,7 @@ const fetch = async (options: FetchOptions) => {
     options.toApi.multiCall({ abi: ABIS.totalCrystallizedFeeShares, calls: vaultAddresses }),
     options.getLogs({
       targets: vaultAddresses,
-      fromBlock: fromBlock + 1,
+      fromBlock,
       topics: [FEE_EVENT_TOPICS] as any,
       entireLog: true,
       parseLog: false,

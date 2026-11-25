@@ -155,7 +155,7 @@ const fetch = async (options: FetchOptions) => {
   // Required accounting input: a missing feed must fail the window, never turn
   // the missing commission into zero and persist overstated protocol revenue.
   const referrals = await getReferrals(options);
-  const fromBlock = (await options.getFromBlock()) + 1;
+  const fromBlock = await options.getFromBlock();
   const sourceGetLogs = options.getLogs;
   options = { ...options, getFromBlock: async () => fromBlock,
     getLogs: params => sourceGetLogs({ fromBlock, ...params }) };

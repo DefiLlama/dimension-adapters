@@ -307,9 +307,7 @@ async function fetch(options: FetchOptions) {
 
   for (const v of pre.volume) if (v.chain === chain) addTo(dailyVolume, v.leg.token, v.leg.amount);
 
-  // options.getLogs reads [fromBlock, toBlock] and the next hour starts on this hour's toBlock: start one
-  // block later so a boundary block is counted once.
-  const fromBlock = (await options.getFromBlock()) + 1;
+  const fromBlock = await options.getFromBlock();
   if (EVM_CHAINS.includes(chain)) {
     const targets = chainConfig[chain].factories!.map((f) => f.address);
     for (const f of await options.getLogs({ targets, eventAbi: ABI.EvmFee, fromBlock, flatten: true })) fee(evmToken(f.token), BigInt(f.fee));

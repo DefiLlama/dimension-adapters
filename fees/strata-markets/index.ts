@@ -188,18 +188,12 @@ async function processCDO(
 ) {
   const { chain, toApi, getLogs, getFromBlock, getToBlock } = options;
 
-  // navStart is read at the end of fromBlock, so anything in that block is
-  // already in it. the previous window's toBlock is this window's fromBlock and
-  // getLogs includes both ends, so we start one block later. otherwise a deposit
-  // or withdrawal in the boundary block gets counted in both windows.
-  const [startBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()]);
-  // getBlock returns null if the lookup fails. null + 1 would scan from block 1
-  if (!startBlock || !toBlock) throw new Error(`strata-markets: missing block for window (${startBlock}, ${toBlock})`);
-  const fromBlock = startBlock + 1;
+  const [fromBlock, toBlock] = await Promise.all([getFromBlock(), getToBlock()]);
+  if (!fromBlock || !toBlock) throw new Error(`strata-markets: missing block for window (${fromBlock}, ${toBlock})`);
 
   const [baseAsset, navStart, navEnd, reserveBpsRaw] = await Promise.all([
     toApi.call({ target: cfg.jrt, abi: ASSET_ABI }) as Promise<string>,
-    navAt(chain, cfg, startBlock),
+    navAt(chain, cfg, fromBlock - 1),
     navAt(chain, cfg, toBlock),
     toApi.call({ target: cfg.accounting, abi: RESERVE_BPS_ABI }),
   ]);

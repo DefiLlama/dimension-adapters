@@ -370,7 +370,7 @@ async function hydrateReceiptsBatchIfNeeded(config: EvmChainMetricConfig, receip
  */
 export async function fetchEvmChainMetricsFromOptions(options: FetchOptions, config: EvmChainMetricConfig): Promise<EvmChainMetrics> {
   const [fromBlock, toBlock] = await Promise.all([options.getFromBlock(), options.getToBlock()]);
-  const range = getWindowBlockRange(config.chain, fromBlock, toBlock);
+  const range = getWindowBlockRange(config.chain, fromBlock - 1, toBlock);
   if (!range) return toPublicMetrics(emptyMetricsAccumulator());
   return fetchEvmChainMetrics({ ...config, ...range });
 }
