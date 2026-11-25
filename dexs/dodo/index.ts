@@ -28,6 +28,7 @@ const MAX_SWAP_TARGETS = 200
 
 const EXCLUDED_POOLS = [
   { chain: CHAIN.ETHEREUM, pool: '0x04571c32a4e1c5f39bc3a238cb95b215058c432c', fromBlock: 26480871, reason: 'USDC/USDT pool drained by flash-loan swap loops' },
+  { chain: CHAIN.ETHEREUM, pool: '0xc9f93163c99695c6526b799ebca2207fdf7d61ad', fromBlock: 26484558, reason: 'V1 USDT/USDC pair drained by flash-loan swap loops' },
 ]
 
 // V1 pairs are registered by DODOZoo and emit their own events
@@ -245,10 +246,10 @@ const fetch = async (options: FetchOptions) => {
     const pairs = await options.getLogs({ target: zoo.address, eventAbi: DODO_BIRTH, fromBlock: zoo.fromBlock, cacheInCloud: true })
     const targets = pairs.map((pair: any) => pair.newBorn)
     if (!targets.length) return result() // the zoo has not registered a V1 pair yet
-    const [sells, buys] = await Promise.all([
+    const [sells, buys] = (await Promise.all([
       options.getLogs({ targets, eventAbi: SELL_BASE, flatten: false, entireLog: true, parseLog: true }),
       options.getLogs({ targets, eventAbi: BUY_BASE, flatten: false, entireLog: true, parseLog: true }),
-    ])
+    ])).map((perPair: any[][]) => perPair.map((logs) => logs.filter((log: any) => !isExcluded(log))))
     // read rates only on pairs that traded: the cached zoo list also holds pairs born after this window
     const active = targets.filter((_: string, i: number) => sells[i].length || buys[i].length)
     if (!active.length) return result()
