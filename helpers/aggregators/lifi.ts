@@ -17,6 +17,10 @@ type IContract = {
 export interface LifiFeeCost {
   name: string;
   amount: string;
+  feeSplit?: {
+    integratorFee: string;
+    lifiFee: string;
+  };
   token: {
     address: string;
     chainId: number;
@@ -28,6 +32,11 @@ export interface LifiTransfer {
   status: string;
   substatus?: string;
   sending: {
+    txHash: string;
+    amount: string;
+    token: {
+      address: string;
+    };
     amountUSD: string;
     chainId: number;
     timestamp: number;
@@ -722,7 +731,7 @@ export const fetchVolumeFromLIFIAPI = async (chain: Chain, start: number, endTim
   return totalValue;
 };
 
-// DONE transfers sent in [start, endTime) by `integrators`, from `chain` or all chains
+// DONE transfers sent in [start, endTime) by `integrators` (empty = all), from `chain` or all chains
 export const fetchTransfersFromLIFIAPI = async (start: number, endTime: number, integrators: string[], chain?: Chain): Promise<LifiTransfer[]> => {
   if (chain && LIFI_UNSUPPORTED_CHAINS.includes(chain)) return [];
 
@@ -734,9 +743,9 @@ export const fetchTransfersFromLIFIAPI = async (start: number, endTime: number, 
       fromTimestamp: start.toString(),
       toTimestamp: endTime.toString(),
       status: 'DONE',
-      integrator: integrators.join(','),
       limit: '1000'
     });
+    if (integrators.length) params.append('integrator', integrators.join(','));
     if (chain) params.append('fromChain', LifiDiamonds[chain].chainId ?? LifiDiamonds[chain].id);
     if (nextCursor) params.append('next', nextCursor);
 
