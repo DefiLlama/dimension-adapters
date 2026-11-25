@@ -1,7 +1,8 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
-import { LifiDiamonds, LIFI_API_CHAINS, fetchVolumeFromLIFIAPI, getLifiCoreAssets } from "../../helpers/aggregators/lifi";
+import { LifiDiamonds, LIFI_API_CHAINS, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
 import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from "../../helpers/lists";
+import { isCoreAsset } from "../../helpers/prices";
 import { nullAddress } from "../../helpers/token";
 import { formatAddress } from "../../utils/utils";
 
@@ -26,7 +27,6 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
   // same token rules as the LI.FI dex adapter
   const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
   const whitelistedTokens = await getDefaultDexTokensWhitelisted({ chain: options.chain })
-  const coreAssets = getLifiCoreAssets(options.chain)
 
   logs.forEach((log: any) => {
     if (!integrators.includes(log.integrator)) return;
@@ -39,11 +39,10 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
       return;
     }
 
-    // neither token on the DEX token list: keep it only with a core asset (or native received),
-    // valued on that side; native in is never used (its fromAmount is caller-declared)
-    if (toAsset === NATIVE || coreAssets.has(toAsset)) {
+    // neither token listed: value on the core-asset side, never on native in (caller-declared amount)
+    if (toAsset === NATIVE || isCoreAsset(options.chain, toAsset)) {
       dailyVolume.add(log.toAssetId, log.toAmount);
-    } else if (fromAsset !== NATIVE && coreAssets.has(fromAsset)) {
+    } else if (fromAsset !== NATIVE && isCoreAsset(options.chain, fromAsset)) {
       dailyVolume.add(log.fromAssetId, log.fromAmount);
     }
   });

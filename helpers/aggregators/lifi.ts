@@ -1,8 +1,7 @@
 import { CHAIN } from "../../helpers/chains";
 import { Chain } from "../../adapters/types";
 import { httpGet } from "../../utils/fetchURL";
-import { formatAddress, sleep } from "../../utils/utils";
-import ADDRESSES from "../coreAssets.json";
+import { sleep } from "../../utils/utils";
 
 type IContract = {
   [c: string | Chain]: {
@@ -587,14 +586,6 @@ export const LifiFeeCollectors: IContract = {
     start: '2026-09-16'
   }
 }
-
-// DefiLlama core assets of a chain (helpers/coreAssets.json), lowercased. The LI.FI DEX adapters
-// use them to keep swaps whose other token is not on the chain's DEX token list (e.g. USDT and
-// cbBTC on Base are missing from that list), valuing the swap on the core-asset side.
-export const getLifiCoreAssets = (chain: string): Set<string> => {
-  const assets: Record<string, string> = (ADDRESSES as any)[chain] ?? {};
-  return new Set(Object.values(assets).map((address) => formatAddress(address)));
-};
 
 // LI.FI's analytics API occasionally reports a wildly wrong amountUSD: e.g. on 2026-06-29 a
 // Solana->Ethereum USDC bridge that on-chain delivered ~$1 (0.997 USDC) was tagged $99.7M,

@@ -1,7 +1,8 @@
 import { FetchOptions, FetchResultVolume, SimpleAdapter } from "../../adapters/types";
-import { LifiDiamonds, LIFI_API_CHAINS, fetchVolumeFromLIFIAPI, getLifiCoreAssets } from "../../helpers/aggregators/lifi";
+import { LifiDiamonds, LIFI_API_CHAINS, fetchVolumeFromLIFIAPI } from "../../helpers/aggregators/lifi";
 import { CHAIN } from "../../helpers/chains";
 import { getDefaultDexTokensBlacklisted, getDefaultDexTokensWhitelisted } from "../../helpers/lists";
+import { isCoreAsset } from "../../helpers/prices";
 import { nullAddress } from "../../helpers/token";
 import { formatAddress } from "../../utils/utils";
 
@@ -28,7 +29,6 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
 
   const blacklistedTokens = getDefaultDexTokensBlacklisted(options.chain)
   const whitelistedTokens = await getDefaultDexTokensWhitelisted({chain: options.chain})
-  const coreAssets = getLifiCoreAssets(options.chain)
 
   logs.forEach((log: any) => {
     const fromAsset = formatAddress(log.fromAssetId)
@@ -48,12 +48,10 @@ const fetch: any = async (options: FetchOptions): Promise<FetchResultVolume> => 
       return;
     }
 
-    // Neither token is on the chain's DEX token list. Keep the swap only when one side is a
-    // DefiLlama core asset (or native received) and value it on that side, so a mispriced
-    // long-tail token never sets the value. Native in is never used (see above).
-    if (fromAsset !== NATIVE && coreAssets.has(fromAsset)) {
+    // neither token listed: value on the core-asset side, never on native in
+    if (fromAsset !== NATIVE && isCoreAsset(options.chain, fromAsset)) {
       dailyVolume.add(log.fromAssetId, log.fromAmount);
-    } else if (toAsset === NATIVE || coreAssets.has(toAsset)) {
+    } else if (toAsset === NATIVE || isCoreAsset(options.chain, toAsset)) {
       dailyVolume.add(log.toAssetId, log.toAmount);
     }
   });
