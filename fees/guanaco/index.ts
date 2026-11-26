@@ -52,6 +52,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   chains: [CHAIN.BITCOIN_CASH],
+  // Earliest indexed firstPoolAt (1788690185): https://api.guanaco.fi/v1/market-history?protocol=guanaco
   start: "2026-09-06",
   fetch,
   methodology,

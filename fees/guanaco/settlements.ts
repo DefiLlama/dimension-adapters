@@ -13,6 +13,7 @@ function operand(push: string) {
   const bytes = Buffer.from(push, "hex");
   return bytes.length === 1 ? bytes[0] - 0x50 : bytes.readUIntLE(1, bytes.length - 1);
 }
+// Fee-level order published by the Guanaco liquidity UI at https://guanaco.fi/liquidity .
 export const tierBps = [1, 5, 30, 100, 10, 20, 50];
 function feeRate(program: string) {
   const match = rateProgram.exec(program);
@@ -54,8 +55,16 @@ export async function settlements(indexer: string, start: number, end: number) {
   const fees = new Map<number, bigint>();
   let revenue = 0n;
   let dust = 0n;
-  for (const [id, volumes] of expected) {
+  const { errors: settlementErrors } = await PromisePool.withConcurrency(2).for([...expected]).process(async ([id, volumes]) => {
     const tx = await transaction(id);
+    const missing = tx.vin.filter(input => !input.prevout && swap.test(input.scriptSig.hex));
+    const parentIds = [...new Set(missing.map(input => input.txid))];
+    const { errors: parentErrors } = await PromisePool.withConcurrency(2).for(parentIds).process(async parentId => {
+      const inputs = missing.filter(input => input.txid === parentId);
+      const parent = await transaction(parentId, inputs.map(input => input.vout));
+      for (const input of inputs) input.prevout = parent.vout.find(out => out.n === input.vout);
+    });
+    if (parentErrors.length) throw parentErrors[0];
     for (const [i, input] of tx.vin.entries()) {
       const match = swap.exec(input.scriptSig.hex);
       if (!match) continue;
@@ -65,7 +74,7 @@ export async function settlements(indexer: string, start: number, end: number) {
       const lock = "aa20" + sha(sha(Buffer.from(script, "hex"))).toString("hex") + "87";
       const after = tx.vout[i];
       const payment = tx.vout[tx.output_count - 1 - i];
-      const before = input.prevout ?? (await transaction(input.txid, [input.vout])).vout.find(out => out.n === input.vout);
+      const before = input.prevout;
       const category = before?.tokenData?.category;
       if (!before || !category || after?.scriptPubKey.hex !== lock || after.tokenData?.category !== category ||
           !volumes.has(category) || payment?.scriptPubKey.hex !== treasuryScript)
@@ -73,6 +82,7 @@ export async function settlements(indexer: string, start: number, end: number) {
       const delta = sats(after.satoshis) - sats(before.satoshis);
       const gross = delta < 0n ? -delta : delta;
       const fee = gross * BigInt(bps) / 10000n;
+      // 765a96 in the verified redeem script above is OP_DUP OP_10 OP_DIV.
       const allocated = fee / 10n;
       const lp = fee - allocated;
       if (sats(payment.satoshis) < allocated ||
@@ -90,6 +100,7 @@ export async function settlements(indexer: string, start: number, end: number) {
     }
     if ([...volumes.values()].some(remaining => remaining !== 0n))
       throw new Error("Unmatched Guanaco swap legs in " + id);
-  }
+  });
+  if (settlementErrors.length) throw settlementErrors[0];
   return { fees, revenue, dust };
 }

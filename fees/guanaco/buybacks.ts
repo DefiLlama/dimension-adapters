@@ -5,6 +5,7 @@ import fetchURL from "../../utils/fetchURL";
 const gua = "742a7585d0d5cb35b2a45d26425e23b059b72e82d7036dd97e85da5ab57a8d6c";
 export const treasuryScript = "76a914748e3dffdc1ab726e8d7d8d381e56034871fe62388ac";
 const projectPoolScript = "aa2065e10ee37a522d27573df932433dd8de92e43159162a9b69eef08af4cf9df85287";
+// First confirmed purchase: https://explorer.selene.cash/api/v1/tx/32bb5af3abd9057fadf6dcde3169da2b5946bfcc53d5fbe67e53572911ae6330
 const firstBuybackHeight = 978934;
 const firstBuybackDay = 1795564800; // 2026-11-25 UTC.
 const explorer = "https://explorer.selene.cash/api/v1/tx";
