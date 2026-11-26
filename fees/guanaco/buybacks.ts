@@ -1,12 +1,16 @@
 import { PromisePool } from "@supercharge/promise-pool";
 import fetchURL from "../../utils/fetchURL";
 
+// The GUA category is published on https://guanaco.fi/gua.
 const gua = "742a7585d0d5cb35b2a45d26425e23b059b72e82d7036dd97e85da5ab57a8d6c";
+// Treasury and project GUA/BCH pool locking scripts used by the public GUA burn verifier.
 const treasuryScript = "76a914748e3dffdc1ab726e8d7d8d381e56034871fe62388ac";
 const projectPoolScript = "aa2065e10ee37a522d27573df932433dd8de92e43159162a9b69eef08af4cf9df85287";
 const txidPattern = /^[0-9a-f]{64}$/;
 const firstBuybackDay = 1795564800; // 2026-11-25 UTC, block 978934.
+// Explorer reports the raw block timestamp. The trade feed uses BCH median block time.
 const tradeSearchMargin = 6 * 3600;
+// Selene Explorer serves confirmed BCH transaction metadata and the burn input outpoints.
 const explorer = "https://explorer.selene.cash/api/v1/tx";
 
 type TokenData = { category: string; amount: string };
@@ -38,7 +42,7 @@ async function transaction(id: string): Promise<Transaction> {
   return tx;
 }
 
-async function buybackCost(indexer: string, parentId: string, expectedUnits: bigint, height: number) {
+async function buybackCost(indexer: string, parentId: string, expectedUnits: bigint, height: number, start: number, end: number) {
   const buy = await transaction(parentId);
   const received = buy.vout.filter(output => output.scriptPubKey?.hex === treasuryScript)
     .reduce((sum, output) => sum + guaAmount(output.tokenData), 0n);
@@ -46,9 +50,11 @@ async function buybackCost(indexer: string, parentId: string, expectedUnits: big
       !buy.vout.some(output => output.scriptPubKey?.hex === projectPoolScript && guaAmount(output.tokenData) > 0n))
     throw new Error(`GUA burn does not match a treasury purchase: ${parentId}`);
 
-  const start = buy.blocktime - tradeSearchMargin;
-  const end = buy.blocktime + 1;
-  const data = await fetchURL(`${indexer}/trades/${gua}?protocol=guanaco&start=${start}&end=${end}&limit=100`);
+  if (buy.blocktime < start || buy.blocktime >= end) return 0n;
+  const tradeStart = buy.blocktime - tradeSearchMargin;
+  const tradeEnd = buy.blocktime + tradeSearchMargin;
+  // 100 is the maximum page size. Require a matching transaction even if the page is truncated.
+  const data = await fetchURL(`${indexer}/trades/${gua}?protocol=guanaco&start=${tradeStart}&end=${tradeEnd}&limit=100`);
   const matches = Array.isArray(data.trades) ? data.trades.filter((trade: Trade) => trade.txid === parentId) : [];
   const [trade] = matches;
   if (data.protocol !== "guanaco" || data.includesMempool !== false || matches.length !== 1 ||
@@ -77,7 +83,7 @@ export async function burnedBuybacks(indexer: string, start: number, end: number
   const { results, errors } = await PromisePool.withConcurrency(2).for([...confirmed.values()]).process(async burn => {
     const tx = await transaction(burn.txid);
     if (tx.height !== burn.height) throw new Error(`GUA burn confirmation mismatch for ${burn.txid}`);
-    if (tx.blocktime < start || tx.blocktime >= end) return 0n;
+    if (tx.blocktime < start) return 0n;
     if (tx.input_count !== tx.vin.length || tx.output_count !== tx.vout.length)
       throw new Error(`Incomplete GUA burn transaction ${burn.txid}`);
 
@@ -92,9 +98,10 @@ export async function burnedBuybacks(indexer: string, start: number, end: number
     if (burned <= 0n || total - retained !== burned || (retained > 0n && byPurchase.size !== 1))
       throw new Error(`Cannot allocate acquisition costs for GUA burn ${burn.txid}`);
 
-    let cost = 0n;
-    for (const [id, units] of byPurchase) cost += await buybackCost(indexer, id, units, tx.height);
-    return cost * burned / total;
+    const { results: costs, errors: purchaseErrors } = await PromisePool.withConcurrency(2).for([...byPurchase.entries()])
+      .process(([id, units]) => buybackCost(indexer, id, units, tx.height, start, end));
+    if (purchaseErrors.length) throw purchaseErrors[0];
+    return costs.reduce((sum, cost) => sum + cost, 0n) * burned / total;
   });
   if (errors.length) throw errors[0];
   return results.reduce((sum, sats) => sum + sats, 0n);

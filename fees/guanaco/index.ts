@@ -4,10 +4,13 @@ import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
 import { burnedBuybacks } from "./buybacks";
 
+// Guanaco publishes confirmed pool swaps through the same indexer used by its DEX volume adapter.
 const indexer = "https://api.guanaco.fi/v1";
-// Covenant levels are assigned in deployment order, not by ascending fee.
+// Fee levels use the deployment order published by Guanaco at https://guanaco.fi/liquidity.
 const tierBps = [1, 5, 30, 100, 10, 20, 50];
 const satoshisPerBch = 100_000_000;
+const bpsPerUnit = 10_000;
+const protocolShare = 0.10; // The allocation is documented at https://guanaco.fi/gua.
 const labels = tierBps.map(bps => `Swap Fees (${bps / 100}% Tier)`);
 const lpLabel = "Swap Fees To Liquidity Providers";
 const revenueLabel = "Swap Fees Allocated To GUA Buybacks";
@@ -37,6 +40,12 @@ async function candleVolume(category: string, start: number, end: number, tier?:
   return BigInt(candle.volumeSatoshis);
 }
 
+async function runRequests<T, R>(items: T[], request: (item: T) => Promise<R>) {
+  const { results, errors } = await PromisePool.withConcurrency(2).for(items).process(request);
+  if (errors.length) throw errors[0];
+  return results;
+}
+
 async function volumeByTier(start: number, end: number) {
   const markets = await fetchURL(`${indexer}/market-history?protocol=guanaco`);
   if (markets.protocol !== "guanaco" || markets.includesMempool !== false ||
@@ -59,25 +68,27 @@ async function volumeByTier(start: number, end: number) {
     }
   }
 
-  const { results, errors } = await PromisePool.withConcurrency(3).for(active).process(async ({ category, knownTiers }) => {
-    const total = await candleVolume(category, start, end);
-    const volumes = tierBps.map(() => 0n);
-    if (total === 0n) return volumes;
-    for (const tier of knownTiers) volumes[tier] = await candleVolume(category, start, end, tier);
+  const traded = await runRequests(active, async market => ({
+    ...market,
+    total: await candleVolume(market.category, start, end),
+    volumes: tierBps.map(() => 0n),
+  }));
+  const marketsWithVolume = traded.filter(market => market.total > 0n);
+  const readTier = async ({ market, tier }: { market: typeof traded[number]; tier: number }) => {
+    market.volumes[tier] = await candleVolume(market.category, start, end, tier);
+  };
+  await runRequests(marketsWithVolume.flatMap(market => market.knownTiers.map(tier => ({ market, tier }))), readTier);
 
-    const sum = () => volumes.reduce((amount, volume) => amount + volume, 0n);
-    // Recent history suggests which tiers to query first. Older windows can use different tiers.
-    if (sum() !== total) {
-      for (const tier of tierBps.keys()) {
-        if (!knownTiers.includes(tier)) volumes[tier] = await candleVolume(category, start, end, tier);
-      }
-    }
-    if (sum() !== total) throw new Error(`Guanaco fee tier volumes do not reconcile for ${category}`);
-    return volumes;
-  });
-  if (errors.length) throw errors[0];
+  const reconciles = (market: typeof traded[number]) => market.volumes.reduce((sum, volume) => sum + volume, 0n) === market.total;
+  // Recent history suggests which tiers to query first. Older windows can use different tiers.
+  const missing = marketsWithVolume.filter(market => !reconciles(market)).flatMap(market =>
+    [...tierBps.keys()].filter(tier => !market.knownTiers.includes(tier)).map(tier => ({ market, tier }))
+  );
+  await runRequests(missing, readTier);
+  for (const market of marketsWithVolume)
+    if (!reconciles(market)) throw new Error(`Guanaco fee tier volumes do not reconcile for ${market.category}`);
 
-  const totalsByTier = tierBps.map((_, tier) => results.reduce((sum, volumes) => sum + volumes[tier], 0n));
+  const totalsByTier = tierBps.map((_, tier) => marketsWithVolume.reduce((sum, market) => sum + market.volumes[tier], 0n));
   return totalsByTier;
 }
 
@@ -91,19 +102,19 @@ async function fetch({ startTimestamp, endTimestamp, createBalances }: FetchOpti
   volumes.forEach((volume, tier) => {
     const feeUnits = volume * BigInt(tierBps[tier]);
     total += feeUnits;
-    if (feeUnits > 0n) dailyFees.addCGToken("bitcoin-cash", Number(feeUnits) / (10_000 * satoshisPerBch), labels[tier]);
+    if (feeUnits > 0n) dailyFees.addCGToken("bitcoin-cash", Number(feeUnits) / (bpsPerUnit * satoshisPerBch), labels[tier]);
   });
 
-  const feesBch = Number(total) / (10_000 * satoshisPerBch);
+  const feesBch = Number(total) / (bpsPerUnit * satoshisPerBch);
   if (feesBch > 0) {
-    const revenueBch = feesBch / 10;
+    const revenueBch = feesBch * protocolShare;
     dailySupplySideRevenue.addCGToken("bitcoin-cash", feesBch - revenueBch, lpLabel);
     dailyRevenue.addCGToken("bitcoin-cash", revenueBch, revenueLabel);
   }
 
   const spentSats = await burnedBuybacks(indexer, startTimestamp, endTimestamp);
   if (spentSats > 0n) dailyHoldersRevenue.addCGToken("bitcoin-cash", Number(spentSats) / satoshisPerBch, burnLabel);
-  return { dailyFees, dailyUserFees: dailyFees, dailySupplySideRevenue, dailyRevenue, dailyHoldersRevenue };
+  return { dailyFees, dailyUserFees: dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: 0, dailyHoldersRevenue };
 }
 
 const methodology = {
@@ -111,7 +122,7 @@ const methodology = {
   UserFees: "Estimated swap fees paid by traders to Guanaco pools.",
   SupplySideRevenue: "90% of estimated swap fees attributable to Guanaco liquidity providers.",
   Revenue: "10% of estimated swap fees allocated to periodic GUA buybacks.",
-  HoldersRevenue: "BCH paid into the project pool for treasury-purchased GUA, recognized when the corresponding burn confirms.",
+  HoldersRevenue: "BCH paid into the project pool for treasury-purchased GUA, recognized at purchase confirmation for purchases linked to a verified burn.",
 };
 const breakdownMethodology = {
   Fees: Object.fromEntries(labels.map((label, tier) => [label, `Confirmed Guanaco swap-leg volume in the ${tierBps[tier] / 100}% fee tier multiplied by its fee rate.`])),
