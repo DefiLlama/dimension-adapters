@@ -104,7 +104,7 @@ async function pages(method: string, fields: [number, number | Buffer | undefine
 }
 
 const senderCache: Record<string, Promise<string>> = {};
-const senderOf = (tx: Buffer) => senderCache[hex(tx)] ??= call("GetTransactionDetails", encode([[1, tx]])).then((r) => hex(decode(r[1][0])[2][0]));
+const senderOf = (tx: Buffer) => { const k = hex(tx); return senderCache[k] ??= call("GetTransactionDetails", encode([[1, tx]])).then((r) => hex(decode(r[1][0])[2][0])).catch((e) => { delete senderCache[k]; throw e }) };
 
 // Senders of every TRANSFER_IN on an account's balance log (newest first), read in windows that stay under the depth limit.
 async function transferSenders(address: string, stopAt?: string) {
@@ -125,7 +125,7 @@ async function transferSenders(address: string, stopAt?: string) {
     }
     if (page <= MAX_ROWS / PAGE_SIZE) return senders;
     if (oldest === Infinity) throw new Error(`succinct: cannot page the balance log of ${address}`);
-    maxTs = oldest; // past the depth limit: continue from the oldest entry read
+    maxTs = oldest + 1; // past the depth limit: maximum_timestamp is exclusive, so continue from the oldest second read; seen skips what was already read
   }
 }
 
@@ -136,7 +136,7 @@ const getNetwork = () => networkPromise ??= (async () => {
   const accounts = new Set([auctioneer, PROXY_FUNDER, SPN_REQUESTER]);
   for (const a of [auctioneer, PROXY_FUNDER, SPN_REQUESTER]) (await transferSenders(a)).forEach((s) => accounts.add(s));
   return { auctioneer, accounts };
-})();
+})().catch((e) => { networkPromise = undefined; throw e });
 
 // A requester is outside the network unless it is a network account, was ever topped up by the Proxy Funder,
 // or has no deposit and was only funded by network accounts.
@@ -147,7 +147,7 @@ const isOutside = (requester: string, network: Set<string>) => outsideCache[requ
   if (senders.has(PROXY_FUNDER)) return false;
   const deposits = (await call("GetFilteredBalanceLogs", encode([[1, bytes(requester)], [2, DEPOSIT], [5, 1], [6, 1]])))[1] ?? [];
   return deposits.length > 0 || [...senders].some((s) => !network.has(s));
-})();
+})().catch((e) => { delete outsideCache[requester]; throw e });
 
 const fetch = async (options: FetchOptions) => {
   const { startTimestamp, endTimestamp, createBalances, api } = options;
