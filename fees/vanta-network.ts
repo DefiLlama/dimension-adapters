@@ -20,6 +20,13 @@ const RAO = 1e9; // 1 TAO = 1e9 rao
 
 type Block = { number: number; hash: string };
 
+// Throw on unknown block: `at: null` would read the latest state.
+const blockHash = async (number: number): Promise<string> => {
+  const hash = await substrate.getBlockHash({ chain: CHAIN.BITTENSOR, number });
+  if (!hash) throw new Error(`vanta-network: no block hash for block ${number}`);
+  return hash;
+};
+
 const getNonce = async (address: string, at: string): Promise<number> =>
   (await substrate.getSystemAccount({ chain: CHAIN.BITTENSOR, address, at, balanceBytes: 8 })).nonce;
 
@@ -27,8 +34,7 @@ const getNonce = async (address: string, at: string): Promise<number> =>
 // A day without buybacks costs 2 storage reads; each buyback block costs ~log2(7200) ≈ 13 reads plus one System.Events read.
 // Only blocks where the coldkey itself signs are found (it signs every buyback so far).
 async function findSignerBlocks(address: string, from: Block, to: Block): Promise<number[]> {
-  const nonceAt = async (n: number) =>
-    getNonce(address, (await substrate.getBlockHash({ chain: CHAIN.BITTENSOR, number: n })) as string);
+  const nonceAt = async (n: number) => getNonce(address, await blockHash(n));
   const out: number[] = [];
   const search = async (lo: number, nLo: number, hi: number, nHi: number) => {
     if (nHi < nLo) throw new Error(`vanta-network: nonce went down between blocks ${lo} and ${hi}`); // bad RPC response
@@ -56,7 +62,7 @@ function readStakeAdded(events: Buffer, coldkey: Buffer): bigint[] {
   const out: bigint[] = [];
   for (let i = events.indexOf(needle); i !== -1; i = events.indexOf(needle, i + 1)) {
     const body = i + needle.length + 32; // skip hotkey
-    if (body + 8 + 8 + 2 + 8 > events.length) continue;
+    if (body + 8 + 8 + 2 + 8 > events.length) throw new Error("vanta-network: truncated StakeAdded event"); // layout changed
     if (events.readUInt16LE(body + 16) !== NETUID) continue;
     out.push(events.readBigUInt64LE(body));
   }
@@ -74,7 +80,7 @@ const fetch = async (options: FetchOptions) => {
   const blocks = await findSignerBlocks(BUYBACK_COLDKEY, from, to);
   // Low concurrency: the public archive node is rate limited (~60 req/min).
   const { results, errors } = await PromisePool.withConcurrency(2).for(blocks).process(async (number) => {
-    const at = (await substrate.getBlockHash({ chain: CHAIN.BITTENSOR, number })) as string;
+    const at = await blockHash(number);
     const events = await substrate.getStorage({ chain: CHAIN.BITTENSOR, pallet: "System", item: "Events", at });
     if (!events) throw new Error(`vanta-network: no System.Events at block ${number}`);
     return readStakeAdded(Buffer.from(events.replace(/^0x/, ""), "hex"), coldkey);
