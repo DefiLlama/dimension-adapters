@@ -14,7 +14,7 @@ const adapter: SimpleAdapter = {
   fetch,
   doublecounted: true,
   methodology: {
-    BridgeVolume: 'Actual USD value of the input for each successful cross-chain request routed through Relay by Wallet V. The Wallet V daily API counts each request once on its source chain and UTC creation date, including cross-chain withdrawals.',
+    Volume: 'Actual USD value of the input for each successful cross-chain request routed through Relay by Wallet V. The Wallet V daily API counts each request once on its source chain and UTC creation date, including cross-chain withdrawals.',
   },
 };
 
