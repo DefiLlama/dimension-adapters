@@ -2,7 +2,7 @@ import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import fetchURL from "../../utils/fetchURL";
-import { burnedBuybacks } from "./buybacks";
+import { treasuryBuybacks } from "./buybacks";
 
 // Guanaco publishes confirmed pool swaps through the same indexer used by its DEX volume adapter.
 const indexer = "https://api.guanaco.fi/v1";
@@ -14,7 +14,7 @@ const protocolShare = 0.10; // The allocation is documented at https://guanaco.f
 const labels = tierBps.map(bps => `Swap Fees (${bps / 100}% Tier)`);
 const lpLabel = "Swap Fees To Liquidity Providers";
 const revenueLabel = "Swap Fees Allocated To GUA Buybacks";
-const burnLabel = "GUA Buyback And Burn";
+const burnLabel = "GUA Treasury Buybacks";
 
 async function candleVolume(category: string, start: number, end: number, tier?: number): Promise<bigint> {
   const step = end - start;
@@ -112,7 +112,7 @@ async function fetch({ startTimestamp, endTimestamp, createBalances }: FetchOpti
     dailyRevenue.addCGToken("bitcoin-cash", revenueBch, revenueLabel);
   }
 
-  const spentSats = await burnedBuybacks(indexer, startTimestamp, endTimestamp);
+  const spentSats = await treasuryBuybacks(indexer, startTimestamp, endTimestamp);
   if (spentSats > 0n) dailyHoldersRevenue.addCGToken("bitcoin-cash", Number(spentSats) / satoshisPerBch, burnLabel);
   return { dailyFees, dailyUserFees: dailyFees, dailySupplySideRevenue, dailyRevenue, dailyProtocolRevenue: 0, dailyHoldersRevenue };
 }
@@ -122,7 +122,7 @@ const methodology = {
   UserFees: "Estimated swap fees paid by traders to Guanaco pools.",
   SupplySideRevenue: "90% of estimated swap fees attributable to Guanaco liquidity providers.",
   Revenue: "10% of estimated swap fees allocated to periodic GUA buybacks.",
-  HoldersRevenue: "BCH paid into the project pool for treasury-purchased GUA, recognized at purchase confirmation for purchases linked to a verified burn.",
+  HoldersRevenue: "BCH paid by the treasury into the project GUA pool, measured from confirmed input and output reserves in the purchase window using block-inclusive median time. Subsequent GUA burns are tracked at https://guanaco.fi/gua.",
 };
 const breakdownMethodology = {
   Fees: Object.fromEntries(labels.map((label, tier) => [label, `Confirmed Guanaco swap-leg volume in the ${tierBps[tier] / 100}% fee tier multiplied by its fee rate.`])),
