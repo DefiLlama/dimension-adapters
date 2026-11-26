@@ -8,29 +8,19 @@ import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 import { METRIC } from '../helpers/metrics';
 import { getTxReceiptsWithRetry } from '../helpers/getTxReceipts';
 
-// Every Bloom EVM router emits this once per trade (topic0 0x2d720abb2e4bf42730e89955397ce0f5b08db0caff9be7e08ca184a8b1b2db2f).
-// platformFeeTotal is the fee. It is in the native token or in an ERC-20, depending on which side of the trade the router
-// took it from, and the event does not say which ERC-20 (`token` is the traded token, not the fee token).
+// Emitted once per trade. The event doesn't name the fee token: `token` is the traded token.
 const BLOOM_EVENT = 'event BloomEvent(uint256 amountIn, uint256 amountOut, uint256 platformFeeTotal, address token, uint256 bundleTip, uint8 dex, uint256 extra)';
 const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
-// `dex` tells where the fee came from. On the current routers:
-// - 5, 6 (ERC-20 in / out), 61 (HyperEVM alt.fun sell, USDC) and 71, 73, 81, 83 (split routes, ERC-20 in / out) take the
-//   fee in an ERC-20.
-// - 15 (four.meme), 30 (Flap), 38/39 (Arc), 40/41 (OpenFour), 50 (Likwid) and 60 (alt.fun) take it in whatever the trade
-//   was funded with: an ERC-20, or the native token.
-// - Every other code (1, 2, 10, 31, ...) takes it in the native token. The router keeps a native fee until Bloom withdraws
-//   it (HyperEVM forwards it to the fee wallet at once), so there is no transfer to look for. Older routers also emit
-//   0, 3, 4, 11 and 20-22, all native.
-// An ERC-20 fee is paid in the swap itself: TransferHelper.safeTransfer(feeToken, FEE_RECIPIENT, fee). So when a log can
-// carry one, the fee token is the ERC-20 that the router transferred out in the same transaction, for exactly the fee
-// amount.
+// `dex` codes whose fee can be an ERC-20, paid in the swap by safeTransfer(feeToken, FEE_RECIPIENT, fee), so the fee token is
+// the router's outgoing transfer of exactly the fee. 15, 30, 38-41, 50 and 60 take it in whatever funded the trade (ERC-20
+// or native); TOKEN_FEE_DEX codes are ERC-20 only. Every other code is a native fee.
 const ERC20_FEE_DEX = new Set([5, 6, 15, 30, 38, 39, 40, 41, 50, 60, 61, 71, 73, 81, 83]);
-// Of those, the codes that never take a native fee. Without a matching transfer they are left out, so that an ERC-20
-// amount is never read as native (on the oldest BSC router a 5 can be native).
 const TOKEN_FEE_DEX = new Set([5, 6, 61, 71, 73, 81, 83]);
 
-// Solana trades quoted in a stablecoin pay the fee in that stablecoin, to the fee wallet's token account.
+// Solana trades quoted in a stablecoin pay the fee in that stablecoin, to the fee wallet's token account, inside a
+// transaction that runs Bloom's program.
+const SOLANA_BLOOM_PROGRAM = 'b1oomGGqPKGD6errbyfbVMBuzSC8WtAAYo8MwNafWW1';
 const SOLANA_STABLE_FEE_MINTS = [
   ADDRESSES.solana.USDC,
   ADDRESSES.solana.USDT,
@@ -40,8 +30,9 @@ const SOLANA_STABLE_FEE_MINTS = [
 const BSC_ROUTER_2026_08 = '0x0b6df1888ed6aced6fc50ab39f354a7c8d08c9b1';
 
 // Bloom rotates EVM routers every few weeks (see dexs/bloom.ts, #9101). Every router added below emits the fee event above
-// and was deployed by Bloom's deployers 0x224bede13247a4dc56f834c3040a9510fe9fb140 or 0x51fd71313b273fe24be8a83b054367c2ee53fc20
-// (#9101), or by 0x2083491e54e243930fa6715751342551097d1d07, which 0x51fd7131 funded seconds before each deploy.
+// and was deployed by Bloom's deployers 0x33870422c6e75bd09bf0a408c8d90a5b4cd2c9c4 (the earliest), 0x224bede13247a4dc56f834c3040a9510fe9fb140
+// or 0x51fd71313b273fe24be8a83b054367c2ee53fc20 (#9101), or by 0x2083491e54e243930fa6715751342551097d1d07, which 0x51fd7131
+// funded seconds before each deploy.
 // 0xb1000000096b.. is the same address on every chain.
 const ROUTER_2026_09 = '0xb1000000096bd2f8ca9b6883182eccaf31e7c3fd';
 
@@ -240,10 +231,6 @@ const chainConfig: any = {
 
 
 async function fetchSolana(options: FetchOptions) {
-  // tokens_solana.transfers finishes a day hours late, and a run before that stores part of the day: 14 of the 30 days in
-  // 2026-10-03..11-01, read through about 18:00 UTC.
-  assertDuneSolanaIndexed(options);
-
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const { feesWallet, rewardRelayers, internalWallets, directRewardRelayerStart } = chainConfig[CHAIN.SOLANA];
@@ -254,27 +241,38 @@ async function fetchSolana(options: FetchOptions) {
   const solMintsSql = solMints.map((mint) => `'${mint}'`).join(', ');
   const stableMintsSql = SOLANA_STABLE_FEE_MINTS.map((mint) => `'${mint}'`).join(', ');
 
-  // Stablecoin fees are counted like SOL fees, per mint. Payouts are SOL only: the fee wallet moves its stablecoins to
-  // the internal sweep wallet 3YtdHj6f.., not to traders.
+  // Stablecoin inflows count only in transactions that ran Bloom's program: the fee wallet also receives stablecoins from
+  // its own Jupiter swaps (5,000 SOL into 1.16M USDC on 2025-01-29) and from deposits. Payouts are SOL only: the fee
+  // wallet moves its stablecoins to the internal sweep wallet 3YtdHj6f.., not to traders.
   const query = `
     WITH transfers AS (
       SELECT
         block_time,
+        tx_id,
         from_owner,
         to_owner,
         token_mint_address,
-        amount
+        amount,
+        outer_executing_account
       FROM
         tokens_solana.transfers
       WHERE
         TIME_RANGE
         AND action = 'transfer'
-        AND token_mint_address IN (${solMintsSql}, ${stableMintsSql})
         AND (
-          to_owner = '${feesWallet}'
-          OR from_owner = '${feesWallet}'
-          OR from_owner IN (${rewardRelayersSql})
+          outer_executing_account = '${SOLANA_BLOOM_PROGRAM}'
+          OR (
+            token_mint_address IN (${solMintsSql}, ${stableMintsSql})
+            AND (
+              to_owner = '${feesWallet}'
+              OR from_owner = '${feesWallet}'
+              OR from_owner IN (${rewardRelayersSql})
+            )
+          )
         )
+    ),
+    bloom_txs AS (
+      SELECT DISTINCT tx_id FROM transfers WHERE outer_executing_account = '${SOLANA_BLOOM_PROGRAM}'
     )
     SELECT
       token_mint_address,
@@ -310,6 +308,8 @@ async function fetchSolana(options: FetchOptions) {
         ELSE uint256 '0'
       END) AS referral_cashback_rewards
     FROM transfers
+    WHERE token_mint_address IN (${solMintsSql})
+      OR (token_mint_address IN (${stableMintsSql}) AND tx_id IN (SELECT tx_id FROM bloom_txs))
     GROUP BY token_mint_address
   `;
 
@@ -417,6 +417,7 @@ function duneChain(chain: string) {
 }
 
 async function prefetch(options: FetchOptions) {
+  assertDuneSolanaIndexed(options);
   return queryDuneSql(options, `
     SELECT blockchain, SUM(value) AS payouts
     FROM evms.transactions
