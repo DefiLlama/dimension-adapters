@@ -31,7 +31,7 @@
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { METRIC } from "../helpers/metrics";
-import { fetchLighterPartnerStats, LIGHTER_PARTNER_FEES_LABEL } from "../helpers/lighter";
+import { fetchLighterPartnerStats, LIGHTER_PARTNER_FEES_LABEL, type LighterAccountConfig } from "../helpers/lighter";
 
 const LAUNCHPAD = "0xe43F360DC65C9Ba1B7a835BDaa10Fb31f6DC52E5";
 const MIGRATION = "0x0fCD7FE98Eed9234A1d1c2aAb6AEec210809747b";
@@ -66,9 +66,11 @@ const LABEL = {
   market: "Skin Market Fees",
 };
 
-const TURBO_ACCOUNTS: Record<string, any[]> = {
-  [CHAIN.ZK_LIGHTER]: ["769803"],
-  [CHAIN.ROBINHOOD]: [{ index: "55689", start: "2026-11-18", end: "2026-11-18" }],
+// Per chain: start date and the Turbo partner account(s) on that chain's Lighter deployment.
+// robinhood: Turbo ran on Lighter's Robinhood Chain exchange (account 55689) on 2026-11-18 only; coin contracts from 2026-11-20.
+const chainConfig: Record<string, { start: string; turboAccounts: LighterAccountConfig[] }> = {
+  [CHAIN.ROBINHOOD]: { start: "2026-11-18", turboAccounts: [{ index: "55689", start: "2026-11-18", end: "2026-11-18" }] },
+  [CHAIN.ZK_LIGHTER]: { start: "2026-11-18", turboAccounts: ["769803"] },
 };
 
 const abs = (v: any) => { const n = BigInt(v); return n < 0n ? -n : n; };
@@ -106,7 +108,7 @@ export async function getPoolSwaps(options: FetchOptions, pools: Record<string, 
 // Turbo partner fees: all kept by the Team.
 async function addTurboFees(options: FetchOptions, dailyFees: any, dailyRevenue: any) {
   if (options.dateString > "2026-11-18" && options.chain === CHAIN.ROBINHOOD) return; // RH partner account retired
-  const { dailyFees: turbo } = await fetchLighterPartnerStats(options, TURBO_ACCOUNTS[options.chain]);
+  const { dailyFees: turbo } = await fetchLighterPartnerStats(options, chainConfig[options.chain].turboAccounts);
   dailyFees.addBalances(turbo);
   dailyRevenue.addBalances(turbo);
 }
@@ -224,10 +226,7 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.ROBINHOOD]: { start: "2026-11-18" }, // Turbo on Lighter RH 2026-11-18; coin contracts from 2026-11-20 (no logs before)
-    [CHAIN.ZK_LIGHTER]: { start: "2026-11-18" },
-  },
+  adapter: chainConfig, // start dates are read from chainConfig per chain
   methodology,
   breakdownMethodology,
 };
