@@ -41,6 +41,7 @@ const fetch = async (options: FetchOptions): Promise<FetchResultVolume> => {
   for (const log of transferLogs) {
     const data = log.bridgeData;
     if (!INTEGRATORS.includes(data.integrator)) continue;
+    if (!data.hasSourceSwaps) continue;
     if (blacklistSet.has(data.sendingAssetId.toLowerCase())) continue;
     dailyVolume.add(data.sendingAssetId, data.minAmount);
   }
