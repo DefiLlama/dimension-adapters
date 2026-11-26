@@ -9,8 +9,10 @@ import { httpPost } from "../utils/fetchURL";
 const API = "https://api.derive.xyz/v3/public";
 
 export type DeriveTrade = {
+  trade_id: string; // shared by both sides of a trade
   instrument_name: string; // e.g. ETH-PERP, ETH-USDC
   timestamp: number; // ms
+  wallet: string; // owner of this side's subaccount
   liquidity_role: "maker" | "taker"; // each trade is returned twice, one row per side with that side's fee
   direction: "buy" | "sell";
   trade_price: string;
@@ -29,7 +31,7 @@ async function rpc(method: string, params: object) {
 }
 
 // https://docs.derive.xyz/api-reference/market-data/publicget_trade_history.md (pages start at 1, max page_size 1000)
-async function getTrades(options: FetchOptions, filter: Record<string, string | number>): Promise<DeriveTrade[]> {
+async function getTrades(options: FetchOptions, filter: Record<string, string | number>, keep = (_: DeriveTrade) => true): Promise<DeriveTrade[]> {
   const from_timestamp = options.startTimestamp * 1000;
   const to_timestamp = options.endTimestamp * 1000;
   const trades: DeriveTrade[] = [];
@@ -39,7 +41,8 @@ async function getTrades(options: FetchOptions, filter: Record<string, string | 
     numPages = result.pagination.num_pages;
     trades.push(...result.trades);
   }
-  const inWindow = trades.filter((t) => t.timestamp >= from_timestamp && t.timestamp < to_timestamp);
+  // keep runs before the settlement check, so unrelated trades that are still settling don't block the run
+  const inWindow = trades.filter((t) => t.timestamp >= from_timestamp && t.timestamp < to_timestamp && keep(t));
   // batch_status: null = v2 trade (final), Settled = proven on Ethereum (final), ...Error = batch failed (trade dropped),
   // anything else is still in flight and can still fail, so throw and let the run retry (settlement lags ~15 min)
   const pending = inWindow.filter((t) => t.batch_status && t.batch_status !== "Settled" && !t.batch_status.endsWith("Error"));
@@ -49,8 +52,7 @@ async function getTrades(options: FetchOptions, filter: Record<string, string | 
 
 export const getDeriveTrades = (options: FetchOptions, instrumentType: "perp" | "option" | "erc20") => getTrades(options, { instrument_type: instrumentType });
 
-const BUYBACK_WALLET = "0x87327f19d857ae3530169acEa0EDd4ab1064229E";
-const BUYBACK_SUBACCOUNTS = [62489]; // BUYBACK_WALLET's subaccount; v2-era buybacks were backfilled separately
+const BUYBACK_WALLET = "0x87327f19d857ae3530169acEa0EDd4ab1064229E"; // buys DRV from any of its subaccounts; v2-era buybacks were backfilled separately
 const DRV = "0xb1d1eae60eea9525032a6dcb4c1ce336a1de71be"; // Ethereum
 const COW_SETTLEMENT = "0x9008D19f58AAbD9eD0D60971565AA8510560ab41"; // GPv2Settlement on Ethereum
 const COW_TRADE = "event Trade(address indexed owner, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmount, uint256 feeAmount, bytes orderUid)";
@@ -62,9 +64,14 @@ const COW_BUYBACK_OWNERS = [
 export async function getDeriveBuybacks(options: FetchOptions) {
   const dailyHoldersRevenue = options.createBalances();
 
-  for (const subaccount_id of BUYBACK_SUBACCOUNTS)
-    for (const trade of await getTrades(options, { subaccount_id, instrument_name: "DRV-USDC" }))
-      if (trade.direction === "buy") dailyHoldersRevenue.addUSDValue(Number(trade.trade_amount) * Number(trade.trade_price), METRIC.TOKEN_BUY_BACK);
+  // get_trade_history has no wallet filter, so read every DRV-USDC trade and keep the buyback wallet's rows (one row per side of each trade)
+  // block trades are not counted: the API shows them with a zero-address wallet and subaccount 0
+  const isBuybackWallet = (t: DeriveTrade) => t.wallet.toLowerCase() === BUYBACK_WALLET.toLowerCase();
+  const walletTrades = await getTrades(options, { instrument_name: "DRV-USDC" }, isBuybackWallet);
+  // skip trades between two of the wallet's own subaccounts: no USDC leaves the wallet
+  const sold = new Set(walletTrades.filter((t) => t.direction === "sell").map((t) => t.trade_id));
+  for (const trade of walletTrades)
+    if (trade.direction === "buy" && !sold.has(trade.trade_id)) dailyHoldersRevenue.addUSDValue(Number(trade.trade_amount) * Number(trade.trade_price), METRIC.TOKEN_BUY_BACK);
 
   const provider = sdk.getProvider(CHAIN.ETHEREUM);
   for (const owner of COW_BUYBACK_OWNERS) {
