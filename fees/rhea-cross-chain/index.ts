@@ -9,10 +9,12 @@ const fetch = async (options: FetchOptions) => {
   const fee_result = await httpGet(api_fee);
   const revenue_result = await httpGet(api_revenue);
 
-  return {
-    dailyFees: fee_result.fee_data.cross_chain_fee,
-    dailyRevenue: revenue_result.revenue_data.cross_chain_revenue,
-  }
+  const dailyFees = fee_result?.fee_data?.cross_chain_fee;
+  const dailyRevenue = revenue_result?.revenue_data?.cross_chain_revenue;
+  if (dailyFees == null || dailyRevenue == null)
+    throw new Error(`rhea-cross-chain: unexpected API response ${JSON.stringify({ fee_result, revenue_result })}`);
+
+  return { dailyFees, dailyRevenue }
 }
 
 const adapter: SimpleAdapter = {

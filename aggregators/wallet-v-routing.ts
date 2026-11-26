@@ -10,8 +10,8 @@ async function fetch(options: FetchOptions) {
 }
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  // Allium lags behind the hourly run, so its readiness check fails nearly every hour
+  version: 1,
   adapter: chainConfig,
   dependencies: [Dependencies.ALLIUM],
   doublecounted: true,

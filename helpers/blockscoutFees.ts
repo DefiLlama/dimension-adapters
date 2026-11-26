@@ -85,7 +85,7 @@ export const chainConfigMap: any = {
   [CHAIN.ALEPH_ZERO_EVM]: { CGToken: 'aleph-zero', explorer: "https://evm-explorer.alephzero.org", start: '2024-07-30' },
   [CHAIN.RARI]: { CGToken: 'ethereum', explorer: "https://mainnet.explorer.rarichain.org/", start: '2024-01-20' },
   [CHAIN.XRPL_EVM]: { CGToken: 'ripple', explorer: 'https://explorer.xrplevm.org' },
-  [CHAIN.APPCHAIN]: { CGToken: 'ethereum', explorer: "https://explorer.appchain.xyz/", start: '2024-11-08' },
+  [CHAIN.APPCHAIN]: { CGToken: 'ethereum', explorer: "https://explorer.appchain.xyz/", start: '2024-11-08', verifyEmptyDays: true }, // produces no blocks on idle days; totalfees returns null for them
   [CHAIN.CAPX]: { CGToken: 'capx-ai', explorer: "https://www.capxscan.com/", deadFrom: '2026-07-31' },
   [CHAIN.BSQUARED]: { CGToken: 'bitcoin', explorer: 'https://backend-blockscout.bsquared.network', start: '2025-07-06' },
   [CHAIN.ALIENX]: { CGToken: 'ethereum', explorer: 'https://explorer.alienxchain.io/api' },
@@ -165,8 +165,25 @@ function getTimeString(timestamp: number) {
   return new Date(timestamp * 1000).toISOString().slice(0, '2011-10-05'.length)
 }
 
+async function getLastBlockAt(explorer: string, timestamp: number, requestConfig: any) {
+  const { result } = await httpGet(`${explorer}/api?module=block&action=getblocknobytime&timestamp=${timestamp}&closest=before`, requestConfig)
+  return result.blockNumber
+}
+
 async function sleep(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time))
+}
+
+// true when the explorer has indexed every block past the end of the day and its newest transaction is older than the day
+async function explorerHasNoTransactionsSince(explorer: string, startOfDay: number, requestConfig: any) {
+  const indexing = await httpGet(`${explorer}/api/v2/main-page/indexing-status`, requestConfig)
+  if (indexing.finished_indexing_blocks !== true) return false
+  const blocks = await httpGet(`${explorer}/api/v2/blocks?type=block`, requestConfig)
+  const latestBlockTimestamp = Date.parse(blocks.items?.[0]?.timestamp) / 1000
+  if (!(latestBlockTimestamp >= startOfDay + 86400)) return false
+  const transactions = await httpGet(`${explorer}/api/v2/transactions?filter=validated`, requestConfig)
+  const latestTransactionTimestamp = Date.parse(transactions.items?.[0]?.timestamp) / 1000
+  return latestTransactionTimestamp < startOfDay
 }
 
 export function blockscoutFeeAdapter2(chain: string) {
@@ -282,6 +299,11 @@ export function blockscoutFeeAdapter2(chain: string) {
                 const transactions = await httpGet(`${explorer}/api/v2/transactions?filter=validated`, requestConfig)
                 const latestTransactionTimestamp = Date.parse(transactions.items?.[0]?.timestamp) / 1000
                 if (latestTransactionTimestamp < startOfDay) feesWei = 0
+                else {
+                  const [lastBlockBeforeDay, lastBlockOfDay] = await Promise.all(
+                    [startOfDay - 1, startOfDay + 86399].map((timestamp) => getLastBlockAt(explorer, timestamp, requestConfig)))
+                  if (lastBlockBeforeDay === lastBlockOfDay) feesWei = 0
+                }
               }
             }
           }
@@ -300,9 +322,12 @@ export function blockscoutFeeAdapter2(chain: string) {
                 const dayBlocks = Number(blocksChart?.find((c: any) => c.date === dateString)?.value ?? 0)
                 if (!(dayBlocks > 0))
                   throw new Error(`${chain}: stats service counted no blocks on ${dateString}, its 0 fees row is a placeholder`)
-                // a chain that paid fees in the previous week does not go to exactly 0 - throw so the refill heals it
-                const recentNonZero = chart.slice(Math.max(0, rowIndex - 7), rowIndex).some((c: any) => Number(c.value) > 0)
-                if (recentNonZero)
+                // a 0 right after fee-paying days is a placeholder unless the service already computed a later day
+                // or the explorer has no transaction since the day started
+                const isNonZero = (c: any) => Number(c.value) > 0
+                const recentNonZero = chart.slice(Math.max(0, rowIndex - 7), rowIndex).some(isNonZero)
+                const laterNonZero = chart.slice(rowIndex + 1).some(isNonZero)
+                if (recentNonZero && !laterNonZero && !(await explorerHasNoTransactionsSince(explorer, startOfDay, requestConfig)))
                   throw new Error(`${chain}: stats service has not computed fees for ${dateString} yet`)
               }
               feesWei = Number(row.value) * 1e18

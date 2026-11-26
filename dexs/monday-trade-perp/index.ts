@@ -27,6 +27,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.MONAD],
   start: '2025-11-24',
+  deadFrom: '2026-05-09', // perps shut down: no instrument trade events after 2026-05-08, only Gate withdrawals since
   methodology: {
     Volume: "Daily perp trading volume from stats.monday.trade.",
     Fees: "fees paid by takers on the protocol by using market orders, these fees paid goes to limit order makers, AMM LP and protocol fees",

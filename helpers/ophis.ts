@@ -17,7 +17,8 @@ export const ophisChainConfig: Record<string, { id: number; start: string }> = {
   // Temporarily excluded while its sovereign source/audits are unavailable; restore after recovery.
   // [CHAIN.UNICHAIN]: { id: 130, start: OPHIS_START },
   [CHAIN.POLYGON]: { id: 137, start: OPHIS_START },
-  [CHAIN.ROBINHOOD]: { id: 4663, start: OPHIS_START },
+  // Excluded: /defillama 503 "settlement history backfill in progress" for chain 4663 on every date as of 2026-11-26; restore + refill once it serves 200.
+  // [CHAIN.ROBINHOOD]: { id: 4663, start: OPHIS_START },
   //[CHAIN.ARC]: { id: 5042, start: "2026-09-24" },
   [CHAIN.BASE]: { id: 8453, start: OPHIS_START },
   [CHAIN.PLASMA]: { id: 9745, start: OPHIS_START },

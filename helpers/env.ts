@@ -84,6 +84,7 @@ const DEFAULTS: any = {
   ELYSIUM_RPC_MAX_PARALLEL: '5',
   ELYSIUM_RPC_GET_LOGS_CONCURRENCY_LIMIT: '1',
   ELYSIUM_RPC_MULTICALL_V3: '0xcA11bde05977b3631167028862bE2a173976CA11',
+  QUAI_RPC_GET_LOGS_CONCURRENCY_LIMIT: '5', // rpc.quai.network answers "too many concurrent log queries" between 10 and 20 parallel getLogs
   RISE_ARCHIVAL_RPC: 'https://explorer.risechain.com/api/eth-rpc', // public rpc.risechain.com caps eth_getLogs at 5000 blocks
   STY_RPC: 'https://rpc.ankr.com/story_mainnet,https://1514.rpc.thirdweb.com', // storyrpc.io / datarpc.io prune state after ~5000 blocks; these two answer historical eth_call
   STRATO_RPC: 'https://app.strato.nexus/rpc', // noderpc.strato.nexus/rpc (SDK default) stalls hours behind head

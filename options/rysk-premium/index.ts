@@ -32,9 +32,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     // Premium + collateral are denominated in each pool's own collateralAsset
     // (WETH for the call vault, USDT/USDC for put vaults), in native decimals.
-    const collateralAssets: string[] = await options.api.multiCall({
+    // PhysicalLiquidityPool vaults have no collateralAsset: premium token is a per-order handler argument not emitted in events.
+    const collateralAssets: (string | null)[] = await options.api.multiCall({
         abi: "address:collateralAsset",
-        calls: pools.map((pool) => ({ target: pool })),
+        calls: pools,
+        permitFailure: true,
     });
 
     // Batch all pools into one getLogs per event type; flatten:false keeps
@@ -45,6 +47,11 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     for (let i = 0; i < pools.length; i++) {
         const collateral = collateralAssets[i];
+        if (!collateral) {
+            if (writeLogsByPool[i].length || buybackLogsByPool[i].length)
+                throw new Error(`Rysk physical vault ${pools[i]} has trades, premium token is not tracked yet`);
+            continue;
+        }
 
         // Writes: buyer pays premium into the pool; escrow = collateral locked ~ notional.
         writeLogsByPool[i].forEach((log: any) => {

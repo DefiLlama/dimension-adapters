@@ -46,15 +46,6 @@ function computeMethodology(fp: SubgraphConfig['feesPercent']): Record<string, s
 }
 
 const configs: Record<string, SubgraphConfig> = {
-  "quainance": {
-    graphUrls: {
-      [CHAIN.QUAI]: "https://graph.quai.network/subgraphs/name/quainance/v2",
-    },
-    totalVolume: { factory: "uniswapFactories", field: "totalVolumeUSD" },
-    // 0.3% fee, all to LPs, nothing to protocol
-    feesPercent: { type: "volume", Fees: 0.3, UserFees: 0.3, ProtocolRevenue: 0, HoldersRevenue: 0, Revenue: 0, SupplySideRevenue: 0.3 },
-    start: '2026-07-06',
-  },
   "zyberswap-v3": {
     graphUrls: {
       [CHAIN.ARBITRUM]: sdk.graph.modifyEndpoint('7ZP9MeeuXno2y9pWR5LzA96UtYuZYWTA4WYZDZR7ghbN'),

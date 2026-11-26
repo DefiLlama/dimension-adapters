@@ -2,21 +2,23 @@ import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
 
-const CHARTS_URL = "https://api.nearblocks.io/v1/charts";
+const NEARBLOCKS_API = "https://api.nearblocks.io/v3";
+
+const fetchDayStats = async (path: string, date: string) => {
+  const { data } = await fetchURL(`${NEARBLOCKS_API}/${path}?date=${date}`);
+  if (!data?.length) throw new Error(`No Nearblocks ${path} data for ${date}`);
+  return data[0];
+};
 
 const fetch = async (options: FetchOptions) => {
-  const apiResponse = await fetchURL(CHARTS_URL);
-  const charts = apiResponse.charts;
-  if (!charts?.length) throw new Error("Missing Nearblocks charts data");
-
-  const todaysData = charts.find((item) => item.date === `${options.dateString}T00:00:00.000Z`);
-  if (!todaysData) {
-    throw new Error(`No Nearblocks charts data found for date ${options.dateString}`);
-  }
+  const [addressStats, txnStats] = await Promise.all([
+    fetchDayStats("address-stats", options.dateString),
+    fetchDayStats("txn-stats", options.dateString),
+  ]);
 
   return {
-    dailyActiveUsers: todaysData.active_accounts,
-    dailyTransactionsCount: todaysData.txns,
+    dailyActiveUsers: addressStats.active_accounts,
+    dailyTransactionsCount: txnStats.txns,
   };
 };
 
@@ -26,6 +28,10 @@ const adapter: SimpleAdapter = {
   chains: [CHAIN.NEAR],
   protocolType: ProtocolType.CHAIN,
   start: "2020-07-21",
+  methodology: {
+    ActiveUsers: "Accounts that signed a transaction or a relayed meta-transaction during the day, from Nearblocks.",
+    Transactions: "Transactions included on NEAR during the day, from Nearblocks.",
+  },
 };
 
 export default adapter;

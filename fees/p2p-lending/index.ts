@@ -1,94 +1,78 @@
 import { CHAIN } from "../../helpers/chains";
-import { request } from "graphql-request";
-import type { FetchOptions, FetchResult } from "../../adapters/types";
-import { getEnv } from "../../helpers/env";
+import { METRIC } from "../../helpers/metrics";
+import type { FetchOptions, SimpleAdapter } from "../../adapters/types";
 
-const headers: HeadersInit = {
-  origin: "https://subgraph.smardex.io",
-  referer: "https://subgraph.smardex.io",
-  "x-api-key": getEnv('SMARDEX_SUBGRAPH_API_KEY') || "",
-};
+// https://github.com/SmarDex-Ecosystem/spro-contracts/blob/main/broadcast/Spro.s.sol/1/run-1747308925.json
+const SPRO = "0x969b2b809921136fd5b99a81d9666b2afe337084";
+const SPRO_DEPLOY_BLOCK = 22488253;
+const SDEX = "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef";
 
-type DailyTokenMetric = {
-  id: string;
-  totalInterestPaid: string;
-};
+const PROPOSAL_CREATED = "event ProposalCreated(bytes32 proposalHash, (address collateralAddress, uint256 collateralAmount, address creditAddress, uint256 availableCreditLimit, uint256 fixedInterestAmount, uint40 startTimestamp, uint40 loanExpiration, address proposer, uint256 nonce, uint256 minAmount) proposal, uint256 sdexBurned)";
+const LOAN_CREATED = "event LoanCreated(uint256 loanId, bytes32 indexed proposalHash, (address lender, address borrower, uint40 startTimestamp, uint40 loanExpiration, address collateralAddress, uint256 collateralAmount, address creditAddress, uint256 creditAmount, uint256 fixedInterestAmount) loanTerms)";
+const LOAN_PAID_BACK = "event LoanPaidBack(uint256 loanId)";
 
-const sdexAddress = "0x5de8ab7e27f6e7a1fff3e5b337584aa43961beef";
-const subgraphUrl = "https://subgraph.smardex.io/ethereum/spro";
+const PROPOSAL_FEES = "Proposal Fees";
+const PROPOSAL_FEES_BURNED = "Proposal Fees Burned";
+const BORROW_INTEREST_TO_LENDERS = "Borrow Interest To Lenders";
 
-const getDailyTokenMetrics = async (timestamp: number): Promise<DailyTokenMetric[]> => {
-  const dailyTokenMetricsQuery = `
-      {
-        dailyTokenMetrics_collection (where: {
-          day: "${timestamp}"
-        }) {
-          id
-          totalInterestPaid
-        }
-      }`;
+const fetch = async (options: FetchOptions) => {
+  const dailyFees = options.createBalances();
+  const dailyRevenue = options.createBalances();
+  const dailySupplySideRevenue = options.createBalances();
 
-  const result = await request(subgraphUrl, dailyTokenMetricsQuery, {}, headers);
-  return result.dailyTokenMetrics_collection || [];
-};
+  const proposals = await options.getLogs({ target: SPRO, eventAbi: PROPOSAL_CREATED });
+  for (const { sdexBurned } of proposals) {
+    dailyFees.add(SDEX, sdexBurned, PROPOSAL_FEES);
+    dailyRevenue.add(SDEX, sdexBurned, PROPOSAL_FEES_BURNED);
+  }
 
-/*
- * Fetch the metrics from the subgraph for a given timestamp.
- * @param timestamp - The timestamp to fetch fees for.
- * @returns An object containing the total SDEX burnt and daily token metrics.
- */
-const getMetricsFromSubgraph = async (timestamp: number) => {
-  const dailyGlobalMetricsQuery = `{
-    dailyGlobalMetrics_collection (where: {
-      id: "${timestamp}"
-    }) {
-      totalSdexBurnt
-    }
-  }`;
+  const loans = await options.getLogs({ target: SPRO, eventAbi: LOAN_CREATED, fromBlock: SPRO_DEPLOY_BLOCK, cacheInCloud: true });
+  const termsByLoanId: Record<string, any> = {};
+  for (const { loanId, loanTerms } of loans) termsByLoanId[loanId] = loanTerms;
 
-  const dailyGlobalMetrics = (await request(subgraphUrl, dailyGlobalMetricsQuery, {}, headers))
-    .dailyGlobalMetrics_collection[0];
-
-  const dailyTokenMetrics = await getDailyTokenMetrics(timestamp);
-
-  return {
-    totalSdexBurnt: dailyGlobalMetrics?.totalSdexBurnt || 0,
-    dailyTokenMetrics: dailyTokenMetrics.map((token) => ({
-      // Token id is in the form <timestamp>-<tokenId>
-      id: token.id.split("-")[1],
-      totalInterestPaid: parseFloat(token.totalInterestPaid),
-    })),
-  };
-};
-
-const fetch = async ({ startOfDay, createBalances }: FetchOptions): Promise<FetchResult> => {
-  const timestamp = startOfDay;
-  const metrics = await getMetricsFromSubgraph(timestamp);
-
-  const dailyFees = createBalances();
-  const dailyRevenue = createBalances();
-
-  dailyFees.addToken(sdexAddress, metrics.totalSdexBurnt);
-  metrics.dailyTokenMetrics.forEach((token) => {
-    dailyFees.addToken(token.id, token.totalInterestPaid);
-  });
-
-  dailyRevenue.addToken(sdexAddress, metrics.totalSdexBurnt);
+  const repayments = await options.getLogs({ target: SPRO, eventAbi: LOAN_PAID_BACK });
+  for (const { loanId } of repayments) {
+    const { creditAddress, fixedInterestAmount } = termsByLoanId[loanId];
+    dailyFees.add(creditAddress, fixedInterestAmount, METRIC.BORROW_INTEREST);
+    dailySupplySideRevenue.add(creditAddress, fixedInterestAmount, BORROW_INTEREST_TO_LENDERS);
+  }
 
   return {
     dailyFees,
     dailyRevenue,
+    dailySupplySideRevenue,
+    dailyHoldersRevenue: dailyRevenue.clone(),
+    dailyProtocolRevenue: 0,
   };
 };
 
-const adapter = {
-  version: 1,
+const adapter: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM],
   start: "2025-05-22",
   methodology: {
-    Fees: "Protocol fees are given by interests paid in credit Tokens by Borrowers to Lenders, cumulated with the amount of SDEX burned at Proposal creation.",
-    Revenue: "Protocol revenue is the total amount of SDEX burned at each new Proposal creation.",
+    Fees: "Interest paid by borrowers to lenders when loans are repaid, plus the SDEX fee borrowers pay each time they create a loan proposal.",
+    Revenue: "The SDEX fee paid on each new loan proposal, all of which is burned.",
+    SupplySideRevenue: "Interest paid by borrowers on repaid loans, all of which goes to the lenders.",
+    HoldersRevenue: "The SDEX fee paid on each new loan proposal, which is burned and removed from the SDEX supply.",
+    ProtocolRevenue: "The protocol treasury receives nothing: proposal fees are burned and interest goes to lenders.",
+  },
+  breakdownMethodology: {
+    Fees: {
+      [METRIC.BORROW_INTEREST]: "Fixed interest paid by borrowers when they repay a loan.",
+      [PROPOSAL_FEES]: "SDEX fee paid by borrowers each time they create a loan proposal.",
+    },
+    Revenue: {
+      [PROPOSAL_FEES_BURNED]: "SDEX fee paid on each new loan proposal, sent to the burn address.",
+    },
+    SupplySideRevenue: {
+      [BORROW_INTEREST_TO_LENDERS]: "Fixed interest on repaid loans, paid to the lenders.",
+    },
+    HoldersRevenue: {
+      [PROPOSAL_FEES_BURNED]: "SDEX fee paid on each new loan proposal, sent to the burn address.",
+    },
   },
 };
 

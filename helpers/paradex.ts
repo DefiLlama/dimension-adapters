@@ -38,6 +38,7 @@ export async function getParadexTrades(options: FetchOptions, filter: string): P
 }
 
 // Underlying price at the close of each minute in the window, keyed by minute start (ms).
+// A minute without a candle yet (the window's last minute right after the hour) takes the previous close.
 export async function getParadexUnderlyingPrices(options: FetchOptions, symbol: string): Promise<Record<number, number>> {
   const prices: Record<number, number> = {}
   for (let start = options.startTimestamp; start < options.endTimestamp; start += KLINES_LIMIT * 60) {
@@ -46,6 +47,9 @@ export async function getParadexUnderlyingPrices(options: FetchOptions, symbol: 
     if (!Array.isArray(results)) throw new Error(`Invalid Paradex klines response for ${symbol}`)
     for (const [timestamp, _open, _high, _low, close] of results) prices[timestamp] = Number(close)
   }
+  const firstMinute = Math.floor(options.startTimestamp / 60) * 60e3
+  for (let minute = firstMinute + 60e3; minute < options.endTimestamp * 1000; minute += 60e3)
+    prices[minute] ??= prices[minute - 60e3]
   return prices
 }
 

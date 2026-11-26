@@ -13,6 +13,7 @@ const fetch = async ({ startOfDay, dateString, createBalances }: FetchOptions) =
   const dailyVolume = createBalances()
 
   const historicalVolume: IVolumeall[] = (await fetchURL(historicalVolumeEndpoint));
+  if (!historicalVolume.length) throw new Error('Bisq markets API returned no data')
   const dayItem = historicalVolume.find(dayItem => dayItem.period_start === startOfDay)
   if (!dayItem) {
     const latestDay = new Date(historicalVolume[historicalVolume.length - 1].period_start * 1000).toISOString().slice(0, 10)
