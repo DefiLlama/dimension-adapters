@@ -118,6 +118,20 @@ async function findSignerBlocks(address: string, from: Block, to: Block): Promis
 // Events are read instead of extrinsics so failed calls (no event), partial fills (actual amount),
 // batched/proxied calls and incoming transfers in the same block cannot distort the amount.
 const STAKE_ADDED = Buffer.from([SUBTENSOR_PALLET, 2]);
+const STAKE_REMOVED = Buffer.from([SUBTENSOR_PALLET, 3]);
+// EventRecord = phase (5) + StakeAdded/StakeRemoved event (92) + empty topics (1). Checked at block 9535467.
+const RECORD_LEN = 98;
+
+// Same-subnet move/transfer_stake emits StakeRemoved then StakeAdded with equal tao/alpha/netuid and 0 fee,
+// with no pool swap (transfer_stake_within_subnet_impl in subtensor staking/stake_utils.rs). No TAO is spent.
+function isSameSubnetTransfer(events: Buffer, i: number, body: number): boolean {
+  const prev = i - RECORD_LEN;
+  if (prev < 5) return false;
+  return events.readBigUInt64LE(body + 18) === 0n
+    && events.subarray(prev, prev + 2).equals(STAKE_REMOVED)
+    && events.subarray(prev - 5, prev).equals(events.subarray(i - 5, i)) // same extrinsic
+    && events.subarray(prev + 66, prev + 84).equals(events.subarray(body, body + 18)); // tao, alpha, netuid
+}
 
 // TAO debited by each StakeAdded on netuid 8 for `coldkey`, in rao. tao_staked is the gross amount (the swap fee is taken out of it).
 // Matches the 34-byte prefix (event index ++ coldkey) in the raw Vec<EventRecord>; the coldkey makes a false match negligible.
@@ -128,6 +142,7 @@ function readStakeAdded(events: Buffer, coldkey: Buffer): bigint[] {
     const body = i + needle.length + 32; // skip hotkey
     if (body + 8 + 8 + 2 + 8 > events.length) throw new Error("vanta-network: truncated StakeAdded event"); // layout changed
     if (events.readUInt16LE(body + 16) !== NETUID) continue;
+    if (isSameSubnetTransfer(events, i, body)) continue;
     out.push(events.readBigUInt64LE(body));
   }
   return out;
