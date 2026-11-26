@@ -22,31 +22,14 @@ const RETIRED_EVENTS: MetricEvents = {
 const int128At = (word: bigint, shift: number) => BigInt.asIntN(128, word >> BigInt(shift));
 const uint128At = (word: bigint, shift: number) => BigInt.asUintN(128, word >> BigInt(shift));
 
-// Fees in scaled input-token units: BinSwapped packs LP (high) and platform (low) legs, Swap packs platform spread (high) and notional (low).
+// Fees in scaled input-token units: BinSwapped packs the LP leg in its high 128 bits, Swap packs platform spread (high) and notional (low).
 const FEES: MetricFees = {
   binSwappedEvent: "event BinSwapped(int256 binIdx, uint256 binDeltas, uint256 fees)",
-  binStep: (args) => {
-    const fees = BigInt(args.fees);
-    const deltas = BigInt(args.binDeltas);
-    return { lp: uint128At(fees, 128), platform: uint128At(fees, 0), amount0: int128At(deltas, 128), amount1: int128At(deltas, 0) };
-  },
+  binLpFee: (args) => uint128At(BigInt(args.fees), 128),
   platformLegs: (args) => {
     const fees = BigInt(args.platformFees);
     return { spread: uint128At(fees, 128), notional: uint128At(fees, 0) };
   },
-  initialConfig: (args) => ({
-    protocolSpreadFeeE6: BigInt(args.spreadProtocolFeeE6),
-    adminSpreadFeeE6: BigInt(args.adminSpreadFeeE6),
-    protocolNotionalFeeE8: BigInt(args.protocolNotionalFeeE8),
-    adminNotionalFeeE8: BigInt(args.adminNotionalFeeE8),
-  }),
-  // Every factory write to poolFeeConfig after creation emits these (setPoolAdminFees, _updatePoolProtocolFee).
-  configEvents: [
-    { eventAbi: "event PoolProtocolSpreadFeeUpdated(address indexed pool, uint24 newProtocolSpreadFeeE6)", field: "protocolSpreadFeeE6" },
-    { eventAbi: "event PoolAdminSpreadFeeUpdated(address indexed pool, uint24 newAdminSpreadFeeE6)", field: "adminSpreadFeeE6" },
-    { eventAbi: "event PoolProtocolNotionalFeeUpdated(address indexed pool, uint24 newProtocolNotionalFeeE8)", field: "protocolNotionalFeeE8" },
-    { eventAbi: "event PoolAdminNotionalFeeUpdated(address indexed pool, uint24 newAdminNotionalFeeE8)", field: "adminNotionalFeeE8" },
-  ],
   poolFeeConfigAbi:
     "function poolFeeConfig(address pool) view returns (uint24 protocolSpreadFeeE6, uint24 adminSpreadFeeE6, uint24 protocolNotionalFeeE8, uint24 adminNotionalFeeE8)",
   immutablesAbi:
