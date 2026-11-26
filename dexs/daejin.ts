@@ -1,9 +1,10 @@
 import { Interface } from "ethers";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTransactionsWithRetry } from "../helpers/getTxReceipts";
 import ADDRESSES from "../helpers/coreAssets.json";
-import { base58Decode, base58Encode, getAccountBuffers, getSignaturesForAddress, getTransaction } from "../helpers/solana";
+import { queryAllium } from "../helpers/allium";
+import { timeFilter, u64, u8 } from "../helpers/alliumSolanaEvents";
 
 // Daejin runs two kinds of prediction market on each chain:
 //  - AMM markets (PredictionMarket): every bet emits BetPlaced with the cash paid and the token.
@@ -24,27 +25,16 @@ import { base58Decode, base58Encode, getAccountBuffers, getSignaturesForAddress,
 //                    https://bscscan.com/token/0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d
 // The collateral is the paymentToken of every order-book market created so far on each chain
 // (ClobExchange.markets(id).paymentToken); the AMM path takes the token from the event itself.
-// On Solana the two entries are the program ids (described above fetchSolana), and there is no
-// fixed collateral: each order-book market account names its own payment mint.
-// start is the first day with data: the EVM deployments, and the first transaction of the
-// Solana programs.
-const chainConfig: Record<string, { predictionMarket: string; clobExchange: string; collateral?: string; start: string }> = {
+const CONTRACTS: Record<string, { predictionMarket: string; clobExchange: string; collateral: string }> = {
   [CHAIN.ETHEREUM]: {
     predictionMarket: "0xA528f636bAE87FF2c3e4d5718313cfC38C1B0be9",
     clobExchange: "0x9b00A64FF4a8F72D6Ff463fFe3acBC01cf5DB24f",
     collateral: ADDRESSES.ethereum.USDC,
-    start: "2026-08-01",
   },
   [CHAIN.BSC]: {
     predictionMarket: "0x7B8F913097242e21895F3731206F07d753170c07",
     clobExchange: "0x792a699e6A35566Ae293AD560698C41917B27b02",
     collateral: ADDRESSES.bsc.USDC,
-    start: "2026-08-01",
-  },
-  [CHAIN.SOLANA]: {
-    predictionMarket: "GgMXNkJR4Vmfd8ievZRBp8Uf8NJX5bdBX96u9FfYComC",
-    clobExchange: "EJMhw3BibsxMj8az8DsE1D8qUpUDyPSssX2tKpWQ3jeM",
-    start: "2026-09-09",
   },
 };
 
@@ -81,8 +71,7 @@ const legCash = (outcome: bigint, execPrice: bigint, size: bigint): bigint => {
 };
 
 const fetchEvm = async (options: FetchOptions) => {
-  const { predictionMarket, clobExchange, collateral } = chainConfig[options.chain];
-  if (!collateral) throw new Error(`daejin: no collateral configured for ${options.chain}`);
+  const { predictionMarket, clobExchange, collateral } = CONTRACTS[options.chain];
   const dailyVolume = options.createBalances();
 
   const bets = await options.getLogs({ target: predictionMarket, eventAbi: BET_PLACED });
@@ -155,238 +144,66 @@ const fetchEvm = async (options: FetchOptions) => {
   return { dailyVolume };
 };
 
-// Solana. The two programs are Anchor programs that emit no events, so volume is read from the
-// arguments of the instructions that move value, which carry the same numbers the EVM events do.
-//  prediction_market (AMM) https://solscan.io/account/GgMXNkJR4Vmfd8ievZRBp8Uf8NJX5bdBX96u9FfYComC
-//  clob_settlement   (order book) https://solscan.io/account/EJMhw3BibsxMj8az8DsE1D8qUpUDyPSssX2tKpWQ3jeM
-// Borsh layout: 8 byte instruction discriminator (sha256("global:<name>")[0..8]), then the args.
-//  place_bet(is_yes: bool, amount: u64)                       amount = gross stake, mint units
-//  settle_fill(order_a, order_b, hash_a, hash_b, exec_price: u64, size: u64)
-//  amm_fill(order, hash, exec_price: u64, size: u64)
-//  program_fill(outcome: u8, action: u8, exec_price: u64, size: u64)   leveraged trades, a CPI
-//                                                                       from leverage_pool
-// An order is (user: Pubkey, market: u64, action: u8, outcome: u8, price, size, salt: u64,
-// expiry: i64), 74 bytes, outcome at byte 41. Prices are ticks out of PRICE_TICKS = 1000 and
-// size is in the market's payment-mint units, so a leg costs price * size / 1000 of the mint,
-// exactly legCash above with a share unit of 1 (the program has no share unit).
-// The collateral mint is ClobMarket.payment_mint (bytes 16..48 of the market account, which is
-// the first account of each fill instruction); the AMM's is the mint of its vault (3rd account).
-const { predictionMarket: SOLANA_AMM, clobExchange: SOLANA_CLOB } = chainConfig[CHAIN.SOLANA];
-const IX = {
-  placeBet: "de3e43dc3fa67e21",
-  settleFill: "c5518732bf03ab4b",
-  ammFill: "0576f116c5d5d16e",
-  programFill: "f93fc68acd1d9076",
+// Solana: two Anchor programs that emit no events, so volume is decoded from the arguments of
+// the instructions that move value, called directly or by another program.
+//  prediction_market (AMM)      https://solscan.io/account/GgMXNkJR4Vmfd8ievZRBp8Uf8NJX5bdBX96u9FfYComC
+//  clob_settlement (order book) https://solscan.io/account/EJMhw3BibsxMj8az8DsE1D8qUpUDyPSssX2tKpWQ3jeM
+// Data = 8-byte discriminator + Borsh args. An order is 74 bytes with its outcome at byte 41.
+// Sizes are in collateral units (no share unit). The collateral is USDC, the payment_mint of
+// all 54 order-book markets created so far.
+const SOLANA_AMM = "GgMXNkJR4Vmfd8ievZRBp8Uf8NJX5bdBX96u9FfYComC";
+const SOLANA_CLOB = "EJMhw3BibsxMj8az8DsE1D8qUpUDyPSssX2tKpWQ3jeM";
+const PLACE_BET = "de3e43dc3fa67e21"; // (is_yes, amount) u64: amount @9
+const SETTLE_FILL = "c5518732bf03ab4b"; // (order_a, order_b, hash_a, hash_b, exec_price, size) u8: outcomes @49 @123; u64: exec_price @220, size @228
+const AMM_FILL = "0576f116c5d5d16e"; // (order, hash, exec_price, size) u8: outcome @49; u64: exec_price @114, size @122
+const PROGRAM_FILL = "f93fc68acd1d9076"; // leveraged trades (outcome, action, exec_price, size) u8: outcome @8; u64: exec_price @10, size @18
+
+const legCashSql = (outcomeAt: number, priceAt: number, sizeAt: number) => {
+  const price = u64("data_hex", priceAt);
+  return `FLOOR(IFF(${u8("data_hex", outcomeAt)} = '00', ${price}, ${PRICE_TICKS} - ${price}) * ${u64("data_hex", sizeAt)} / ${PRICE_TICKS})`;
 };
-const ORDER_LEN = 74;
-const ORDER_OUTCOME = 41;
-const MARKET_MINT_OFFSET = 16;
-
-// Which of a program's transactions are fills is only known once the transaction is read (a
-// busy day is mostly deposits, withdrawals and market setup), so every one is fetched. The
-// runner fetches several windows at once, so the limit on requests in flight is shared by the
-// whole process. 4 is well under the public RPC's 10 requests per 10 seconds per method (see
-// the cooldown below), so few requests are in flight when a 429 arrives; the Solana test runs
-// complete on the public RPC at this value.
-const MAX_IN_FLIGHT = 4;
-let inFlight = 0;
-const waiting: (() => void)[] = [];
-const limited = async <T>(task: () => Promise<T>): Promise<T> => {
-  // A loop: the slot a waiter was woken for can be taken before the waiter resumes.
-  while (inFlight >= MAX_IN_FLIGHT) await new Promise<void>((resolve) => waiting.push(resolve));
-  inFlight++;
-  try { return await task(); }
-  finally { inFlight--; waiting.shift()?.(); }
-};
-
-// A 429 pauses every request, not only the one that got it. The public RPC allows 10 requests
-// per 10 seconds per method and counts the rejected ones too (response headers
-// x-ratelimit-method-limit: 10 and retry-after: 10, api.mainnet-beta.solana.com, 2026-11-25),
-// so a request backing off alone keeps being rejected while the others refill the window.
-// The pause is that retry-after plus a second; an endpoint that never answers 429 never waits.
-const COOLDOWN_MS = 11_000;
-const MAX_RATE_LIMIT_RETRIES = 8; // a request is rejected about once per cooldown at worst
-let pausedUntil = 0;
-const rateLimited = (e: any) => /429|Too many requests/i.test(String(e?.message));
-const rpc = async <T>(task: () => Promise<T>): Promise<T> => {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await limited(async () => {
-        // Re-checked after each wait: another request may have extended the pause meanwhile.
-        while (pausedUntil > Date.now())
-          await new Promise((resolve) => setTimeout(resolve, pausedUntil - Date.now()));
-        return task();
-      });
-    } catch (e) {
-      if (attempt >= MAX_RATE_LIMIT_RETRIES || !rateLimited(e)) throw e;
-      pausedUntil = Math.max(pausedUntil, Date.now() + COOLDOWN_MS);
-    }
-  }
-};
-
-// Signatures can only be listed newest first, so finding one hour means paging back from the
-// newest transaction. With pullHourly the runner asks for 24 windows a day, several at once,
-// and walking the list again for each one is what got the public RPC to answer 429. Instead
-// each program's list is walked once per process and shared: every window extends the walk
-// only as far back as it needs, and the walks are serialised so concurrent windows wait for
-// one walk rather than each starting their own.
-type SignatureWalk = {
-  entries: { signature: string; blockTime: number; failed: boolean }[]; // newest first
-  newest?: string;      // newest signature seen, the `until` bound for refreshing the head
-  oldest?: string;      // oldest signature seen, the `before` cursor for going further back
-  oldestTime: number;   // blockTime the walk has reached back to
-  headTime: number;     // when the head was last read; later windows refresh it first
-  exhausted: boolean;   // the program's first transaction has been reached
-  queue: Promise<unknown>;
-};
-const signatureWalks = new Map<string, SignatureWalk>();
-// The most getSignaturesForAddress returns per call
-// (https://solana.com/docs/rpc/http/getsignaturesforaddress); a shorter page is the last one.
-const PAGE = 1000;
-
-const readPages = async (address: string, bounds: { before?: string; until?: string }, stopBefore = -Infinity) => {
-  const entries: SignatureWalk["entries"] = [];
-  let before = bounds.before;
-  let complete = false;
-  while (true) {
-    const page = await rpc(() => getSignaturesForAddress({ address, limit: PAGE, before, until: bounds.until }));
-    for (const entry of page ?? []) {
-      // The RPC may answer blockTime: null. Such a signature cannot be placed in a window, and
-      // skipping it would lose its volume for good once the walk has moved past it, so the walk
-      // fails and is retried. None of the programs' signatures has had one so far; if a node
-      // ever answers null persistently, read the slot's time with getBlockTime instead.
-      if (entry.blockTime == null) throw new Error(`daejin: no block time yet for ${entry.signature}`);
-      entries.push({ signature: entry.signature, blockTime: entry.blockTime, failed: !!entry.err });
-    }
-    if (!page?.length || page.length < PAGE) { complete = true; break; }
-    before = page[page.length - 1].signature;
-    const oldest = entries[entries.length - 1]?.blockTime;
-    if (oldest != null && oldest < stopBefore) break;
-  }
-  return { entries, before, complete };
-};
-
-const signaturesInWindow = async (address: string, from: number, to: number) => {
-  let walk = signatureWalks.get(address);
-  if (!walk) {
-    walk = { entries: [], oldestTime: Infinity, headTime: 0, exhausted: false, queue: Promise.resolve() };
-    signatureWalks.set(address, walk);
-  }
-  const w = walk;
-  const run = w.queue.then(async () => {
-    // Head: a window ending after the last read may hold newer transactions.
-    if ((w.newest || w.exhausted) && to > w.headTime) {
-      const startedAt = Math.floor(Date.now() / 1000);
-      const { entries } = await readPages(address, { until: w.newest });
-      if (entries.length) { w.entries = [...entries, ...w.entries]; w.newest = entries[0].signature; }
-      w.headTime = startedAt;
-    }
-    // Tail: page back until the walk reaches the start of the window.
-    if (!w.exhausted && !(w.oldestTime < from)) {
-      const startedAt = Math.floor(Date.now() / 1000);
-      const { entries, before, complete } = await readPages(address, { before: w.oldest }, from);
-      if (!w.newest) { w.newest = entries[0]?.signature; w.headTime = startedAt; }
-      w.entries.push(...entries);
-      w.oldest = before ?? w.oldest;
-      if (entries.length) w.oldestTime = entries[entries.length - 1].blockTime;
-      w.exhausted = complete;
-    }
-  });
-  // A failed walk must not poison the windows queued behind it; they retry it.
-  w.queue = run.catch(() => undefined);
-  await run;
-  return w.entries
-    .filter((entry) => !entry.failed && entry.blockTime >= from && entry.blockTime < to)
-    .map((entry) => entry.signature);
-};
-
-// Top-level and inner instructions addressed to `programId` (program_fill only ever arrives as
-// an inner instruction, through leverage_pool).
-const programInstructions = (tx: any, programId: string) => {
-  const all = [
-    ...tx.transaction.message.instructions,
-    ...(tx.meta.innerInstructions ?? []).flatMap((group: any) => group.instructions),
-  ];
-  return all
-    .filter((ix: any) => ix.programId === programId && typeof ix.data === "string")
-    .map((ix: any) => ({ accounts: ix.accounts as string[], data: Buffer.from(base58Decode(ix.data)) }));
-};
-
-const fetchTransaction = async (signature: string) => {
-  const tx = await rpc(() =>
-    getTransaction({ signature, encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }));
-  // A node that cannot serve the transaction is not a transaction without volume.
-  if (!tx?.meta) throw new Error(`daejin: solana rpc returned no transaction for ${signature}`);
-  return tx;
-};
-
-const loadTransactions = (signatures: string[]) => Promise.all(signatures.map(fetchTransaction));
-
-const marketMints = new Map<string, string>();
 
 const fetchSolana = async (options: FetchOptions) => {
+  const programs = `'${SOLANA_AMM}', '${SOLANA_CLOB}'`;
+  const [row] = await queryAllium(`
+    WITH calls AS (
+      SELECT program_id, LEFT(data_hex, 16) AS ix, data_hex FROM solana.raw.instructions
+      WHERE ${timeFilter(options)} AND program_id IN (${programs}) AND parent_tx_success
+      UNION ALL
+      SELECT program_id, LEFT(data_hex, 16), data_hex FROM solana.raw.inner_instructions
+      WHERE ${timeFilter(options)} AND program_id IN (${programs}) AND parent_tx_success
+    ),
+    legs AS (
+      SELECT ${u64("data_hex", 9)} AS cash FROM calls WHERE program_id = '${SOLANA_AMM}' AND ix = '${PLACE_BET}'
+      UNION ALL
+      SELECT FLOOR((${legCashSql(49, 220, 228)} + ${legCashSql(123, 220, 228)}) / 2) FROM calls WHERE program_id = '${SOLANA_CLOB}' AND ix = '${SETTLE_FILL}'
+      UNION ALL
+      SELECT ${legCashSql(49, 114, 122)} FROM calls WHERE program_id = '${SOLANA_CLOB}' AND ix = '${AMM_FILL}'
+      UNION ALL
+      SELECT ${legCashSql(8, 10, 18)} FROM calls WHERE program_id = '${SOLANA_CLOB}' AND ix = '${PROGRAM_FILL}'
+    ),
+    checks AS (
+      SELECT EXISTS (SELECT 1 FROM solana.assets.transfers
+        WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.endTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp + 15 * 60})) AS indexed
+    )
+    SELECT k.indexed, v.cash FROM checks k, (SELECT COALESCE(SUM(cash), 0) AS cash FROM legs) v
+  `);
+  if (!row?.indexed) throw new Error(`daejin: Allium has not indexed Solana past ${new Date(options.endTimestamp * 1e3).toISOString()} yet`);
   const dailyVolume = options.createBalances();
-  const from = options.startTimestamp;
-  const to = options.endTimestamp;
-
-  // AMM bets: the stake in the vault's mint.
-  for (const tx of await loadTransactions(await signaturesInWindow(SOLANA_AMM, from, to))) {
-    const keys: string[] = tx.transaction.message.accountKeys.map((key: any) => key.pubkey ?? key);
-    for (const ix of programInstructions(tx, SOLANA_AMM)) {
-      if (ix.data.subarray(0, 8).toString("hex") !== IX.placeBet) continue;
-      const vault = ix.accounts[2];
-      const balance = [...(tx.meta.postTokenBalances ?? []), ...(tx.meta.preTokenBalances ?? [])]
-        .find((b: any) => keys[b.accountIndex] === vault);
-      if (!balance) throw new Error(`daejin: no vault balance in ${tx.transaction.signatures[0]}`);
-      dailyVolume.add(balance.mint, ix.data.readBigUInt64LE(9));
-    }
-  }
-
-  // Order-book fills: one side of each trade, as on the EVM chains.
-  const fills: { market: string; cash: bigint }[] = [];
-  for (const tx of await loadTransactions(await signaturesInWindow(SOLANA_CLOB, from, to))) {
-    for (const ix of programInstructions(tx, SOLANA_CLOB)) {
-      const d = ix.data;
-      const kind = d.subarray(0, 8).toString("hex");
-      if (kind === IX.settleFill) {
-        const at = 8 + 2 * ORDER_LEN + 64;
-        const execPrice = d.readBigUInt64LE(at);
-        const size = d.readBigUInt64LE(at + 8);
-        const cashA = legCash(BigInt(d[8 + ORDER_OUTCOME]), execPrice, size);
-        const cashB = legCash(BigInt(d[8 + ORDER_LEN + ORDER_OUTCOME]), execPrice, size);
-        fills.push({ market: ix.accounts[0], cash: (cashA + cashB) / 2n });
-      } else if (kind === IX.ammFill) {
-        const at = 8 + ORDER_LEN + 32;
-        fills.push({ market: ix.accounts[0], cash: legCash(BigInt(d[8 + ORDER_OUTCOME]), d.readBigUInt64LE(at), d.readBigUInt64LE(at + 8)) });
-      } else if (kind === IX.programFill) {
-        fills.push({ market: ix.accounts[0], cash: legCash(BigInt(d[8]), d.readBigUInt64LE(10), d.readBigUInt64LE(18)) });
-      }
-    }
-  }
-  if (!fills.length) return { dailyVolume };
-
-  // A market's payment mint never changes, so it is read once per process.
-  const unknown = [...new Set(fills.map((fill) => fill.market))].filter((market) => !marketMints.has(market));
-  if (unknown.length) {
-    const buffers = await rpc(() => getAccountBuffers({ accounts: unknown }));
-    unknown.forEach((market, i) => {
-      const buffer = buffers[i];
-      if (!buffer) throw new Error(`daejin: market account ${market} unreadable`);
-      marketMints.set(market, base58Encode(buffer.subarray(MARKET_MINT_OFFSET, MARKET_MINT_OFFSET + 32)));
-    });
-  }
-  for (const fill of fills) dailyVolume.add(marketMints.get(fill.market)!, fill.cash);
-
+  dailyVolume.add(ADDRESSES.solana.USDC, row.cash);
   return { dailyVolume };
 };
-
-const fetch = (options: FetchOptions) => (options.chain === CHAIN.SOLANA ? fetchSolana(options) : fetchEvm(options));
 
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch,
-  adapter: chainConfig, // start dates are read from chainConfig per chain
+  adapter: {
+    [CHAIN.ETHEREUM]: { fetch: fetchEvm, start: "2026-08-01" },
+    [CHAIN.BSC]: { fetch: fetchEvm, start: "2026-08-01" },
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-10-17" },
+  },
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
     Volume:
       "AMM markets: collateral paid per bet (BetPlaced cashAmount on EVM, place_bet amount on Solana), gross of fees, in the bet token. Order-book markets: collateral exchanged per settled fill (settleFill/ammFill on EVM; settle_fill, amm_fill and leveraged program_fill on Solana), one side counted (average of both legs at the execution price), gross of fees, in USDC. LP deposits, claims and refunds are not counted.",
