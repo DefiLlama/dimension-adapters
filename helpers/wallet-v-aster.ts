@@ -1,7 +1,7 @@
 import type { Balances } from '@defillama/sdk';
 import { httpGet } from '../utils/fetchURL';
 
-// Daily aggregates for Wallet V's Futures Builder, sourced from Aster userTrades and userCommissions.
+// Daily commission aggregates for Wallet V's Futures Builder, sourced from Aster userCommissions.
 const DAILY_API = 'https://api.walletv.io/defillama/aster/daily';
 const BUILDER = '0x68c68ba58f50bdbe5c4a6faf0186b140eab2b764';
 export const WALLET_V_ASTER_START = '2026-08-29';
@@ -9,11 +9,7 @@ export const WALLET_V_ASTER_START = '2026-08-29';
 interface WalletVAsterDay {
   date: string;
   builderAddress: string;
-  commissionTradeCount: number;
-  visibleTradeCount: number;
-  volumeComplete: boolean;
   builderFeesByAsset: unknown;
-  visibleVolumeByQuoteAsset: unknown;
 }
 
 export async function fetchWalletVAsterDay(date: string): Promise<WalletVAsterDay> {
