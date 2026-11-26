@@ -1,18 +1,18 @@
 import { CHAIN } from "../../helpers/chains";
-import { getMetricFactoriesAdapter, MetricEvents, MetricFactoriesChainConfig, MetricFactory } from "./utils";
+import { getMetricFactoriesAdapter, MetricEvents, MetricFactoriesChainConfig, MetricFactory, MetricFees } from "./utils";
 
 // Both generations share the PoolCreated layout (the newer one only renamed a
 // few fields), so the same ABI decodes either factory's events.
 const poolCreatedEvent =
   "event PoolCreated(address indexed poolAddress, address indexed token0, address indexed token1, uint256 poolIdx, address factory, address admin, address priceProvider, address[] extensions, (uint256 beforeAddLiquidity,uint256 afterAddLiquidity,uint256 beforeRemoveLiquidity,uint256 afterRemoveLiquidity,uint256 beforeSwap,uint256 afterSwap) extensionOrders, uint256 priceProviderTimelock, uint256 initialScaledAmount0PerE18Shares, uint256 initialScaledAmount1PerE18Shares, uint256 minimalOperationalLiquidity, uint24 spreadProtocolFeeE6, uint24 protocolNotionalFeeE8, uint24 adminSpreadFeeE6, uint24 adminNotionalFeeE8, address adminFeeDestination, int24 curBinDistFromProvidedPriceE6, uint256[] nonNegativeBinDataArray, uint256[] negativeBinDataArray)";
 
-// Retired factory: Swap carries the two deltas as plain int256 fields.
+// Retired factory: Swap carries the two deltas as plain int256 fields. Its pools log no LP fee leg, so no `fees`.
 const RETIRED_EVENTS: MetricEvents = {
   poolCreatedEvent,
   poolField: "poolAddress",
   swapEvent:
     "event Swap(address indexed sender, address indexed recipient, bool exactInput, int256 amount0Delta, int256 amount1Delta, int8 newTick, uint104 newPositionInBin, uint256 protocolFeeAmount)",
-  swapAmounts: (log) => ({ amount0: BigInt(log.amount0Delta), amount1: BigInt(log.amount1Delta) }),
+  swapAmounts: (args) => ({ amount0: BigInt(args.amount0Delta), amount1: BigInt(args.amount1Delta) }),
 };
 
 // Current factory: Swap packs both deltas into one word — token0 delta in the
@@ -20,15 +20,32 @@ const RETIRED_EVENTS: MetricEvents = {
 // (metric-core contracts/types/Packed.sol, Packed2Int128). Verified against live
 // Base swaps: sign convention is "positive = the pool gained that token".
 const int128At = (word: bigint, shift: number) => BigInt.asIntN(128, word >> BigInt(shift));
+const uint128At = (word: bigint, shift: number) => BigInt.asUintN(128, word >> BigInt(shift));
+
+// Fees in scaled input-token units: BinSwapped packs the LP leg in its high 128 bits, Swap packs platform spread (high) and notional (low).
+const FEES: MetricFees = {
+  binSwappedEvent: "event BinSwapped(int256 binIdx, uint256 binDeltas, uint256 fees)",
+  binLpFee: (args) => uint128At(BigInt(args.fees), 128),
+  platformLegs: (args) => {
+    const fees = BigInt(args.platformFees);
+    return { spread: uint128At(fees, 128), notional: uint128At(fees, 0) };
+  },
+  poolFeeConfigAbi:
+    "function poolFeeConfig(address pool) view returns (uint24 protocolSpreadFeeE6, uint24 adminSpreadFeeE6, uint24 protocolNotionalFeeE8, uint24 adminNotionalFeeE8)",
+  immutablesAbi:
+    "function getImmutables() view returns ((address factory, address token0, address token1, uint256 token0ScaleMultiplier, uint256 token1ScaleMultiplier, uint256 initialScaledToken0PerShareE18, uint256 initialScaledToken1PerShareE18, uint256 minimalOperationalLiquidity, address immutablePriceProvider, int256 lowestBin, int256 highestBin, address extension1, address extension2, address extension3, address extension4, address extension5, address extension6, address extension7, uint256 beforeAddLiquidityOrder, uint256 afterAddLiquidityOrder, uint256 beforeRemoveLiquidityOrder, uint256 afterRemoveLiquidityOrder, uint256 beforeSwapOrder, uint256 afterSwapOrder))",
+};
+
 const EVENTS: MetricEvents = {
   poolCreatedEvent,
   poolField: "poolAddress",
   swapEvent:
     "event Swap(address indexed sender, address indexed recipient, uint256 details, uint256 amountDeltas, uint256 platformFees)",
-  swapAmounts: (log) => {
-    const deltas = BigInt(log.amountDeltas);
+  swapAmounts: (args) => {
+    const deltas = BigInt(args.amountDeltas);
     return { amount0: int128At(deltas, 128), amount1: int128At(deltas, 0) };
   },
+  fees: FEES,
 };
 
 // Current MetricOmmPoolFactory. Deployed through CreateX to the same address on

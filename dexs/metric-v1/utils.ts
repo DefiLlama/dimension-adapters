@@ -1,4 +1,6 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
+import { dedupeLogs } from "../../helpers/elyspump";
+import { METRIC } from "../../helpers/metrics";
 import { addOneToken } from "../../helpers/prices";
 
 // Shared across every Metric factory version (see dexs/metric-v1). Each version
@@ -6,15 +8,28 @@ import { addOneToken } from "../../helpers/prices";
 // deployment block, event layout) — pool discovery + volume accounting is
 // identical, so it is built here once.
 
+// Fee readers for pool generations that log the LP share of each swap's fee, amounts in scaled units (native × scale multiplier).
+export type MetricFees = {
+  binSwappedEvent: string;
+  // LP fee kept in the bin by one routing step of a swap.
+  binLpFee: (args: any) => bigint;
+  // Platform (protocol + curator) fee of the whole swap: spread leg and notional leg.
+  platformLegs: (args: any) => { spread: bigint; notional: bigint };
+  poolFeeConfigAbi: string;
+  immutablesAbi: string;
+};
+
 // Event ABIs differ between pool generations, so they are injected per factory.
 // `poolField` is the PoolCreated field holding the pool address (legacy: `pool`,
 // v1: `poolAddress`); `swapAmounts` extracts the two token deltas from a decoded
-// Swap log, whose layout also differs per generation.
+// Swap log, whose layout also differs per generation. `fees` is set only for
+// generations whose fees can be read in full from their logs.
 export type MetricEvents = {
   swapEvent: string;
   poolCreatedEvent: string;
   poolField: string;
-  swapAmounts: (log: any) => { amount0: bigint; amount1: bigint };
+  swapAmounts: (args: any) => { amount0: bigint; amount1: bigint };
+  fees?: MetricFees;
 };
 
 export type MetricFactory = {
@@ -38,36 +53,135 @@ const LEGACY_EVENTS: MetricEvents = {
   poolCreatedEvent:
     "event PoolCreated(address indexed token0,address indexed token1,address indexed priceProvider,address pool,bytes32 poolId)",
   poolField: "pool",
-  swapAmounts: (log) => ({ amount0: BigInt(log.amount0Delta), amount1: BigInt(log.amount1Delta) }),
+  swapAmounts: (args) => ({ amount0: BigInt(args.amount0Delta), amount1: BigInt(args.amount1Delta) }),
+};
+
+const LABELS = {
+  lps: "Swap Fees To LPs",
+  curators: "Swap Fees To Curators",
+  protocol: "Swap Fees To Protocol",
 };
 
 const methodology = {
   Volume:
     "Sum of all input token amounts from Swap events across every pool created by Metric. Pools are discovered on-chain from factory contract's PoolCreated event.",
+  Fees:
+    "Fees traders pay on every swap, built into the quoted price: the half spread from the pool's price provider, any extra per-bin fee set by the pool curator and any notional fee. Counted from 2026-09-22, because pools of the previous factory do not log the liquidity providers' share.",
+  UserFees:
+    "Fees traders pay on every swap, built into the quoted price: the half spread, any extra per-bin fee and any notional fee.",
+  Revenue: "Metric's share of swap fees: its configured share of the spread (15% by default) and of any notional fee.",
+  ProtocolRevenue:
+    "Metric's share of swap fees, paid to Metric's fee receiver: its configured share of the spread (15% by default) and of any notional fee.",
+  SupplySideRevenue:
+    "Swap fees kept by liquidity providers in the pool's bins, plus the pool curator's configured share of the spread and of any notional fee.",
+};
+
+const breakdownMethodology = {
+  Fees: {
+    [METRIC.SWAP_FEES]: "Half spread, per-bin fees and notional fees paid by traders on every swap.",
+  },
+  UserFees: {
+    [METRIC.SWAP_FEES]: "Half spread, per-bin fees and notional fees paid by traders on every swap.",
+  },
+  SupplySideRevenue: {
+    [LABELS.lps]: "Part of the spread that stays in the pool's bins for liquidity providers.",
+    [LABELS.curators]: "Pool curator's configured share of the spread and of any notional fee, paid to the curator's fee address.",
+  },
+  Revenue: {
+    [LABELS.protocol]: "Metric's configured share of the spread and of any notional fee.",
+  },
+  ProtocolRevenue: {
+    [LABELS.protocol]: "Metric's configured share of the spread and of any notional fee, paid to Metric's fee receiver.",
+  },
 };
 
 const dateToTimestamp = (date: string) => Math.floor(new Date(`${date}T00:00:00Z`).getTime() / 1000);
 
+type MetricPool = { address: string; token0: string; token1: string; factory: string };
+type FeeBalances = Record<"dailyFees" | "dailySupplySideRevenue" | "dailyRevenue", ReturnType<FetchOptions["createBalances"]>>;
+type BookedSwap = { log: any; amount0: bigint; amount1: bigint; volumeToken: string };
+
+const abs = (value: bigint) => (value < 0n ? -value : value);
+
+// Curator share rounds down and Metric keeps the remainder, as in MetricOmmPool._calculateUpdatedPendingFees.
+const curatorPart = (amount: bigint, adminRate: any, protocolRate: any) => {
+  const totalRate = BigInt(adminRate) + BigInt(protocolRate);
+  return totalRate === 0n ? 0n : (amount * BigInt(adminRate)) / totalRate;
+};
+
+// Books each swap's fee, split into LP, curator and Metric shares, in the token its volume was booked in.
+// The fee split (poolFeeConfig) is read once at the window end.
+const addMetricFees = async (options: FetchOptions, fees: MetricFees, pools: MetricPool[], swapsByPool: BookedSwap[][], balances: FeeBalances) => {
+  const binLogs = await options.getLogs({ targets: pools.map((pool) => pool.address), eventAbi: fees.binSwappedEvent, flatten: false, onlyArgs: false });
+  const active = pools.map((pool, index) => ({ pool, swaps: swapsByPool[index], binLogs: dedupeLogs(binLogs[index]) })).filter(({ swaps }) => swaps.length > 0);
+  if (active.length === 0) return;
+
+  const immutables = await options.api.multiCall({ abi: fees.immutablesAbi, calls: active.map(({ pool }) => pool.address) });
+  const configs = await options.api.multiCall({
+    abi: fees.poolFeeConfigAbi,
+    calls: active.map(({ pool }) => ({ target: pool.factory, params: [pool.address] })),
+  });
+
+  active.forEach(({ pool, swaps, binLogs }, index) => {
+    const scale0 = BigInt(immutables[index].token0ScaleMultiplier);
+    const scale1 = BigInt(immutables[index].token1ScaleMultiplier);
+    const config = configs[index];
+    const lpByTx = new Map<string, bigint>();
+    for (const log of binLogs) lpByTx.set(log.transactionHash, (lpByTx.get(log.transactionHash) ?? 0n) + fees.binLpFee(log.args));
+
+    for (const { log, amount0, amount1, volumeToken } of swaps) {
+      const [inputAmount, inputScale] = amount0 > 0n ? [amount0, scale0] : [amount1, scale1];
+      if (inputAmount <= 0n) continue;
+      const lp = lpByTx.get(log.transactionHash) ?? 0n;
+      lpByTx.delete(log.transactionHash);
+      const { spread, notional } = fees.platformLegs(log.args);
+      const curatorScaled = curatorPart(spread, config.adminSpreadFeeE6, config.protocolSpreadFeeE6) + curatorPart(notional, config.adminNotionalFeeE8, config.protocolNotionalFeeE8);
+      const volumeAmount = volumeToken === pool.token0 ? abs(amount0) : abs(amount1);
+      // Scaled input-token amount → booked token, at the swap's own exchange rate.
+      const toBooked = (scaled: bigint) => (scaled * volumeAmount) / (inputScale * inputAmount);
+      const lpFee = toBooked(lp);
+      const curator = toBooked(curatorScaled);
+      const protocol = toBooked(spread + notional - curatorScaled);
+      balances.dailyFees.add(volumeToken, lpFee + curator + protocol, METRIC.SWAP_FEES);
+      balances.dailySupplySideRevenue.add(volumeToken, lpFee, LABELS.lps);
+      balances.dailySupplySideRevenue.add(volumeToken, curator, LABELS.curators);
+      balances.dailyRevenue.add(volumeToken, protocol, LABELS.protocol);
+    }
+  });
+};
+
 export const getMetricFactoriesAdapter = (chainConfig: MetricFactoriesChainConfig): SimpleAdapter => {
+  // Fees start once no chain counts a pool generation without fee logs, so no day reports fees for only some chains.
+  const feesFromTimestamp = Math.max(
+    0,
+    ...Object.values(chainConfig).flatMap(({ factories }) =>
+      factories.filter((factory) => !(factory.events ?? LEGACY_EVENTS).fees).map((factory) => (factory.end ? dateToTimestamp(factory.end) : Infinity)),
+    ),
+  );
+
   const fetch = async (options: FetchOptions) => {
     const dailyVolume = options.createBalances();
+    const feeBalances: FeeBalances = {
+      dailyFees: options.createBalances(),
+      dailySupplySideRevenue: options.createBalances(),
+      dailyRevenue: options.createBalances(),
+    };
 
-    const factories = chainConfig[options.chain].factories.filter(
-      (factory) => !factory.end || options.fromTimestamp < dateToTimestamp(factory.end),
-    );
+    const factories = chainConfig[options.chain].factories
+      .filter((factory) => !factory.end || options.fromTimestamp < dateToTimestamp(factory.end))
+      .map((factory) => ({ ...factory, events: factory.events ?? LEGACY_EVENTS }));
+    const withFees = options.fromTimestamp >= feesFromTimestamp;
 
     // Factories that share a PoolCreated ABI are one getLogs: every factory address
     // in `targets`, scanned from the earliest of their deployment blocks. Swap ABIs
     // differ per generation, so pools are grouped by the emitting factory and each
     // generation is one Swap getLogs over that generation's pools.
-    const createdGroups = new Map<string, { eventAbi: string; factories: (MetricFactory & { events: MetricEvents })[] }>();
+    const createdGroups = new Map<string, { eventAbi: string; factories: typeof factories }>();
     for (const factory of factories) {
-      const events = factory.events ?? LEGACY_EVENTS;
-      const key = `${events.poolField}\0${events.poolCreatedEvent}`;
-      const resolved = { ...factory, events };
+      const key = `${factory.events.poolField}\0${factory.events.poolCreatedEvent}`;
       const group = createdGroups.get(key);
-      if (group) group.factories.push(resolved);
-      else createdGroups.set(key, { eventAbi: events.poolCreatedEvent, factories: [resolved] });
+      if (group) group.factories.push(factory);
+      else createdGroups.set(key, { eventAbi: factory.events.poolCreatedEvent, factories: [factory] });
     }
 
     for (const { eventAbi, factories: group } of createdGroups.values()) {
@@ -80,17 +194,18 @@ export const getMetricFactoriesAdapter = (chainConfig: MetricFactoriesChainConfi
       });
 
       const eventsByFactory = new Map(group.map((factory) => [factory.address.toLowerCase(), factory.events]));
-      const poolsBySwap = new Map<string, { events: MetricEvents; pools: { address: string; token0: string; token1: string }[] }>();
+      const poolsBySwap = new Map<string, { events: MetricEvents; pools: MetricPool[] }>();
       for (const log of createdLogs) {
         const emitter = String(log.address || log.source || "").toLowerCase();
         const events = eventsByFactory.get(emitter);
         if (!events) throw new Error(`Metric PoolCreated log from unknown factory ${emitter}`);
         const args = log.args;
         if (!args?.[events.poolField]) throw new Error(`Metric PoolCreated log from ${emitter} is missing decoded args`);
-        const pool = {
+        const pool: MetricPool = {
           address: String(args[events.poolField]).toLowerCase(),
           token0: String(args.token0).toLowerCase(),
           token1: String(args.token1).toLowerCase(),
+          factory: emitter,
         };
         const bucket = poolsBySwap.get(events.swapEvent);
         if (bucket) bucket.pools.push(pool);
@@ -102,19 +217,31 @@ export const getMetricFactoriesAdapter = (chainConfig: MetricFactoriesChainConfi
           targets: pools.map((pool) => pool.address),
           eventAbi: events.swapEvent,
           flatten: false,
+          onlyArgs: false,
         });
 
-        swapLogs.forEach((logs: any[], index: number) => {
-          const { token0, token1 } = pools[index];
-          for (const log of logs) {
-            const { amount0, amount1 } = events.swapAmounts(log);
-            addOneToken({ balances: dailyVolume, token0, amount0, token1, amount1 });
-          }
+        const swapsByPool: BookedSwap[][] = swapLogs.map((logs: any[], index: number) => {
+          const pool = pools[index];
+          return dedupeLogs(logs).map((log) => {
+            const { amount0, amount1 } = events.swapAmounts(log.args);
+            const booked = addOneToken({ balances: dailyVolume, token0: pool.token0, amount0, token1: pool.token1, amount1 });
+            return { log, amount0, amount1, volumeToken: booked.token };
+          });
         });
+
+        if (withFees && events.fees) await addMetricFees(options, events.fees, pools, swapsByPool, feeBalances);
       }
     }
 
-    return { dailyVolume };
+    if (!withFees) return { dailyVolume };
+    return {
+      dailyVolume,
+      dailyFees: feeBalances.dailyFees,
+      dailyUserFees: feeBalances.dailyFees.clone(),
+      dailySupplySideRevenue: feeBalances.dailySupplySideRevenue,
+      dailyRevenue: feeBalances.dailyRevenue,
+      dailyProtocolRevenue: feeBalances.dailyRevenue.clone(),
+    };
   };
 
   return {
@@ -123,6 +250,7 @@ export const getMetricFactoriesAdapter = (chainConfig: MetricFactoriesChainConfi
     pullHourly: true,
     adapter: chainConfig,
     methodology,
+    breakdownMethodology,
   };
 };
 
