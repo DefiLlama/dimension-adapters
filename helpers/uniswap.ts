@@ -316,7 +316,7 @@ const defaultV2SwapEvent = 'event Swap(address indexed sender, uint amount0In, u
 const notifyRewardEvent = 'event NotifyReward(address indexed from,address indexed reward,uint256 indexed epoch,uint256 amount)';
 
 export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
-  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, allowReadPairs, enforceBalanceFailureRatio, useSyncReserves, scanLogsByTopic } = v2Config
+  let { factory, fees = 0.003, swapEvent = defaultV2SwapEvent, stableFees = 1 / 10000, voter, maxPairSize, customLogic, blacklistedAddresses, userFeesRatio, revenueRatio, protocolRevenueRatio, holdersRevenueRatio, blacklistPools, blacklistTokens, allowReadPairs, enforceBalanceFailureRatio, useSyncReserves, scanLogsByTopic, noStablePairs } = v2Config
   const fetch: FetchV2 = async (fetchOptions) => {
     const { createBalances, getLogs, chain, api } = fetchOptions
     let blacklistedAddressesSet: any
@@ -361,7 +361,7 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
       : await filterPools({ api, pairs: pairsToFilter, createBalances, maxPairSize, enforceBalanceFailureRatio })
     const pairIds = Object.keys(filteredPairs)
     api.log(`uniV2RunLog: Filtered to ${pairIds.length}/${pairs.length} pairs Factory: ${factory} Chain: ${chain}`)
-    const isStablePair = await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })
+    const isStablePair = noStablePairs ? [] : await api.multiCall({ abi: 'bool:stable', calls: pairIds, permitFailure: true })
 
     if (!pairIds.length) return {
       dailyVolume,
@@ -745,6 +745,8 @@ type UniV2Config = {
   // fetch Sync/Swap logs with one topic scan per window kept to the factory's pairs, not one getLogs per pair:
   // for quiet chains off the logs indexer whose public RPCs reject a burst of per-pair requests
   scanLogsByTopic?: boolean;
+  // plain UniV2 fork: skip the stable() probe, for chains whose RPC reports its reverts in a form the sdk treats as an RPC failure
+  noStablePairs?: boolean;
 }
 
 export interface UniGetRevenueRatioProps {

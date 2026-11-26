@@ -9,8 +9,8 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const adapter: SimpleAdapter = {
-  version: 2,
-  pullHourly: true,
+  // the swap stats API marks an hour final only 2h+ after it ends, so hourly runs fail every hour
+  version: 1,
   fetch,
   adapter: adapterChains(),
   methodology: {

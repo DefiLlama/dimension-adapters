@@ -74,6 +74,10 @@ const fetch = async (options: FetchOptions) => {
             pumpswap_trades
         GROUP BY
             quoteMint
+        -- most-traded quote mints only: spam pools can add 1M junk quote mints in a day, more than the runner's result size limit allows
+        ORDER BY
+            COUNT(*) DESC
+        LIMIT 10000
     `)
     const dailySupplySideRevenue = options.createBalances()
     const dailyProtocolRevenue = options.createBalances()

@@ -6,7 +6,6 @@ import { getConfig } from "../../helpers/cache";
 
 const CONFIG = {
   blue: "0x24147243f9c08d835C218Cda1e135f8dFD0517D0",
-  fromBlock: 11160919,
   start: "2025-10-16",
 };
 
@@ -20,6 +19,7 @@ const methodology = {
 const abi = {
   morphoBlueFunctions: {
     market: "function market(bytes32 input) returns (uint128 totalSupplyAssets, uint128 totalSupplyShares, uint128 totalBorrowAssets, uint128 totalBorrowShares, uint128 lastUpdate, uint128 fee)",
+    idToMarketParams: "function idToMarketParams(bytes32 id) view returns (address loanToken, address collateralToken, address oracle, address irm, uint256 lltv)",
     feeRecipient: "function feeRecipient() returns(address feeRecipient)"
   },
   metaMorphoFunctions: {
@@ -30,7 +30,6 @@ const abi = {
   },
   morphoBlueEvents: {
     AccrueInterest: "event AccrueInterest(bytes32 indexed id, uint256 prevBorrowRate, uint256 interest, uint256 feeShares)",
-    CreateMarket: "event CreateMarket(bytes32 indexed id, tuple(address loanToken, address collateralToken, address oracle, address irm, uint256 lltv) marketParams)",
     Liquidate: "event Liquidate(bytes32 indexed id,address indexed caller,address indexed borrower,uint256 repaidAssets,uint256 repaidShares,uint256 seizedAssets,uint256 badDebtAssets,uint256 badDebtShares)"
   },
   metaMorphoEvents: {
@@ -39,10 +38,8 @@ const abi = {
 }
 
 type MorphoMarket = {
-  marketId: string;
   loanAsset: string;
-  collateralAsset?: string;
-  lltv: bigint;
+  collateralAsset: string;
   lif: bigint;
   fee: bigint;
 };
@@ -110,87 +107,52 @@ const _getWhitelistedVaults = async (): Promise<string[]> => getConfig('bend/whi
   },
 })
 
-const fetchMarketsFromLogs = async (options: FetchOptions): Promise<Array<MorphoMarket>> => {
-  const markets: Array<MorphoMarket> = [];
+const fetchMarkets = async (options: FetchOptions, ids: string[]): Promise<Record<string, MorphoMarket>> => {
+  const marketIds = [...new Set(ids.map(toLowerKey))];
+  const [params, infos] = await Promise.all([
+    options.api.multiCall({ target: CONFIG.blue, calls: marketIds, abi: abi.morphoBlueFunctions.idToMarketParams }),
+    options.api.multiCall({ target: CONFIG.blue, calls: marketIds, abi: abi.morphoBlueFunctions.market }),
+  ]);
 
-  const events = await options.getLogs({
-    target: CONFIG.blue,
-    eventAbi: abi.morphoBlueEvents.CreateMarket,
-    fromBlock: CONFIG.fromBlock,
-    cacheInCloud: true,
+  const markets: Record<string, MorphoMarket> = {};
+  marketIds.forEach((id, idx) => {
+    markets[id] = {
+      loanAsset: params[idx].loanToken,
+      collateralAsset: params[idx].collateralToken,
+      lif: _getLIFFromLLTV(BigInt(params[idx].lltv)),
+      fee: BigInt(infos[idx].fee),
+    };
   });
-
-  const marketIds = events.map(event => event.id)
-
-  const marketsInfo = await options.api.multiCall({
-    target: CONFIG.blue,
-    calls: marketIds,
-    abi: abi.morphoBlueFunctions.market,
-  });
-
-  events.forEach((event, idx) => {
-    markets.push({
-      marketId: event.id,
-      loanAsset: event.marketParams.loanToken,
-      collateralAsset: event.marketParams.collateralToken,
-      lltv: BigInt(event.marketParams.lltv),
-      lif: _getLIFFromLLTV(BigInt(event.marketParams.lltv)),
-      fee: BigInt(marketsInfo[idx]?.fee)
-    })
-  })
-
   return markets;
 }
 
 const fetchEvents = async (
   options: FetchOptions
 ): Promise<{ interests: Array<MorphoBlueAccrueInterestEvent>, liquidations: Array<MorphoBlueLiquidateEvent> }> => {
-  let markets: Array<MorphoMarket> = await fetchMarketsFromLogs(options)
+  const [interestLogs, liquidationLogs] = await Promise.all([
+    options.getLogs({ eventAbi: abi.morphoBlueEvents.AccrueInterest, target: CONFIG.blue }),
+    options.getLogs({ eventAbi: abi.morphoBlueEvents.Liquidate, target: CONFIG.blue }),
+  ]);
+  const markets = await fetchMarkets(options, [...interestLogs, ...liquidationLogs].map((log: any) => String(log.id)));
 
-  const marketMap = {} as { [key: string]: MorphoMarket };
-  markets.forEach((item) => {
-    marketMap[item.marketId.toLowerCase()] = item;
-  });
-
-  const interests: Array<MorphoBlueAccrueInterestEvent> = (
-    await options.getLogs({
-      eventAbi: abi.morphoBlueEvents.AccrueInterest,
-      target: CONFIG.blue,
-    })
-  ).map((log: any) => {
-    const key = toLowerKey(String(log.id));
-    const market = marketMap[key];
-
+  const interests: Array<MorphoBlueAccrueInterestEvent> = interestLogs.map((log: any) => {
+    const market = markets[toLowerKey(String(log.id))];
     const interest = BigInt(log.interest);
-    const feeParam = market?.fee ?? 0n;
-
-    const feeAmount = wMul(interest, feeParam);
-
     return {
-      token: market?.loanAsset ?? null,
+      token: market.loanAsset,
       interest,
-      feeAmount,
+      feeAmount: wMul(interest, market.fee),
     };
   });
 
-
-  const liquidations: Array<MorphoBlueLiquidateEvent> = (
-    await options.getLogs({
-      eventAbi: abi.morphoBlueEvents.Liquidate,
-      target: CONFIG.blue,
-    })
-  ).map((log) => {
-    const key = toLowerKey(String(log.id));
-    const market = marketMap[key];
-    if (!market) return null;
-
+  const liquidations: Array<MorphoBlueLiquidateEvent> = liquidationLogs.map((log: any) => {
+    const market = markets[toLowerKey(String(log.id))];
     return {
-      token: market.collateralAsset ?? null,
+      token: market.collateralAsset,
       lif: market.lif,
       seizedAmount: BigInt(log.seizedAssets),
     };
-  })
-    .filter((x) => x !== null);
+  });
 
   return { interests, liquidations }
 };

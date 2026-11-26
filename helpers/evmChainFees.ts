@@ -99,7 +99,7 @@ const failedRpcSenders: Record<string, Set<string> | undefined> = {};
  */
 export const EVM_CHAIN_METRIC_CONFIGS: Record<string, EvmChainFeesConfig> = {
   core: { chain: CHAIN.CORE, start: "2023-04-19", blockChunkSize: 500, revenueShare: 1 },
-  "bifrost-network": { chain: CHAIN.BFC, start: "2026-10-18", blockChunkSize: 500, revenueShare: 1, holdersRevenueShare: 0.5, protocolRevenueShare: 0.5 },
+  "bifrost-network": { chain: CHAIN.BFC, start: "2026-10-18", blockChunkSize: 50, revenueShare: 1, holdersRevenueShare: 0.5, protocolRevenueShare: 0.5 }, // public RPCs reject JSON-RPC batches over 50 calls
 };
 
 const baseMethodology = {

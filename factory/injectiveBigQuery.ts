@@ -5,6 +5,12 @@ import { createFactoryExports } from "./registry";
 
 const BASE_URL = "https://bigquery-api-636134865280.europe-west1.run.app";
 const INJECTIVE_CACHE_API = "https://api.ui.injective.network/api/v1/cache";
+const INJECTIVE_DERIVATIVE_API = "https://sentry.exchange.grpc-web.injective.network/api/exchange/derivative";
+// default feeRecipient in the helixapp.com bundle; matches BigQuery helix_derivative_volume exactly on 2026-10-25
+const HELIX_FEE_RECIPIENT = "inj1zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3t5qxqh";
+const USD_QUOTE_DECIMALS = 6;
+const MARKETS_PER_REQUEST = 50;
+const TRADES_PAGE_SIZE = 100;
 
 interface VolumeConfig {
   endpoint: string;
@@ -103,6 +109,68 @@ function createFeesAdapter(config: FeesConfig): SimpleAdapter {
   };
 }
 
+async function fetchHelixDerivativeTrades(options: FetchOptions) {
+  const { markets }: any = await httpGet(`${INJECTIVE_DERIVATIVE_API}/v1/markets?marketStatuses=active&marketStatuses=paused&marketStatuses=expired&marketStatuses=demolished`);
+  const startTime = options.startTimestamp * 1000;
+  const endTime = options.endTimestamp * 1000 - 1;
+  let volume = 0;
+  let fees = 0;
+  for (let i = 0; i < markets.length; i += MARKETS_PER_REQUEST) {
+    const marketIds = markets.slice(i, i + MARKETS_PER_REQUEST).map((market: any) => `marketIds=${market.marketId}`).join("&");
+    for (let skip = 0; ; skip += TRADES_PAGE_SIZE) {
+      const { trades = [] }: any = await httpGet(`${INJECTIVE_DERIVATIVE_API}/v2/trades?${marketIds}&feeRecipient=${HELIX_FEE_RECIPIENT}&startTime=${startTime}&endTime=${endTime}&limit=${TRADES_PAGE_SIZE}&skip=${skip}`);
+      for (const trade of trades) {
+        volume += Number(trade.positionDelta.executionPrice) * Number(trade.positionDelta.executionQuantity) / 10 ** USD_QUOTE_DECIMALS;
+        fees += Math.abs(Number(trade.fee)) / 10 ** USD_QUOTE_DECIMALS;
+      }
+      if (trades.length < TRADES_PAGE_SIZE) break;
+    }
+  }
+  return { volume, fees };
+}
+
+const helixPerpVolume: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  fetch: async (options: FetchOptions) => {
+    const { volume } = await fetchHelixDerivativeTrades(options);
+    return { dailyVolume: volume };
+  },
+  start: "2022-09-06",
+  chains: [CHAIN.INJECTIVE],
+  doublecounted: true,
+};
+
+const helixPerpFees: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  fetch: async (options: FetchOptions) => {
+    const { fees } = await fetchHelixDerivativeTrades(options);
+    const dailyFees = options.createBalances();
+    dailyFees.addUSDValue(fees, "Derivative Trading Fees");
+    return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees };
+  },
+  start: "2022-09-06",
+  chains: [CHAIN.INJECTIVE],
+  doublecounted: true,
+  methodology: {
+    Fees: "Trading fees on Injective derivative orders placed through Helix (orders carrying Helix's fee recipient), from the Injective indexer.",
+    Revenue: "100% of Helix derivative exchange fees enter the Injective auction and are burned for INJ.",
+    HoldersRevenue: "100% of Helix derivative exchange fees burned for INJ via the Injective auction (benefits INJ holders).",
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Derivative Trading Fees": "Sum of |fee| over maker and taker fills of Helix derivative orders.",
+    },
+    Revenue: {
+      "Derivative Trading Fees": "All Helix derivative exchange fees flow to the Injective burn auction.",
+    },
+    HoldersRevenue: {
+      "Derivative Trading Fees": "All Helix derivative exchange fees flow to the Injective burn auction (INJ burn benefits holders).",
+    },
+  },
+};
+
 const volumeConfigs: Record<string, VolumeConfig> = {
   "injective-spot": {
     endpoint: "injective_spot_volume",
@@ -116,11 +184,6 @@ const volumeConfigs: Record<string, VolumeConfig> = {
   },
   "helix-helix": {
     endpoint: "helix_spot_volume",
-    start: "2022-09-06",
-    doublecounted: true,
-  },
-  "helix-helix-perp": {
-    endpoint: "helix_derivative_volume",
     start: "2022-09-06",
     doublecounted: true,
   },
@@ -157,28 +220,6 @@ const feesConfigs: Record<string, FeesConfig> = {
       },
     },
   },
-  "helix-helix-perp": {
-    endpoint: "helix_derivative_fees",
-    feesLabel: "Derivative Trading Fees",
-    start: "2022-09-06",
-    doublecounted: true,
-    methodology: {
-      Fees: "Trading fees on Helix derivative markets, sourced from BigQuery (helix_webapp.helix_derivative_volume_and_fee).",
-      Revenue: "100% of Helix derivative exchange fees enter the Injective auction and are burned for INJ.",
-      HoldersRevenue: "100% of Helix derivative exchange fees burned for INJ via the Injective auction (benefits INJ holders).",
-    },
-    breakdownMethodology: {
-      Fees: {
-        "Derivative Trading Fees": "Sum of |fee_notional_usd| from helix_derivative_volume_and_fee, execution_side = maker_taker.",
-      },
-      Revenue: {
-        "Derivative Trading Fees": "All Helix derivative exchange fees flow to the Injective burn auction.",
-      },
-      HoldersRevenue: {
-        "Derivative Trading Fees": "All Helix derivative exchange fees flow to the Injective burn auction (INJ burn benefits holders).",
-      },
-    },
-  },
   "truecurrent": {
     endpoint: "truecurrent_fees",
     feesLabel: "Derivative Trading Fees",
@@ -203,12 +244,12 @@ const feesConfigs: Record<string, FeesConfig> = {
   },
 };
 
-const volumeProtocols: Record<string, SimpleAdapter> = {};
+const volumeProtocols: Record<string, SimpleAdapter> = { "helix-helix-perp": helixPerpVolume };
 for (const [name, config] of Object.entries(volumeConfigs)) {
   volumeProtocols[name] = createVolumeAdapter(config);
 }
 
-const feesProtocols: Record<string, SimpleAdapter> = {};
+const feesProtocols: Record<string, SimpleAdapter> = { "helix-helix-perp": helixPerpFees };
 for (const [name, config] of Object.entries(feesConfigs)) {
   feesProtocols[name] = createFeesAdapter(config);
 }
