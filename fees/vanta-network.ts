@@ -1,15 +1,17 @@
 import * as sdk from "@defillama/sdk";
-import { PromisePool } from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { getEnv } from "../helpers/env";
 import { METRIC } from "../helpers/metrics";
+import { sleep } from "../utils/utils";
 
 // Vanta Network = Bittensor subnet 8 (netuid 8), built by Taoshi. Code: https://github.com/taoshidev/vanta-network
 // SN8 alpha buybacks, equal to all Vanta Trading product revenue since 2026-09-25, read from Subtensor via `sdk.chains.substrate`.
-// Needs an ARCHIVE Substrate endpoint in BITTENSOR_SUBSTRATE_RPC (e.g. https://archive.chain.opentensor.ai);
-// the default public endpoints keep only ~256 blocks of state.
 const { substrate } = sdk.chains;
 const NETUID = 8;
+
+// Archive node (default in helpers/env.ts). Passed as a URL so the SDK never falls back to a pruned node.
+const RPC: string = getEnv("BITTENSOR_SUBSTRATE_RPC");
 
 // Coldkey that buys SN8 alpha with TAO (labelled "Vanta Trading Buyback Wallet" on https://www.vantanetwork.io/tokenomics)
 const BUYBACK_COLDKEY = "5CXSLbyK5SRB9ZoRJzEqhs2bP3DQTwVaXp7WWLCBTDyNmKfK";
@@ -18,17 +20,79 @@ const BUYBACK_COLDKEY = "5CXSLbyK5SRB9ZoRJzEqhs2bP3DQTwVaXp7WWLCBTDyNmKfK";
 const SUBTENSOR_PALLET = 0x07;
 const RAO = 1e9; // 1 TAO = 1e9 rao
 
+// Public archive allows ~60 req/min and answers 429 with retry_after_seconds: 60.
+const MIN_GAP_MS = 1100;
+const RETRY_AFTER_MS = 60_000;
+const MAX_429_RETRIES = 5;
+
+const isRateLimited = (e: any) =>
+  e?.response?.status === 429 || /429|too many requests|rate limit/i.test(String(e?.message ?? e));
+
+// Runs RPC calls one at a time, MIN_GAP_MS apart; waits and retries on 429. Never nest `call`.
+let queue: Promise<unknown> = Promise.resolve();
+let lastCall = 0;
+function call<T>(fn: () => Promise<T>): Promise<T> {
+  const run = queue.then(async () => {
+    for (let attempt = 0; ; attempt++) {
+      await sleep(Math.max(0, lastCall + MIN_GAP_MS - Date.now()));
+      lastCall = Date.now();
+      try {
+        return await fn();
+      } catch (e) {
+        if (!isRateLimited(e) || attempt >= MAX_429_RETRIES) throw e;
+        await sleep(RETRY_AFTER_MS);
+      }
+    }
+  });
+  queue = run.catch(() => undefined);
+  return run;
+}
+
 type Block = { number: number; hash: string };
 
-// Throw on unknown block: `at: null` would read the latest state.
-const blockHash = async (number: number): Promise<string> => {
-  const hash = await substrate.getBlockHash({ chain: CHAIN.BITTENSOR, number });
-  if (!hash) throw new Error(`vanta-network: no block hash for block ${number}`);
+// Block hashes never change, so cache them across windows.
+const hashCache = new Map<number, string>();
+async function blockHash(number: number): Promise<string> {
+  let hash = hashCache.get(number);
+  if (!hash) {
+    // Throw on unknown block: `at: null` would read the latest state.
+    hash = (await call(() => substrate.getBlockHash({ chain: RPC, number }))) ?? undefined;
+    if (!hash) throw new Error(`vanta-network: no block hash for block ${number}`);
+    hashCache.set(number, hash);
+  }
   return hash;
+}
+
+const timestampAt = async (number: number) => {
+  const at = await blockHash(number);
+  return call(() => substrate.getTimestampAt({ chain: RPC, at }));
 };
 
+// Last block with timestamp <= ts. Paced replacement for substrate.getBlockAtTimestamp, which bursts ~35 calls.
+async function blockAtTimestamp(ts: number): Promise<Block> {
+  const latest = await call(() => substrate.getBlock({ chain: RPC }));
+  if (latest.timestamp === undefined) throw new Error("vanta-network: no timestamp on latest block");
+  if (latest.timestamp <= ts) return { number: latest.number, hash: latest.hash };
+  // Bracket around a 12s-block estimate, then bisect.
+  const guess = Math.max(0, latest.number - Math.ceil((latest.timestamp - ts) / 12));
+  let lo = guess, hi = latest.number, step = 300;
+  while (lo > 0 && (await timestampAt(lo)) > ts) { hi = lo; lo = Math.max(0, lo - step); step *= 2; }
+  if (hi === latest.number) {
+    step = 300;
+    for (let n = lo + step; n < latest.number; n = lo + step) {
+      if ((await timestampAt(n)) > ts) { hi = n; break; }
+      lo = n; step *= 2;
+    }
+  }
+  while (hi - lo > 1) {
+    const mid = lo + Math.floor((hi - lo) / 2);
+    if ((await timestampAt(mid)) <= ts) lo = mid; else hi = mid;
+  }
+  return { number: lo, hash: await blockHash(lo) };
+}
+
 const getNonce = async (address: string, at: string): Promise<number> =>
-  (await substrate.getSystemAccount({ chain: CHAIN.BITTENSOR, address, at, balanceBytes: 8 })).nonce;
+  (await call(() => substrate.getSystemAccount({ chain: RPC, address, at, balanceBytes: 8 }))).nonce;
 
 // Blocks in (from, to] where `address` signed at least one extrinsic, found by bisecting its System.Account nonce.
 // A day without buybacks costs 2 storage reads; each buyback block costs ~log2(7200) ≈ 13 reads plus one System.Events read.
@@ -72,22 +136,18 @@ function readStakeAdded(events: Buffer, coldkey: Buffer): bigint[] {
 const fetch = async (options: FetchOptions) => {
   const dailyFees = options.createBalances();
 
-  // getBlockAtTimestamp returns the last block <= t, so `- 1` makes the scanned range (from, to] = [start, end).
-  const from: Block = await substrate.getBlockAtTimestamp({ chain: CHAIN.BITTENSOR, timestamp: options.startTimestamp - 1 });
-  const to: Block = await substrate.getBlockAtTimestamp({ chain: CHAIN.BITTENSOR, timestamp: options.endTimestamp - 1 });
+  // Last block <= t, so `- 1` makes the scanned range (from, to] = [start, end).
+  const from = await blockAtTimestamp(options.startTimestamp - 1);
+  const to = await blockAtTimestamp(options.endTimestamp - 1);
 
   const coldkey = Buffer.from(substrate.ss58Decode(BUYBACK_COLDKEY));
-  const blocks = await findSignerBlocks(BUYBACK_COLDKEY, from, to);
-  // Low concurrency: the public archive node is rate limited (~60 req/min).
-  const { results, errors } = await PromisePool.withConcurrency(2).for(blocks).process(async (number) => {
-    const at = await blockHash(number);
-    const events = await substrate.getStorage({ chain: CHAIN.BITTENSOR, pallet: "System", item: "Events", at });
-    if (!events) throw new Error(`vanta-network: no System.Events at block ${number}`);
-    return readStakeAdded(Buffer.from(events.replace(/^0x/, ""), "hex"), coldkey);
-  });
-  if (errors.length) throw errors[0];
   let rao = 0n;
-  for (const amounts of results) for (const amount of amounts) rao += amount;
+  for (const number of await findSignerBlocks(BUYBACK_COLDKEY, from, to)) {
+    const at = await blockHash(number);
+    const events = await call(() => substrate.getStorage({ chain: RPC, pallet: "System", item: "Events", at }));
+    if (!events) throw new Error(`vanta-network: no System.Events at block ${number}`);
+    for (const amount of readStakeAdded(Buffer.from(events.replace(/^0x/, ""), "hex"), coldkey)) rao += amount;
+  }
   const tao = Number(rao) / RAO; // < 2^53 rao (~9M TAO) per day, no precision loss
   const dailyRevenue = options.createBalances();
   const dailyHoldersRevenue = options.createBalances();
@@ -107,8 +167,8 @@ const fetch = async (options: FetchOptions) => {
 const adapter: SimpleAdapter = {
   version: 2,
   // Not hourly: the only source with history is a Subtensor ARCHIVE node (no indexer/Dune/Allium for Bittensor here),
-  // and the public one is rate limited (~60 req/min). Each window pays a fixed ~30-40 calls just to locate its two
-  // boundary blocks (getBlockAtTimestamp bisection), so 24 hourly windows cost ~24x a daily one and exceed that limit.
+  // and the public one is rate limited (~60 req/min). Each window pays a fixed ~40 calls just to locate its two
+  // boundary blocks (timestamp bisection), so 24 hourly windows cost ~24x a daily one and exceed that limit.
   pullHourly: false,
   chains: [CHAIN.BITTENSOR],
   fetch,
