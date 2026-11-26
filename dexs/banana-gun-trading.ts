@@ -1,6 +1,7 @@
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
+import { getRouterV2Swaps } from "../helpers/bananaGun";
 
 // Log topics fetched from onchain tx history from ethereum txs 
 const BANANA_GUN_SWAP_TOPIC = "0x9f849d23f4955d98202378ea318f2b0c7533695d3c9fb2a3931f0f919fa8c420";
@@ -37,7 +38,8 @@ const chainConfig: Record<string, { start: string; router: string }> = {
   },
 };
 
-const fetchEvm = async ({ chain, createBalances, getLogs }: FetchOptions) => {
+const fetchEvm = async (options: FetchOptions) => {
+  const { chain, createBalances, getLogs } = options;
   const dailyVolume = createBalances();
   const router = chainConfig[chain].router;
 
@@ -70,6 +72,9 @@ const fetchEvm = async ({ chain, createBalances, getLogs }: FetchOptions) => {
     const amountIn = `0x${log.data.slice(2, 66)}`;
     if (BigInt(amountIn) > 0n) dailyVolume.addGasToken(amountIn);
   }
+
+  const routerV2Swaps = await getRouterV2Swaps(options);
+  routerV2Swaps.forEach(({ volumeToken, volume }) => dailyVolume.add(volumeToken, volume));
 
   return { dailyVolume };
 };
@@ -123,7 +128,7 @@ const adapter: SimpleAdapter = {
   doublecounted: true,
   methodology: {
     Volume:
-      "Total USD volume routed through banana routers.",
+      "Total USD volume routed through banana routers, including swaps by user wallets delegated to Banana Gun.",
   },
 };
 
