@@ -88,6 +88,11 @@ const CONFIG: Record<string, { endpoint: string; start: string; wnative: string 
 
 const ZERO_ADDRESS = ADDRESSES.null;
 
+// OPx drain via an unbacked 852.8M OPx stream, Optimism 2026-11-26, tx 0xf206c97dd03820f005dcf2604043510b148492fa4d2e372d1c600ec82e3c6d45
+const EXPLOIT_STREAM_PERIODS = new Set([
+  "0x1635f11c7f400ae6f06f4330b5aa82bc00721096-0x770c8e22be05c642872e85a09395f9372fa30bdd-0x1828bff08bd244f7990eddcd9b19cc654b33cdb4-0.0-0.0",
+]);
+
 interface Token {
   id: string;
   decimals: number;
@@ -188,7 +193,7 @@ const fetch = async (options: FetchOptions) => {
     return all;
   };
 
-  const [closedPeriods, openPeriods, instantDists] = await Promise.all([
+  const [allClosedPeriods, allOpenPeriods, instantDists] = await Promise.all([
     paginate<StreamPeriod>(
       (c) => buildStreamPeriodQuery(to, from, false, c),
       (d) => d.streamPeriods
@@ -202,6 +207,9 @@ const fetch = async (options: FetchOptions) => {
       (d) => d.instantDistributionUpdatedEvents
     ),
   ]);
+  const isLegit = (p: StreamPeriod) => !EXPLOIT_STREAM_PERIODS.has(p.id);
+  const closedPeriods = allClosedPeriods.filter(isLegit);
+  const openPeriods = allOpenPeriods.filter(isLegit);
 
   // SuperTokens are normalized to 18 decimals; underlying may differ
   // (USDC=6, WBTC=8). Convert SuperToken wei -> underlying wei before
