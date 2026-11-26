@@ -1,4 +1,4 @@
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "./chains";
 import { queryAllium } from "./allium";
 import { getETHReceived } from "./token";
@@ -10,8 +10,6 @@ const KnownValidatorsMevRecipients = [
   '0xd6e4aa932147a3fe5311da1b67d9e73da06f9cef', // Mantle mETH
   '0x7d16d2c4e96bcfc8f815e15b771ac847ecbdb48b', // Liquid Collective
   '0xb3D9cf8E163bbc840195a97E81F8A34E295B8f39', // Swell
-
-  '0x9FC3da866e7DF3a1c57adE1a97c9f00a70f010c8',
 ]
 
 function getValidatorsFilter(): string {
@@ -29,6 +27,7 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
     pullHourly: true,
     chains: [CHAIN.ETHEREUM],
     allowNegativeValue: true,
+    dependencies: [Dependencies.ALLIUM],
     start: exportOptions.start ? exportOptions.start : '2024-01-01',
     methodology: {
       Fees: 'Total transactions fees and MEV rewards collected by building blocks on Ethereum blockchain.',
