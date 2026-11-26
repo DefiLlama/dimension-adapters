@@ -6,23 +6,33 @@ import { CHAIN } from "../helpers/chains";
 import { duneBlockchain, queryDuneSql } from "../helpers/dune";
 import { assertDuneSolanaIndexed } from "../helpers/duneSolanaDex";
 import { METRIC } from '../helpers/metrics';
+import { getTxReceiptsWithRetry } from '../helpers/getTxReceipts';
 
-const topic: string = '0x2d720abb2e4bf42730e89955397ce0f5b08db0caff9be7e08ca184a8b1b2db2f';
+// Emitted once per trade. The event doesn't name the fee token: `token` is the traded token.
+const BLOOM_EVENT = 'event BloomEvent(uint256 amountIn, uint256 amountOut, uint256 platformFeeTotal, address token, uint256 bundleTip, uint8 dex, uint256 extra)';
+const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
-// The fee (word 3 of the event) can be in a stablecoin, and on BSC, where stablecoins have 18 decimals, it would read as BNB.
-// Word 6 is the trade type: 5 and 6 are always stablecoin-quoted. 15 is on older routers (1.67 USDC:
-// 0xfda5649d62d418bc758654716b11c21c247f68a04fc614508aa514db828020b9) and native on the current one, where it is 0.015 BNB
-// in seven weeks, so it is skipped as well.
-const STABLE_QUOTED_TYPES = [5, 6, 15];
-// This BSC router also has 13 stablecoin-quoted logs of types 30 and 40 (2.8625 USDC:
-// 0x07f92f1f8c28daef1ca23986c9ffcb6adc59c6d6d5638eef16aa85f6ef780bff). All have a fee word above 0.5; its largest native
-// fee is 0.36. It stopped emitting on 2026-09-15.
+// `dex` codes whose fee can be an ERC-20, paid in the swap by safeTransfer(feeToken, FEE_RECIPIENT, fee), so the fee token is
+// the router's outgoing transfer of exactly the fee. 15, 30, 38-41, 50 and 60 take it in whatever funded the trade (ERC-20
+// or native); TOKEN_FEE_DEX codes are ERC-20 only. Every other code is a native fee.
+const ERC20_FEE_DEX = new Set([5, 6, 15, 30, 38, 39, 40, 41, 50, 60, 61, 71, 73, 81, 83]);
+const TOKEN_FEE_DEX = new Set([5, 6, 61, 71, 73, 81, 83]);
+
+// Solana trades quoted in a stablecoin pay the fee in that stablecoin, to the fee wallet's token account, inside a
+// transaction that runs Bloom's program.
+const SOLANA_BLOOM_PROGRAM = 'b1oomGGqPKGD6errbyfbVMBuzSC8WtAAYo8MwNafWW1';
+const SOLANA_STABLE_FEE_MINTS = [
+  ADDRESSES.solana.USDC,
+  ADDRESSES.solana.USDT,
+  'USD1ttGY1N17NEEHLmELoaybftRBUSErhqYiQzvEmuB', // USD1
+];
+
 const BSC_ROUTER_2026_08 = '0x0b6df1888ed6aced6fc50ab39f354a7c8d08c9b1';
-const BSC_ROUTER_2026_08_MAX_NATIVE_FEE = 0.5e18;
 
 // Bloom rotates EVM routers every few weeks (see dexs/bloom.ts, #9101). Every router added below emits the fee event above
-// and was deployed by Bloom's deployers 0x224bede13247a4dc56f834c3040a9510fe9fb140 or 0x51fd71313b273fe24be8a83b054367c2ee53fc20
-// (#9101), or by 0x2083491e54e243930fa6715751342551097d1d07, which 0x51fd7131 funded seconds before each deploy.
+// and was deployed by Bloom's deployers 0x33870422c6e75bd09bf0a408c8d90a5b4cd2c9c4 (the earliest), 0x224bede13247a4dc56f834c3040a9510fe9fb140
+// or 0x51fd71313b273fe24be8a83b054367c2ee53fc20 (#9101), or by 0x2083491e54e243930fa6715751342551097d1d07, which 0x51fd7131
+// funded seconds before each deploy.
 // 0xb1000000096b.. is the same address on every chain.
 const ROUTER_2026_09 = '0xb1000000096bd2f8ca9b6883182eccaf31e7c3fd';
 
@@ -98,6 +108,12 @@ const chainConfig: any = {
       // '0x6a70a077396799cfcef957eb6a19297beaa18da4',
       // '0x70e6950543db45784ed7820143bdd103bac58f3d',
       // '0x2621f7ce52aaee20eeaf8a00c7650b014e3e83f1',
+      '0xdd93c422bcc8b363e2510ef01030050d845b0fd5', // 2025-03-24
+      '0x28356428e67263d231293a8326bf362d2e840936', // 2025-03-24
+      '0xdb25696c6db64f1fda5d0528cd9e2ee7fbe2c466',
+      '0xd177d843caf06197dd297e9324ae55a1a3b6ddb5', // 2025-03-29
+      '0x2ecf3b74a917e51cb472988b8ad898620a6fbac9', // 2026-01-15
+      '0xa696568862618e3a6f8b6f61c8d4afccf3226c3d', // 2026-06-10
       BSC_ROUTER_2026_08,                           // deployer 0x51fd7131, 2026-08-03 (#9101)
       ROUTER_2026_09,                               // 2026-09-08
     ],
@@ -129,6 +145,9 @@ const chainConfig: any = {
       // '0x70c956575b722ecdc1b26ede30f958efb9634bbc',
       // '0x4198fdc83f4c47b79d5ce84927a758bc85b9b3ec',
       '0xe25e101544644aa57fe9fc99c5849172d4ff0d06', // deployer 0x224bede1, 2025-03-16
+      '0x036cc50367c3ee5f1749e2f5bb7f47e7add25e63', // 2025-07-29
+      '0xfbeb201ae6d1333bdca51d98a7444fb696269fdd', // 2025-07-29
+      '0x54e31cfae4125615e6c9ada607108e7e61da2020', // 2025-07-29
       '0x07438f04d1045a2a11f5fce0f7f134caff5cf7c5', // deployer 0x224bede1, 2025-08-01
       '0xa845de997649c047586300f906bcf01793836ef6', // deployer 0x224bede1, 2026-02-20
       '0x1ce3712395ee4798ac9548b3e0220ea6a2b61e79', // deployer 0x224bede1, 2026-02-25 (#9101)
@@ -142,6 +161,12 @@ const chainConfig: any = {
     start: '2025-04-05',
     contracts: [
       '0xb1000058c87d843fc0154591ff9d72af5e7213d5', // deployer 0x224bede1, 2025-04-05
+      '0x8f2d511be49919722358d3217a0775e54b1368fb', // 2025-04-05
+      '0xca1258573252a36d57faebd269f3bc825df22241', // 2025-04-07
+      '0x554d8519e93474955e69d467dbac50f2fed186c4', // 2025-04-07
+      '0xd4f1afd0331255e848c119ca39143d41144f7cb3', // 2025-04-07
+      '0x8cf725451b4399954b64c00e9eb18218606b9e65', // 2025-06-08
+      '0x3215afde444e6411bb4fdae93fe1d7a6509a66e7', // 2025-06-09
       '0xf3314c1c9328010aad2215602c5d92b97ffafc27', // deployer 0x224bede1, 2026-04-20
       '0xe1fcfbca7544c19e8252f74c357f951561988149', // deployer 0x224bede1, 2026-04-22
       '0xc6eca4badd69d11b66e2a07fce558def61ac09a0', // deployer 0x224bede1, 2026-04-23
@@ -176,43 +201,81 @@ const chainConfig: any = {
       ROUTER_2026_09,                               // 2026-09-12
     ],
   },
+  [CHAIN.MONAD]: {
+    start: '2025-11-23',
+    contracts: [
+      '0x3daa9624e217c854ba10905d639e4d0c5958f4bd', // 2025-11-23
+      '0x6b3e4cb25a81050f35ff94a7048f2960cce0ac3d', // 2025-11-24
+      '0x20de462708a2f53ed0ca7d3718d4278c38752e12', // 2025-11-24
+      '0x7d1e3d2858829fd28bd1f6ebc6f2b0945390c12b', // 2025-11-24
+      '0x525b09829f8039b33db3dd5784849a47400ed698', // 2025-12-01
+      '0xf81ac24ee37637a2e0ee41c4166042a3810b0ce8', // 2025-12-02
+    ],
+  },
+  [CHAIN.HYPERLIQUID]: {
+    start: '2025-05-27',
+    contracts: [
+      '0xaf1ab69d1675db5aeba18000590fd64858f37fb4', // 2025-05-27
+      '0xca1258573252a36d57faebd269f3bc825df22241', // 2025-05-31
+      '0xb5f1f0413d9965c484cf7d2df2a329798dc34616', // 2025-06-09
+      ROUTER_2026_09,                               // 2026-08-25
+    ],
+  },
+  [CHAIN.INK]: {
+    start: '2026-09-18',
+    contracts: [
+      ROUTER_2026_09,                               // 2026-09-18
+    ],
+  },
 }
 
 
 async function fetchSolana(options: FetchOptions) {
-  // tokens_solana.transfers finishes a day hours late, and a run before that stores part of the day: 14 of the 30 days in
-  // 2026-10-03..11-01, read through about 18:00 UTC.
-  assertDuneSolanaIndexed(options);
-
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const { feesWallet, rewardRelayers, internalWallets, directRewardRelayerStart } = chainConfig[CHAIN.SOLANA];
   const rewardRelayersSql = rewardRelayers.map((wallet: string) => `'${wallet}'`).join(', ');
   const internalWalletsSql = internalWallets.map((wallet: string) => `'${wallet}'`).join(', ');
+  // native SOL transfers carry the ...111 mint in tokens_solana.transfers, wSOL ones the ...112 mint
+  const solMints = ['So11111111111111111111111111111111111111111', ADDRESSES.solana.SOL];
+  const solMintsSql = solMints.map((mint) => `'${mint}'`).join(', ');
+  const stableMintsSql = SOLANA_STABLE_FEE_MINTS.map((mint) => `'${mint}'`).join(', ');
 
+  // Stablecoin inflows count only in transactions that ran Bloom's program: the fee wallet also receives stablecoins from
+  // its own Jupiter swaps (5,000 SOL into 1.16M USDC on 2025-01-29) and from deposits. Payouts are SOL only: the fee
+  // wallet moves its stablecoins to the internal sweep wallet 3YtdHj6f.., not to traders.
   const query = `
     WITH transfers AS (
       SELECT
         block_time,
+        tx_id,
         from_owner,
         to_owner,
-        amount
+        token_mint_address,
+        amount,
+        outer_executing_account
       FROM
         tokens_solana.transfers
       WHERE
         TIME_RANGE
         AND action = 'transfer'
-        AND token_mint_address IN (
-          'So11111111111111111111111111111111111111111',
-          '${ADDRESSES.solana.SOL}'
-        )
         AND (
-          to_owner = '${feesWallet}'
-          OR from_owner = '${feesWallet}'
-          OR from_owner IN (${rewardRelayersSql})
+          outer_executing_account = '${SOLANA_BLOOM_PROGRAM}'
+          OR (
+            token_mint_address IN (${solMintsSql}, ${stableMintsSql})
+            AND (
+              to_owner = '${feesWallet}'
+              OR from_owner = '${feesWallet}'
+              OR from_owner IN (${rewardRelayersSql})
+            )
+          )
         )
+    ),
+    bloom_txs AS (
+      SELECT DISTINCT tx_id FROM transfers WHERE outer_executing_account = '${SOLANA_BLOOM_PROGRAM}'
     )
     SELECT
+      token_mint_address,
       SUM(CASE
         WHEN
           to_owner = '${feesWallet}'
@@ -228,6 +291,7 @@ async function fetchSolana(options: FetchOptions) {
         ELSE uint256 '0'
       END) AS fees,
       SUM(CASE
+        WHEN token_mint_address NOT IN (${solMintsSql}) THEN uint256 '0'
         WHEN
           from_owner IN (${rewardRelayersSql})
           AND to_owner <> '${feesWallet}'
@@ -244,11 +308,24 @@ async function fetchSolana(options: FetchOptions) {
         ELSE uint256 '0'
       END) AS referral_cashback_rewards
     FROM transfers
+    WHERE token_mint_address IN (${solMintsSql})
+      OR (token_mint_address IN (${stableMintsSql}) AND tx_id IN (SELECT tx_id FROM bloom_txs))
+    GROUP BY token_mint_address
   `;
 
-  const fees = await queryDuneSql(options, query);
-  const totalFees = Number(fees[0].fees ?? 0);
-  const referralCashbackRewards = Number(fees[0].referral_cashback_rewards ?? 0);
+  const rows = await queryDuneSql(options, query);
+  let totalFees = 0;
+  let referralCashbackRewards = 0;
+  rows.forEach((row: any) => {
+    const fees = Number(row.fees ?? 0);
+    if (solMints.includes(row.token_mint_address)) {
+      totalFees += fees;
+      referralCashbackRewards += Number(row.referral_cashback_rewards ?? 0);
+      return;
+    }
+    dailyFees.add(row.token_mint_address, fees, METRIC.TRADING_FEES);
+    dailyRevenue.add(row.token_mint_address, fees, LABELS.TRADING_FEES_TO_PROTOCOL);
+  });
   dailyFees.add(ADDRESSES.solana.SOL, totalFees, METRIC.TRADING_FEES);
 
   const dailySupplySideRevenue = options.createBalances();
@@ -267,26 +344,63 @@ async function fetchSolana(options: FetchOptions) {
 async function fetchEVM(options: FetchOptions) {
   const { contracts } = chainConfig[options.chain];
   const logs = await options.getLogs({
-    topics: [topic],
     targets: contracts,
-    flatten: true
+    eventAbi: BLOOM_EVENT,
+    entireLog: true,
+    flatten: true,
   })
   const dailyFees = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
-  logs.forEach((log: any) => {
-    const data = log.data.replace('0x', '');
-    const tradeType = data.length >= 6 * 64 ? Number('0x' + data.slice(5 * 64, 6 * 64)) : 0;
-    if (STABLE_QUOTED_TYPES.includes(tradeType)) return;
-    const fees_amount = Number('0x' + data.slice((2 * 64), (2 * 64) + 64));
-    if (log.address.toLowerCase() === BSC_ROUTER_2026_08 && fees_amount > BSC_ROUTER_2026_08_MAX_NATIVE_FEE) return;
-    dailyFees.addGasToken(fees_amount, METRIC.TRADING_FEES);
-    dailyRevenue.addGasToken(fees_amount, LABELS.TRADING_FEES_TO_PROTOCOL);
-  })
+
+  const trades = logs
+    .map((log: any) => ({
+      router: log.address.toLowerCase(),
+      txHash: log.transactionHash.toLowerCase(),
+      fee: BigInt(log.args.platformFeeTotal),
+      dex: Number(log.args.dex),
+    }))
+    .filter((trade: any) => trade.fee > 0n);
+
+  const lookupHashes = [...new Set<string>(trades.filter((trade: any) => ERC20_FEE_DEX.has(trade.dex)).map((trade: any) => trade.txHash))];
+  const receipts = await getTxReceiptsWithRetry(options.chain, lookupHashes);
+  const receiptByHash: Record<string, any> = {};
+  receipts.forEach((receipt: any, i: number) => { if (receipt) receiptByHash[lookupHashes[i]] = receipt; });
+  // Without the receipt the fee token is unknown, so fail and let the day be retried rather than undercount it.
+  const missing = lookupHashes.filter((hash) => !receiptByHash[hash]);
+  if (missing.length) throw new Error(`bloom ${options.chain}: ${missing.length} of ${lookupHashes.length} receipts unavailable, e.g. ${missing[0]}`);
+
+  let unresolved = 0;
+  trades.forEach((trade: any) => {
+    if (!ERC20_FEE_DEX.has(trade.dex)) {
+      dailyFees.addGasToken(trade.fee, METRIC.TRADING_FEES);
+      dailyRevenue.addGasToken(trade.fee, LABELS.TRADING_FEES_TO_PROTOCOL);
+      return;
+    }
+    const receipt = receiptByHash[trade.txHash];
+    const routerTopic = '0x' + trade.router.slice(2).padStart(64, '0');
+    const feeTransfer = receipt.logs.find((log: any) =>
+      log.topics.length === 3
+      && log.topics[0].toLowerCase() === TRANSFER_TOPIC
+      && log.topics[1].toLowerCase() === routerTopic
+      && BigInt(log.data) === trade.fee
+    );
+    if (feeTransfer) {
+      dailyFees.add(feeTransfer.address.toLowerCase(), trade.fee, METRIC.TRADING_FEES);
+      dailyRevenue.add(feeTransfer.address.toLowerCase(), trade.fee, LABELS.TRADING_FEES_TO_PROTOCOL);
+    } else if (TOKEN_FEE_DEX.has(trade.dex)) {
+      unresolved++;
+    } else {
+      // funded with the native token, so the router kept a native fee
+      dailyFees.addGasToken(trade.fee, METRIC.TRADING_FEES);
+      dailyRevenue.addGasToken(trade.fee, LABELS.TRADING_FEES_TO_PROTOCOL);
+    }
+  });
+  if (unresolved) console.log(`bloom ${options.chain}: ${unresolved} of ${trades.length} fees left out, no matching fee transfer`);
 
   // Payouts lag the fees that fund them, so a day's revenue can be negative, as on Solana (allowNegativeValue below).
   // A chain where the relayer sent nothing in the window has no row in the prefetch.
-  const payoutRow = options.preFetchedResults.find((row: any) => row.blockchain === duneBlockchain(options.chain));
+  const payoutRow = options.preFetchedResults.find((row: any) => row.blockchain === duneChain(options.chain));
   const referralCashbackRewards = Number(payoutRow?.payouts ?? 0);
   dailySupplySideRevenue.addGasToken(referralCashbackRewards, LABELS.REFERRAL_CASHBACK_PAYOUT);
   dailyRevenue.addGasToken(-referralCashbackRewards, LABELS.TRADING_FEES_TO_PROTOCOL);
@@ -297,11 +411,17 @@ async function fetchEVM(options: FetchOptions) {
 
 const EVM_CHAINS = Object.keys(chainConfig).filter((chain) => chain !== CHAIN.SOLANA);
 
+// Dune names HyperEVM 'hyperevm'; the other chains use the shared mapping.
+function duneChain(chain: string) {
+  return chain === CHAIN.HYPERLIQUID ? 'hyperevm' : duneBlockchain(chain);
+}
+
 async function prefetch(options: FetchOptions) {
+  assertDuneSolanaIndexed(options);
   return queryDuneSql(options, `
     SELECT blockchain, SUM(value) AS payouts
     FROM evms.transactions
-    WHERE blockchain IN (${EVM_CHAINS.map((chain) => `'${duneBlockchain(chain)}'`).join(', ')})
+    WHERE blockchain IN (${EVM_CHAINS.map((chain) => `'${duneChain(chain)}'`).join(', ')})
       AND "from" = ${EVM_REWARD_RELAYER}
       AND success
       AND value > uint256 '0'
