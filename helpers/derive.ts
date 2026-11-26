@@ -11,6 +11,7 @@ const API = "https://api.derive.xyz/v3/public";
 export type DeriveTrade = {
   instrument_name: string; // e.g. ETH-PERP, ETH-USDC
   timestamp: number; // ms
+  wallet: string; // owner of this side's subaccount
   liquidity_role: "maker" | "taker"; // each trade is returned twice, one row per side with that side's fee
   direction: "buy" | "sell";
   trade_price: string;
@@ -49,8 +50,7 @@ async function getTrades(options: FetchOptions, filter: Record<string, string | 
 
 export const getDeriveTrades = (options: FetchOptions, instrumentType: "perp" | "option" | "erc20") => getTrades(options, { instrument_type: instrumentType });
 
-const BUYBACK_WALLET = "0x87327f19d857ae3530169acEa0EDd4ab1064229E";
-const BUYBACK_SUBACCOUNTS = [62489]; // BUYBACK_WALLET's subaccount; v2-era buybacks were backfilled separately
+const BUYBACK_WALLET = "0x87327f19d857ae3530169acEa0EDd4ab1064229E"; // buys DRV from any of its subaccounts; v2-era buybacks were backfilled separately
 const DRV = "0xb1d1eae60eea9525032a6dcb4c1ce336a1de71be"; // Ethereum
 const COW_SETTLEMENT = "0x9008D19f58AAbD9eD0D60971565AA8510560ab41"; // GPv2Settlement on Ethereum
 const COW_TRADE = "event Trade(address indexed owner, address sellToken, address buyToken, uint256 sellAmount, uint256 buyAmount, uint256 feeAmount, bytes orderUid)";
@@ -62,9 +62,11 @@ const COW_BUYBACK_OWNERS = [
 export async function getDeriveBuybacks(options: FetchOptions) {
   const dailyHoldersRevenue = options.createBalances();
 
-  for (const subaccount_id of BUYBACK_SUBACCOUNTS)
-    for (const trade of await getTrades(options, { subaccount_id, instrument_name: "DRV-USDC" }))
-      if (trade.direction === "buy") dailyHoldersRevenue.addUSDValue(Number(trade.trade_amount) * Number(trade.trade_price), METRIC.TOKEN_BUY_BACK);
+  // get_trade_history has no wallet filter, so read every DRV-USDC trade and keep the buyback wallet's rows (one row per side of each trade)
+  // block trades are not counted: the API shows them with a zero-address wallet and subaccount 0
+  for (const trade of await getTrades(options, { instrument_name: "DRV-USDC" }))
+    if (trade.wallet.toLowerCase() === BUYBACK_WALLET.toLowerCase() && trade.direction === "buy")
+      dailyHoldersRevenue.addUSDValue(Number(trade.trade_amount) * Number(trade.trade_price), METRIC.TOKEN_BUY_BACK);
 
   const provider = sdk.getProvider(CHAIN.ETHEREUM);
   for (const owner of COW_BUYBACK_OWNERS) {
