@@ -10,6 +10,7 @@ import { CHAIN } from "../helpers/chains";
 const chainConfig: Record<string, { targets: string[]; start: string }> = {
   [CHAIN.BASE]: {
     targets: [
+      "0x94583743e729377367ccF6B7cC5a973A62be9e99", // v7
       "0x149D72CD1ff25e04891b8F320BcD9C1dCdb73eb5", // v2
       "0x9c4267674Eb221e9a523B64Be6a12129fA873AF7", // v3
       "0xc17414de6520544560C9b40EC8729F5e10c9e217", // v4
@@ -20,6 +21,7 @@ const chainConfig: Record<string, { targets: string[]; start: string }> = {
   },
   [CHAIN.ARBITRUM]: {
     targets: [
+      "0x428cD277fa23a073D5F4Cc39FA95196DE64bDaF9", // v7
       "0x297370EeAAf8729407689Ef01d922A8015e611A2", // v5
       "0x202AbA6b70f08C1770237a519693176A30532854", // v6
     ],
@@ -27,17 +29,24 @@ const chainConfig: Record<string, { targets: string[]; start: string }> = {
   },
   [CHAIN.ETHEREUM]: {
     targets: [
+      "0x00d257E6B67370F4CfF49fE25d6c1A2e3DA452f6", // v7
       "0xa93F686B6c775B4e63Fb6162Edbc42dD3C9e32F1", // v5
       "0x202AbA6b70f08C1770237a519693176A30532854", // v6
     ],
     start: "2026-11-25",
   },
   [CHAIN.OPTIMISM]: {
-    targets: ["0x297370EeAAf8729407689Ef01d922A8015e611A2"], // v6
+    targets: [
+      "0x3D888DDeDE57C995690b789b818cC4C4823aAEab", // v7
+      "0x297370EeAAf8729407689Ef01d922A8015e611A2", // v6
+    ],
     start: "2026-11-25",
   },
   [CHAIN.POLYGON]: {
-    targets: ["0x297370EeAAf8729407689Ef01d922A8015e611A2"], // v6
+    targets: [
+      "0x00d257E6B67370F4CfF49fE25d6c1A2e3DA452f6", // v7
+      "0x297370EeAAf8729407689Ef01d922A8015e611A2", // v6
+    ],
     start: "2026-11-25",
   },
 };
