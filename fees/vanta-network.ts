@@ -133,6 +133,17 @@ function isSameSubnetTransfer(events: Buffer, i: number, body: number): boolean 
     && events.subarray(prev + 66, prev + 84).equals(events.subarray(body, body + 18)); // tao, alpha, netuid
 }
 
+// move_stake, transfer_stake, swap_stake and transfer_stake_and_hotkey emit their own event right after StakeAdded
+// (subtensor staking/move_stake.rs). Their TAO comes from selling other alpha, not product revenue.
+// Indices from on-chain metadata at blocks 9148017 and latest: StakeMoved 4, StakeTransferred 92, StakeSwapped 93, StakeAndHotkeyTransferred 143.
+const MOVE_EVENTS = [4, 92, 93, 143];
+function isStakeMove(events: Buffer, i: number): boolean {
+  const next = i + RECORD_LEN; // next event, after its phase
+  if (next + 2 > events.length) return false;
+  return events[next] === SUBTENSOR_PALLET && MOVE_EVENTS.includes(events[next + 1])
+    && events.subarray(next - 5, next).equals(events.subarray(i - 5, i)); // same extrinsic
+}
+
 // TAO debited by each StakeAdded on netuid 8 for `coldkey`, in rao. tao_staked is the gross amount (the swap fee is taken out of it).
 // Matches the 34-byte prefix (event index ++ coldkey) in the raw Vec<EventRecord>; the coldkey makes a false match negligible.
 function readStakeAdded(events: Buffer, coldkey: Buffer): bigint[] {
@@ -142,7 +153,7 @@ function readStakeAdded(events: Buffer, coldkey: Buffer): bigint[] {
     const body = i + needle.length + 32; // skip hotkey
     if (body + 8 + 8 + 2 + 8 > events.length) throw new Error("vanta-network: truncated StakeAdded event"); // layout changed
     if (events.readUInt16LE(body + 16) !== NETUID) continue;
-    if (isSameSubnetTransfer(events, i, body)) continue;
+    if (isSameSubnetTransfer(events, i, body) || isStakeMove(events, i)) continue;
     out.push(events.readBigUInt64LE(body));
   }
   return out;
@@ -196,7 +207,7 @@ const adapter: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      "Evaluation Fees": "All Vanta Trading product revenue (evaluation fees paid by card or USDC). Since 2026-09-25, all of that revenue is sent to the buyback coldkey 5CXSLbyK5SRB9ZoRJzEqhs2bP3DQTwVaXp7WWLCBTDyNmKfK and spent buying SN8 alpha (StakeAdded events on netuid 8). Failed extrinsics emit no StakeAdded and are ignored.",
+      "Evaluation Fees": "All Vanta Trading product revenue (evaluation fees paid by card or USDC). Since 2026-09-25, all of that revenue is sent to the buyback coldkey 5CXSLbyK5SRB9ZoRJzEqhs2bP3DQTwVaXp7WWLCBTDyNmKfK and spent buying SN8 alpha (StakeAdded events on netuid 8). Failed extrinsics emit no StakeAdded and are ignored. Stake moves, swaps and transfers are excluded.",
     },
     Revenue: {
       "Evaluation Fees To Buybacks": "All Vanta Trading product revenue, all of which goes to SN8 alpha buybacks.",
