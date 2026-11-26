@@ -3,7 +3,7 @@ import fetchURL from "../../utils/fetchURL";
 
 // Project GUA/BCH pool and treasury used by the buyback verifier at https://guanaco.fi/gua.
 const gua = "742a7585d0d5cb35b2a45d26425e23b059b72e82d7036dd97e85da5ab57a8d6c";
-const treasuryScript = "76a914748e3dffdc1ab726e8d7d8d381e56034871fe62388ac";
+export const treasuryScript = "76a914748e3dffdc1ab726e8d7d8d381e56034871fe62388ac";
 const projectPoolScript = "aa2065e10ee37a522d27573df932433dd8de92e43159162a9b69eef08af4cf9df85287";
 const firstBuybackHeight = 978934;
 const firstBuybackDay = 1795564800; // 2026-11-25 UTC.
@@ -11,11 +11,11 @@ const explorer = "https://explorer.selene.cash/api/v1/tx";
 const txidPattern = /^[0-9a-f]{64}$/;
 
 type Output = { n: number; satoshis: number; tokenData?: { category: string; amount: string }; scriptPubKey: { hex: string } };
-type Trade = { txid: string; time: number; satoshisDelta: string; tokenUnitsDelta: string };
-type Input = { txid: string; vout: number };
+type Trade = { grossVolumeSatoshis: string; txid: string; time: number; satoshisDelta: string; tokenUnitsDelta: string };
+type Input = { txid: string; vout: number; scriptSig: { hex: string }; prevout?: { satoshis: number; tokenData?: Output["tokenData"] } };
 type Tx = { txid: string; height: number; input_count: number; output_count: number; vin: Input[]; vout: Output[] };
 
-async function transaction(id: string, neededOutputs?: number[]): Promise<Tx> {
+export async function transaction(id: string, neededOutputs?: number[]): Promise<Tx> {
   if (!txidPattern.test(id)) throw new Error("Invalid Guanaco transaction ID");
   const tx = await fetchURL(explorer + "/" + id);
   if (tx.txid !== id || !Number.isSafeInteger(tx.height) || tx.height <= 0 ||
@@ -96,8 +96,8 @@ async function buybackCost(trade: Trade) {
 }
 
 // The indexer timestamps confirmed swaps by block-inclusive median time, like Guanaco DEX volume.
-async function confirmedTrades(indexer: string, start: number, end: number): Promise<Trade[]> {
-  const data = await fetchURL(indexer + "/trades/" + gua + "?protocol=guanaco&limit=100&start=" + start + "&end=" + end);
+export async function confirmedTrades(indexer: string, category: string, start: number, end: number): Promise<Trade[]> {
+  const data = await fetchURL(indexer + "/trades/" + category + "?protocol=guanaco&limit=100&start=" + start + "&end=" + end);
   if (data.protocol !== "guanaco" || data.includesMempool !== false || data.start !== start ||
       data.end !== end || !Array.isArray(data.trades) || typeof data.truncated !== "boolean" ||
       data.timestampSource !== "block_inclusive_median")
@@ -105,7 +105,7 @@ async function confirmedTrades(indexer: string, start: number, end: number): Pro
   if (data.truncated) {
     const mid = Math.floor((start + end) / 2);
     if (mid === start) throw new Error("Guanaco trade feed exceeds its paging limit within one second");
-    return [...await confirmedTrades(indexer, start, mid), ...await confirmedTrades(indexer, mid, end)];
+    return [...await confirmedTrades(indexer, category, start, mid), ...await confirmedTrades(indexer, category, mid, end)];
   }
   for (const trade of data.trades) {
     if (!Number.isSafeInteger(trade.time) || trade.time < start || trade.time > end)
@@ -116,7 +116,7 @@ async function confirmedTrades(indexer: string, start: number, end: number): Pro
 
 export async function treasuryBuybacks(indexer: string, start: number, end: number): Promise<bigint> {
   if (end <= firstBuybackDay) return 0n;
-  const records = await confirmedTrades(indexer, Math.max(start, firstBuybackDay), end);
+  const records = await confirmedTrades(indexer, gua, Math.max(start, firstBuybackDay), end);
   const seen = new Set<string>();
   for (const trade of records) {
     if (!txidPattern.test(trade.txid) || seen.has(trade.txid) ||
