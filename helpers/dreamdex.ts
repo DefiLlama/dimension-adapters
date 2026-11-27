@@ -1,5 +1,5 @@
 import { request } from "graphql-request";
-import ADDRESSES from "./coreAssets.json";
+import { Balances } from "@defillama/sdk";
 import { FetchOptions } from "../adapters/types";
 
 // dreamDEX on Somnia Tokyo (chainId 50321) - the indexer the dreamDEX app itself reads (Hasura over an Envio index).
@@ -7,7 +7,18 @@ import { FetchOptions } from "../adapters/types";
 export const DREAMDEX_TOKYO_INDEXER = "https://tokyo-prd.smk.somnia.host/v1/graphql";
 
 // Every Tokyo market is quoted in USDso (18 decimals), the Hyperlane synthetic of Somnia mainnet USDso.
-export const USDSO = ADDRESSES.somnia_tokyo.USDso;
+// The Tokyo token (coreAssets somnia_tokyo.USDso) has no price feed of its own since 2026-11-20 (#11299), so amounts
+// are valued as the Somnia mainnet USDso it is minted against (also 18 decimals).
+export const USDSO = "somnia:0x00000022da000002656c64d9ea6011ea952d008a";
+
+// USDSO already carries its chain prefix, so it is added with skipChain (balances on somnia_tokyo would prefix it again).
+export function addUsdso(balances: Balances, amount: bigint | string, label?: string) {
+  balances.add(USDSO, amount, { label, skipChain: true });
+}
+
+export function subtractUsdso(balances: Balances, amount: bigint | string, label?: string) {
+  balances.subtractToken(USDSO, amount, { label, skipChain: true });
+}
 
 export type DreamdexMarketType = "SPOT" | "PERP";
 

@@ -1,7 +1,7 @@
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
-import { USDSO, getTokyoKeeperRewards, getTokyoPerpFeeRecords, getTokyoQuoteVolume } from "../../helpers/dreamdex";
+import { addUsdso, subtractUsdso, getTokyoKeeperRewards, getTokyoPerpFeeRecords, getTokyoQuoteVolume } from "../../helpers/dreamdex";
 
 const LABELS = {
   LIQUIDATION_TO_PROTOCOL: "Liquidation Fees To Protocol",
@@ -17,24 +17,24 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  dailyVolume.add(USDSO, await getTokyoQuoteVolume(options, "PERP"));
+  addUsdso(dailyVolume, await getTokyoQuoteVolume(options, "PERP"));
 
   for (const { kind, amount, isRebate, insurancePortion } of await getTokyoPerpFeeRecords(options)) {
     if (isRebate) {
-      dailySupplySideRevenue.add(USDSO, amount, LABELS.MAKER_REBATES);
-      dailyRevenue.subtractToken(USDSO, amount, LABELS.TRADING_TO_PROTOCOL);
+      addUsdso(dailySupplySideRevenue, amount, LABELS.MAKER_REBATES);
+      subtractUsdso(dailyRevenue, amount, LABELS.TRADING_TO_PROTOCOL);
       continue;
     }
     const isLiquidation = kind === "LiquidationFee";
     const toInsurance = BigInt(insurancePortion ?? 0);
-    dailyFees.add(USDSO, amount, isLiquidation ? METRIC.LIQUIDATION_FEES : METRIC.TRADING_FEES);
-    dailyRevenue.add(USDSO, BigInt(amount) - toInsurance, isLiquidation ? LABELS.LIQUIDATION_TO_PROTOCOL : LABELS.TRADING_TO_PROTOCOL);
-    if (toInsurance) dailySupplySideRevenue.add(USDSO, toInsurance, LABELS.FEES_TO_INSURANCE);
+    addUsdso(dailyFees, amount, isLiquidation ? METRIC.LIQUIDATION_FEES : METRIC.TRADING_FEES);
+    addUsdso(dailyRevenue, BigInt(amount) - toInsurance, isLiquidation ? LABELS.LIQUIDATION_TO_PROTOCOL : LABELS.TRADING_TO_PROTOCOL);
+    if (toInsurance) addUsdso(dailySupplySideRevenue, toInsurance, LABELS.FEES_TO_INSURANCE);
   }
 
   for (const keeperReward of await getTokyoKeeperRewards(options)) {
-    dailySupplySideRevenue.add(USDSO, keeperReward, LABELS.LIQUIDATION_TO_KEEPERS);
-    dailyRevenue.subtractToken(USDSO, keeperReward, LABELS.LIQUIDATION_TO_PROTOCOL);
+    addUsdso(dailySupplySideRevenue, keeperReward, LABELS.LIQUIDATION_TO_KEEPERS);
+    subtractUsdso(dailyRevenue, keeperReward, LABELS.LIQUIDATION_TO_PROTOCOL);
   }
 
   return { dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };

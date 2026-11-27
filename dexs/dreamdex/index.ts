@@ -4,7 +4,7 @@ import { fetchURLAutoHandleRateLimit } from "../../utils/fetchURL";
 import { getConfig } from "../../helpers/cache";
 import PromisePool from "@supercharge/promise-pool";
 import { sleep } from "../../utils/utils";
-import { USDSO, getTokyoQuoteVolume } from "../../helpers/dreamdex";
+import { addUsdso, getTokyoQuoteVolume } from "../../helpers/dreamdex";
 
 // dreamDEX — on-chain spot central limit order book (CLOB) on Somnia and Somnia Tokyo.
 // Volume is sourced from the dreamDEX indexers, not on-chain logs: the public Somnia RPC caps eth_getLogs
@@ -46,7 +46,7 @@ const fetch = async (options: FetchOptions) => {
 // Somnia Tokyo: every spot market is quoted in USDso, so the quote side of the hourly candles is summed and priced as USDso.
 const fetchTokyo = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
-  dailyVolume.add(USDSO, await getTokyoQuoteVolume(options, "SPOT"));
+  addUsdso(dailyVolume, await getTokyoQuoteVolume(options, "SPOT"));
   return { dailyVolume };
 };
 
