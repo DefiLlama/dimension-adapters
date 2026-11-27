@@ -1,6 +1,6 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types';
 import { CHAIN } from '../helpers/chains';
-import { addToken, FEE_WALLET, RANGO } from '../helpers/aggregators/wallet-v';
+import { addToken, FEE_WALLET, fetchRelayTotals, RANGO, RelayTotals, withRelayChains } from '../helpers/aggregators/wallet-v';
 
 // Wallet V's Rango dApp tag: https://optimism.blockscout.com/tx/0xc5f4c4cac29234e3603a962344b634a2c273cedb6d28b7fa6cc86ad578c827d1
 const DAPP_TAG = 1579n;
@@ -12,11 +12,24 @@ const FEE_EVENTS = [
   'event FeeInfo(address token, address indexed affiliatorAddress, uint256 affiliateFee, uint8 indexed feeType, uint16 indexed dAppTag)',
 ];
 
+const rangoConfig: Record<string, { start: string }> = {
+  [CHAIN.ETHEREUM]: { start: '2025-07-18' },
+  [CHAIN.BSC]: { start: '2025-07-17' },
+  [CHAIN.BASE]: { start: '2025-07-18' },
+  [CHAIN.ARBITRUM]: { start: '2025-07-18' },
+  [CHAIN.OPTIMISM]: { start: '2025-07-17' },
+  [CHAIN.POLYGON]: { start: '2025-07-22' },
+  [CHAIN.AVAX]: { start: '2025-07-17' },
+};
+
 const txHash = (log: any): string => log.transactionHash ?? log.transaction_hash;
 const walletV = (log: any) => BigInt(log.args.dAppTag) === DAPP_TAG;
 
 async function fetch(options: FetchOptions) {
   const dailyBridgeVolume = options.createBalances();
+  dailyBridgeVolume.addUSDValue((options.preFetchedResults as RelayTotals)[options.chain]?.volumeUsd ?? 0);
+  if (!rangoConfig[options.chain]) return { dailyBridgeVolume };
+
   const feeTxs = new Set<string>();
   for (const eventAbi of FEE_EVENTS) {
     for (const log of await options.getLogs({ target: RANGO, eventAbi, onlyArgs: false })) {
@@ -42,18 +55,11 @@ const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
   fetch,
-  adapter: {
-    [CHAIN.ETHEREUM]: { start: '2025-07-18' },
-    [CHAIN.BSC]: { start: '2025-07-17' },
-    [CHAIN.BASE]: { start: '2025-07-18' },
-    [CHAIN.ARBITRUM]: { start: '2025-07-18' },
-    [CHAIN.OPTIMISM]: { start: '2025-07-17' },
-    [CHAIN.POLYGON]: { start: '2025-07-22' },
-    [CHAIN.AVAX]: { start: '2025-07-17' },
-  },
+  prefetch: fetchRelayTotals,
+  adapter: withRelayChains(rangoConfig),
   doublecounted: true,
   methodology: {
-    BridgeVolume: 'Principal sent cross-chain through Rango from Wallet V, counted on the source chain when the bridge starts. Only routes that paid Wallet V its affiliate fee count.',
+    BridgeVolume: 'Principal sent cross-chain from Wallet V through Rango or Relay, counted on the source chain when the transfer starts. Rango routes count only when they paid Wallet V its affiliate fee; Relay transfers are the ones Relay tags with Wallet V\'s referrer.',
   },
 };
 
