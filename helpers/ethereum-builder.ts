@@ -12,9 +12,7 @@ const KnownValidatorsMevRecipients = [
   '0xb3D9cf8E163bbc840195a97E81F8A34E295B8f39', // Swell
 ]
 
-// Contracts a builder pays the proposer through instead of transferring to the fee recipient directly.
-// Titan's forwarders take the recipient from calldata and selfdestruct the ETH to it (#11382),
-// so the payment's to_address is the forwarder, never the validator.
+// Titan pays proposers through these; they selfdestruct the ETH to the fee recipient given in calldata
 const ProposerPaymentForwarders = [
   '0xfeeeeee44046c3f61a8cc081e0918ef0de0a7ffc', // Titan forwarder (single recipient)
   '0xfeeeeeeaea9b3ce71ce8a252aaa11d2dc439cc69', // Titan forwarder (multi recipient)
@@ -23,6 +21,9 @@ const ProposerPaymentForwarders = [
 function getValidatorsFilter(): string {
   return [...KnownValidatorsMevRecipients, ...ProposerPaymentForwarders].map(a => `'${a.toLowerCase()}'`).join(',');
 }
+
+const BLOCK_BUILDING_PROFIT = 'Block Building Profit';
+const PAYMENTS_TO_PROPOSERS = 'Payments To Block Proposers';
 
 interface EthereumBlockBuilderExportOptions {
   builderAddress: string;
@@ -34,13 +35,14 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
     version: 2,
     //pullHourly: true,
     chains: [CHAIN.ETHEREUM],
-    allowNegativeValue: true,
+    allowNegativeValue: true, // a builder can pay the proposer more than its block earned
     dependencies: [Dependencies.ALLIUM],
     start: exportOptions.start ? exportOptions.start : '2024-01-01',
     methodology: {
       Fees: 'Total transactions fees and MEV rewards collected by building blocks on Ethereum blockchain.',
       Revenue: 'Earning from total fees minus total priority rewards paid to validators.',
       ProtocolRevenue: 'Earning from total fees minus total priority rewards paid to validators.',
+      SupplySideRevenue: 'ETH the builder pays block proposers for its blocks, plus the gas of those payment transactions.',
     },
     breakdownMethodology: {
       Fees: {
@@ -48,8 +50,10 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
         [METRIC.MEV_REWARDS]: 'MEV (Maximum Extractable Value) rewards from direct ETH transfers received by the block builder',
       },
       Revenue: {
-        [METRIC.TRANSACTION_GAS_FEES]: 'Net transaction fees retained after paying validator rewards',
-        [METRIC.MEV_REWARDS]: 'Net MEV rewards retained after paying validator rewards',
+        [BLOCK_BUILDING_PROFIT]: 'Transaction fees and MEV rewards kept by the builder after its payments to block proposers and the gas spent on them',
+      },
+      SupplySideRevenue: {
+        [PAYMENTS_TO_PROPOSERS]: 'ETH sent by the builder to known proposer fee recipients, through proposer payment forwarders, or in any transfer under 1 ETH, plus the gas of those transactions',
       },
     },
     fetch: async (options: FetchOptions) => {
@@ -72,11 +76,9 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
 
       const mevFees = await getETHReceived({ options: options, target: exportOptions.builderAddress })
 
-      // count all ETH transferred from builder to validators (directly or through a payment forwarder) + transaction fees
-      // make sure to to_addresses are known validators addresses, known forwarders or transaction value < 1 ETH
+      // builder payments to proposers (known fee recipients, forwarders, or any transfer < 1 ETH) + their gas
       const [fees] = await queryAllium(`
         SELECT
-          -- a reverted payment moves no ETH (e.g. a forwarder call past its timestamp guard), but its gas is still paid
           COALESCE(SUM(CASE WHEN receipt_status = 1 THEN value ELSE 0 END), 0) AS total_fees_priority,
           COALESCE(SUM(receipt_gas_used * receipt_effective_gas_price), 0) AS total_fees_transactions
         FROM ethereum.raw.transactions
@@ -91,20 +93,21 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
           )
       `)
 
-      const totalPriority = options.createBalances();
-      totalPriority.addGasToken(fees.total_fees_priority || 0); // amount paid to validators
-      totalPriority.addGasToken(fees.total_fees_transactions || 0); // transactions fees paid
+      const dailySupplySideRevenue = options.createBalances();
+      dailySupplySideRevenue.addGasToken(fees.total_fees_priority || 0, PAYMENTS_TO_PROPOSERS);
+      dailySupplySideRevenue.addGasToken(fees.total_fees_transactions || 0, PAYMENTS_TO_PROPOSERS);
 
       dailyFees.addGasToken(block_rewards, METRIC.TRANSACTION_GAS_FEES);
       dailyFees.addBalances(mevFees, METRIC.MEV_REWARDS);
 
-      const dailyRevenue = dailyFees.clone();
-      dailyRevenue.subtract(totalPriority);
-      
+      const dailyRevenue = dailyFees.clone(1, BLOCK_BUILDING_PROFIT);
+      dailyRevenue.subtract(dailySupplySideRevenue, BLOCK_BUILDING_PROFIT);
+
       return {
         dailyFees,
         dailyRevenue,
         dailyProtocolRevenue: dailyRevenue,
+        dailySupplySideRevenue,
       };
     },
   };
