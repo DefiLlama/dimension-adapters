@@ -15,14 +15,19 @@ const PEGIN = "event pegin_btc(address indexed receiver, bytes32 indexed btcTxHa
 const PEGOUT = "event release_request_received(address indexed sender, string btcDestinationAddress, uint256 amount)";
 const PEGOUT_PRE_FINGERROOT = "event release_request_received(address indexed sender, bytes btcDestinationAddress, uint256 amount)";
 
-// PowPeg Fast Mode (Flyover): liquidity providers front the transfer through the LiquidityBridgeContract, native RBTC.
+// PowPeg Fast Mode (Flyover): liquidity providers front the transfer in native RBTC.
 // PegOutDeposit locks RBTC to leave for Bitcoin; CallForUser is the provider delivering a peg-in (failed calls deliver nothing).
 // The two routes never count the same transfer: Flyover peg-ins settle to the contract through registerFlyoverBtcTransaction,
 // which emits no pegin_btc, and peg-out refunds pay the provider on Rootstock instead of going through the Bridge.
 // https://dev.rootstock.io/developers/integrate/flyover/
-const FLYOVER = "0xAA9cAf1e3967600578727F975F283446A3Da6612";
-const FLYOVER_PEGOUT = "event PegOutDeposit(bytes32 indexed quoteHash, address indexed sender, uint256 amount, uint256 timestamp)";
-const FLYOVER_PEGIN = "event CallForUser(address indexed from, address indexed dest, uint256 gasLimit, uint256 value, bytes data, bool success, bytes32 quoteHash)";
+// Flyover moved to separate peg-in and peg-out contracts on 2026-05-30; the old contract is kept for history.
+const FLYOVER_LBC = "0xAA9cAf1e3967600578727F975F283446A3Da6612";
+const LBC_PEGOUT = "event PegOutDeposit(bytes32 indexed quoteHash, address indexed sender, uint256 amount, uint256 timestamp)";
+const LBC_PEGIN = "event CallForUser(address indexed from, address indexed dest, uint256 gasLimit, uint256 value, bytes data, bool success, bytes32 quoteHash)";
+const FLYOVER_PEGIN_CONTRACT = "0x9270733402dc7c5730ea24268fc11039fd75e189";
+const FLYOVER_PEGOUT_CONTRACT = "0x9a0678742cfb567874eb4e99df2106bded78f5e4";
+const PEGOUT_DEPOSIT = "event PegOutDeposit(bytes32 indexed quoteHash, address indexed sender, uint256 indexed timestamp, uint256 amount)";
+const CALL_FOR_USER = "event CallForUser(address indexed from, address indexed dest, bytes32 indexed quoteHash, uint256 gasLimit, uint256 value, bytes data, bool success)";
 
 const fetch = async (options: FetchOptions) => {
   const dailyOutgoingVolume = options.createBalances();
@@ -34,8 +39,14 @@ const fetch = async (options: FetchOptions) => {
     ...await options.getLogs({ target: BRIDGE, eventAbi: PEGOUT_PRE_FINGERROOT, onlyArgs: false }),
   ];
 
-  const flyoverPegouts = (await options.getLogs({ target: FLYOVER, eventAbi: FLYOVER_PEGOUT })).filter((l: any) => BigInt(l.amount) > 0n);
-  const flyoverPegins = (await options.getLogs({ target: FLYOVER, eventAbi: FLYOVER_PEGIN })).filter((l: any) => l.success && BigInt(l.value) > 0n);
+  const flyoverPegouts = [
+    ...await options.getLogs({ target: FLYOVER_LBC, eventAbi: LBC_PEGOUT }),
+    ...await options.getLogs({ target: FLYOVER_PEGOUT_CONTRACT, eventAbi: PEGOUT_DEPOSIT }),
+  ].filter((l: any) => BigInt(l.amount) > 0n);
+  const flyoverPegins = [
+    ...await options.getLogs({ target: FLYOVER_LBC, eventAbi: LBC_PEGIN }),
+    ...await options.getLogs({ target: FLYOVER_PEGIN_CONTRACT, eventAbi: CALL_FOR_USER }),
+  ].filter((l: any) => l.success && BigInt(l.value) > 0n);
 
   for (const l of pegins) dailyIncomingVolume.addGasToken(BigInt(l.amount) * SATS_TO_RBTC);
   for (const l of pegouts) dailyOutgoingVolume.addGasToken(pegoutToWei(l));
