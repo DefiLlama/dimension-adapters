@@ -3,9 +3,9 @@ import { CHAIN } from "../helpers/chains";
 
 // Guave: flat-fee DEX aggregator. Routes swaps through the KyberSwap
 // MetaRouter, charging a flat ETH fee per trade-size tier via the
-// FlatExRouter contract (name is on-chain/immutable). https://guave.trade
+// GuaveRouter contract. https://guave.trade
 //
-// FlatExRouter versions (all emit the same SwapExecuted event):
+// Router versions (all emit the same SwapExecuted event):
 //   Arb  v5: 0x297370EeAAf8729407689Ef01d922A8015e611A2 (deployed 2026-11-25)
 const chainConfig: Record<string, { targets: string[]; start: string }> = {
   [CHAIN.BASE]: {
@@ -63,7 +63,7 @@ const fetch = async ({ getLogs, createBalances, chain }: FetchOptions) => {
 
   for (const log of logs) {
     dailyVolume.add(log.srcToken, log.srcAmount);
-    // feePaid is native ETH collected by the FlatEx FeeCollector contract.
+    // feePaid is native ETH collected by the Guave FeeCollector contract.
     dailyFees.addGasToken(log.feePaid, "Swap Fees");
     dailyRevenue.addGasToken(log.feePaid, "Swap Fees To Treasury");
   }
