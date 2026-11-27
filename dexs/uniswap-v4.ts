@@ -75,6 +75,8 @@ interface IUniswapConfig {
   source: 'LOGS';
   start: string;
   blacklistPoolIds?: Array<string>;
+  // pools behind these hooks are tracked by their own adapter, which counts their volume and fees
+  excludedHooks?: Array<string>;
 }
 
 interface IPool {
@@ -94,6 +96,9 @@ const Configs: Record<string, IUniswapConfig> = {
     positionManager: '0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e',
     source: 'LOGS',
     start: '2025-01-24',
+    excludedHooks: [
+      '0x0000000aa232009084Bd71A5797d089AA4Edfad4', // Angstrom, counted in dexs/angstrom
+    ],
     blacklistPoolIds: [
       '0x78f394840909614a7a1213503e4207d7e62f4a07af85561fc420e7ee6d22d6ce',
       '0xaf2ad381e7ea687d397077f93d4f71352247cc8975e0a96a15aff9d2ea19716e', //TARA/USDT
@@ -396,6 +401,7 @@ async function fetch(options: FetchOptions) {
 
       // query pools info
       const poolIds = Object.keys(pools)
+      const excludedHooks = new Set((config.excludedHooks ?? []).map(i => i.toLowerCase()))
       const poolKeys = await options.api.multiCall({
         abi: FunctionPoolKeys,
         calls: poolIds.map(poolId => {
@@ -413,6 +419,7 @@ async function fetch(options: FetchOptions) {
           // so poolManager may be emit Swap event without the liquidity pool was even existed
           // these logics are likely can be ignored because it didn't work as LP or swap from users
           // to check a valid liquidity pool, we need atleast one token is not null address
+          if (excludedHooks.has(String(poolKeys[i].hooks).toLowerCase())) continue;
           if (poolKeys[i].currency0 !== ADDRESSES.null || poolKeys[i].currency1 !== ADDRESSES.null) {
             pools[poolIds[i]] = {
               poolId: poolIds[i],
