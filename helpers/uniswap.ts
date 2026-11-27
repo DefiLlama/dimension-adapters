@@ -641,12 +641,10 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
       const logs = await getLogs({ targets: feesVotingReward.filter(i => i !== ZERO_ADDRESS), eventAbi: notifyRewardEvent, })
 
       logs.map((e: any) => {
-        dailyBribesRevenue.add(e.reward, e.amount)
+        dailyBribesRevenue.add(e.reward, e.amount, 'Bribes Rewards')
       })
 
-      dailyFees.add(dailyBribesRevenue, 'Bribes Rewards')
-
-      return { dailyVolume, dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees }
+      return { dailyVolume, dailyFees, dailyRevenue: dailyBribesRevenue, dailyHoldersRevenue: dailyBribesRevenue }
     }
 
     const response: any = { dailyVolume, dailyFees }
