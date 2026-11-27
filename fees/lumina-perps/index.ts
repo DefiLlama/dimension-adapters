@@ -1,11 +1,3 @@
-// Lumina Perps (BNB Chain) - fees read only from on-chain events of the settlement path, no API.
-// Every trading fee is paid in USDT and split at settlement time into four on-chain transfers:
-//   protocol share  -> ProtocolFeeCollector.FeeDeposited
-//   LP share        -> LuminaLPVault.FeeReceived
-//   insurance share -> LuminaLPVault.InsuranceContributionReceived (10% of each liquidation fee)
-//   referral reward -> SettlementRouter.ReferralRewardSettled
-// The events do not say whether a FeeDeposited / FeeReceived amount came from an open, a close or a
-// liquidation, so the protocol and LP shares of liquidation fees are reported under Open/Close Fees.
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import ADDRESSES from "../../helpers/coreAssets.json";
@@ -36,10 +28,12 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  const protocolLogs = await options.getLogs({ targets: [COLLECTOR], eventAbi: eventAbis.feeDeposited });
-  const lpLogs = await options.getLogs({ targets: [LLP], eventAbi: eventAbis.feeReceived });
-  const insuranceLogs = await options.getLogs({ targets: [LLP], eventAbi: eventAbis.insurance });
-  const referralLogs = await options.getLogs({ targets: [ROUTER], eventAbi: eventAbis.referral });
+  const [protocolLogs, lpLogs, insuranceLogs, referralLogs] = await Promise.all([
+    options.getLogs({ targets: [COLLECTOR], eventAbi: eventAbis.feeDeposited }),
+    options.getLogs({ targets: [LLP], eventAbi: eventAbis.feeReceived }),
+    options.getLogs({ targets: [LLP], eventAbi: eventAbis.insurance }),
+    options.getLogs({ targets: [ROUTER], eventAbi: eventAbis.referral }),
+  ]);
 
   for (const log of protocolLogs) {
     dailyFees.add(USDT, log.amount, METRIC.OPEN_CLOSE_FEES);
@@ -64,7 +58,7 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "Open, close and liquidation fees paid by traders in USDT, after fee discounts, summed from the on-chain transfers made at settlement.",
   Revenue: "The protocol share of trading fees, deposited on-chain into the fee collector contract.",
-  ProtocolRevenue: "Same as Revenue: all of it goes to the protocol treasury, there is no token-holder distribution.",
+  ProtocolRevenue: "The protocol share of trading fees, deposited on-chain into the fee collector contract and kept by the protocol treasury.",
   SupplySideRevenue: "The LP vault share of trading fees, the part of liquidation fees kept as the LP insurance fund, and referral rewards paid to referrers.",
 };
 
