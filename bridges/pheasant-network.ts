@@ -142,6 +142,11 @@ const chainConfig: Record<string, ChainConfig> = {
     payoutExecutor: "0x89E31B12e5fD6961474F7d814F90a5a0fDD7d55A",
     legacy: { d: "0x9E7FCb2c0b8a5461BCc7078a2E37886f254B060b" },
   },
+  [CHAIN.INK]: {
+    start: "2026-11-11",
+    bridge: "0x3f8eF34d9D979f52803C420430b6DbDBFa8b773A",
+    payoutExecutor: "0xCAa9b00E6278fDa6Fa9e0c92de5354719f4e613A",
+  },
   // no longer supported
   [CHAIN.POLYGON]: {
     start: "2022-12-21",
