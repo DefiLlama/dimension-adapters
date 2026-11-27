@@ -12,8 +12,16 @@ const KnownValidatorsMevRecipients = [
   '0xb3D9cf8E163bbc840195a97E81F8A34E295B8f39', // Swell
 ]
 
+// Contracts a builder pays the proposer through instead of transferring to the fee recipient directly.
+// Titan's forwarders take the recipient from calldata and selfdestruct the ETH to it (#11382),
+// so the payment's to_address is the forwarder, never the validator.
+const ProposerPaymentForwarders = [
+  '0xfeeeeee44046c3f61a8cc081e0918ef0de0a7ffc', // Titan forwarder (single recipient)
+  '0xfeeeeeeaea9b3ce71ce8a252aaa11d2dc439cc69', // Titan forwarder (multi recipient)
+]
+
 function getValidatorsFilter(): string {
-  return KnownValidatorsMevRecipients.map(a => `'${a.toLowerCase()}'`).join(',');
+  return [...KnownValidatorsMevRecipients, ...ProposerPaymentForwarders].map(a => `'${a.toLowerCase()}'`).join(',');
 }
 
 interface EthereumBlockBuilderExportOptions {
@@ -64,8 +72,8 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
 
       const mevFees = await getETHReceived({ options: options, target: exportOptions.builderAddress })
 
-      // count all ETH directly transfer from builder to validators + transaction fees
-      // make sure to to_addresses are known validators addresses or transaction value < 1 ETH
+      // count all ETH transferred from builder to validators (directly or through a payment forwarder) + transaction fees
+      // make sure to to_addresses are known validators addresses, known forwarders or transaction value < 1 ETH
       const [fees] = await queryAllium(`
         SELECT
           COALESCE(SUM(value), 0) AS total_fees_priority,
