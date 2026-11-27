@@ -9,16 +9,18 @@ import { EVENTS, VAULT, usd30 } from '../helpers/zeustrade'
 // admin Safe can withdraw it; it is not sent to LPs.
 const POSITION_MANAGERS = ['0xBE341A6683124193926ACd71b69dCDdE3cc37e60', '0x9fFa6a29a80e89354629ACD6567d874c5D2AA096']
 
-// Accounts that swap the fees withdrawn from the Vault into USDC before they are
-// sent to LPs. The fee of such a swap stays in the Vault and reaches the same LPs
-// with the next distribution, so counting it would count one payment twice.
+// Accounts that swap previously collected Vault fees into USDC for distribution.
+// The conversion fee stays in the Vault as carry-over. Including it here would
+// count it as a second user payment.
 // Old fee distributor key, until 2026-11-05: https://basescan.org/address/0x70CD61AD2Ae8D1e304458451dcf59e50786c3A85
 // Fee distributor key, 2026-11-06 to 2026-11-15: https://basescan.org/address/0x207FE94EA9b8ED48fE535ABE2995dE053d393f78
-// FeeCollector, since 2026-11-16: https://basescan.org/address/0x97cc47CB5cb503B855D75504a200DFddC7D57596
+// FeeCollector V1, from 2026-11-16 until the cutover: https://basescan.org/address/0x97cc47CB5cb503B855D75504a200DFddC7D57596
+// FeeCollector V2 first production collection, 2026-11-27: https://basescan.org/tx/0x1cc07a8f4e6670c23927b8924bc830229aa708ac210a39b979ce968593b0c677
 const FEE_CONVERSION_ACCOUNTS = new Set([
   '0x70cd61ad2ae8d1e304458451dcf59e50786c3a85',
   '0x207fe94ea9b8ed48fe535abe2995de053d393f78',
   '0x97cc47cb5cb503b855d75504a200dfddc7d57596',
+  '0x5223d9586ba97997c3a18655d8af5a2ff1197acf',
 ])
 
 const BASIS_POINTS = 10000n
