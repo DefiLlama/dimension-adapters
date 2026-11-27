@@ -13,39 +13,43 @@ const NATIVE_EVM = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
 // DexAggregator router addresses. Source: https://docs.fly.trade/developers/deployments
 const ROUTER_A = "0x20f6ee51340adeed01a59b0e65cb3703f3dc860c"; // default deployment (most chains)
-const ROUTER_B = "0xf5f3b8faf45023fd92c0c88fedf73fb0529fc1cd"; // polygon_zkevm, taiko, telos
+const ROUTER_B = "0xf5f3b8faf45023fd92c0c88fedf73fb0529fc1cd"; // taiko, telos
 const ROUTER_C = "0xc5b20203b6807e742853c96ce7dcfb1e7b201c0a"; // zksync era
 const ROUTER_D = "0xf702814d2e1290f3d5f3202565df46272e1b1b92"; // metis, fantom
 
-const EVM_ROUTERS: { [chain: string]: string } = {
-  [CHAIN.ETHEREUM]: ROUTER_A,
-  [CHAIN.ARBITRUM]: ROUTER_A,
-  [CHAIN.POLYGON]: ROUTER_A,
-  [CHAIN.AVAX]: ROUTER_A,
-  [CHAIN.BSC]: ROUTER_A,
-  [CHAIN.OPTIMISM]: ROUTER_A,
-  [CHAIN.BASE]: ROUTER_A,
-  [CHAIN.SCROLL]: ROUTER_A,
-  [CHAIN.MANTA]: ROUTER_A,
-  [CHAIN.TAIKO]: ROUTER_B,
-  // [CHAIN.POLYGON_ZKEVM]: ROUTER_B, // public RPC chronically stale (same as fees/fly-trade)
-  [CHAIN.METIS]: ROUTER_D,
-  [CHAIN.FANTOM]: ROUTER_D,
-  [CHAIN.SONIC]: ROUTER_A,
-  [CHAIN.ERA]: ROUTER_C,
-  [CHAIN.BERACHAIN]: ROUTER_A,
-  [CHAIN.LINEA]: ROUTER_A,
-  [CHAIN.INK]: ROUTER_A,
-  [CHAIN.ABSTRACT]: ROUTER_A,
-  [CHAIN.UNICHAIN]: ROUTER_A,
-  [CHAIN.HYPERLIQUID]: ROUTER_A,
-  [CHAIN.PLASMA]: ROUTER_A,
-  [CHAIN.MONAD]: ROUTER_A,
-  [CHAIN.MEGAETH]: ROUTER_A,
-  [CHAIN.MORPH]: ROUTER_A,
-  [CHAIN.KATANA]: ROUTER_A,
-  [CHAIN.TELOS]: ROUTER_B,
-  [CHAIN.ROBINHOOD]: ROUTER_A,
+const chainConfig: Record<string, { start: string; router?: string }> = {
+  [CHAIN.ETHEREUM]: { start: "2022-09-08", router: ROUTER_A },
+  [CHAIN.ARBITRUM]: { start: "2022-09-08", router: ROUTER_A },
+  [CHAIN.POLYGON]: { start: "2022-09-08", router: ROUTER_A },
+  [CHAIN.AVAX]: { start: "2022-09-08", router: ROUTER_A },
+  [CHAIN.BSC]: { start: "2022-09-08", router: ROUTER_A },
+  [CHAIN.OPTIMISM]: { start: "2022-09-08", router: ROUTER_A },
+  [CHAIN.BASE]: { start: "2022-09-08", router: ROUTER_A },
+  [CHAIN.SCROLL]: { start: "2022-09-08", router: ROUTER_A },
+  [CHAIN.MANTA]: { start: "2022-09-08", router: ROUTER_A },
+  [CHAIN.TAIKO]: { start: "2022-09-08", router: ROUTER_B },
+  [CHAIN.POLYGON_ZKEVM]: { start: "2022-09-08" }, // public RPC chronically stale (same as fees/fly-trade)
+  // [CHAIN.BLAST]: { start: "2022-09-08" },
+  [CHAIN.METIS]: { start: "2022-09-08", router: ROUTER_D },
+  [CHAIN.FANTOM]: { start: "2022-09-08", router: ROUTER_D },
+  [CHAIN.SONIC]: { start: "2024-12-26", router: ROUTER_A },
+  [CHAIN.ERA]: { start: "2022-09-08", router: ROUTER_C },
+  [CHAIN.BERACHAIN]: { start: "2025-02-10", router: ROUTER_A },
+  [CHAIN.LINEA]: { start: "2025-02-11", router: ROUTER_A },
+  [CHAIN.INK]: { start: "2025-02-11", router: ROUTER_A },
+  [CHAIN.ABSTRACT]: { start: "2025-07-01", router: ROUTER_A },
+  [CHAIN.UNICHAIN]: { start: "2025-07-01", router: ROUTER_A },
+  [CHAIN.HYPERLIQUID]: { start: "2025-10-01", router: ROUTER_A },
+  [CHAIN.PLASMA]: { start: "2025-10-01", router: ROUTER_A },
+  [CHAIN.SOLANA]: { start: "2025-11-15" },
+  [CHAIN.MONAD]: { start: "2025-11-22", router: ROUTER_A },
+  [CHAIN.MEGAETH]: { start: "2026-01-30", router: ROUTER_A },
+  [CHAIN.MORPH]: { start: "2026-01-13", router: ROUTER_A },
+  [CHAIN.FOGO]: { start: "2026-04-01" },
+  [CHAIN.KATANA]: { start: "2026-04-01", router: ROUTER_A },
+  [CHAIN.TELOS]: { start: "2026-04-01", router: ROUTER_B },
+  [CHAIN.ROBINHOOD]: { start: "2026-07-01", router: ROUTER_A },
+  [CHAIN.ARC]: { start: "2026-09-01" },
 };
 
 const SWAP_EVENT =
@@ -62,7 +66,7 @@ const inflatedVolumes: { [key: string]: string[] } = {
 
 const fetch = async (options: FetchOptions): Promise<FetchResult> => {
   const { chain, startOfDay, dateString, startTimestamp } = options;
-  const router = EVM_ROUTERS[chain];
+  const router = chainConfig[chain]?.router;
 
   if (router && startTimestamp >= MIGRATION_TS) {
     const dailyVolume = options.createBalances();
@@ -110,136 +114,8 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
 const adapter: SimpleAdapter = {
   version: 1,
-  adapter: {
-    [CHAIN.ETHEREUM]: {
-      fetch,
-      start: '2022-09-08',
-    },
-    [CHAIN.ARBITRUM]: {
-      fetch,
-      start: '2022-09-08',
-    },
-    [CHAIN.POLYGON]: {
-      fetch,
-      start: '2022-09-08',
-    },
-    [CHAIN.AVAX]: {
-      fetch,
-      start: '2022-09-08',
-    },
-    [CHAIN.BSC]: {
-      fetch,
-      start: '2022-09-08',
-    },
-    [CHAIN.OPTIMISM]: {
-      fetch,
-      start: '2022-09-08',
-    },
-    [CHAIN.BASE]: {
-      fetch,
-      start: '2022-09-08',
-    },
-    [CHAIN.SCROLL]: {
-      fetch,
-      start: '2022-09-08',
-    },
-    [CHAIN.MANTA]: {
-      fetch,
-      start: '2022-09-08',
-    },
-    [CHAIN.TAIKO]: {
-      fetch,
-      start: '2022-09-08',
-    },
-    [CHAIN.POLYGON_ZKEVM]: {
-      fetch,
-      start: '2022-09-08',
-    },
-    // [CHAIN.BLAST]: {
-    //   fetch,
-    //   start: '2022-09-08',
-    // },
-    [CHAIN.METIS]: {
-      fetch,
-      start: '2022-09-08',
-    },
-    [CHAIN.FANTOM]: {
-      fetch,
-      start: '2022-09-08',
-    },
-    [CHAIN.SONIC]: {
-      fetch,
-      start: '2024-12-26',
-    },
-    [CHAIN.ERA]: {
-      fetch,
-      start: '2022-09-08',
-    },
-    [CHAIN.BERACHAIN]: {
-      fetch,
-      start: '2025-02-10',
-    },
-    [CHAIN.LINEA]: {
-      fetch,
-      start: '2025-02-11',
-    },
-    [CHAIN.INK]: {
-      fetch,
-      start: '2025-02-11',
-    },    
-    [CHAIN.ABSTRACT]: {
-      fetch,
-      start: '2025-07-01',
-    },
-    [CHAIN.UNICHAIN]: {
-      fetch,
-      start: '2025-07-01',
-    },
-    [CHAIN.HYPERLIQUID]: {
-      fetch,
-      start: '2025-10-01',
-    },
-    [CHAIN.PLASMA]: {
-      fetch,
-      start: '2025-10-01',
-    },
-    [CHAIN.SOLANA]: {
-      fetch,
-      start: '2025-11-15',
-    },
-    [CHAIN.MONAD]: {
-      fetch,
-      start: '2025-11-22',
-    },
-    [CHAIN.MEGAETH]: {
-      fetch,
-      start: '2026-01-30',
-    },
-    [CHAIN.MORPH]: {
-      fetch,
-      start: '2026-01-13',
-    },
-    [CHAIN.FOGO]: {
-      fetch,
-      start: '2026-04-01',
-    },    
-    [CHAIN.KATANA]: {
-      fetch,
-      start: '2026-04-01',
-    },    
-    [CHAIN.TELOS]: {
-      fetch,
-      start: '2026-04-01',
-    },
-    [CHAIN.ROBINHOOD]: {
-      fetch,
-      start: '2026-07-01',
-    },
-    [CHAIN.ARC]: {
-      fetch,
-      start: '2026-09-01',
-    },
-  },
+  fetch,
+  adapter: chainConfig,
 };
 
 export default adapter;
