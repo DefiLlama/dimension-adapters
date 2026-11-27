@@ -9,8 +9,8 @@ import { httpPost } from "../utils/fetchURL";
 import { DUNE_DEX_BLACKLIST_TABLE, getDexTokensBlacklisted } from "../helpers/lists";
 import { METRIC } from "../helpers/metrics";
 import {
-  defaultV3SwapEvent, getEstablishedTokens, getUniV3LogAdapter, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES,
-  WASH_MIN_USD, WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
+  defaultV3SwapEvent, getEstablishedTokens, getUniBurnRevenue, getUniV3LogAdapter, uniBurnBreakdownMethodology, uniBurnMethodology, washDayStart, WASH_DUST_USD,
+  WASH_MIN_TRADES, WASH_MIN_USD, WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
 } from "../helpers/uniswap";
 
 // Hybrid variant of old dexs/uniswap-v3.ts.
@@ -20,47 +20,8 @@ import {
 //    rule drops scam/unpriceable tokens, guarding against price manipulation).
 //  - fetchFromOku: long-tail chains Dune lacks, via the Oku API.
 // `blockchain` is the source's own chain slug (Dune name / Oku slug), so both
-// fetchers just read config.blockchain. Buyback/holders-revenue is shared with
-// the on-chain adapter.
-
-const HOLDERS_REVENUE_CONFIG: Record<string, { feeSwitchDate: string | null; firepit: string | null }> = {
-  [CHAIN.ETHEREUM]: { feeSwitchDate: "2025-12-29", firepit: '0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721' },
-  [CHAIN.OPTIMISM]: { feeSwitchDate: "2026-03-08", firepit: '0x94460443Ca27FFC1baeCa61165fde18346C91AbD' },
-  [CHAIN.ARBITRUM]: { feeSwitchDate: "2026-03-08", firepit: '0xB8018422bcE25D82E70cB98FdA96a4f502D89427' },
-  [CHAIN.BASE]: { feeSwitchDate: "2026-03-08", firepit: '0xFf77c0ED0B6b13A20446969107E5867abc46f53a' },
-  [CHAIN.CELO]: { feeSwitchDate: "2026-06-02", firepit: '0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25' },
-  [CHAIN.WC]: { feeSwitchDate: "2026-03-08", firepit: '0x455e844D286631566cF98D6cb2996149734618C6' },
-  [CHAIN.ZORA]: { feeSwitchDate: "2026-03-08", firepit: '0x2f98eD4D04e633169FbC941BFCc54E785853b143' },
-  [CHAIN.XLAYER]: { feeSwitchDate: "2026-03-08", firepit: '0xe122E231cb52aea99690963Fd73E91e33E97468f' },
-  [CHAIN.BSC]: { feeSwitchDate: "2026-06-02", firepit: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2' },
-  [CHAIN.POLYGON]: { feeSwitchDate: "2026-06-02", firepit: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2' },
-  [CHAIN.ROBINHOOD]: { feeSwitchDate: "2026-07-27", firepit: '0x7A8F74C2585F84C781F951B7F2FF21337D5B630B' },
-  [CHAIN.UNICHAIN]: { feeSwitchDate: "2026-01-09", firepit: '0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB' },
-  // Releaser from github.com/Uniswap/protocol-fees .records/Arc.json; fee switch relayed 2026-10-05 (tx 0x2d42e5e9...5c49), first Released 2026-10-18
-  [CHAIN.ARC]: { feeSwitchDate: "2026-10-05", firepit: '0xe1Adf3f130Abf616a7aB04AEeBf8D0470F6B6a16' },
-}
-
-const THRESHOLD_FUNCTION_ABI = 'uint256:threshold'
-const RELEASED_EVENT_ABI = 'event Released (uint256 indexed nonce, address indexed recipient, address[] assets)'
-
-async function fetchHoldersRevenue(options: FetchOptions) {
-  const dailyHoldersRevenue = options.createBalances()
-  const { feeSwitchDate, firepit } = HOLDERS_REVENUE_CONFIG[options.chain] ?? {}
-  if (!firepit || !feeSwitchDate || options.dateString < feeSwitchDate) {
-    return dailyHoldersRevenue
-  }
-
-  const [releaseLogs, threshold] = await Promise.all([
-    options.getLogs({ target: firepit, eventAbi: RELEASED_EVENT_ABI }),
-    options.api.call({ target: firepit, abi: THRESHOLD_FUNCTION_ABI }),
-  ])
-
-  if (!releaseLogs.length || !threshold) return dailyHoldersRevenue
-
-  const amount = Number(releaseLogs.length) * Number(threshold) / 1e18
-  dailyHoldersRevenue.addCGToken("uniswap", amount, 'Fees Used To Burn UNI')
-  return dailyHoldersRevenue
-}
+// fetchers just read config.blockchain. The UNI burn (holders revenue) is split
+// across v2/v3/v4 in helpers/uniswap.ts.
 
 // raw per-pool, per-token traded amount from dex.trades, for one or more Dune
 // blockchains. UNNEST explodes each swap's bought + sold legs into one row each,
@@ -210,18 +171,11 @@ async function fetchFromDune(options: FetchOptions) {
     if (fee) addOneToken({ chain: options.chain, balances: dailyFees, token0, token1, amount0: Number(amount0) * fee, amount1: Number(amount1) * fee, label: METRIC.SWAP_FEES });
   });
 
-  const dailyHoldersRevenue = await fetchHoldersRevenue(options);
-  const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addUSDValue((await dailyFees.getUSDValue()) - (await dailyHoldersRevenue.getUSDValue()), 'Swap Fees To Liquidity Providers');
-
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyHoldersRevenue,
-    dailyProtocolRevenue: 0,
-    dailyHoldersRevenue,
-    dailySupplySideRevenue,
+    ...(await getUniBurnRevenue(options, 'v3', dailyFees)),
   }
 }
 
@@ -238,18 +192,11 @@ async function fetchFromOku(options: FetchOptions) {
   const fees = response.reduce((acc, item) => acc + item.fees, 0);
   const dailyFees = options.createBalances();
   dailyFees.addUSDValue(fees, METRIC.SWAP_FEES);
-  const dailyHoldersRevenue = await fetchHoldersRevenue(options);
-  const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addUSDValue(fees - (await dailyHoldersRevenue.getUSDValue()), 'Swap Fees To Liquidity Providers');
-
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue,
-    dailyRevenue: dailyHoldersRevenue,
-    dailyProtocolRevenue: 0,
-    dailyHoldersRevenue,
+    ...(await getUniBurnRevenue(options, 'v3', dailyFees)),
   }
 }
 
@@ -297,19 +244,11 @@ async function fetchFromLogs(options: FetchOptions) {
     blacklistTokens: await getDexTokensBlacklisted(options),
   })(options);
 
-  const dailyHoldersRevenue = await fetchHoldersRevenue(options);
-  const feesToLps = (await dailyFees.getUSDValue()) - (await dailyHoldersRevenue.getUSDValue());
-  const dailySupplySideRevenue = options.createBalances();
-  dailySupplySideRevenue.addUSDValue(feesToLps, 'Swap Fees To Liquidity Providers');
-
   return {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailyRevenue: dailyHoldersRevenue,
-    dailyProtocolRevenue: 0,
-    dailyHoldersRevenue,
-    dailySupplySideRevenue,
+    ...(await getUniBurnRevenue(options, 'v3', dailyFees)),
   };
 }
 
@@ -370,10 +309,8 @@ const methodology = {
   Volume: "Swap volume, excluding wash trading: pools whose daily trades come from too few distinct addresses to be organic, unless every pool token is a core asset or CoinGecko-listed.",
   Fees: "Swap fees from paid by users.",
   UserFees: "User pays fees on each swap.",
-  Revenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood, From 5 Oct 2026, on Arc',
   ProtocolRevenue: 'Protocol make no revenue.',
-  SupplySideRevenue: 'Fees distributed to LPs post protocol fee collection',
-  HoldersRevenue: 'From 28 Dec 2025, a portion of fees a collected to buy back and burn UNI on Ethereum, From 8 Mar 2026, on Optimism, Arbitrum, Base, WC, Zora, XLayer, From 2 Jun 2026, on Polygon, BSC, Celo, From 27 Jul 2026, on Robinhood, From 5 Oct 2026, on Arc',
+  ...uniBurnMethodology('v3'),
 }
 
 const breakdownMethodology = {
@@ -383,15 +320,7 @@ const breakdownMethodology = {
   UserFees: {
     [METRIC.SWAP_FEES]: 'Swap fees paid by users.',
   },
-  Revenue: {
-    'Fees Used To Burn UNI': 'Share of Uniswap v2, v3 and v4 swap fees collected by the fee switch, released to whoever burns UNI at the Firepit, valued as the UNI burned.',
-  },
-  SupplySideRevenue: {
-    'Swap Fees To Liquidity Providers': 'v3 swap fees minus the fee switch share of v2, v3 and v4, can be negative when the buyback exceeds v3 fees.',
-  },
-  HoldersRevenue: {
-    'Fees Used To Burn UNI': 'Share of Uniswap v2, v3 and v4 swap fees collected by the fee switch, released to whoever burns UNI at the Firepit, valued as the UNI burned.',
-  },
+  ...uniBurnBreakdownMethodology('v3'),
 }
 
 const adapter: SimpleAdapter = {
@@ -402,7 +331,7 @@ const adapter: SimpleAdapter = {
   breakdownMethodology,
   adapter: chainConfig,
   prefetch,
-  // supply side can be negative on days revenue (v2+v3 buyback) exceeds v3 fees
+  // burns land in lumps (2,000-4,000 UNI per release), so the burn share of an hourly window can exceed its swap fees and push supply side negative
   allowNegativeValue: true,
 }
 

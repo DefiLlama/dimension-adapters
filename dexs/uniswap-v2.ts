@@ -3,7 +3,7 @@
 
 import { CHAIN } from "../helpers/chains";
 import { Adapter, FetchOptions, FetchResultV2 } from "../adapters/types";
-import { getUniV2LogAdapter } from "../helpers/uniswap";
+import { getUniBurnRevenue, getUniV2LogAdapter, uniBurnBreakdownMethodology, uniBurnMethodology } from "../helpers/uniswap";
 import { queryClickhouse } from "../helpers/indexer";
 import { getDefaultDexTokensWhitelisted, getDexTokensBlacklisted } from "../helpers/lists";
 import { METRIC } from "../helpers/metrics";
@@ -122,7 +122,7 @@ function getLogAdapterConfig(options: FetchOptions) {
   if (feeSwitchDate && options.dateString >= feeSwitchDate) {
     return {
       userFeesRatio: 1,
-      revenueRatio: 0, // Tracked combined in Uniswap V3 adapter
+      revenueRatio: 0, // the UNI burn share is added by getUniBurnRevenue
       protocolRevenueRatio: 0,
     }
   } else {
@@ -212,15 +212,13 @@ async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig
   const dailyVolume = options.createBalances();
   const feeRates = getLogAdapterConfig(options);
 
-  const emptyResult = (): FetchResultV2 => {
+  const emptyResult = async (): Promise<FetchResultV2> => {
     const dailyFees = dailyVolume.clone(0.003, METRIC.SWAP_FEES);
     return {
       dailyVolume,
       dailyFees,
       dailyUserFees: dailyFees,
-      dailySupplySideRevenue: dailyFees.clone(1, 'Swap Fees To Liquidity Providers'), // Revenue share subtracted in Uniswap V3 adapter
-      dailyRevenue: 0, // Tracked combined in Uniswap V3 adapter
-      dailyProtocolRevenue: 0,
+      ...(await getUniBurnRevenue(options, 'v2', dailyFees)),
     };
   };
 
@@ -268,9 +266,7 @@ async function fetchClickhouse(options: FetchOptions, config: typeof chainConfig
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees.clone(1, 'Swap Fees To Liquidity Providers'), // Revenue share subtracted in Uniswap V3 adapter
-    dailyRevenue: 0, // Tracked combined in Uniswap V3 adapter
-    dailyProtocolRevenue: 0,
+    ...(await getUniBurnRevenue(options, 'v2', dailyFees)),
   };
 }
 
@@ -287,9 +283,7 @@ const fetch = async (options: FetchOptions) => {
       dailyVolume,
       dailyFees,
       dailyUserFees: dailyFees,
-      dailySupplySideRevenue: dailyFees.clone(1, 'Swap Fees To Liquidity Providers'), // Revenue share subtracted in Uniswap V3 adapter
-      dailyRevenue: 0, // Tracked combined in Uniswap V3 adapter
-      dailyProtocolRevenue: 0,
+      ...(await getUniBurnRevenue(options, 'v2', dailyFees)),
     };
   } else if (config.source === 'CLICKHOUSE') {
     return await fetchClickhouse(options, config);
@@ -301,10 +295,8 @@ const fetch = async (options: FetchOptions) => {
 const methodology = {
   Fees: "User pays 0.3% fees on each swap.",
   UserFees: "User pays 0.3% fees on each swap.",
-  Revenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI. (Tracked combined in Uniswap V3 adapter)',
   ProtocolRevenue: 'Protocol make no revenue.',
-  SupplySideRevenue: '83% (100% before fee switch) of fees are distributed to liquidity providers.',
-  HoldersRevenue: 'From 28 Dec 2025, 17% (0% before) fees on Ethereum shared to buy back and burn UNI, From 8 Mar 2026, 17% (0% before) fees on Optimism, Arbitrum, Base, Zora, XLayer chains shared to buy back and burn UNI (Tracked combined in Uniswap V3 adapter)',
+  ...uniBurnMethodology('v2'),
 }
 
 const breakdownMethodology = {
@@ -314,9 +306,7 @@ const breakdownMethodology = {
   UserFees: {
     [METRIC.SWAP_FEES]: 'User pays 0.3% fees on each swap.',
   },
-  SupplySideRevenue: {
-    'Swap Fees To Liquidity Providers': 'Swap fees distributed to LPs, the fee switch share is subtracted in Uniswap V3 adapter.',
-  },
+  ...uniBurnBreakdownMethodology('v2'),
 }
 
 const adapter: Adapter = {
@@ -327,6 +317,8 @@ const adapter: Adapter = {
   adapter: chainConfig,
   methodology,
   breakdownMethodology,
+  // burns land in lumps (2,000-4,000 UNI per release), so the burn share of an hourly window can exceed its swap fees and push supply side negative
+  allowNegativeValue: true,
 }
 
 export default adapter

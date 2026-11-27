@@ -3,10 +3,13 @@
 
 import ADDRESSES from './coreAssets.json'
 
-import { Balances, ChainApi, cache, coins } from "@defillama/sdk";
+import { api2, Balances, ChainApi, cache, coins, getProvider } from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, FetchV2, IJSON, SimpleAdapter } from "../adapters/types";
 import { addOneToken, isCoreAsset } from "./prices";
 import { queryDune } from "./dune";
+import { CHAIN } from "./chains";
+import { getTxReceiptsWithRetry } from "./getTxReceipts";
+import { getBlock } from "./getBlock";
 import { ethers } from "ethers";
 import { toPositionedLogArgs } from "./logs";
 
@@ -95,6 +98,232 @@ export async function getEstablishedTokens(chain: string, tokens: string[]): Pro
     if ((info?.confidence ?? 0) >= 0.9) established.add(key.split(':')[1].toLowerCase());
   }
   return established;
+}
+
+// UNI burn (fee switch), split across v2 / v3 / v4.
+//
+// How swap fees end up as burned UNI (contracts: github.com/Uniswap/protocol-fees):
+//  1. Fees accrue where they are earned. v2: 1/6 of the 0.3% fee, minted to the
+//     chain's TokenJar as LP tokens when liquidity is next added or removed.
+//     v3: a fraction of the swap fee per fee tier, held in each pool. v4: a
+//     per-pool rate, held in the PoolManager.
+//  2. Anyone can pay `threshold` UNI to the chain's Firepit and take up to 20
+//     assets, the full balance of each, out of the TokenJar. Burners do it all in
+//     one tx: collect v3 and v4 fees into the jar, take the assets, and redeem
+//     any v2 LP they took.
+//  3. The UNI goes to the burn address, through the bridge on L2s.
+//
+// The burn carries no version, so each burn is split by what the burner took from
+// each version, read from the burn tx's own logs plus earlier v4 fee collections still
+// in the jar (see splitBurnTx, getV4Collections). Past logs never change, so the
+// three adapters always compute the same split and add up to the burn.
+// tokenJar is firepit.TOKEN_JAR(), poolManager is the chain's v4 PoolManager (dexs/uniswap-v4.ts).
+// noV2Listing: uniswap-v2 does not report the chain, so its share stays on v3.
+const UNI_BURN_CONFIG: Record<string, { feeSwitchDate: string; firepit: string; tokenJar: string; poolManager: string; noV2Listing?: boolean }> = {
+  [CHAIN.ETHEREUM]: { feeSwitchDate: "2025-12-29", firepit: '0x0D5Cd355e2aBEB8fb1552F56c965B867346d6721', tokenJar: '0xf38521f130fcCF29dB1961597bc5d2B60F995f85', poolManager: '0x000000000004444c5dc75cB358380D2e3dE08A90' },
+  [CHAIN.OPTIMISM]: { feeSwitchDate: "2026-03-08", firepit: '0x94460443Ca27FFC1baeCa61165fde18346C91AbD', tokenJar: '0xb13285DF724ea75f3f1E9912010B7e491dCd5EE3', poolManager: '0x9a13f98cb987694c9f086b1f5eb990eea8264ec3' },
+  [CHAIN.ARBITRUM]: { feeSwitchDate: "2026-03-08", firepit: '0xB8018422bcE25D82E70cB98FdA96a4f502D89427', tokenJar: '0x95E337C5B155385945D407f5396387D0c2a3A263', poolManager: '0x360e68faccca8ca495c1b759fd9eee466db9fb32' },
+  [CHAIN.BASE]: { feeSwitchDate: "2026-03-08", firepit: '0xFf77c0ED0B6b13A20446969107E5867abc46f53a', tokenJar: '0x9bD25e67bF390437C8fAF480AC735a27BcF6168c', poolManager: '0x498581ff718922c3f8e6a244956af099b2652b2b' },
+  [CHAIN.CELO]: { feeSwitchDate: "2026-06-02", firepit: '0x2758FbaA228D7d3c41dD139F47dab1a27bF9bc25', tokenJar: '0x190c22c5085640D1cB60CeC88a4F736Acb59bb6B', poolManager: '0x288dc841a52fca2707c6947b3a777c5e56cd87bc', noV2Listing: true },
+  [CHAIN.WC]: { feeSwitchDate: "2026-03-08", firepit: '0x455e844D286631566cF98D6cb2996149734618C6', tokenJar: '0xbDb82c2dE7D8748A3e499e771604ef8ef8544918', poolManager: '0xb1860d529182ac3bc1f51fa2abd56662b7d13f33', noV2Listing: true },
+  [CHAIN.ZORA]: { feeSwitchDate: "2026-03-08", firepit: '0x2f98eD4D04e633169FbC941BFCc54E785853b143', tokenJar: '0x4753C137002D802f45302b118E265c41140e73C2', poolManager: '0x0575338e4c17006ae181b47900a84404247ca30f' },
+  [CHAIN.XLAYER]: { feeSwitchDate: "2026-03-08", firepit: '0xe122E231cb52aea99690963Fd73E91e33E97468f', tokenJar: '0x8Dd8B6D56e4a4A158EDbBfE7f2f703B8FFC1a754', poolManager: '0x360E68faCcca8cA495c1B759Fd9EEe466db9FB32' },
+  [CHAIN.BSC]: { feeSwitchDate: "2026-06-02", firepit: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2', tokenJar: '0xc6Ae6373CEcc9e595A6C8b9fe581925a8c84f70A', poolManager: '0x28e2ea090877bf75740558f6bfb36a5ffee9e9df' },
+  [CHAIN.POLYGON]: { feeSwitchDate: "2026-06-02", firepit: '0xa59FfbB55D91Fc32b44A06F0b9cc6036a4afbcE2', tokenJar: '0xc6Ae6373CEcc9e595A6C8b9fe581925a8c84f70A', poolManager: '0x67366782805870060151383f4bbff9dab53e5cd6' },
+  [CHAIN.ROBINHOOD]: { feeSwitchDate: "2026-07-27", firepit: '0x7A8F74C2585F84C781F951B7F2FF21337D5B630B', tokenJar: '0x2aC03e14Cfe755426DaAEe0a4994184Ce81482F8', poolManager: '0x8366a39cc670b4001a1121b8f6a443a643e40951' },
+  // The jar here is fed by Unichain sequencer fees (FeeSplitter predeploy 0x4300c0d3...0004), not by pool protocol fees.
+  [CHAIN.UNICHAIN]: { feeSwitchDate: "2026-01-09", firepit: '0xe0A780E9105aC10Ee304448224Eb4A2b11A77eeB', tokenJar: '0xD576BDF6b560079a4c204f7644e556DbB19140b5', poolManager: '0x1f98400000000000000000000000000000000004' },
+  // Releaser from github.com/Uniswap/protocol-fees .records/Arc.json; fee switch relayed 2026-10-05 (tx 0x2d42e5e9...5c49), first Released 2026-10-18
+  [CHAIN.ARC]: { feeSwitchDate: "2026-10-05", firepit: '0xe1Adf3f130Abf616a7aB04AEeBf8D0470F6B6a16', tokenJar: '0xfd39ac616e630e9db03EFB2c9a4Fe63eDB949233', poolManager: '0x8366a39cc670b4001a1121b8f6a443a643e40951' },
+}
+
+export type UniVersion = 'v2' | 'v3' | 'v4';
+const UNI_BURN_LABEL = 'Fees Used To Burn UNI';
+const UNI_LP_LABEL = 'Swap Fees To Liquidity Providers';
+const RELEASED_EVENT = 'event Released(uint256 indexed nonce, address indexed recipient, address[] assets)';
+const RELEASED_INTERFACE = new ethers.Interface([RELEASED_EVENT]);
+const RELEASED_TOPIC = ethers.id('Released(uint256,address,address[])');
+const TRANSFER_TOPIC = ethers.id('Transfer(address,address,uint256)');
+// V4FeeAdapter: FeesCollected(Currency indexed currency, uint256 amount)
+const FEES_COLLECTED_EVENT = 'event FeesCollected(address indexed currency, uint256 amount)';
+const FEES_COLLECTED_TOPIC = ethers.id('FeesCollected(address,uint256)');
+// v4 PoolManager (IProtocolFees): emitted when governance sets the protocol fee controller
+const CONTROLLER_UPDATED_EVENT = 'event ProtocolFeeControllerUpdated(address indexed protocolFeeController)';
+const topicAddress = (topic: string) => '0x' + topic.slice(26).toLowerCase();
+const logAmount = (data: string) => BigInt(data === '0x' ? 0 : data);
+const addAmount = (map: Record<string, bigint>, key: string, amount: bigint) => { map[key] = (map[key] ?? 0n) + amount; };
+const minAmount = (a: bigint, b: bigint) => (a < b ? a : b);
+const lower = (value: any) => String(value).toLowerCase();
+
+// Splits the UNI burned in one tx across versions by the USD the burner took from
+// each in that tx. Every input is fixed once the tx is mined, so any run, adapter or
+// window grouping gets the same split.
+//  UNI burned: the Firepit's UNI token sent to its RESOURCE_RECIPIENT in the tx (the
+//    threshold can decay between blocks, so it is not read from state).
+//  v4: fees the v4 fee controller collected into the jar, in an earlier tx since the asset's
+//      previous release (getV4Collections) or earlier in this tx, that the burner then
+//      took out. Fees collected after the withdrawal don't count.
+//  v2: a token that left the jar, was burned in the tx and whose own contract paid
+//      out exactly two other tokens is a redeemed pair, worth twice its core-asset side.
+//  v3: the rest of what left the jar, including v3 fees collected in an earlier tx.
+// Priced with the price API at the start of the burn's hour: the SDK's Balances would
+// use spot prices for a burn under an hour old.
+async function splitBurnTx(options: FetchOptions, config: typeof UNI_BURN_CONFIG[string], resource: { token: string; recipient: string }, receipt: any, v4Adapters: Set<string>, collectedEarlier: Record<string, bigint>): Promise<Record<UniVersion, number>> {
+  const { chain } = options, firepit = config.firepit.toLowerCase(), jar = config.tokenJar.toLowerCase();
+  const logs: any[] = receipt.logs; // in execution order
+
+  let uniBurned = 0n;
+  const pendingV4: Record<string, bigint> = { ...collectedEarlier }, v4: Record<string, bigint> = {}, leftJar: Record<string, bigint> = {};
+  const transfers: { token: string; from: string; to: string; amount: bigint }[] = [];
+  for (const log of logs) {
+    const emitter = lower(log.address);
+    if (log.topics[0] === FEES_COLLECTED_TOPIC && v4Adapters.has(emitter)) {
+      addAmount(pendingV4, topicAddress(log.topics[1]), logAmount(log.data));
+    } else if (log.topics[0] === RELEASED_TOPIC && emitter === firepit) {
+      // native leaves the jar inside release() without a Transfer log
+      const assets = RELEASED_INTERFACE.parseLog(log)!.args.assets.map(lower);
+      if (assets.includes(ZERO_ADDRESS) && pendingV4[ZERO_ADDRESS]) {
+        addAmount(v4, ZERO_ADDRESS, pendingV4[ZERO_ADDRESS]);
+        pendingV4[ZERO_ADDRESS] = 0n;
+      }
+    } else if (log.topics[0] === TRANSFER_TOPIC && log.topics.length === 3) {
+      const t = { token: emitter, from: topicAddress(log.topics[1]), to: topicAddress(log.topics[2]), amount: logAmount(log.data) };
+      transfers.push(t);
+      if (t.token === resource.token && t.to === resource.recipient) uniBurned += t.amount;
+      if (t.from !== jar) continue;
+      const v4Part = minAmount(pendingV4[t.token] ?? 0n, t.amount);
+      if (v4Part) { addAmount(v4, t.token, v4Part); pendingV4[t.token] -= v4Part; }
+      addAmount(leftJar, t.token, t.amount - v4Part);
+    }
+  }
+  if (!uniBurned) throw new Error(`uniswap: no UNI sent to the Firepit's recipient in burn tx ${receipt.hash ?? ''} on ${chain}`);
+
+  const v2: Record<string, bigint> = {}, v3: Record<string, bigint> = {};
+  for (const [token, amount] of Object.entries(leftJar)) {
+    if (!amount) continue;
+    const paidOut: Record<string, bigint> = {};
+    for (const t of transfers) if (t.from === token && t.token !== token) addAmount(paidOut, t.token, t.amount);
+    const [side0, side1, ...more] = Object.keys(paidOut);
+    if (side1 && !more.length && transfers.some((t) => t.token === token && t.to === ZERO_ADDRESS)) {
+      const side = isCoreAsset(chain, side0) ? side0 : side1;
+      addAmount(v2, side, paidOut[side] * 2n);
+    } else {
+      addAmount(v3, token, amount);
+    }
+  }
+
+  const { timestamp } = (await getProvider(chain).getBlock(receipt.blockNumber))!;
+  const keys = [...new Set([v2, v3, v4].flatMap((m) => Object.keys(m)))].map((token) => `${chain}:${token}`);
+  const prices = await coins.getPrices(keys, Math.floor(timestamp / 3600) * 3600);
+  const usd = (amounts: Record<string, bigint>) => Object.entries(amounts).reduce((sum, [token, amount]) => {
+    const price = prices[`${chain}:${token}`];
+    return price ? sum + Number(amount) / 10 ** price.decimals * price.price : sum;
+  }, 0);
+
+  const uni = Number(uniBurned) / 1e18;
+  const value: Record<UniVersion, number> = config.noV2Listing ? { v2: 0, v3: usd(v3) + usd(v2), v4: usd(v4) } : { v2: usd(v2), v3: usd(v3), v4: usd(v4) };
+  const total = value.v2 + value.v3 + value.v4;
+  // nothing priced was taken (Unichain burns native sequencer fees): the whole burn stays on v3, as before the split
+  if (!total) return { v2: 0, v3: uni, v4: 0 };
+  return { v2: uni * value.v2 / total, v3: uni * value.v3 / total, v4: uni * value.v4 / total };
+}
+
+// v4 fees collected into the jar in a separate tx before the burn (`collect` is
+// permissionless). The jar pays out only through releases, each taking an asset's full
+// balance, so those fees go to the next release of that asset: per burn tx, every
+// FeesCollected of an asset it takes since that asset's previous release.
+// Example: Ethereum 0x9cde57c74e8e7b5fc772de932c9ee6ba7b17d8a1c7d02e34c62676b98aa8f689
+// collects v4 WETH/USDT, burn 0xa8e01f768f9147f71b73bed8f9c4163f64525f31831df41a15528e8e39ecc6e3 takes them.
+// v4 fee controllers: the PoolManager's current one plus every one it set since the fee
+// switch, so a replaced controller still counts.
+async function getV4Collections(options: FetchOptions, config: typeof UNI_BURN_CONFIG[string], burns: any[]): Promise<{ adapters: Set<string>; earlier: Record<string, Record<string, bigint>> }> {
+  const position = (log: any) => Number(log.blockNumber) * 1e6 + Number(log.logIndex);
+  const fromBlock = await getBlock(Math.floor(Date.parse(config.feeSwitchDate) / 1000), options.chain);
+  const toBlock = Math.max(...burns.map((log) => Number(log.blockNumber)));
+  const [releases, controllerUpdates, controller] = await Promise.all([
+    options.getLogs({ target: config.firepit, eventAbi: RELEASED_EVENT, fromBlock, toBlock, onlyArgs: false }),
+    options.getLogs({ target: config.poolManager, eventAbi: CONTROLLER_UPDATED_EVENT, fromBlock, toBlock }),
+    api2.abi.call({ chain: options.chain, target: config.poolManager, abi: 'address:protocolFeeController' }),
+  ]);
+  const adapters = new Set<string>([controller, ...controllerUpdates.map((log: any) => log.protocolFeeController)].map(lower));
+  adapters.delete(ZERO_ADDRESS);
+  if (!adapters.size) return { adapters, earlier: {} };
+
+  // per burn tx: its first release and, per asset it takes, that asset's previous release
+  const txs: Record<string, { start: number; previous: Record<string, number> }> = {};
+  for (const burn of burns) {
+    const tx = txs[lower(burn.transactionHash)] ??= { start: position(burn), previous: {} };
+    tx.start = Math.min(tx.start, position(burn));
+    for (const asset of burn.args.assets) tx.previous[lower(asset)] = 0;
+  }
+  for (const release of releases) for (const tx of Object.values(txs)) {
+    if (position(release) >= tx.start) continue;
+    for (const asset of release.args.assets) if (lower(asset) in tx.previous) tx.previous[lower(asset)] = position(release);
+  }
+  const lookFrom = Math.min(...Object.values(txs).flatMap((tx) => Object.values(tx.previous)).map((p) => p ? Math.floor(p / 1e6) : fromBlock));
+  const collections = await options.getLogs({ targets: [...adapters], eventAbi: FEES_COLLECTED_EVENT, fromBlock: lookFrom, toBlock, onlyArgs: false });
+
+  const earlier: Record<string, Record<string, bigint>> = {};
+  for (const [hash, tx] of Object.entries(txs)) for (const log of collections) {
+    const currency = lower(log.args.currency), previous = tx.previous[currency];
+    if (previous === undefined || lower(log.transactionHash) === hash) continue; // not taken, or collected in the burn tx itself
+    if (position(log) > previous && position(log) < tx.start) addAmount(earlier[hash] ??= {}, currency, BigInt(log.args.amount));
+  }
+  return { adapters, earlier };
+}
+
+// This version's share of the UNI burned in the window, summed burn tx by burn tx.
+async function getUniBurn(options: FetchOptions, version: UniVersion): Promise<Balances> {
+  const dailyHoldersRevenue = options.createBalances();
+  const config = UNI_BURN_CONFIG[options.chain];
+  if (!config || options.dateString < config.feeSwitchDate) return dailyHoldersRevenue;
+
+  const burns = await options.getLogs({ target: config.firepit, eventAbi: RELEASED_EVENT, onlyArgs: false });
+  if (!burns.length) return dailyHoldersRevenue;
+
+  const txHashes = [...new Set<string>(burns.map((log: any) => log.transactionHash.toLowerCase()))];
+  // RESOURCE and RESOURCE_RECIPIENT are immutable, so latest state is enough
+  const [token, recipient, receipts, v4] = await Promise.all([
+    api2.abi.call({ chain: options.chain, target: config.firepit, abi: 'address:RESOURCE' }),
+    api2.abi.call({ chain: options.chain, target: config.firepit, abi: 'address:RESOURCE_RECIPIENT' }),
+    getTxReceiptsWithRetry(options.chain, txHashes),
+    getV4Collections(options, config, burns),
+  ]);
+  const resource = { token: lower(token), recipient: lower(recipient) };
+  const splits = await Promise.all(receipts.map((receipt, i) => {
+    if (!receipt) throw new Error(`uniswap: missing receipt for a UNI burn tx on ${options.chain}`);
+    return splitBurnTx(options, config, resource, receipt, v4.adapters, v4.earlier[txHashes[i]] ?? {});
+  }));
+  dailyHoldersRevenue.addCGToken("uniswap", splits.reduce((sum, split) => sum + split[version], 0), UNI_BURN_LABEL);
+  return dailyHoldersRevenue;
+}
+
+// Revenue fields shared by the three adapters: the version's burn share is holders
+// revenue and the rest of its swap fees stays with LPs.
+export async function getUniBurnRevenue(options: FetchOptions, version: UniVersion, dailyFees: Balances) {
+  const dailyHoldersRevenue = await getUniBurn(options, version);
+  const dailySupplySideRevenue = options.createBalances();
+  dailySupplySideRevenue.addUSDValue((await dailyFees.getUSDValue()) - (await dailyHoldersRevenue.getUSDValue()), UNI_LP_LABEL);
+  return { dailyRevenue: dailyHoldersRevenue, dailyProtocolRevenue: 0, dailyHoldersRevenue, dailySupplySideRevenue };
+}
+
+// Methodology text for those fields, shared by the three adapters.
+export function uniBurnMethodology(version: UniVersion) {
+  const burn = `Uniswap ${version}'s share of the UNI burned with protocol fees, on chains where the fee switch is on.`;
+  return {
+    Revenue: burn,
+    HoldersRevenue: burn,
+    SupplySideRevenue: `Uniswap ${version} swap fees kept by liquidity providers: the fees minus the ${version} share of the UNI burn.`,
+  };
+}
+
+export function uniBurnBreakdownMethodology(version: UniVersion) {
+  const burn = { [UNI_BURN_LABEL]: `Protocol fees are released to whoever burns UNI for them. Valued as the UNI burned, split across v2, v3 and v4 by what the burner took from each. This is the ${version} share.` };
+  return {
+    Revenue: burn,
+    HoldersRevenue: burn,
+    SupplySideRevenue: { [UNI_LP_LABEL]: `Uniswap ${version} swap fees minus its share of the UNI burn, negative in a window where a burn exceeds the fees.` },
+  };
 }
 
 // Uniswap v4 flash accounting lets one transaction add liquidity, swap through it
