@@ -25,27 +25,58 @@ const OWN_WALLETS = new Set([
   "0x2258eb58ce26517325f86993635ba15dbde17ffeb179b7066f70d7c0665145ba", // Walrus site publisher
 ]);
 
-// A fee-wallet receipt counts only when its transaction shows where it came from:
-// - a user's transaction that calls a venue the site trades through, or one of POPULAR's own packages, by module name
-//   (the site adds its fee to those transactions), or that POPULAR's gas sponsor paid for;
-// - a keeper transaction that calls POPULAR's open-vault, lending or order modules (vault fee share, lending fees on
+// A fee-wallet receipt counts only when its transaction calls a package it can come from, checked by package family
+// (the original package id, so later upgrades still match; a version is matched through its type origins):
+// - a user's transaction that calls a venue the site trades through or one of POPULAR's own mainnet packages (the site
+//   adds its fee to those transactions), or that POPULAR's gas sponsor paid for;
+// - a keeper transaction that calls POPULAR's open-vault, lending or order packages (vault fee share, lending fees on
 //   sold collateral, order fills).
-// Plain transfers (donations, refunds, sweeps) and every other keeper transaction (balance sweeps, arbitrage) are skipped.
-const SITE_FEE_MODULES = new Set([
-  "router", // Cetus aggregator: every DEX route the site sends
-  "launch", // Blast launchpad curves
-  "bonding_curve", "curve", // SuiPump curves (and POPULAR's and Amped's own `curve` modules)
-  "composite_pool", // Perpsplexity
-  "index", "pair", "pool", "basket", "pay", // POPULAR index tokens, POP pairs, Amped, POP pay
-  "market", "loan", "safe", "vault", // OTC (`market`) and lending
-  "order", "auto", // limit, stop and DCA orders
-  "bundle", "buy_bundle", "curve_bundle", "book", "book_cetus", "open_vault", "open_vault_cetus", "vault_cetus", "dlmm_vault", // bundles
-]);
-const KEEPER_FEE_MODULES = new Set([
-  "open_vault", "open_vault_cetus", "vault", "vault_cetus", "dlmm_vault", // popular_bundles, popular_bundles_dlmm
-  "loan", "safe", "market", // popular_p2p (its `vault` module shares the name above)
-  "order", "auto", // popular_orders
-]);
+// Plain transfers (donations, refunds, sweeps), POPULAR's staging copies on mainnet and every other keeper transaction
+// (balance sweeps, arbitrage) are skipped.
+const POPULAR_FAMILIES = {
+  [POPULAR]: "curves (SUI and quote), graduation, vesting",
+  "0xf332e48e1c3ca49e806ebd3cbca0fdb6de213f5906503cffdd7d74a9f28da3e1": "Amped",
+  "0x5de2cf01feac4de63e94605f74830741d1a8d56efeccf7c9d795e18c4b95c183": "index tokens",
+  "0x20ea839b3ddd963aef5bf7cb022b5dc5807a62c78230c59e12a921a01f2d251a": "POP pairs",
+  "0xf7805603f871976fe85dd3ce5c9c60f7853805ed97f7813c32ea35b398134bf1": "OTC",
+};
+const KEEPER_FAMILIES = {
+  "0x6917a02c3efd66fe57f813dc4c06bd030465b1ff6f01011bfa32ad94a2eee020": "bundles and open vaults",
+  "0xb10e2b3a89243649f812d681331565ba6715042b935b6d68d3bbdfacd3060977": "DLMM open vaults",
+  [LEND]: "lending",
+  "0x5ca9b9dcbfef0dc82d04ebaace5c7917f407c208c879fcf2d175c9b59b4c9998": "limit, stop and DCA orders",
+};
+const VENUE_FAMILIES = {
+  "0x33ec64e9bb369bf045ddc198c81adbf2acab424da37465d95296ee02045d2b17": "Cetus aggregator router",
+  "0x9c2cef371c0e80648136f7ae65378ac9476e3fdb860538d00290e6e4f975b192": "Blast launchpad",
+  "0x1f44a8e9fab4380228fe9c1bcc27d99b7f6ea76a8e18b5c178ca18cd46fb33c4": "Blast presale",
+  "0xd70a8d11582fd1997380bc59bfd56a2f9028ebe11da74514ea3d386258d932fc": "Blast fee split",
+  "0xb205fea41ccedac051bc66498e6ca68cb802c4a6ea06da12e524bed09c80d9b0": "SuiPump",
+  "0x7b4163d17ce18b386ee50929ba48fa0a2ecb60304df4b07e26835aa18617cda2": "SuiPump v2",
+  "0x96a8523e464fdb6c1bb267404621cf47fcd3234d168b724b660995a420b439e3": "SuiPump v3",
+  "0x97fea95545c04dc73f8174c6195013b100a26e3fa978e7cf8b100a51dfaf8354": "Perpsplexity line 1",
+  "0x2649a5407e843c6fd35453e0bd49b364abd8e9fe89af899c6ab9371a4c26dcde": "Perpsplexity line 1 call package (defines no types)",
+  "0xaedb8c9a905a778e831aeb4928f660210a7a645925348a7c4ec1cb4a6a3fd16e": "Perpsplexity line 2",
+};
+const SITE_FEE_FAMILIES = new Set([...Object.keys(VENUE_FAMILIES), ...Object.keys(POPULAR_FAMILIES), ...Object.keys(KEEPER_FAMILIES)]);
+const KEEPER_FEE_FAMILIES = new Set(Object.keys(KEEPER_FAMILIES));
+
+// Package families a called package belongs to: its own id plus the defining ids of its types (`package(address)`
+// answers for the package's latest version, whose type origins include the original id).
+const families: Record<string, Promise<Set<string>>> = {};
+function familiesOf(pkg: string): Promise<Set<string>> {
+  if (!families[pkg]) {
+    families[pkg] = graphqlCall(`{ package(address: "${pkg}") { typeOrigins { definingId } } }`).then(({ package: p }: any) => {
+      if (!p) throw new Error(`popular: no package ${pkg}`);
+      return new Set<string>([pkg, ...(p.typeOrigins ?? []).map((t: any) => t.definingId)]);
+    }).catch((e) => { delete families[pkg]; throw e; });
+  }
+  return families[pkg];
+}
+async function callsAny(packages: string[], allowed: Set<string>): Promise<boolean> {
+  for (const pkg of packages) for (const f of await familiesOf(pkg)) if (allowed.has(f)) return true;
+  return false;
+}
 
 // Curve fee split, in bps of the trade (config::Params, unchanged since launch: trade_fee 100 = creator 50 + platform 30
 // + season 10 + liquidity 10). A referrer earns 10, taken half from platform and half from season. A creator tax
@@ -95,7 +126,14 @@ function typeArgs(repr: string): string[] {
   return args.map(shortType);
 }
 
-type EventNode = { json: any; type: string; digest: string };
+// Where an event sits in the chain: its checkpoint, its transaction and its index in that transaction.
+type ChainPos = { checkpoint: number; digest: string; seq: number };
+type EventNode = { json: any; type: string; digest: string; pos: ChainPos };
+const EVENT_FIELDS = `sequenceNumber timestamp contents { json type { repr } } transaction { digest effects { checkpoint { sequenceNumber } } }`;
+const toNode = (node: any): EventNode => ({
+  json: node.contents.json, type: node.contents.type.repr, digest: node.transaction.digest,
+  pos: { checkpoint: Number(node.transaction.effects.checkpoint.sequenceNumber), digest: node.transaction.digest, seq: Number(node.sequenceNumber) },
+});
 
 // Events of a type (any type arguments) in the window `[startTimestamp, endTimestamp)`, in chain order.
 async function eventsInWindow(type: string, options: FetchOptions): Promise<EventNode[]> {
@@ -106,59 +144,85 @@ async function eventsInWindow(type: string, options: FetchOptions): Promise<Even
     const { events }: any = await graphqlCall(`query ($after: String) {
       events(first: 50, after: $after, filter: { type: "${type}", afterCheckpoint: ${sequenceNumber} }) {
         pageInfo { hasNextPage endCursor }
-        nodes { timestamp contents { json type { repr } } transaction { digest } }
+        nodes { ${EVENT_FIELDS} }
       }
     }`, { after });
     for (const node of events.nodes) {
       const ts = Date.parse(node.timestamp) / 1e3;
       if (ts >= options.endTimestamp) return out;
-      if (ts >= options.startTimestamp) out.push({ json: node.contents.json, type: node.contents.type.repr, digest: node.transaction.digest });
+      if (ts >= options.startTimestamp) out.push(toNode(node));
     }
     if (!events.pageInfo.hasNextPage) return out;
     after = events.pageInfo.endCursor;
   }
 }
 
-// Every event of a type since the package was published, with its time. Used for the few launch-option events.
-async function allEvents(type: string): Promise<{ ts: number; json: any }[]> {
-  const out: { ts: number; json: any }[] = [];
+// Every event of a type since the package was published. Used for the few launch-option events.
+async function allEvents(type: string): Promise<EventNode[]> {
+  const out: EventNode[] = [];
   let after: string | null = null;
   while (true) {
     const { events }: any = await graphqlCall(`query ($after: String) {
       events(first: 50, after: $after, filter: { type: "${type}" }) {
         pageInfo { hasNextPage endCursor }
-        nodes { timestamp contents { json } }
+        nodes { ${EVENT_FIELDS} }
       }
     }`, { after });
-    for (const node of events.nodes) out.push({ ts: Date.parse(node.timestamp), json: node.contents.json });
+    for (const node of events.nodes) out.push(toNode(node));
     if (!events.pageInfo.hasNextPage) return out;
     after = events.pageInfo.endCursor;
   }
 }
 
-// Creator tax of a curve at a trade. Outside the anti-snipe window a trade's `fee_bps` is exactly the base fee plus the
-// tax (`curve::with_tax_at`), so the tax is read from the trade itself. Inside it (`fee_bps` above base + tax) the tax
-// comes from the curve's history: set at launch (`LaunchConfigured`), only ever lowered (`CreatorTaxLowered`). When a
-// lowering and the trade carry the same timestamp, the trade's own `fee_bps` picks the value it paid.
+// Order of transactions inside a checkpoint, read only when two events to compare share one.
+const checkpointTxs: Record<number, Promise<string[]>> = {};
+function txOrder(checkpoint: number): Promise<string[]> {
+  if (!checkpointTxs[checkpoint]) {
+    checkpointTxs[checkpoint] = (async () => {
+      const digests: string[] = [];
+      let after: string | null = null;
+      while (true) {
+        const { checkpoint: cp }: any = await graphqlCall(`query ($after: String) {
+          checkpoint(sequenceNumber: ${checkpoint}) { transactions(first: 50, after: $after) { pageInfo { hasNextPage endCursor } nodes { digest } } }
+        }`, { after });
+        if (!cp) throw new Error(`popular: no checkpoint ${checkpoint}`);
+        digests.push(...cp.transactions.nodes.map((n: any) => n.digest));
+        if (!cp.transactions.pageInfo.hasNextPage) return digests;
+        after = cp.transactions.pageInfo.endCursor;
+      }
+    })().catch((e) => { delete checkpointTxs[checkpoint]; throw e; });
+  }
+  return checkpointTxs[checkpoint];
+}
+
+// Whether `a` happened before `b`: by checkpoint, then by the transaction's place in the checkpoint, then by the
+// event's index in the transaction.
+async function happenedBefore(a: ChainPos, b: ChainPos): Promise<boolean> {
+  if (a.checkpoint !== b.checkpoint) return a.checkpoint < b.checkpoint;
+  if (a.digest === b.digest) return a.seq < b.seq;
+  const order = await txOrder(a.checkpoint);
+  const ia = order.indexOf(a.digest), ib = order.indexOf(b.digest);
+  if (ia < 0 || ib < 0) throw new Error(`popular: transactions ${a.digest} / ${b.digest} not in checkpoint ${a.checkpoint}`);
+  return ia < ib;
+}
+
+// Creator tax of a curve at a trade: the last value set before the trade in chain order. It is set at launch
+// (`LaunchConfigured`, zero when absent) and can only be lowered (`CreatorTaxLowered`), so the steps are already in
+// chain order once sorted by checkpoint, and a step in the trade's own checkpoint is ordered against the trade itself.
 async function taxResolver() {
   const [configured, lowered] = await Promise.all([
     allEvents(`${LAUNCH_OPTIONS}::curve::LaunchConfigured`),
     allEvents(`${LAUNCH_OPTIONS}::curve::CreatorTaxLowered`),
   ]);
-  const steps: Record<string, { ts: number; bps: bigint }[]> = {};
-  for (const e of configured) if (BigInt(e.json.creator_tax_bps) > 0n) (steps[e.json.curve_id] ??= []).push({ ts: e.ts, bps: BigInt(e.json.creator_tax_bps) });
-  for (const e of lowered) (steps[e.json.curve_id] ??= []).push({ ts: e.ts, bps: BigInt(e.json.to_bps) });
-  // Lowerings only go down, so at equal times the higher value came first.
-  Object.values(steps).forEach((s) => s.sort((a, b) => a.ts - b.ts || (b.bps > a.bps ? 1 : b.bps < a.bps ? -1 : 0)));
-  return (curveId: string, ts: number, feeBps: bigint) => {
-    let before = 0n, atOrBefore = 0n;
-    for (const s of steps[curveId] ?? []) {
-      if (s.ts < ts) before = s.bps;
-      if (s.ts <= ts) atOrBefore = s.bps;
-    }
-    const fromTrade = feeBps - TRADE_FEE;
-    if (fromTrade === before || fromTrade === atOrBefore) return fromTrade;
-    return atOrBefore;
+  const steps: Record<string, { pos: ChainPos; bps: bigint }[]> = {};
+  for (const e of configured) if (BigInt(e.json.creator_tax_bps) > 0n) (steps[e.json.curve_id] ??= []).push({ pos: e.pos, bps: BigInt(e.json.creator_tax_bps) });
+  for (const e of lowered) (steps[e.json.curve_id] ??= []).push({ pos: e.pos, bps: BigInt(e.json.to_bps) });
+  // Within one checkpoint the order is settled by happenedBefore below; across checkpoints the sort is exact.
+  Object.values(steps).forEach((s) => s.sort((a, b) => a.pos.checkpoint - b.pos.checkpoint || (b.bps > a.bps ? 1 : b.bps < a.bps ? -1 : 0)));
+  return async (curveId: string, trade: ChainPos) => {
+    let bps = 0n;
+    for (const s of steps[curveId] ?? []) if (await happenedBefore(s.pos, trade)) bps = s.bps;
+    return bps;
   };
 }
 
@@ -212,7 +276,7 @@ async function restOf(digest: string, field: "balanceChanges" | "commands", afte
   while (cursor) {
     const query = field === "balanceChanges"
       ? `query ($after: String) { transaction(digest: "${digest}") { effects { balanceChanges(first: 50, after: $after) { pageInfo { hasNextPage endCursor } nodes { owner { address } amount coinType { repr } } } } } }`
-      : `query ($after: String) { transaction(digest: "${digest}") { kind { ... on ProgrammableTransaction { commands(first: 50, after: $after) { pageInfo { hasNextPage endCursor } nodes { ... on MoveCallCommand { function { name module { name } } } } } } } } }`;
+      : `query ($after: String) { transaction(digest: "${digest}") { kind { ... on ProgrammableTransaction { commands(first: 50, after: $after) { pageInfo { hasNextPage endCursor } nodes { ... on MoveCallCommand { function { module { package { address } } } } } } } } } }`;
     const { transaction }: any = await graphqlCall(query, { after: cursor });
     const conn = field === "balanceChanges" ? transaction?.effects?.balanceChanges : transaction?.kind?.commands;
     if (!conn) throw new Error(`popular: no ${field} for transaction ${digest}`);
@@ -231,10 +295,10 @@ async function fetch(options: FetchOptions) {
   //    including the fee, a sell's proceeds before it); `fee` is what was charged.
   const taxAt = await taxResolver();
   const curveTrades = async (type: string, amountField: string, coinOf: (curveId: string) => Promise<string>) => {
-    for (const { json } of await eventsInWindow(type, options)) {
+    for (const { json, pos } of await eventsInWindow(type, options)) {
       const coin = await coinOf(json.curve_id);
       const fee = BigInt(json.fee);
-      const tax = taxAt(json.curve_id, Number(json.timestamp_ms), BigInt(json.fee_bps));
+      const tax = await taxAt(json.curve_id, pos);
       const s = feeShares(fee, BigInt(json[amountField]), tax, json.referrer != null);
       dailyFees.add(coin, fee, LABELS.curve);
       dailyRevenue.add(coin, s.platform, REVENUE.curve);
@@ -261,8 +325,13 @@ async function fetch(options: FetchOptions) {
 
   // 3. Lending, from repayment and default events. A repaid loan's whole interest is a fee: POPULAR's share
   //    (`platform_cut`, 10%) is revenue, the rest goes to the lender. A defaulted P2P loan pays POPULAR a cut of the
-  //    collateral. Those cuts reach the fee wallet in the same transactions, so step 4 skips them.
-  const lendingTxs = new Set<string>();
+  //    collateral. Those cuts reach the fee wallet in the same transactions; step 4 subtracts them from its receipts.
+  // What step 3 already counted per transaction and coin, so step 4 adds only the rest of the fee-wallet receipt.
+  const counted: Record<string, Record<string, bigint>> = {};
+  const markCounted = (digest: string, coin: string, amount: bigint) => {
+    const byCoin = (counted[digest] ??= {});
+    byCoin[coin] = (byCoin[coin] ?? 0n) + amount;
+  };
   const repayments: [string, number][] = [[`${LEND}::loan::LoanRepaid`, 1], [`${LEND}::safe::SafeRepaid`, 0]]; // index of the loan coin in the type
   for (const [type, loanCoinArg] of repayments) {
     for (const e of await eventsInWindow(type, options)) {
@@ -271,14 +340,14 @@ async function fetch(options: FetchOptions) {
       dailyFees.add(coin, interest, LABELS.interest);
       dailyRevenue.add(coin, cut, REVENUE.interest);
       dailySupplySideRevenue.add(coin, interest - cut, SUPPLY.lenders);
-      lendingTxs.add(e.digest);
+      markCounted(e.digest, coin, cut);
     }
   }
   for (const e of await eventsInWindow(`${LEND}::loan::LoanDefaulted`, options)) {
     const coin = typeArgs(e.type)[0]; // the collateral coin
     dailyFees.add(coin, e.json.platform_cut, LABELS.defaults);
     dailyRevenue.add(coin, e.json.platform_cut, REVENUE.defaults);
-    lendingTxs.add(e.digest);
+    markCounted(e.digest, coin, BigInt(e.json.platform_cut));
   }
 
   // 4. Fees paid straight to POPULAR's fee wallet: the 0.3% fee on trades routed through the site (DEX aggregator
@@ -299,28 +368,27 @@ async function fetch(options: FetchOptions) {
           sender { address }
           gasInput { gasSponsor { address } }
           effects { status balanceChanges(first: 50) { pageInfo { hasNextPage endCursor } nodes { owner { address } amount coinType { repr } } } }
-          kind { ... on ProgrammableTransaction { commands(first: 50) { pageInfo { hasNextPage endCursor } nodes { ... on MoveCallCommand { function { name module { name } } } } } } }
+          kind { ... on ProgrammableTransaction { commands(first: 50) { pageInfo { hasNextPage endCursor } nodes { ... on MoveCallCommand { function { module { package { address } } } } } } } }
         }
       }
     }`, { after });
     for (const tx of transactions.nodes) {
-      if (tx.effects?.status !== "SUCCESS" || lendingTxs.has(tx.digest)) continue;
+      if (tx.effects?.status !== "SUCCESS") continue;
       const sender = tx.sender?.address;
       if (!sender || OWN_WALLETS.has(sender)) continue;
 
       const commandsConn = tx.kind?.commands;
       const commands = [...nodesOf(commandsConn)];
       if (commandsConn?.pageInfo?.hasNextPage) commands.push(...await restOf(tx.digest, "commands", commandsConn.pageInfo.endCursor));
-      const modules = new Set<string>(commands.filter((c: any) => c.function).map((c: any) => c.function.module.name));
-      const has = (allowed: Set<string>) => [...modules].some((m) => allowed.has(m));
+      const packages = [...new Set<string>(commands.filter((c: any) => c.function).map((c: any) => c.function.module.package.address))];
 
       let label: string, revenueLabel: string;
       if (sender === KEEPER) {
-        if (!has(KEEPER_FEE_MODULES)) continue;
+        if (!await callsAny(packages, KEEPER_FEE_FAMILIES)) continue;
         [label, revenueLabel] = [LABELS.keeper, REVENUE.keeper];
       } else {
         const sponsored = tx.gasInput?.gasSponsor?.address === GAS_SPONSOR;
-        if (!sponsored && !has(SITE_FEE_MODULES)) continue;
+        if (!sponsored && !await callsAny(packages, SITE_FEE_FAMILIES)) continue;
         [label, revenueLabel] = [LABELS.site, REVENUE.site];
       }
 
@@ -330,8 +398,16 @@ async function fetch(options: FetchOptions) {
       for (const change of changes) {
         if (change.owner?.address !== FEE_WALLET || BigInt(change.amount) <= 0n) continue;
         const coin = shortType(change.coinType.repr);
-        dailyFees.add(coin, change.amount, label);
-        dailyRevenue.add(coin, change.amount, revenueLabel);
+        let amount = BigInt(change.amount);
+        const already = counted[tx.digest]?.[coin] ?? 0n;
+        if (already > 0n) {
+          const used = already < amount ? already : amount;
+          counted[tx.digest][coin] = already - used;
+          amount -= used;
+        }
+        if (amount <= 0n) continue;
+        dailyFees.add(coin, amount, label);
+        dailyRevenue.add(coin, amount, revenueLabel);
       }
     }
     if (!transactions.pageInfo.hasNextPage) break;
@@ -369,7 +445,7 @@ const adapter: SimpleAdapter = {
       [LABELS.graduation]: "1% of the raise taken when a curve graduates to Cetus (`graduation::Graduated` events).",
       [LABELS.interest]: "Interest paid on repaid loans, P2P and vault (`loan::LoanRepaid`, `safe::SafeRepaid` events).",
       [LABELS.defaults]: "POPULAR's cut of a defaulted P2P loan's collateral (`loan::LoanDefaulted` events).",
-      [LABELS.site]: "Coins received by POPULAR's fee wallet in users' transactions that call a venue the site trades through or a POPULAR package, or that POPULAR's gas sponsor paid for: site trading fees, OTC, lending open, launch and gas-sponsorship fees.",
+      [LABELS.site]: "Coins received by POPULAR's fee wallet in users' transactions that call a venue the site trades through (Cetus aggregator, Blast, SuiPump, Perpsplexity) or a POPULAR mainnet package, or that POPULAR's gas sponsor paid for: site trading fees, OTC, lending open, launch and gas-sponsorship fees. Lending cuts already counted from repayment events are subtracted.",
       [LABELS.keeper]: "POPULAR's share of open-vault pool fees, lending fees on sold collateral, and the fee of limit, stop and DCA orders, received by the fee wallet in the keeper's transactions.",
     },
     Revenue: {
