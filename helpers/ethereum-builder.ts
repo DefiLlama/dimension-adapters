@@ -76,7 +76,8 @@ export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderEx
       // make sure to to_addresses are known validators addresses, known forwarders or transaction value < 1 ETH
       const [fees] = await queryAllium(`
         SELECT
-          COALESCE(SUM(value), 0) AS total_fees_priority,
+          -- a reverted payment moves no ETH (e.g. a forwarder call past its timestamp guard), but its gas is still paid
+          COALESCE(SUM(CASE WHEN receipt_status = 1 THEN value ELSE 0 END), 0) AS total_fees_priority,
           COALESCE(SUM(receipt_gas_used * receipt_effective_gas_price), 0) AS total_fees_transactions
         FROM ethereum.raw.transactions
         WHERE
