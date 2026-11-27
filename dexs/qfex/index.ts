@@ -9,6 +9,9 @@ const MINUTES_PER_DAY = 1440;
 const DAILY_CANDLE_RESOLUTION = "1DAY";
 const QFEX_API_CONCURRENCY = 2;
 const QFEX_SYMBOL_THROTTLE_MS = 500;
+const HISTORICAL_VOLUME_CUTOFF = "2026-07-27";
+const HISTORICAL_VOLUME_THRESHOLD_USD = 10_000_000;
+const HISTORICAL_VOLUME_DIVISOR = 10;
 
 interface TakerVolumePoint {
   takerBuyNotional: number;
@@ -66,8 +69,11 @@ async function fetch(options: FetchOptions) {
     return { dailyVolumeUSD, openInterestAtEndUSD };
   });
 
+  const reportedVolumeUSD = results.reduce((sum, result) => sum + result.dailyVolumeUSD, 0);
+  // Estimate the historical reduction for dates when QFEX's feed included outsized stress-test volume.
+  const applyHistoricalAdjustment = options.dateString < HISTORICAL_VOLUME_CUTOFF && reportedVolumeUSD > HISTORICAL_VOLUME_THRESHOLD_USD;
   const dailyVolume = options.createBalances();
-  dailyVolume.addUSDValue(results.reduce((sum, result) => sum + result.dailyVolumeUSD, 0));
+  dailyVolume.addUSDValue(applyHistoricalAdjustment ? reportedVolumeUSD / HISTORICAL_VOLUME_DIVISOR : reportedVolumeUSD);
 
   const openInterestAtEnd = options.createBalances();
   openInterestAtEnd.addUSDValue(results.reduce((sum, result) => sum + result.openInterestAtEndUSD, 0));
@@ -79,7 +85,7 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Volume: "Taker notional volume across all perpetual futures markets on QFEX (buy-side + sell-side taker notional, no double-counting of maker volume).",
+  Volume: "QFEX perpetual futures taker notional, with daily totals above $10 million divided by 10 before July 27, 2026 UTC as an estimate to account for historical stress-test volume.",
   OpenInterest: "Open interest is reported in contracts, and converted to USD using the matching QFEX candle close for the requested daily window and single-sided.",
 };
 
