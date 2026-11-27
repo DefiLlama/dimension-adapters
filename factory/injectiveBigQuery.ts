@@ -154,7 +154,8 @@ async function fetchHelixDerivativeTrades(options: FetchOptions) {
   let fees = 0;
   for (const trade of trades) {
     volume += Number(trade.positionDelta.executionPrice) * Number(trade.positionDelta.executionQuantity) / 10 ** USD_QUOTE_DECIMALS;
-    fees += Math.abs(Number(trade.fee)) / 10 ** USD_QUOTE_DECIMALS;
+    // negative fees are maker rebates paid out of taker fees, not fees collected
+    fees += Math.max(Number(trade.fee), 0) / 10 ** USD_QUOTE_DECIMALS;
   }
   return { volume, fees };
 }
@@ -179,7 +180,8 @@ async function fetchHelixSpot(options: FetchOptions) {
     if (!quoteDenom) throw new Error(`Helix spot: trade ${trade.tradeId} is on unknown market ${trade.marketId}`);
     // price is quote base units per base base unit, quantity and fee are base units
     const notional = Number(trade.price.price) * Number(trade.price.quantity);
-    const fee = Math.abs(Number(trade.fee));
+    // negative fees are maker rebates paid out of taker fees, not fees collected
+    const fee = Math.max(Number(trade.fee), 0);
     const usdDecimals = HELIX_SPOT_USD_QUOTES[quoteDenom];
     if (usdDecimals !== undefined) {
       dailyVolume.addUSDValue(notional / 10 ** usdDecimals);
@@ -221,7 +223,7 @@ const helixSpotFees: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      "Spot Trading Fees": "Sum of |fee| over maker and taker fills of Helix spot orders.",
+      "Spot Trading Fees": "Fees charged on maker and taker fills of Helix spot orders; maker rebates (negative fees) are not counted.",
     },
     Revenue: {
       "Spot Trading Fees": "All Helix spot exchange fees flow to the Injective burn auction.",
@@ -263,7 +265,7 @@ const helixPerpFees: SimpleAdapter = {
   },
   breakdownMethodology: {
     Fees: {
-      "Derivative Trading Fees": "Sum of |fee| over maker and taker fills of Helix derivative orders.",
+      "Derivative Trading Fees": "Fees charged on maker and taker fills of Helix derivative orders; maker rebates (negative fees) are not counted.",
     },
     Revenue: {
       "Derivative Trading Fees": "All Helix derivative exchange fees flow to the Injective burn auction.",
