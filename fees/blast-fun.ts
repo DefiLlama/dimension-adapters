@@ -62,60 +62,65 @@ async function fetch({ dateString, createBalances }: FetchOptions) {
     throw new Error(`Invalid Blast fee summary for ${dateString}`);
   }
 
-  const dailyFees = toBalances(summary.dailyFees, feeLabels, createBalances);
-  const dailyRevenue = toBalances(summary.dailyRevenue, revenue.labels, createBalances);
-  const dailySupplySideRevenue = toBalances(
+  const { balances: dailyFees } = readBreakdown(summary.dailyFees, feeLabels, createBalances);
+  const retained = readBreakdown(summary.dailyRevenue, revenue.labels, createBalances, true);
+  const supplySide = readBreakdown(
     summary.dailySupplySideRevenue,
     supplySideRevenue.labels,
     createBalances,
+    true,
   );
 
+  const gross = { dailyFees, dailyUserFees: dailyFees.clone() };
+  // Omitting only dailyRevenue would let the runner infer it from possibly
+  // incomplete supply-side revenue. Keep all three attribution metrics absent.
+  if (!retained.complete || !supplySide.complete) return gross;
+
   return {
-    dailyFees,
-    dailyUserFees: dailyFees.clone(),
-    dailyRevenue,
-    dailyProtocolRevenue: dailyRevenue.clone(),
-    dailySupplySideRevenue,
+    ...gross,
+    dailyRevenue: retained.balances,
+    dailyProtocolRevenue: retained.balances.clone(),
+    dailySupplySideRevenue: supplySide.balances,
   };
 }
 
 /** Convert a published fee breakdown into labeled token balances. */
-function toBalances(
+function readBreakdown(
   breakdown: unknown,
   labels: ReadonlyMap<string, string>,
   createBalances: FetchOptions["createBalances"],
+  allowUnknown = false,
 ) {
   if (!isRecord(breakdown)) {
     throw new Error("Invalid Blast fee breakdown");
   }
 
   const balances = createBalances();
+  let complete = true;
   for (const [source, amounts] of Object.entries(breakdown)) {
     const label = labels.get(source);
     if (!label) {
       throw new Error(`Unrecognized Blast fee source: ${source}`);
     }
-    if (!isTokenAmounts(amounts)) {
-      throw new Error(`Invalid Blast fee amounts for ${source}`);
+    if (!isRecord(amounts)) throw new Error(`Invalid Blast fee amounts for ${source}`);
+    const known: [string, string][] = [];
+    for (const [token, amount] of Object.entries(amounts)) {
+      if (amount === null && allowUnknown) {
+        complete = false;
+      } else if (typeof amount === "string" && /^(0|[1-9][0-9]*)$/.test(amount)) {
+        known.push([token, amount]);
+      } else {
+        throw new Error(`Invalid Blast fee amount for ${source}: ${token}`);
+      }
     }
-    balances.addBalances(amounts, label);
+    balances.addBalances(Object.fromEntries(known), label);
   }
-  return balances;
+  return { balances, complete };
 }
 
 /** Check the JSON object shape used for fee breakdowns and token maps. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** Check that amounts are exact strings in the smallest token unit. */
-function isTokenAmounts(value: unknown): value is Record<string, string> {
-  return (
-    isRecord(value) &&
-    Object.values(value).every(
-      (amount) => typeof amount === "string" && /^(0|[1-9][0-9]*)$/.test(amount),
-    )
-  );
 }
 
 const feeDescriptions = {
@@ -131,6 +136,8 @@ const feeDescriptions = {
 const adapter: SimpleAdapter = {
   // Blast publishes completed UTC days. Its hourly feed accepts only UTC-hour-aligned windows.
   version: 1,
+  // Gross fees can be final before deferred partner allocation is known.
+  skipBreakdownValidation: true,
   chains: [CHAIN.SUI],
   start: "2026-11-07",
   fetch,
@@ -139,7 +146,7 @@ const adapter: SimpleAdapter = {
       "Blast launchpad fees and settled frontend fees paid to Blast on Cetus and Aftermath. " +
       "Excludes external DEX fees and vault LP yield.",
     UserFees: "Launchpad fees and frontend route fees paid by Blast users.",
-    Revenue: "Blast fees after deducting creator and partner shares.",
+    Revenue: "Blast fees after deducting creator and partner shares. The fee split is omitted until attribution is complete.",
     ProtocolRevenue: "The portion of launchpad and frontend fees retained by Blast.",
     SupplySideRevenue: "Shares of Blast launchpad fees owed to creators and partners.",
   },
