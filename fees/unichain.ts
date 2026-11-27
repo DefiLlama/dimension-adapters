@@ -12,6 +12,7 @@ const FEE_SPLITTER_LIVE_FROM = 1766966400;
 const BASIS_POINT_SCALE = 1000n;
 const GROSS_REVENUE_SHARE = 25n;
 const NET_REVENUE_SHARE = 150n;
+const NET_FEE_REVENUE = 'Net Fee Revenue';
 
 async function getNetFeeRevenueWei(options: FetchOptions) {
   const { chain } = options;
@@ -53,7 +54,7 @@ const adapter: SimpleAdapter = {
 
         const dailyRevenue = options.createBalances()
         if (options.startOfDay >= FEE_SPLITTER_LIVE_FROM) {
-          dailyRevenue.addGasToken((await getNetFeeRevenueWei(options)).toString())
+          dailyRevenue.addGasToken((await getNetFeeRevenueWei(options)).toString(), NET_FEE_REVENUE)
         }
 
         return { dailyFees, dailyRevenue, dailyHoldersRevenue: dailyRevenue, dailyProtocolRevenue: 0 }
@@ -61,6 +62,20 @@ const adapter: SimpleAdapter = {
     }
   },
   protocolType: ProtocolType.CHAIN,
+  methodology: {
+    Fees: 'Gas fees paid by users on Unichain, from the explorer totalfees endpoint.',
+    Revenue: `The net fee share Unichain's FeeSplitter (0x4300c0d3c0d3c0d3c0d3c0d3c0d3c0d3c0d30001) forwards to the NetFeeSplitter, computed from what the sequencer, base and l1 fee vaults accrued over the day: optimism takes the larger of 2.5% of all three vaults and 15% of the sequencer and base vaults, and the net fee recipient takes the rest of the sequencer and base share.`,
+    HoldersRevenue: 'Same as revenue, which the NetFeeSplitter pays out to its recipients.',
+    ProtocolRevenue: 'None, Unichain keeps no part of the net fee share.',
+  },
+  breakdownMethodology: {
+    Revenue: {
+      [NET_FEE_REVENUE]: 'The share of the day\'s fee vault accrual that the FeeSplitter sends to the NetFeeSplitter.',
+    },
+    HoldersRevenue: {
+      [NET_FEE_REVENUE]: 'The share of the day\'s fee vault accrual that the FeeSplitter sends to the NetFeeSplitter.',
+    },
+  },
 }
 
 export default adapter;
