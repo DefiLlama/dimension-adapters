@@ -53,21 +53,22 @@ export async function queryEventsInWindow(eventType: string, options: { startTim
   return (await queryEventNodesInWindow(eventType, options)).map((e) => e.json)
 }
 
-export async function queryEventNodesInWindow(eventType: string, options: { startTimestamp: number; endTimestamp: number }): Promise<{ json: any; digest: string }[]> {
+// `type` is the full event type with its type arguments; `timestamp` is the checkpoint time in seconds.
+export async function queryEventNodesInWindow(eventType: string, options: { startTimestamp: number; endTimestamp: number }): Promise<{ json: any; digest: string; type: string; timestamp: number }[]> {
   const { sequenceNumber } = await getCheckpointBeforeWindow(options.startTimestamp)
-  const events: { json: any; digest: string }[] = []
+  const events: { json: any; digest: string; type: string; timestamp: number }[] = []
   let after: string | null = null
   while (true) {
     const { events: page } = await graphqlCall(`query ($after: String) {
       events(first: 50, after: $after, filter: { type: "${eventType}", afterCheckpoint: ${sequenceNumber} }) {
         pageInfo { hasNextPage endCursor }
-        nodes { timestamp contents { json } transaction { digest } }
+        nodes { timestamp contents { json type { repr } } transaction { digest } }
       }
     }`, { after })
     for (const node of page.nodes) {
       const ts = Date.parse(node.timestamp) / 1e3
       if (ts >= options.endTimestamp) return events
-      if (ts >= options.startTimestamp) events.push({ json: node.contents.json, digest: node.transaction.digest })
+      if (ts >= options.startTimestamp) events.push({ json: node.contents.json, digest: node.transaction.digest, type: node.contents.type.repr, timestamp: ts })
     }
     if (!page.pageInfo.hasNextPage) return events
     after = page.pageInfo.endCursor
