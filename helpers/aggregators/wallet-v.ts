@@ -3,6 +3,7 @@ import { FetchOptions } from '../../adapters/types';
 import { getAlliumChain, queryAllium } from '../allium';
 import { CHAIN } from '../chains';
 import ADDRESSES from '../coreAssets.json';
+import { getRelayApiKey, getRelayPage, RELAY_CHAINS } from '../relay';
 
 // https://bscscan.com/tx/0x99971e414cdb5fdf2fe0d15c081efdd1f970ff03a6c3b95ed12616ce3a23a9c3
 export const FEE_WALLET = '0xd64a453da8fcdd049697aa5c6dabfff09916c795';
@@ -26,6 +27,59 @@ export const chainConfig: Record<string, { start: string }> = {
   [CHAIN.ROBINHOOD]: { start: '2026-09-01' },
   [CHAIN.SOLANA]: { start: '2025-05-21' },
 };
+
+// Wallet V's Relay requests carry this referrer and pay its app fee to FEE_WALLET. Relay's v3 API filters by app id only
+// for the app owner's key, so they are read from v2, which filters by referrer: https://docs.relay.link/references/api/get-requests-v2
+const RELAY_REQUESTS_V2_API = 'https://api.relay.link/requests/v2';
+const RELAY_REFERRER = 'wallet.v';
+
+const relayStarts: Record<string, string> = {
+  [CHAIN.ARBITRUM]: '2025-09-05',
+  [CHAIN.SOLANA]: '2025-09-05',
+  [CHAIN.HYPERLIQUID]: '2025-09-08',
+  [CHAIN.ETHEREUM]: '2025-09-16',
+  [CHAIN.BSC]: '2025-09-16',
+  [CHAIN.POLYGON]: '2025-09-16',
+  [CHAIN.BASE]: '2025-09-16',
+  [CHAIN.OPTIMISM]: '2025-09-16',
+  [CHAIN.AVAX]: '2025-09-16',
+  [CHAIN.TRON]: '2026-08-18',
+  [CHAIN.ROBINHOOD]: '2026-09-01',
+};
+
+export function withRelayChains(config: Record<string, { start: string }>): Record<string, { start: string }> {
+  const merged = { ...config };
+  for (const [chain, start] of Object.entries(relayStarts)) {
+    if (!merged[chain] || start < merged[chain].start) merged[chain] = { start };
+  }
+  return merged;
+}
+
+export type RelayTotals = Record<string, { volumeUsd: number; feesUsd: number }>;
+
+// Relay holds the app fees until Wallet V claims them, so they are not transfers inside the request's transactions.
+export async function fetchRelayTotals(options: FetchOptions): Promise<any> {
+  const apiKey = getRelayApiKey();
+  const totals: RelayTotals = {};
+  let continuation: string | undefined;
+  do {
+    // the API's time bounds are inclusive
+    const page = await getRelayPage(`${RELAY_REQUESTS_V2_API}?referrer=${RELAY_REFERRER}&status=success&startTimestamp=${options.startTimestamp}&endTimestamp=${options.endTimestamp - 1}&limit=50&sortBy=createdAt&sortDirection=asc${continuation ? `&continuation=${encodeURIComponent(continuation)}` : ''}`, apiKey);
+    for (const { referrer, data } of page.requests) {
+      if (referrer !== RELAY_REFERRER) throw new Error('Wallet V: Relay returned a request without the wallet.v referrer');
+      const { currencyIn, currencyOut } = data.metadata;
+      const chain = RELAY_CHAINS[currencyIn.currency.chainId];
+      if (!relayStarts[chain]) throw new Error(`Wallet V: Relay request from unlisted chain ${currencyIn.currency.chainId}`);
+      const chainTotals = totals[chain] ??= { volumeUsd: 0, feesUsd: 0 };
+      if (currencyOut.currency.chainId !== currencyIn.currency.chainId) chainTotals.volumeUsd += Number(currencyIn.amountUsd ?? 0);
+      for (const fee of data.paidAppFees ?? []) {
+        if (fee.recipient.toLowerCase() === FEE_WALLET) chainTotals.feesUsd += Number(fee.amountUsd ?? 0);
+      }
+    }
+    continuation = page.continuation;
+  } while (continuation);
+  return totals;
+}
 
 export type WalletVRow = { kind: 'volume' | 'swap' | 'rango'; token: string; amount: string };
 
