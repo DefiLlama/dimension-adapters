@@ -64,8 +64,8 @@ import { getDexTokensBlacklisted } from "../helpers/lists";
 import { METRIC } from "../helpers/metrics";
 import { isCoreAsset } from "../helpers/prices";
 import {
-  getEstablishedTokens, getPhantomSwapKeys, phantomSwapKey, washDayStart, WASH_DUST_USD, WASH_MIN_TRADES, WASH_MIN_USD,
-  WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
+  getEstablishedTokens, getPhantomSwapKeys, getUniBurnRevenue, phantomSwapKey, uniBurnBreakdownMethodology, uniBurnMethodology, washDayStart, WASH_DUST_USD,
+  WASH_MIN_TRADES, WASH_MIN_USD, WASH_TRADES_PER_EOA, WASH_USD_MIN_TRADES_PER_EOA, WASH_USD_PER_EOA,
 } from "../helpers/uniswap";
 import { formatAddress } from "../utils/utils";
 
@@ -465,10 +465,7 @@ async function fetch(options: FetchOptions) {
     dailyVolume,
     dailyFees,
     dailyUserFees: dailyFees,
-    dailySupplySideRevenue: dailyFees.clone(1, 'Swap Fees To Liquidity Providers'),
-    dailyRevenue: 0, // tracked in uniswap-v3 adapter
-    dailyProtocolRevenue: 0,
-    dailyHoldersRevenue: 0, // tracked in uniswap-v3 adapter
+    ...(await getUniBurnRevenue(options, 'v4', dailyFees)),
   }
 }
 
@@ -482,10 +479,8 @@ const adapter: SimpleAdapter = {
     Volume: 'Swap volume, excluding wash trading and swaps settled with no tokens changing hands.',
     Fees: 'Swap fees paid by users, excluding wash trading and swaps settled with no tokens changing hands.',
     UserFees: 'Swap fees paid by users, excluding wash trading and swaps settled with no tokens changing hands.',
-    Revenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
     ProtocolRevenue: 'Protocol makes no revenue.',
-    SupplySideRevenue: 'Part of fees distributed to LPs after protocol cut. (It was 100% of fees before fee switch(27 Jul 2026)).',
-    HoldersRevenue: 'Fee switch enabled on 27 Jul 2026 (tracked in uniswap-v3 adapter), a part of fees collected to buy back and burn UNI.',
+    ...uniBurnMethodology('v4'),
   },
   breakdownMethodology: {
     Fees: {
@@ -494,10 +489,10 @@ const adapter: SimpleAdapter = {
     UserFees: {
       [METRIC.SWAP_FEES]: 'Swap fees paid by users, excluding wash trading and swaps settled with no tokens changing hands.',
     },
-    SupplySideRevenue: {
-      'Swap Fees To Liquidity Providers': 'Swap fees distributed to LPs, the fee switch share is subtracted in uniswap-v3 adapter.',
-    },
+    ...uniBurnBreakdownMethodology('v4'),
   },
+  // burns land in lumps (2,000-4,000 UNI per release), so the burn share of an hourly window can exceed its swap fees and push supply side negative
+  allowNegativeValue: true,
   fetch,
 };
 

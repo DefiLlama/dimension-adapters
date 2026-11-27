@@ -14,6 +14,8 @@ const API_REQUEST_INTERVAL_MS = 55;
 const OHLCV_INTERVAL = "24h";
 // One 24-hour candle is expected for each UTC daily window.
 const OHLCV_LIMIT = 1;
+// Largest limit /trades accepts.
+const TRADES_LIMIT = 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAY_SECONDS = DAY_MS / 1000;
 
@@ -35,6 +37,17 @@ interface OhlcvResponse {
   code: number;
   msg?: string | null;
   result: OhlcvCandle[];
+}
+
+interface Trade {
+  qty: number | string;
+  price: number | string;
+}
+
+interface TradesResponse {
+  code: number;
+  msg?: string | null;
+  result: Trade[];
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -115,13 +128,32 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
 
   // The API documents a 20 request/second limit; space starts slightly beyond 50ms.
   let nextRequestAt = 0;
+  const pacedGet = async (path: string) => {
+    const requestAt = Math.max(Date.now(), nextRequestAt);
+    nextRequestAt = requestAt + API_REQUEST_INTERVAL_MS;
+    await sleep(Math.max(0, requestAt - Date.now()));
+    return httpGet(`${API_BASE}${path}`, { timeout: REQUEST_TIMEOUT_MS });
+  };
+
+  const getTradesVolume = async (market: string) => {
+    const query = new URLSearchParams({
+      pair: market,
+      start: String(startMs),
+      end: String(endMs - 1),
+      limit: String(TRADES_LIMIT),
+    });
+    const response = (await pacedGet(`/trades?${query}`)) as TradesResponse;
+    if (!response || response.code !== 200 || !Array.isArray(response.result)) {
+      throw new Error(response?.msg || `unexpected trades response code ${response?.code}`);
+    }
+    if (response.result.length >= TRADES_LIMIT) throw new Error(`trades hit the ${TRADES_LIMIT} row limit`);
+
+    return response.result.reduce((sum, trade) => sum + Number(trade.qty) * Number(trade.price), 0);
+  };
+
   const { results, errors } = await PromisePool.withConcurrency(API_CONCURRENCY)
     .for(markets)
     .process(async (market: string) => {
-      const requestAt = Math.max(Date.now(), nextRequestAt);
-      nextRequestAt = requestAt + API_REQUEST_INTERVAL_MS;
-      await sleep(Math.max(0, requestAt - Date.now()));
-
       try {
         const query = new URLSearchParams({
           pair: market,
@@ -131,13 +163,14 @@ const fetch = async (options: FetchOptions): Promise<FetchResult> => {
           interval: OHLCV_INTERVAL,
           limit: String(OHLCV_LIMIT),
         });
-        const response = (await httpGet(`${API_BASE}/ohlcv?${query}`, {
-          timeout: REQUEST_TIMEOUT_MS,
-        })) as OhlcvResponse;
+        const response = (await pacedGet(`/ohlcv?${query}`)) as OhlcvResponse;
 
         if (!response || response.code !== 200 || !Array.isArray(response.result)) {
           throw new Error(response?.msg || `unexpected response code ${response?.code}`);
         }
+
+        // Everstrike skips daily candles while its candle job is down; trade records still cover the window.
+        if (response.result.length === 0) return getTradesVolume(market);
 
         return getDailyVolume(response.result, endMs);
       } catch (error) {
@@ -161,7 +194,7 @@ const adapter: SimpleAdapter = {
   start: "2025-03-01",
   methodology: {
     Volume:
-      "Sum of USD-denominated base_volume from Everstrike's 24-hour OHLCV candles across all markets (https://api.everstrike.io/ohlcv).",
+      "Sum of USD-denominated base_volume from Everstrike's 24-hour OHLCV candles across all markets (https://api.everstrike.io/ohlcv); when a market's daily candle is missing, the qty × price of its trades in the day (https://api.everstrike.io/trades).",
   },
 };
 

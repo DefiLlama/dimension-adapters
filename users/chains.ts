@@ -6,6 +6,7 @@ import { createEvmChainNewUsersFetcher, createEvmChainUsersFetcher, EVM_CHAIN_ME
 import { blockscoutStatsExports } from "./utils/blockscoutStats";
 import { feeHistoryUsersExports } from "./utils/feeHistoryUsers";
 import { routescanStatsExports } from "./utils/routescanStats";
+import { somniaStatsExports } from "./utils/somniaStats";
 import { subscanStatsExports } from "./utils/subscanStats";
 
 async function solanaUsers(start: number, end: number) {
@@ -213,4 +214,4 @@ export default [
   type: "chain",
   chain: chain.chain,
   getUsers: (start: number, end: number) => chain.getUsers(start, end).then(u => typeof u === "object" ? u : ({ all: { users: u } })),
-} as ChainUserConfig)).concat(alliumExports, blockscoutStatsExports, feeHistoryUsersExports, routescanStatsExports, subscanStatsExports, evmChainMetricExports)
+} as ChainUserConfig)).concat(alliumExports, blockscoutStatsExports, feeHistoryUsersExports, routescanStatsExports, somniaStatsExports, subscanStatsExports, evmChainMetricExports)

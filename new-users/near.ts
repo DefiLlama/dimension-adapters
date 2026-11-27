@@ -1,21 +1,27 @@
-import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
+import { queryAllium } from "../helpers/allium";
 import { CHAIN } from "../helpers/chains";
-import fetchURL from "../utils/fetchURL";
-
-const CHARTS_URL = "https://api.nearblocks.io/v1/charts";
 
 const fetch = async (options: FetchOptions) => {
-  const apiResponse = await fetchURL(CHARTS_URL);
-  const charts = apiResponse.charts;
-  if (!charts?.length) throw new Error("Missing Nearblocks charts data");
-
-  const todaysData = charts.find((item) => item.date === `${options.dateString}T00:00:00.000Z`);
-  if (!todaysData) {
-    throw new Error(`No Nearblocks charts data found for date ${options.dateString}`);
-  }
+  const query = `
+    WITH touched AS (
+      SELECT DISTINCT account_id
+      FROM near.raw.account_changes
+      WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.startTimestamp})
+        AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp})
+    )
+    SELECT COUNT(*) AS new_users
+    FROM touched t
+    WHERE NOT EXISTS (
+      SELECT 1 FROM near.raw.account_changes h
+      WHERE h.account_id = t.account_id
+        AND h.block_timestamp < TO_TIMESTAMP_NTZ(${options.startTimestamp})
+    )
+  `;
+  const [row] = await queryAllium(query);
 
   return {
-    dailyNewUsers: todaysData.new_accounts,
+    dailyNewUsers: row.new_users,
   };
 };
 
@@ -23,8 +29,13 @@ const adapter: SimpleAdapter = {
   version: 1,
   fetch,
   chains: [CHAIN.NEAR],
+  dependencies: [Dependencies.ALLIUM],
+  isExpensiveAdapter: true,
   protocolType: ProtocolType.CHAIN,
   start: "2020-07-21",
+  methodology: {
+    NewUsers: "Accounts (named and implicit) whose first on-chain state change falls in the day.",
+  },
 };
 
 export default adapter;

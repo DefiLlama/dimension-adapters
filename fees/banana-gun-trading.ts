@@ -3,6 +3,7 @@ import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryDuneSql } from "../helpers/dune";
 import { METRIC } from "../helpers/metrics";
+import { getRouterV2Swaps } from "../helpers/bananaGun";
 
 const contract_address: any = {
   [CHAIN.BLAST]: '0x461efe0100be0682545972ebfc8b4a13253bd602',
@@ -74,6 +75,12 @@ const fetch = async (options: FetchOptions) => {
     const gasToken = data.slice(0, 64);
     dailyFees.addGasToken(Number('0x' + gasToken), METRIC.TRADING_FEES);
     dailyRevenue.addGasToken(Number('0x' + gasToken), METRIC.TRADING_FEES);
+  });
+
+  const routerV2Swaps = await getRouterV2Swaps(options);
+  routerV2Swaps.forEach(({ feeToken, fee }) => {
+    dailyFees.add(feeToken, fee, METRIC.TRADING_FEES);
+    dailyRevenue.add(feeToken, fee, METRIC.TRADING_FEES);
   });
   return {
     dailyFees,

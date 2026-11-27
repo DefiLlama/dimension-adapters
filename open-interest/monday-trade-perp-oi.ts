@@ -18,6 +18,7 @@ const adapter: SimpleAdapter = {
   fetch,
   chains: [CHAIN.MONAD],
   start: '2026-02-05',
+  deadFrom: '2026-05-09', // perps shut down: no instrument trade events after 2026-05-08, only Gate withdrawals since
 };
 
 export default adapter;

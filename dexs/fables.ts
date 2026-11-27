@@ -497,6 +497,8 @@ const breakdownMethodology = {
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
+  // claim fees are booked when the ledger skims them, so one hourly slice can exceed that hour's swap fees (supply side < 0)
+  allowNegativeValue: true,
   fetch,
   chains: [CHAIN.ROBINHOOD],
   start: "2026-08-18", // FablesPoolRegistry was deployed on 2026-08-17 05:18 UTC

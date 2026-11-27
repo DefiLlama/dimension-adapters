@@ -1439,6 +1439,8 @@ export const aaveProtocolConfigs: Record<string, { config: {[key: string]: AaveA
     config: {
       [CHAIN.STORY]: {
         start: '2025-02-13',
+        // drained on 2025-12-30 through an unauthorized contract upgrade, operations suspended; last pool event 2025-12-29
+        deadFrom: '2025-12-30',
         pools: [
           {
             version: 3,
