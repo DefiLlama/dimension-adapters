@@ -1,6 +1,7 @@
 import { Balances, ChainApi } from '@defillama/sdk'
-import { AbiCoder, Interface, ZeroAddress, keccak256, zeroPadValue, id as eventTopic } from 'ethers'
+import { AbiCoder, Interface, keccak256, zeroPadValue, id as eventTopic } from 'ethers'
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
+import ADDRESSES from '../helpers/coreAssets.json'
 import { CHAIN } from '../helpers/chains'
 import { METRIC } from '../helpers/metrics'
 import { getTransactionsWithRetry } from '../helpers/getTxReceipts'
@@ -35,36 +36,34 @@ const chainConfig: Record<string, { start: string, keeper: string, evmPools: Rec
   [CHAIN.ETHEREUM]: {
     start: '2026-09-18', keeper: '0x7c9f8aE4e48Cbb2727F95b6477a1cf92bCFc43D0',
     evmPools: {
-      [EVM_ETH_POOL]: ZeroAddress,
+      [EVM_ETH_POOL]: ADDRESSES.null,
       '0x0000007F401114398b8fa67b4Bf1e1CFEcd28ffe': TAC,
       '0x0000007bDb91d1aa0b5D3106Fd1c44C784b33DBA': '0xA0f6B02561C8ef08335B69aD25e022C0B342147C',
       '0x00000091974fB81e7eBA4cF2Cb24869c00a9A1a1': '0x9DE27883C5Dc9Db47BE12E595D59b8f1aBEC8570',
-      '0x6C0be904750Fe1b50cd7207cc94731642d99e908': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-      '0x73872ceEaADd2C603BD057073D403f08DCB31EB9': '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-      '0x0a83Fb67EE2708F10BCdd8FE23Fa3B30A0247Aac': '0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0',
+      '0x6C0be904750Fe1b50cd7207cc94731642d99e908': ADDRESSES.ethereum.USDC,
+      '0x73872ceEaADd2C603BD057073D403f08DCB31EB9': ADDRESSES.ethereum.USDT,
+      '0x0a83Fb67EE2708F10BCdd8FE23Fa3B30A0247Aac': ADDRESSES.ethereum.WSTETH,
     },
   },
   [CHAIN.BASE]: {
     start: '2026-09-27', keeper: '0xfA2afbaB631C7Eda7CeA6AE1440605C504E322Ec',
     evmPools: {
-      [EVM_ETH_POOL]: ZeroAddress,
-      '0xCAf6BE2e337AEcAB4a4eA183452f78800fD1616D': '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-      '0xC720d51Fa8B768F6b0ba58Bf0812CA76355bcee4': '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2',
-      '0x95e51d1BF626390c2C99b748d7A2D31829D94746': '0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452',
+      [EVM_ETH_POOL]: ADDRESSES.null,
+      '0xCAf6BE2e337AEcAB4a4eA183452f78800fD1616D': ADDRESSES.base.USDC,
+      '0xC720d51Fa8B768F6b0ba58Bf0812CA76355bcee4': ADDRESSES.base.USDT,
+      '0x95e51d1BF626390c2C99b748d7A2D31829D94746': ADDRESSES.base.wstETH,
     },
   },
   [CHAIN.ROBINHOOD]: {
     start: '2026-09-27', keeper: '0xc1F8DAc6BC910A5A794b4795b5F9997e0E8A5Fad',
     evmPools: {
-      [EVM_ETH_POOL]: ZeroAddress,
-      '0x4430C0eFdFef640d54abB5a7cDdC63819468d8CA': '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168',
-      '0x1BC62D5fF0a76b8f944C70Bf324EAf9a028f062F': '0x5d3a1Ff2b6BAb83b63cd9AD0787074081a52ef34',
+      [EVM_ETH_POOL]: ADDRESSES.null,
+      '0x4430C0eFdFef640d54abB5a7cDdC63819468d8CA': ADDRESSES.robinhood.USDG,
+      '0x1BC62D5fF0a76b8f944C70Bf324EAf9a028f062F': ADDRESSES.robinhood.USDe,
     },
   },
 }
 
-const MAX_SETTLE_TXS = 20_000
-const MAX_CANDIDATE_BLOCKS = 5_000
 const AMM_FEE_TIER_BPS = 30n // the only tier with initialized pools, ConfidentialPool MAX_POOL_FEE_BPS is 1000
 const BPS = 10_000n
 const PV_VERSION = 1n
@@ -150,7 +149,7 @@ const blockOf = (log: any) => Number(log.blockNumber)
 const hashOf = (log: any) => String(log.transactionHash).toLowerCase()
 
 function addAsset(balances: Balances, asset: Asset, amount: bigint, label?: string) {
-  if (asset.underlying === ZeroAddress) balances.addGasToken(amount, label)
+  if (asset.underlying === ADDRESSES.null) balances.addGasToken(amount, label)
   else balances.add(asset.underlying.toLowerCase() === WTAC.toLowerCase() ? TAC : asset.underlying, amount, label)
 }
 
@@ -183,7 +182,6 @@ function decodeSettleTx(tx: any): { pv: any, skim?: { fee: bigint, recipient: st
   const pvHex: string = parsed.args.publicValues
   const [pv] = coder.decode([PV_TYPE], pvHex)
   if (BigInt(pv.version) !== PV_VERSION) throw new Error(`tacit: PublicValues version ${pv.version} in ${tx.hash}`)
-  if (coder.encode([PV_TYPE], [pv]).toLowerCase() !== pvHex.toLowerCase()) throw new Error(`tacit: PublicValues round-trip mismatch in ${tx.hash}`)
   let skim
   // ConfidentialRouter._skimFee: the ETH sent on top of the wrap goes to the caller-named relay
   if (parsed.name === 'wrapAndSettleETH') skim = { fee: BigInt(tx.value) - BigInt(parsed.args.wrapAmount), recipient: parsed.args.feeRecipient }
@@ -199,7 +197,6 @@ async function loadSettles(options: FetchOptions): Promise<{ settles: Settle[], 
   ])
   const blockByHash = new Map<string, number>()
   for (const log of [...spent, ...inserted]) blockByHash.set(hashOf(log), blockOf(log))
-  if (blockByHash.size > MAX_SETTLE_TXS) throw new Error(`tacit: ${blockByHash.size} settle txs exceeds the bound ${MAX_SETTLE_TXS}`)
   const hashes = [...blockByHash.keys()]
   const txs = await getTransactionsWithRetry(options.chain, hashes)
   const settles: Settle[] = []
@@ -243,7 +240,7 @@ function addSettleRelayFees(out: Out, settles: Settle[], assets: Record<string, 
 }
 
 async function addTips(options: FetchOptions, out: Out, settles: Settle[]) {
-  const eth: Asset = { underlying: ZeroAddress, unitScale: 1n, poolMinted: false }
+  const eth: Asset = { underlying: ADDRESSES.null, unitScale: 1n, poolMinted: false }
   const [wrapTips, tokenWrapTips, settleTips, escrowTips] = await Promise.all([
     options.getLogs({ target: WRAP_TIP_FORWARDER, eventAbi: EVENTS.wrappedWithTip }),
     options.getLogs({ target: WRAP_TOKEN_TIP_FORWARDER, eventAbi: EVENTS.tokenWrappedWithTip }),
@@ -254,7 +251,7 @@ async function addTips(options: FetchOptions, out: Out, settles: Settle[]) {
     .map((e: any) => ({ fee: BigInt(e.tip), recipient: e.tipRecipient }))
   for (const s of settles) if (s.skim) tips.push(s.skim)
   for (const t of tips) {
-    if (t.fee <= 0n || t.recipient === ZeroAddress) continue
+    if (t.fee <= 0n || t.recipient === ADDRESSES.null) continue
     const isTacit = TACIT_TIP_RECIPIENTS.has(t.recipient.toLowerCase())
     addSplit(out, isTacit, (b, l) => addAsset(b, eth, t.fee, l), [LABEL.TIPS, LABEL.TIPS_TO_TACIT, LABEL.TIPS_TO_OTHERS])
   }
@@ -299,7 +296,7 @@ async function readPoolStates(chain: string, block: number, ids: string[]): Prom
 function addSwap(out: Out, info: PoolInfo, assets: Record<string, Asset>, inA: bigint, inB: bigint, cutIn: bigint) {
   const aIsInput = inA > 0n
   const [inId, outId, amountIn, amountOut] = aIsInput ? [info.assetA, info.assetB, inA, -inB] : [info.assetB, info.assetA, inB, -inA]
-  const rank = (id: string) => (assets[id].underlying === ZeroAddress ? 0 : TACIT_TOKENS.has(assets[id].underlying.toLowerCase()) ? 2 : 1)
+  const rank = (id: string) => (assets[id].underlying === ADDRESSES.null ? 0 : TACIT_TOKENS.has(assets[id].underlying.toLowerCase()) ? 2 : 1)
   const useInput = rank(inId) <= rank(outId)
   const leg = useInput ? assets[inId] : assets[outId]
   const legAmount = useInput ? amountIn : amountOut
@@ -316,21 +313,20 @@ function addSwap(out: Out, info: PoolInfo, assets: Record<string, Asset>, inA: b
 // blocks where a public AMM op or an undecodable settle can move reserves
 async function loadCandidateBlocks(options: FetchOptions, settles: Settle[], undecodedBlocks: Set<number>, poolAssets: Asset[]) {
   const settleHashes = new Set(settles.map((s) => s.hash))
-  const tokens = [...new Set(poolAssets.filter((a) => a.underlying !== ZeroAddress).map((a) => a.underlying))]
-  const minted = [...new Set(poolAssets.filter((a) => a.poolMinted && a.underlying !== ZeroAddress).map((a) => a.underlying))]
+  const tokens = [...new Set(poolAssets.filter((a) => a.underlying !== ADDRESSES.null).map((a) => a.underlying))]
+  const minted = [...new Set(poolAssets.filter((a) => a.poolMinted && a.underlying !== ADDRESSES.null).map((a) => a.underlying))]
   const escrow = tokens.filter((t) => !minted.includes(t))
   const query = (targets: string[], topics: (string | null)[]) => targets.length
     ? options.getLogs({ targets, topics, eventAbi: 'event Transfer(address indexed from, address indexed to, uint256 value)', entireLog: true, parseLog: false })
     : Promise.resolve([])
   const [intoAmm, mints, fromPool] = await Promise.all([
     query(tokens, [TRANSFER_TOPIC, null, zeroPadValue(PUBLIC_AMM, 32)]),
-    query(minted, [TRANSFER_TOPIC, zeroPadValue(ZeroAddress, 32)]),
+    query(minted, [TRANSFER_TOPIC, zeroPadValue(ADDRESSES.null, 32)]),
     query(escrow, [TRANSFER_TOPIC, zeroPadValue(POOL, 32)]),
   ])
   const blocks = new Set<number>(undecodedBlocks)
   for (const log of intoAmm) blocks.add(blockOf(log))
   for (const log of [...mints, ...fromPool]) if (!settleHashes.has(hashOf(log))) blocks.add(blockOf(log))
-  if (blocks.size > MAX_CANDIDATE_BLOCKS) throw new Error(`tacit: ${blocks.size} candidate blocks exceeds the bound ${MAX_CANDIDATE_BLOCKS}`)
   return [...blocks].sort((x, y) => x - y)
 }
 
