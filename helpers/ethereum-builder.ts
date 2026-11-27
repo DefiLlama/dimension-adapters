@@ -24,7 +24,7 @@ interface EthereumBlockBuilderExportOptions {
 export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderExportOptions) {
   const adapter: SimpleAdapter = {
     version: 2,
-    pullHourly: true,
+    //pullHourly: true,
     chains: [CHAIN.ETHEREUM],
     allowNegativeValue: true,
     dependencies: [Dependencies.ALLIUM],
