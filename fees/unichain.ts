@@ -1,6 +1,5 @@
 import { CHAIN } from "../helpers/chains";
 import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
-import { blockscoutFeeAdapter2 } from "../helpers/blockscoutFees";
 import { getVaultCountersAccruedWei } from "../helpers/ethereum-l2";
 import { METRIC } from "../helpers/metrics";
 
@@ -8,7 +7,6 @@ const SEQUENCER_FEE_VAULT = '0x4200000000000000000000000000000000000011';
 const L1_FEE_VAULT = '0x420000000000000000000000000000000000001a';
 const BASE_FEE_VAULT = '0x4200000000000000000000000000000000000019';
 
-const FEE_SPLITTER_LIVE_FROM = 1766966400;
 const BASIS_POINT_SCALE = 1000n;
 const GROSS_REVENUE_SHARE = 25n;
 const NET_REVENUE_SHARE = 150n;
@@ -18,12 +16,6 @@ const NET_FEE_REVENUE = 'Net Fee Revenue';
 const OPTIMISM_SUPERCHAIN_SHARE = 'Optimism Superchain Share';
 
 const fetch = async (options: FetchOptions) => {
-  if (options.startOfDay < FEE_SPLITTER_LIVE_FROM) {
-    const blockscoutAdapter = blockscoutFeeAdapter2(CHAIN.UNICHAIN)
-    const { dailyFees } = await (blockscoutAdapter.adapter as any)[options.chain].fetch(options)
-    return { dailyFees, dailyRevenue: 0, dailyHoldersRevenue: 0, dailyProtocolRevenue: 0 }
-  }
-
   const [netFees, l1DataFees] = await Promise.all([
     getVaultCountersAccruedWei(options, [SEQUENCER_FEE_VAULT, BASE_FEE_VAULT]),
     getVaultCountersAccruedWei(options, [L1_FEE_VAULT]),
