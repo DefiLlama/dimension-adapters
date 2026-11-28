@@ -1,6 +1,7 @@
 import { FetchOptions, SimpleAdapter } from '../adapters/types'
 import { CHAIN } from '../helpers/chains'
 import { METRIC } from '../helpers/metrics'
+import { getPositionedLogArgs } from '../helpers/logs'
 import { EVENTS, VAULT, usd30 } from '../helpers/zeustrade'
 
 // PositionRouter: https://basescan.org/address/0xBE341A6683124193926ACd71b69dCDdE3cc37e60
@@ -24,6 +25,11 @@ const FEE_CONVERSION_ACCOUNTS = new Set([
 ])
 
 const BASIS_POINTS = 10000n
+// Safe cutover enabling V2 and revoking V1 on 2026-11-27 at 03:25:06 UTC:
+// https://basescan.org/tx/0xb156bdabbf9c1c30bc70fbec51245db15814698611a146da04389d11db87fdd7
+const FEE_SPLIT_START_BLOCK = 62797653
+const LP_SHARE_BPS = 7000n
+const RISK_RESERVE_SHARE_BPS = 1000n
 
 const LABEL = {
   COLLATERAL_FEES: 'Collateral Fees',
@@ -32,6 +38,8 @@ const LABEL = {
   MINT_REDEEM_FEES_TO_LPS: 'Mint/Redeem Fees To ZLP Holders',
   LIQUIDATION_FEES_TO_KEEPER: 'Liquidation Fees To Liquidation Keeper',
   COLLATERAL_FEES_TO_PROTOCOL: 'Collateral Fees To Protocol',
+  VAULT_FEES_TO_RISK_RESERVE: 'Vault Fees To Risk Reserve',
+  VAULT_FEES_TO_OPERATING_TREASURY: 'Vault Fees To Operating Treasury',
 }
 
 const fetch = async (options: FetchOptions) => {
@@ -39,41 +47,60 @@ const fetch = async (options: FetchOptions) => {
   const dailySupplySideRevenue = options.createBalances()
   const dailyRevenue = options.createBalances()
 
-  // token = null means the amount is already in USD
-  const addFee = (token: string | null, amount: bigint | number, source: string, destination: string, isRevenue: boolean) => {
-    const target = isRevenue ? dailyRevenue : dailySupplySideRevenue
-    for (const [balances, label] of [[dailyFees, source], [target, destination]] as const) {
-      if (token) balances.add(token, amount.toString(), label)
-      else balances.addUSDValue(Number(amount), label)
+  // A null token denotes a USD value with the Vault's 30 decimals.
+  const addAmount = (balances: typeof dailyFees, token: string | null, amount: bigint, label: string) => {
+    if (token) balances.add(token, amount.toString(), label)
+    else balances.addUSDValue(usd30(amount), label)
+  }
+
+  const addVaultFee = (blockNumber: number, token: string, amount: bigint, source: string, lpLabel: string) => {
+    addAmount(dailyFees, token, amount, source)
+
+    // Allocate on the accrual block. The first V2 payout may also settle earlier accruals.
+    if (blockNumber < FEE_SPLIT_START_BLOCK) {
+      addAmount(dailySupplySideRevenue, token, amount, lpLabel)
+      return
     }
+    const lpShare = amount * LP_SHARE_BPS / BASIS_POINTS
+    const riskReserveShare = amount * RISK_RESERVE_SHARE_BPS / BASIS_POINTS
+    const treasuryShare = amount - lpShare - riskReserveShare
+    addAmount(dailySupplySideRevenue, token, lpShare, lpLabel)
+    addAmount(dailyRevenue, token, riskReserveShare, LABEL.VAULT_FEES_TO_RISK_RESERVE)
+    addAmount(dailyRevenue, token, treasuryShare, LABEL.VAULT_FEES_TO_OPERATING_TREASURY)
+  }
+
+  const addProtocolFee = (token: string | null, amount: bigint, source: string, destination: string) => {
+    addAmount(dailyFees, token, amount, source)
+    addAmount(dailyRevenue, token, amount, destination)
   }
 
   // Position fee (0.1% of the size change when a keeper executes) plus the
   // hourly borrow fee, charged on every increase, decrease and liquidation.
-  const marginFees = await options.getLogs({ target: VAULT, eventAbi: EVENTS.collectMarginFees })
-  marginFees.forEach((log: any) => addFee(null, usd30(log.feeUsd), METRIC.MARGIN_FEES, LABEL.MARGIN_FEES_TO_LPS, false))
+  // Use the emitted token debit so pricing reflects what the Vault collected.
+  const marginFees = await getPositionedLogArgs(options, { target: VAULT, eventAbi: EVENTS.collectMarginFees })
+  marginFees.forEach((log) => addVaultFee(log.blockNumber, log.token, BigInt(log.feeTokens), METRIC.MARGIN_FEES, LABEL.MARGIN_FEES_TO_LPS))
 
   // Vault swap fee, taken from tokenOut: amountOut - amountOutAfterFees.
-  const swaps = await options.getLogs({ target: VAULT, eventAbi: EVENTS.swap })
-  swaps.forEach((log: any) => {
+  const swaps = await getPositionedLogArgs(options, { target: VAULT, eventAbi: EVENTS.swap })
+  swaps.forEach((log) => {
     if (FEE_CONVERSION_ACCOUNTS.has(log.account.toLowerCase())) return
-    addFee(log.tokenOut, BigInt(log.amountOut) - BigInt(log.amountOutAfterFees), METRIC.SWAP_FEES, LABEL.SWAP_FEES_TO_LPS, false)
+    addVaultFee(log.blockNumber, log.tokenOut, BigInt(log.amountOut) - BigInt(log.amountOutAfterFees), METRIC.SWAP_FEES, LABEL.SWAP_FEES_TO_LPS)
   })
 
   // ZLP mint fee, taken from tokenAmount the same way Vault.buyUSDG does.
-  const mints = await options.getLogs({ target: VAULT, eventAbi: EVENTS.buyUSDG })
-  mints.forEach((log: any) => {
+  const mints = await getPositionedLogArgs(options, { target: VAULT, eventAbi: EVENTS.buyUSDG })
+  mints.forEach((log) => {
     const amount = BigInt(log.tokenAmount)
     const fee = amount - amount * (BASIS_POINTS - BigInt(log.feeBasisPoints)) / BASIS_POINTS
-    addFee(log.token, fee, METRIC.MINT_REDEEM_FEES, LABEL.MINT_REDEEM_FEES_TO_LPS, false)
+    addVaultFee(log.blockNumber, log.token, fee, METRIC.MINT_REDEEM_FEES, LABEL.MINT_REDEEM_FEES_TO_LPS)
   })
 
   // ZLP redeem fee: SellUSDG reports the amount after the fee, rounded up back to the fee.
-  const redeems = await options.getLogs({ target: VAULT, eventAbi: EVENTS.sellUSDG })
-  redeems.forEach((log: any) => {
+  const redeems = await getPositionedLogArgs(options, { target: VAULT, eventAbi: EVENTS.sellUSDG })
+  redeems.forEach((log) => {
     const bps = BigInt(log.feeBasisPoints)
     const fee = (BigInt(log.tokenAmount) * bps + BASIS_POINTS - bps - 1n) / (BASIS_POINTS - bps)
-    addFee(log.token, fee, METRIC.MINT_REDEEM_FEES, LABEL.MINT_REDEEM_FEES_TO_LPS, false)
+    addVaultFee(log.blockNumber, log.token, fee, METRIC.MINT_REDEEM_FEES, LABEL.MINT_REDEEM_FEES_TO_LPS)
   })
 
   // Flat liquidation fee (liquidationFeeUsd, $5 since launch) paid out of the
@@ -81,7 +108,7 @@ const fetch = async (options: FetchOptions) => {
   const liquidations = await options.getLogs({ target: VAULT, eventAbi: EVENTS.liquidatePosition })
   if (liquidations.length) {
     const liquidationFeeUsd = await options.toApi.call({ target: VAULT, abi: 'uint256:liquidationFeeUsd' })
-    addFee(null, usd30(liquidationFeeUsd) * liquidations.length, METRIC.LIQUIDATION_FEES, LABEL.LIQUIDATION_FEES_TO_KEEPER, true)
+    addProtocolFee(null, BigInt(liquidationFeeUsd) * BigInt(liquidations.length), METRIC.LIQUIDATION_FEES, LABEL.LIQUIDATION_FEES_TO_KEEPER)
   }
 
   // Collateral fee (depositFee, 0.3% on the PositionRouter) when collateral is
@@ -98,7 +125,7 @@ const fetch = async (options: FetchOptions) => {
   const after = await options.toApi.multiCall({ abi: 'function feeReserves(address) view returns (uint256)', calls })
   calls.forEach((call, i) => {
     const growth = BigInt(after[i]) - BigInt(before[i])
-    if (growth > 0n) addFee(call.params[0], growth, LABEL.COLLATERAL_FEES, LABEL.COLLATERAL_FEES_TO_PROTOCOL, true)
+    if (growth > 0n) addProtocolFee(call.params[0], growth, LABEL.COLLATERAL_FEES, LABEL.COLLATERAL_FEES_TO_PROTOCOL)
   })
 
   return {
@@ -116,18 +143,20 @@ const adapter: SimpleAdapter = {
   pullHourly: true,
   fetch,
   chains: [CHAIN.BASE],
-  start: '2026-04-27',
+  // First Vault fee, Base block 45253202:
+  // https://basescan.org/tx/0x28f0c7fa86f87d47511b90e63a827a137538bef05658bd8d84f52b3bfe546a3a
+  start: '2026-04-27T13:15:51Z',
   methodology: {
     Fees: 'Margin fees (position and borrow fees), Vault swap fees, ZLP mint and redeem fees, liquidation fees and PositionRouter collateral fees paid by users. Keeper execution fees in ETH are gas refunds and are not counted. Swaps that convert collected fees into USDC are excluded.',
     UserFees: 'All fees are paid by traders and liquidity providers.',
-    SupplySideRevenue: 'All margin, swap, mint and redeem fees collected in the Vault are distributed to ZLP holders (fZLP stakers) in USDC.',
-    Revenue: 'Liquidation fees paid to the ZEUS liquidation keeper and collateral fees held by the PositionRouter and PositionManager.',
-    ProtocolRevenue: 'Liquidation fees paid to the ZEUS liquidation keeper and collateral fees held by the PositionRouter and PositionManager.',
+    SupplySideRevenue: 'The adapter attributes 100% of Vault fee accruals to ZLP holders before the V2 cutover and 70% from the cutover onward. USDC settlements can include earlier accruals.',
+    Revenue: 'The risk reserve and operating treasury shares of V2 Vault fee accruals, liquidation fees paid to the ZEUS liquidation keeper, and collateral fees held by the PositionRouter and PositionManager.',
+    ProtocolRevenue: 'The risk reserve and operating treasury shares of V2 Vault fee accruals, liquidation fees paid to the ZEUS liquidation keeper, and collateral fees held by the PositionRouter and PositionManager.',
     HoldersRevenue: 'No fees go to ZUS token holders.',
   },
   breakdownMethodology: {
     Fees: {
-      [METRIC.MARGIN_FEES]: 'Position fee on every executed size change plus the hourly borrow fee, from Vault CollectMarginFees events.',
+      [METRIC.MARGIN_FEES]: 'Position and borrow fees in the tokens charged, from CollectMarginFees.feeTokens.',
       [METRIC.SWAP_FEES]: 'Fee of Vault swaps by users, taken from the output token.',
       [METRIC.MINT_REDEEM_FEES]: 'Fee paid when liquidity providers mint or redeem ZLP.',
       [METRIC.LIQUIDATION_FEES]: 'Flat liquidation fee per liquidated position.',
@@ -141,17 +170,21 @@ const adapter: SimpleAdapter = {
       [LABEL.COLLATERAL_FEES]: 'Collateral fees paid by traders.',
     },
     SupplySideRevenue: {
-      [LABEL.MARGIN_FEES_TO_LPS]: 'All margin fees go to ZLP holders.',
-      [LABEL.SWAP_FEES_TO_LPS]: 'All swap fees go to ZLP holders.',
-      [LABEL.MINT_REDEEM_FEES_TO_LPS]: 'All mint and redeem fees go to ZLP holders.',
+      [LABEL.MARGIN_FEES_TO_LPS]: '100% of margin fees before the cutover and 70% from the cutover onward.',
+      [LABEL.SWAP_FEES_TO_LPS]: '100% of user swap fees before the cutover and 70% from the cutover onward.',
+      [LABEL.MINT_REDEEM_FEES_TO_LPS]: '100% of mint and redeem fees before the cutover and 70% from the cutover onward.',
     },
     Revenue: {
       [LABEL.LIQUIDATION_FEES_TO_KEEPER]: 'Liquidation fees go to the fee receiver of the ZEUS liquidation keeper, which pays the gas.',
       [LABEL.COLLATERAL_FEES_TO_PROTOCOL]: 'Collateral fees stay in the PositionRouter and PositionManager until the admin Safe withdraws them.',
+      [LABEL.VAULT_FEES_TO_RISK_RESERVE]: '10% of margin, user swap, mint and redeem fees from the V2 cutover.',
+      [LABEL.VAULT_FEES_TO_OPERATING_TREASURY]: 'The remaining 20% of Vault fees from the V2 cutover, including rounding remainders.',
     },
     ProtocolRevenue: {
       [LABEL.LIQUIDATION_FEES_TO_KEEPER]: 'Liquidation fees go to the fee receiver of the ZEUS liquidation keeper, which pays the gas.',
       [LABEL.COLLATERAL_FEES_TO_PROTOCOL]: 'Collateral fees stay in the PositionRouter and PositionManager until the admin Safe withdraws them.',
+      [LABEL.VAULT_FEES_TO_RISK_RESERVE]: '10% of margin, user swap, mint and redeem fees from the V2 cutover.',
+      [LABEL.VAULT_FEES_TO_OPERATING_TREASURY]: 'The remaining 20% of Vault fees from the V2 cutover, including rounding remainders.',
     },
   },
 }

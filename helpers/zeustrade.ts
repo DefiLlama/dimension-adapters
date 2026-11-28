@@ -3,8 +3,6 @@
 
 // Vault: https://basescan.org/address/0xEAC80C1722E8990AAFeB2Ea3bcF040D29f722bd9
 export const VAULT = '0xEAC80C1722E8990AAFeB2Ea3bcF040D29f722bd9'
-// Vault creation block (2026-04-27); the first position opened on 2026-05-05.
-export const VAULT_START_BLOCK = 45249956
 
 // Vault amounts in USD use 30 decimals, as in GMX v1.
 export const usd30 = (value: any) => Number(value) / 1e30
