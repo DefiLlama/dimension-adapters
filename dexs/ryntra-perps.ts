@@ -62,6 +62,7 @@ const LABELS = {
 // notional, 0.068014 USDC of builder fees. They are Solana transactions of version 1 (SIMD-0385); a day that is known
 // to have orders and comes back empty means the warehouse is missing them, and storing it as zero would hide that.
 const FIRST_DAY = { start: 1792627200, end: 1792713600, orders: 3, volume: "340073239" }; // 2026-10-22 00:00 to 2026-10-23 00:00 UTC
+// A window that covers the day may end at its midnight or at its last second (23:59:59); both are the first day.
 
 const fetch = async (options: FetchOptions) => {
   assertDuneSolanaIndexed(options);
@@ -69,7 +70,7 @@ const fetch = async (options: FetchOptions) => {
   // An aggregate always returns its row; none means the query did not answer, and a stored zero would hide that.
   if (rows.length !== 1) throw new Error(`ryntra-perps: expected one row from Dune, got ${rows.length}`);
   const [{ orders, volume, fee }] = rows;
-  const firstDay = options.startTimestamp <= FIRST_DAY.start && options.endTimestamp >= FIRST_DAY.end && options.endTimestamp - options.startTimestamp <= 86_400 + 1;
+  const firstDay = options.startTimestamp <= FIRST_DAY.start && options.endTimestamp >= FIRST_DAY.end - 1 && options.endTimestamp - options.startTimestamp <= 86_400 + 1;
   if (firstDay && (Number(orders) !== FIRST_DAY.orders || volume !== FIRST_DAY.volume))
     throw new Error(`ryntra-perps: Dune returns ${orders} Flight orders (${volume}) through Ryntra's builder on 2026-10-22, the chain holds ${FIRST_DAY.orders} (${FIRST_DAY.volume})`);
 
