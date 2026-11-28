@@ -1,5 +1,6 @@
 import * as sdk from "@defillama/sdk";
 import type { Balances } from "@defillama/sdk";
+import { encodeBytes32String } from "ethers";
 import ADDRESSES from "../helpers/coreAssets.json";
 import { CHAIN } from "../helpers/chains";
 import { getUniV2LogAdapter, uniV2Exports } from "../helpers/uniswap";
@@ -24,17 +25,16 @@ const grossSwapFeesOnly = ({ dailyVolume, dailyFees }: { dailyVolume: Balances, 
   dailyFees: dailyFees.clone(1, swapFeeLabel),
 })
 
-// DemaxPair emits the fee amount debited by the platform, even when the rate changes.
-const burgerSwapFees = async ({ dailyVolume, filteredPairs, fetchOptions }: {
-  dailyVolume: Balances, filteredPairs: Record<string, unknown>, fetchOptions: FetchOptions
-}) => {
-  const dailyFees = fetchOptions.createBalances()
-  const logs = await fetchOptions.getLogs({
-    targets: Object.keys(filteredPairs),
-    eventAbi: 'event SwapFee(address indexed token, address indexed to, uint256 amount)',
+// DemaxFactory.CONFIG(); the platform charges SWAP_FEE_PERCENT bps on each hop: https://github.com/burgerswap-org/burgerswap-core/blob/f00a7d58380f9895eb441e92baa64e95614b448f/contracts/demaxPlatform.sol#L360-L391
+const burgerSwapConfig = '0xE7F6824706aEee33542088eb2fdd2D69e37455B6'
+
+const burgerSwapFees = async ({ dailyVolume, fetchOptions }: { dailyVolume: Balances, fetchOptions: FetchOptions }) => {
+  const feeBps = await fetchOptions.api.call({
+    target: burgerSwapConfig,
+    abi: 'function getConfigValue(bytes32) view returns (uint256)',
+    params: [encodeBytes32String('SWAP_FEE_PERCENT')],
   })
-  logs.forEach(log => dailyFees.add(log.token, log.amount, swapFeeLabel))
-  return { dailyVolume, dailyFees }
+  return { dailyVolume, dailyFees: dailyVolume.clone(Number(feeBps) / 10000, swapFeeLabel) }
 }
 
 // GT3: fees are collected by each pair's fees() contract; 85% to token holders, 15% to the protocol
@@ -1233,7 +1233,6 @@ const configs: Record<string, Record<string, any>> = {
   },
   "burgerswap": {
     // DemaxFactory (BurgerSwap v1)
-    // Gross fees are debited as SwapFee events: https://github.com/burgerswap-org/burgerswap-core/blob/f00a7d58380f9895eb441e92baa64e95614b448f/contracts/DemaxPair.sol#L249-L261
     [CHAIN.BSC]: { factory: '0x8a1E9d3aEbBBd5bA2A64d3355A48dD5E9b511256', start: '2020-09-19', customLogic: burgerSwapFees },
   },
   "sumswap": {
@@ -2366,7 +2365,7 @@ for (const [name, config] of Object.entries(configs)) {
   adapter.skipBreakdownValidation = true // allow old protocols return only fees
   if (methodologyMap[name]) adapter.methodology = methodologyMap[name]
   if (Object.values(config).some(({ customLogic }) => customLogic === grossSwapFeesOnly || customLogic === burgerSwapFees)) {
-    adapter.methodology = { Fees: swapFeeMethodology, ...adapter.methodology }
+    adapter.methodology = { Fees: swapFeeMethodology, ...methodologyMap[name] }
     adapter.breakdownMethodology = { Fees: { [swapFeeLabel]: swapFeeMethodology } }
   }
   if (deadFromMap[name]) adapter.deadFrom = deadFromMap[name]
