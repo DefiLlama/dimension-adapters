@@ -51,55 +51,83 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 // The public endpoint allows 40 calls of one method per ten seconds from one address (Solana's docs,
 // "Clusters and Public RPC Endpoints"), and now and then fails to reach its archive. Both are waited out, so
 // a refusal is never read as an empty hour: five waits of 4, 8, 12, 16 and 20 seconds, the first as long as
-// a new ten-second window needs to open, and after the fifth the error is thrown.
+// a new ten-second window needs to open, and after the fifth the error is thrown. A node that has not yet
+// reached the slot it is asked about refuses too, and is waited out the same way.
 async function rpc(method: string, params: any[]): Promise<any> {
   for (let attempt = 0; ; attempt++) {
     try {
       return await solanaRpc(method, params);
     } catch (e: any) {
-      if (attempt >= 5 || !/429|too many requests|long-term storage/i.test(String(e?.message ?? e))) throw e;
+      if (attempt >= 5 || !/429|too many requests|long-term storage|minimum context slot|block not available/i.test(String(e?.message ?? e))) throw e;
       await sleep(4000 * (attempt + 1));
     }
   }
 }
 
-// Finalized only: a finalized signature carries its blockTime and is never dropped. A slot is finalized
-// about 13 seconds after it is produced (32 slots of about 0.4 seconds each); 30 leaves a margin.
-const FINALITY_SECONDS = 30;
 // The most signatures getSignaturesForAddress returns in one call.
 const SIGNATURES_PER_PAGE = 1000;
-async function readSignatures(before?: string): Promise<any[]> {
-  const page = await rpc("getSignaturesForAddress", [PROGRAM, { before, limit: SIGNATURES_PER_PAGE, commitment: "finalized" }]);
+// minContextSlot makes a node that has not finalized up to that slot refuse the call instead of
+// answering with a list that stops short of it.
+async function readSignatures(minContextSlot: number, before?: string): Promise<any[]> {
+  const page = await rpc("getSignaturesForAddress", [PROGRAM, { before, limit: SIGNATURES_PER_PAGE, commitment: "finalized", minContextSlot }]);
   // A malformed answer throws instead of reading as the end of history.
   if (!Array.isArray(page)) throw new Error("memetics-finance: getSignaturesForAddress returned no list");
   return page;
 }
 
-// Requests are kept few. The newest page is shared by every window that closed before it was read
-// (a run tests 24 hourly windows), and a page older than a given signature never changes.
-let newest: { readAt: number; page: Promise<any[]> } | undefined;
+// A finalized slot and its block time. Finalized only: a finalized signature carries its blockTime and is
+// never dropped.
+type Tip = { slot: number; time: number };
+async function finalizedTip(): Promise<Tip> {
+  const slot = await rpc("getSlot", [{ commitment: "finalized" }]);
+  const time = await rpc("getBlockTime", [slot]);
+  if (typeof slot !== "number" || typeof time !== "number")
+    throw new Error("memetics-finance: the RPC returned no finalized slot, or no block time for it");
+  return { slot, time };
+}
+
+// A finalized slot whose block time is at or past the end of the window: the chain's own word, not this
+// machine's clock, that everything in the window is final. A slot is finalized about 13 seconds after it
+// is produced (32 slots of about 0.4 seconds each), so a window that closed moments ago is waited for:
+// four looks, five seconds apart.
+async function finalizedTipAtOrAfter(to: number): Promise<Tip> {
+  for (let look = 0; ; look++) {
+    const tip = await finalizedTip();
+    if (tip.time >= to) return tip;
+    if (look >= 3) throw new Error("memetics-finance: the end of the window is not finalized on Solana yet");
+    await sleep(5000);
+  }
+}
+
+// Requests are kept few. The newest page is shared by every window that ends at or before the block time
+// of the slot it was read at (a run tests 24 hourly windows), and a page older than a given signature
+// never changes. Every page is asked for at that slot, so none comes from a node that lags behind it.
+type NewestPage = { coveredTo: number; slot: number; page: any[] };
+let newest: Promise<NewestPage> | undefined;
 const olderPages = new Map<string, Promise<any[]>>();
-function signaturesPage(before: string | undefined, windowEnd: number): Promise<any[]> {
-  if (before) {
-    if (!olderPages.has(before)) olderPages.set(before, readSignatures(before).catch((e) => { olderPages.delete(before); throw e; }));
-    return olderPages.get(before)!;
-  }
-  if (!newest || newest.readAt < windowEnd + FINALITY_SECONDS) {
-    const read = { readAt: Math.floor(Date.now() / 1000), page: readSignatures() };
-    read.page.catch(() => { if (newest === read) newest = undefined; });
-    newest = read;
-  }
-  return newest.page;
+async function newestPage(to: number): Promise<NewestPage> {
+  const held = newest && (await newest.catch(() => undefined));
+  if (held && held.coveredTo >= to) return held;
+  const read = (async () => {
+    const tip = await finalizedTipAtOrAfter(to);
+    return { coveredTo: tip.time, slot: tip.slot, page: await readSignatures(tip.slot) };
+  })();
+  read.catch(() => { if (newest === read) newest = undefined; });
+  newest = read;
+  return read;
+}
+function olderPage(before: string, minContextSlot: number): Promise<any[]> {
+  if (!olderPages.has(before))
+    olderPages.set(before, readSignatures(minContextSlot, before).catch((e) => { olderPages.delete(before); throw e; }));
+  return olderPages.get(before)!;
 }
 
 // Signatures of the program's successful transactions with blockTime in [from, to), walking back from the tip.
 async function signaturesInWindow(from: number, to: number): Promise<string[]> {
-  if (Date.now() / 1000 < to + FINALITY_SECONDS)
-    throw new Error("memetics-finance: the end of the window is not finalized on Solana yet");
   const out: string[] = [];
-  let before: string | undefined;
+  const { slot, page: newestSignatures } = await newestPage(to);
+  let page = newestSignatures;
   for (;;) {
-    const page = await signaturesPage(before, to);
     for (const s of page) {
       if (s.err) continue;
       if (typeof s.blockTime !== "number") throw new Error(`memetics-finance: signature ${s.signature} has no blockTime`);
@@ -107,7 +135,7 @@ async function signaturesInWindow(from: number, to: number): Promise<string[]> {
     }
     const oldest = page[page.length - 1];
     if (page.length < SIGNATURES_PER_PAGE || (typeof oldest.blockTime === "number" && oldest.blockTime < from)) return out;
-    before = oldest.signature;
+    page = await olderPage(oldest.signature, slot);
   }
 }
 
