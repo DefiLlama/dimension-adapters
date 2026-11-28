@@ -206,6 +206,17 @@ const feesConfigs: Record<string, Config> = {
       ProtocolRevenue: "All the revenue goes to the protocol",
     },
   },
+  "idx-exchange": {
+    broker_id: "ideax",
+    start: "2026-07-09",
+    holderRevenueRatio: 0,
+    methodology: {
+      Volume: "Maker/taker volume that flows through the IDX Exchange interface",
+      Fees: "Builder Fees collected from Orderly Network",
+      Revenue: "All the fees collected",
+      ProtocolRevenue: "All the revenue goes to the protocol",
+    },
+  },
 }
 
 const feesProtocols: Record<string, any> = {};
