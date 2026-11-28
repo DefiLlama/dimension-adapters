@@ -1,14 +1,14 @@
-import { id, zeroPadValue } from "ethers";
 import { FetchOptions, FetchResultV2, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
+import { addTokensReceived } from "../../helpers/token";
 
 const AETHIR_CORE = "0x226DC7D2AA1F9a565e82faf04772FDbBaF2da42d";
 const AETHIR_TOKEN = "0xc87B37a581ec3257B734886d9d3a581F5A9d056c";
 
 // https://aethir.com/blog-posts/aethir-tokenomics-update-ath-burns-dashboard-go-live
 const SERVICE_FEE_BURNER = "0xf8ec8e8ecdbfbba4d073090152dfc6559c7ef531";
-const BURN_ADDRESS = "0x000000000000000000000000000000000000dead";
+const BURN_ADDRESS = "0x000000000000000000000000000000000000dEaD";
 const SERVICE_FEE_BURNS = "Service Fee Burns";
 
 const DEPOSIT_SERVICE_FEE_EVENT = "event DepositServiceFee (address indexed developer, uint64 nonce, uint256 amount)";
@@ -17,7 +17,6 @@ const WITHDRAW_SERVICE_FEE_EVENT = "event WithdrawServiceFee (address indexed de
 
 async function fetch(options: FetchOptions): Promise<FetchResultV2> {
     const dailyFees = options.createBalances();
-    const dailyHoldersRevenue = options.createBalances();
 
     const serviceFeeDepositLogs = await options.getLogs({
         eventAbi: DEPOSIT_SERVICE_FEE_EVENT,
@@ -33,23 +32,18 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
     serviceFeeWithdrawalLogs.forEach((withdraw: any) => dailyFees.subtractToken(AETHIR_TOKEN, withdraw.amount, METRIC.SERVICE_FEES));
 
-    const burnLogs = await options.getLogs({
-        target: AETHIR_TOKEN,
-        eventAbi: "event Transfer(address indexed from, address indexed to, uint256 amount)",
-        topics: [
-            id("Transfer(address,address,uint256)"),
-            zeroPadValue(SERVICE_FEE_BURNER, 32),
-            zeroPadValue(BURN_ADDRESS, 32),
-        ],
-    });
-    for (const burn of burnLogs) dailyHoldersRevenue.add(AETHIR_TOKEN, burn.amount, SERVICE_FEE_BURNS);
+    const burns = await addTokensReceived({ options, token: AETHIR_TOKEN, fromAddressFilter: SERVICE_FEE_BURNER, target: BURN_ADDRESS });
+    const dailyHoldersRevenue = options.createBalances();
+    dailyHoldersRevenue.addBalances(burns, SERVICE_FEE_BURNS);
 
-    const dailyRevenue = dailyFees.clone(0.2);
+    const dailyRevenue = dailyFees.clone(0.2, METRIC.PROTOCOL_FEES);
+    const dailyProtocolRevenue = dailyRevenue.clone();
+    dailyProtocolRevenue.subtract(burns, METRIC.PROTOCOL_FEES);
 
     return {
         dailyFees,
         dailyRevenue,
-        dailyProtocolRevenue: dailyRevenue,
+        dailyProtocolRevenue,
         dailySupplySideRevenue: dailyFees.clone(0.8, METRIC.OPERATORS_FEES),
         dailyHoldersRevenue,
     }
@@ -57,9 +51,9 @@ async function fetch(options: FetchOptions): Promise<FetchResultV2> {
 
 const methodology = {
     Fees: "Service fees paid by developers to use aethir GPU services",
-    Revenue: "20% protocol fees charged by aethir",
-    ProtocolRevenue: "Protocol fees at collection, before any subsequent burns",
-    HoldersRevenue: "ATH burned from collected service fees, recorded when the burn executes",
+    Revenue: "20% protocol fees charged by aethir, including the share burned",
+    ProtocolRevenue: "20% protocol fees charged by aethir, minus the ATH burned from service fees",
+    HoldersRevenue: "ATH claimed from the service fee pool by Aethir's burn contract and sent to the burn address",
     SupplySideRevenue: "80% of the service fees goes to GPU service providers"
 };
 
@@ -70,8 +64,11 @@ const breakdownMethodology = {
     Revenue: {
         [METRIC.PROTOCOL_FEES]: "20% of service fees retained by Aethir protocol"
     },
+    ProtocolRevenue: {
+        [METRIC.PROTOCOL_FEES]: "20% of service fees retained by Aethir protocol, minus the ATH burned from service fees"
+    },
     HoldersRevenue: {
-        [SERVICE_FEE_BURNS]: "ATH transferred from Aethir's service fee burner to the burn address"
+        [SERVICE_FEE_BURNS]: "ATH claimed from the service fee pool by Aethir's burn contract and sent to the burn address"
     },
     SupplySideRevenue: {
         [METRIC.OPERATORS_FEES]: "80% of service fees distributed to GPU service providers (operators) who supply compute resources"
@@ -86,7 +83,7 @@ const adapter: SimpleAdapter = {
     start: '2024-07-22',
     methodology,
     breakdownMethodology,
-    allowNegativeValue: true // withdrawals could exceed deposits on a particular day
+    allowNegativeValue: true // withdrawals could exceed deposits on a particular day; burns can exceed same-day protocol revenue
 }
 
 export default adapter;
