@@ -3,21 +3,38 @@ import PromisePool from "@supercharge/promise-pool";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 
-// Succinct Prover Network. Requesters pay provers in PROVE for each fulfilled proof request; the ledger is settled
-// on Ethereum by SuccinctVApp 0x5Ad5Bc4B18f7c173DcE17A57682Cb0Dc8788951F, but per-request fees are only in the
-// network's own service (proto: https://github.com/succinctlabs/network/tree/main/proto). It answers gRPC over HTTP/2 only.
-const PROVE = "0x6BEF15D938d4E72056AC92Ea4bDD0D76B1C4ad29";
+// Per-request fees are only served by the network's gRPC service (protos: https://github.com/succinctlabs/network/tree/main/proto);
+// the ledger settles on Ethereum through SuccinctVApp 0x5Ad5Bc4B18f7c173DcE17A57682Cb0Dc8788951F.
 const SERVICE = "https://rpc.mainnet.succinct.xyz";
-const LOOKBACK = 24 * 3600; // longest request deadline (deadline - created_at) seen since launch; a longer one throws below
-const PAGE_SIZE = 100; // documented maximum per page
-const MAX_ROWS = 10_000; // the service refuses pages deeper than this
-// Accounts the auctioneer has sent PROVE to, named by the service: SPN Proxy Funder and SPN Requester.
+const PROVE = "0x6BEF15D938d4E72056AC92Ea4bDD0D76B1C4ad29";
+const LOOKBACK = 24 * 3600; // longest request deadline seen since launch
+const PAGE_SIZE = 100;
+const MAX_ROWS = 10_000;
+
 const PROXY_FUNDER = "0x76b9e359e8fb724eaba871d99a0b1baf4b07c8bc";
-const SPN_REQUESTER = "0x0118029a04b007b08feac3e828c4d5f43123eb19";
-const FULFILLED = 3, DEPOSIT = 1, TRANSFER_IN = 5; // types.proto FulfillmentStatus / BalanceOperation
+// Succinct's own accounts: requests they pay for are subsidies, not fees; provers they own earn protocol revenue
+const NETWORK_ACCOUNTS = new Set([
+  "0x9836d448ab5bae7932adcefb00f3e13a33d47e28", // SPN Auctioneer, from GetProofRequestParams
+  "0x04226b4768ff1e0cc598c71569b9da916e60a601", // PROVE Seeder, funded the auctioneer
+  "0xbab2c2af5b91695e65955da60d63ad1b2ae81126", // launch funder of the auctioneer, owner() of the "Succinct Labs 1" prover 0xd4fcfce0dee91a9895c3ad71a6248d57c287a4f5
+  PROXY_FUNDER, // SPN Proxy Funder, funded by the auctioneer
+  "0x0118029a04b007b08feac3e828c4d5f43123eb19", // SPN Requester, funded by the auctioneer
+  "0xa4f539ae9d5791671bcd30f3f4bfe116a785310b", // funded the Proxy Funder
+  "0x29cf94c0809bac6dfc837b5da92d0c7f088e7da1", // funded the Proxy Funder
+  "0x5160dd063f2823585d62a0b3cbe9252d2400f1eb", // funded the SPN Requester
+]);
+
+// types.proto enums and field numbers
+const FULFILLED = 3, DEPOSIT = 1, TRANSFER_IN = 5;
+const REQUEST = { id: 1, gasPrice: 10, requester: 13, fulfiller: 14, fulfilledAt: 20, gasUsed: 27, baseFee: 34 };
+const BALANCE_LOG_TX_HASH = 4;
+const TX_SENDER = 2;
+
+type Fields = [number, number | Buffer | undefined][];
+type Message = Record<number, any[]>;
 
 let session: http2.ClientHttp2Session | undefined;
-let inFlight = 0; // the connection holds the process open only while a call is running
+let inFlight = 0;
 function getSession() {
   if (!session || session.closed || session.destroyed) {
     const s = http2.connect(SERVICE);
@@ -35,8 +52,7 @@ function varint(n: number | bigint) {
   return Buffer.from(out);
 }
 
-// protobuf encoding of [field number, value] pairs: numbers as varints, buffers as length-delimited
-function encode(fields: [number, number | Buffer | undefined][]) {
+function encode(fields: Fields) {
   const parts: Buffer[] = [];
   for (const [no, v] of fields) {
     if (v === undefined) continue;
@@ -47,7 +63,7 @@ function encode(fields: [number, number | Buffer | undefined][]) {
 }
 
 function decode(buf: Buffer) {
-  const out: Record<number, any[]> = {};
+  const out: Message = {};
   let i = 0;
   const readVarint = () => { let r = 0n, s = 0n; for (;;) { const b = buf[i++]; r |= BigInt(b & 127) << s; s += 7n; if (!(b & 128)) return r } };
   while (i < buf.length) {
@@ -62,8 +78,9 @@ function decode(buf: Buffer) {
   return out;
 }
 
-function call(method: string, body: Buffer): Promise<Record<number, any[]>> {
+function call(method: string, fields: Fields): Promise<Message> {
   return new Promise((resolve, reject) => {
+    const body = encode(fields);
     const frame = Buffer.alloc(5);
     frame.writeUInt32BE(body.length, 1);
     const s = getSession();
@@ -89,145 +106,148 @@ function call(method: string, body: Buffer): Promise<Record<number, any[]>> {
 }
 
 const hex = (b: Buffer) => "0x" + b.toString("hex");
-const bytes = (a: string) => Buffer.from(a.slice(2), "hex");
+const bytes = (address: string) => Buffer.from(address.slice(2), "hex");
 
-// All pages of a list call, until an empty page; throws past the service's depth limit instead of returning a cut list.
-async function pages(method: string, fields: [number, number | Buffer | undefined][], limitField: number) {
+async function getAllPages(method: string, filter: Fields, limitField: number) {
   const rows: Buffer[] = [];
-  for (let page = 1; ; page++) {
-    if ((page - 1) * PAGE_SIZE > MAX_ROWS) throw new Error(`succinct ${method}: more than ${MAX_ROWS} rows`);
-    const res = await call(method, encode([...fields, [limitField, PAGE_SIZE], [limitField + 1, page]]));
-    const batch = res[1] ?? [];
+  for (let page = 1; page <= MAX_ROWS / PAGE_SIZE; page++) {
+    const batch = (await call(method, [...filter, [limitField, PAGE_SIZE], [limitField + 1, page]]))[1] ?? [];
     if (!batch.length) return rows;
     rows.push(...batch);
   }
+  throw new Error(`succinct ${method}: more than ${MAX_ROWS} rows`);
 }
 
-const senderCache: Record<string, Promise<string>> = {};
-const senderOf = (tx: Buffer) => { const k = hex(tx); return senderCache[k] ??= call("GetTransactionDetails", encode([[1, tx]])).then((r) => hex(decode(r[1][0])[2][0])).catch((e) => { delete senderCache[k]; throw e }) };
-
-// Senders of every TRANSFER_IN on an account's balance log (newest first), read in windows that stay under the depth limit.
-async function transferSenders(address: string, stopAt?: string) {
-  const senders = new Set<string>();
-  const seen = new Set<string>();
-  let maxTs: number | undefined;
-  for (;;) {
-    let page = 1, oldest = Infinity;
-    for (; page <= MAX_ROWS / PAGE_SIZE; page++) {
-      const res = await call("GetFilteredBalanceLogs", encode([[1, bytes(address)], [2, TRANSFER_IN], [4, maxTs], [5, PAGE_SIZE], [6, page]]));
-      const logs = (res[1] ?? []).map(decode).filter((d) => !seen.has(hex(d[4][0])));
-      if (!res[1]?.length) break;
-      const { errors, results } = await PromisePool.withConcurrency(10).for(logs).process(async (d) => senderOf(d[4][0]));
-      if (errors.length) throw errors[0];
-      results.forEach((s) => senders.add(s));
-      if (stopAt && senders.has(stopAt)) return senders;
-      logs.forEach((d) => { seen.add(hex(d[4][0])); oldest = Math.min(oldest, Number(d[5][0])) });
-    }
-    if (page <= MAX_ROWS / PAGE_SIZE) return senders;
-    if (oldest === Infinity) throw new Error(`succinct: cannot page the balance log of ${address}`);
-    maxTs = oldest + 1; // past the depth limit: maximum_timestamp is exclusive, so continue from the oldest second read; seen skips what was already read
+const senderCache = new Map<string, string>();
+async function senderOf(txHash: Buffer) {
+  const key = hex(txHash);
+  if (!senderCache.has(key)) {
+    const tx = (await call("GetTransactionDetails", [[1, txHash]]))[1][0];
+    senderCache.set(key, hex(decode(tx)[TX_SENDER][0]));
   }
+  return senderCache.get(key)!;
 }
 
-// Network accounts: the auctioneer, the accounts that sent it PROVE, the two accounts it funds and the accounts that funded those.
-let networkPromise: Promise<{ auctioneer: string, accounts: Set<string> }> | undefined;
-const getNetwork = () => networkPromise ??= (async () => {
-  const auctioneer = hex((await call("GetProofRequestParams", encode([])))[2][0]);
-  const accounts = new Set([auctioneer, PROXY_FUNDER, SPN_REQUESTER]);
-  for (const a of [auctioneer, PROXY_FUNDER, SPN_REQUESTER]) (await transferSenders(a)).forEach((s) => accounts.add(s));
-  return { auctioneer, accounts };
-})().catch((e) => { networkPromise = undefined; throw e });
+// newest first, stopping once the Proxy Funder shows up
+async function requesterFunders(requester: string) {
+  const senders = new Set<string>();
+  for (let page = 1; page <= MAX_ROWS / PAGE_SIZE; page++) {
+    const logs = (await call("GetFilteredBalanceLogs", [[1, bytes(requester)], [2, TRANSFER_IN], [5, PAGE_SIZE], [6, page]]))[1] ?? [];
+    if (!logs.length) return senders;
+    const { errors, results } = await PromisePool.withConcurrency(10).for(logs).process((log: Buffer) => senderOf(decode(log)[BALANCE_LOG_TX_HASH][0]));
+    if (errors.length) throw errors[0];
+    results.forEach((s) => senders.add(s));
+    if (senders.has(PROXY_FUNDER)) return senders;
+  }
+  throw new Error(`succinct: more than ${MAX_ROWS} transfers into ${requester}`);
+}
 
-// A requester is outside the network unless it is a network account, was ever topped up by the Proxy Funder,
-// or has no deposit and was only funded by network accounts.
-const outsideCache: Record<string, Promise<boolean>> = {};
-const isOutside = (requester: string, network: Set<string>) => outsideCache[requester] ??= (async () => {
-  if (network.has(requester)) return false;
-  const senders = await transferSenders(requester, PROXY_FUNDER);
-  if (senders.has(PROXY_FUNDER)) return false;
-  const deposits = (await call("GetFilteredBalanceLogs", encode([[1, bytes(requester)], [2, DEPOSIT], [5, 1], [6, 1]])))[1] ?? [];
-  return deposits.length > 0 || [...senders].some((s) => !network.has(s));
-})().catch((e) => { delete outsideCache[requester]; throw e });
+// paid with outside money: not a network account, never topped up by the Proxy Funder, and has a deposit or an outside funder
+const outsideCache = new Map<string, boolean>();
+async function isOutside(requester: string) {
+  if (!outsideCache.has(requester)) {
+    let outside = false;
+    if (!NETWORK_ACCOUNTS.has(requester)) {
+      const funders = await requesterFunders(requester);
+      if (!funders.has(PROXY_FUNDER)) {
+        const deposits = (await call("GetFilteredBalanceLogs", [[1, bytes(requester)], [2, DEPOSIT], [5, 1], [6, 1]]))[1] ?? [];
+        outside = deposits.length > 0 || [...funders].some((f) => !NETWORK_ACCOUNTS.has(f));
+      }
+    }
+    outsideCache.set(requester, outside);
+  }
+  return outsideCache.get(requester)!;
+}
 
-const fetch = async (options: FetchOptions) => {
-  const { startTimestamp, endTimestamp, createBalances, api } = options;
+function requestField(request: Message, key: keyof typeof REQUEST) {
+  const value = request[REQUEST[key]]?.[0];
+  if (value === undefined) throw new Error(`succinct: fulfilled request ${hex(request[REQUEST.id][0])} has no ${key}`);
+  return value;
+}
+
+const fetch = async ({ startTimestamp, endTimestamp, createBalances, api }: FetchOptions) => {
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
+  const dailyProtocolRevenue = createBalances();
+  const dailyHoldersRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
-  const { accounts } = await getNetwork();
 
-  // requests are filtered by creation time, so also read those created up to LOOKBACK before the window whose
-  // deadline reaches into it (minimum_deadline), and keep every request by its fulfillment time
-  const hours: number[] = [];
-  for (let t = startTimestamp - LOOKBACK; t < endTimestamp; t += 3600) hours.push(t);
-  const { errors, results } = await PromisePool.withConcurrency(5).for(hours).process(async (from) =>
-    pages("GetFilteredProofRequests", [[2, FULFILLED], [4, from < startTimestamp ? startTimestamp : undefined], [8, from], [9, Math.min(from + 3600, endTimestamp)]], 10));
-  if (errors.length) throw errors[0];
+  // the service filters by creation time, so also read earlier requests whose deadline reaches into the window
+  const [createdBefore, createdInWindow] = await Promise.all([
+    getAllPages("GetFilteredProofRequests", [[2, FULFILLED], [4, startTimestamp], [8, startTimestamp - LOOKBACK], [9, startTimestamp]], 10),
+    getAllPages("GetFilteredProofRequests", [[2, FULFILLED], [8, startTimestamp], [9, endTimestamp]], 10),
+  ]);
 
-  const requests: { requester: string, prover: string, fee: bigint }[] = [];
-  for (const row of results.flat()) {
-    const d = decode(row);
-    if (d[8][0] - d[18][0] > BigInt(LOOKBACK)) throw new Error(`succinct: request ${hex(d[1][0])} has a deadline beyond the lookback`);
-    if (d[20] === undefined || d[14] === undefined || d[10] === undefined || d[27] === undefined || d[34] === undefined) throw new Error(`succinct: fulfilled request ${hex(d[1][0])} lacks its fee fields`);
-    const fulfilledAt = Number(d[20][0]);
+  const requests = new Map<string, { requester: string, prover: string, fee: bigint }>();
+  for (const row of [...createdBefore, ...createdInWindow]) {
+    const request = decode(row);
+    const fulfilledAt = Number(requestField(request, "fulfilledAt"));
     if (fulfilledAt < startTimestamp || fulfilledAt >= endTimestamp) continue;
-    // fee charged by the vApp: price per prover gas unit * units used + base fee (crates/vapp/src/state.rs)
-    requests.push({ requester: hex(d[13][0]), prover: hex(d[14][0]), fee: BigInt(d[10][0]) * BigInt(d[27][0]) + BigInt(d[34][0].toString()) });
+    requests.set(hex(request[REQUEST.id][0]), {
+      requester: hex(request[REQUEST.requester][0]),
+      prover: hex(requestField(request, "fulfiller")),
+      fee: BigInt(requestField(request, "gasPrice")) * BigInt(requestField(request, "gasUsed")) + BigInt(requestField(request, "baseFee").toString()),
+    });
   }
 
-  const requesters = [...new Set(requests.map((r) => r.requester))];
-  const counted = new Set<string>();
-  const outside = await PromisePool.withConcurrency(5).for(requesters).process(async (r) => { if (await isOutside(r, accounts)) counted.add(r) });
-  if (outside.errors.length) throw outside.errors[0];
-  const kept = requests.filter((r) => counted.has(r.requester));
+  const requesters = [...new Set([...requests.values()].map((r) => r.requester))];
+  const outsideRequesters = new Set<string>();
+  const { errors } = await PromisePool.withConcurrency(5).for(requesters).process(async (r) => { if (await isOutside(r)) outsideRequesters.add(r) });
+  if (errors.length) throw errors[0];
+  const counted = [...requests.values()].filter((r) => outsideRequesters.has(r.requester));
 
-  // each prover is a SuccinctProver contract: its owner gets the fee less the immutable staker fee (fee.rs, protocol fee 0)
-  const provers = [...new Set(kept.map((r) => r.prover))];
+  const provers = [...new Set(counted.map((r) => r.prover))];
   const owners = await api.multiCall({ abi: "address:owner", calls: provers });
-  const stakerBips = await api.multiCall({ abi: "uint256:stakerFeeBips", calls: provers });
-  const proverInfo: Record<string, { networkOwned: boolean, bips: bigint }> = {};
-  provers.forEach((p, i) => proverInfo[p] = { networkOwned: accounts.has(owners[i].toLowerCase()), bips: BigInt(stakerBips[i]) });
+  const stakerFeeBips = await api.multiCall({ abi: "uint256:stakerFeeBips", calls: provers });
+  const proverInfo = Object.fromEntries(provers.map((p, i) => [p, { succinctOwned: NETWORK_ACCOUNTS.has(owners[i].toLowerCase()), stakerFeeBips: BigInt(stakerFeeBips[i]) }]));
 
-  for (const { prover, fee } of kept) {
-    const { networkOwned, bips } = proverInfo[prover];
-    const stakerShare = fee * bips / 10000n;
+  for (const { prover, fee } of counted) {
+    const { succinctOwned, stakerFeeBips } = proverInfo[prover];
+    const stakerShare = fee * stakerFeeBips / 10000n;
+    const operatorShare = fee - stakerShare;
     dailyFees.add(PROVE, fee, "Proof Fees");
-    if (networkOwned) {
-      dailyRevenue.add(PROVE, fee - stakerShare, "Proof Fees To Succinct Provers");
-      dailySupplySideRevenue.add(PROVE, stakerShare, "Proof Fees To Provers And Their Stakers");
+    dailyRevenue.add(PROVE, stakerShare, "Proof Fees To PROVE Stakers");
+    dailyHoldersRevenue.add(PROVE, stakerShare, "Proof Fees To PROVE Stakers");
+    if (succinctOwned) {
+      dailyRevenue.add(PROVE, operatorShare, "Proof Fees To Succinct Provers");
+      dailyProtocolRevenue.add(PROVE, operatorShare, "Proof Fees To Succinct Provers");
     } else {
-      dailySupplySideRevenue.add(PROVE, fee, "Proof Fees To Provers And Their Stakers");
+      dailySupplySideRevenue.add(PROVE, operatorShare, "Proof Fees To Prover Operators");
     }
   }
 
-  return { dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue.clone(), dailySupplySideRevenue };
+  return { dailyFees, dailyRevenue, dailyProtocolRevenue, dailyHoldersRevenue, dailySupplySideRevenue };
 };
 
 const adapter: SimpleAdapter = {
   version: 2,
-  // each request carries the second it was fulfilled
   pullHourly: true,
   fetch,
   chains: [CHAIN.ETHEREUM],
-  start: "2025-08-21", // first day an outside requester was fulfilled; the network has served requests since 2025-08-05
+  start: "2025-08-21",
   methodology: {
-    Fees: "PROVE paid by requesters outside the network for fulfilled proof requests: price per prover gas unit times units used, plus the base fee, counted when the request is fulfilled. Requests from the network's own accounts are left out: the auctioneer, the accounts that funded it, the SPN Proxy Funder and SPN Requester it funds and the accounts that funded those, every requester ever topped up by the Proxy Funder, and requesters with no deposit funded only by network accounts.",
-    Revenue: "The owner's share (the fee less the prover's staker fee) of proof fees earned by provers whose owner is a network account. The network's protocol fee on proofs is zero, so there is no other proof-fee revenue; the auctioneer's withdrawal, delegation and transfer fees are not counted.",
-    ProtocolRevenue: "The owner's share of proof fees earned by provers whose owner is a network account.",
-    SupplySideRevenue: "All other proof fees: the owner's share of provers run by others, and the staker share of every prover, paid to the PROVE staked on it.",
+    Fees: "PROVE paid by requesters for fulfilled proof requests (price per prover gas unit times gas used, plus the base fee). Requests paid with PROVE from Succinct's own accounts (the auctioneer, its funders, the SPN Proxy Funder and SPN Requester, and requesters they fund) are excluded as subsidies.",
+    Revenue: "The staker fee of the prover that fulfilled each request (set per prover at deployment, 10% on most), paid to PROVE holders staking on that prover, plus the rest of the fee on requests fulfilled by provers Succinct Labs runs.",
+    ProtocolRevenue: "Proof fees less the staker fee on requests fulfilled by provers Succinct Labs runs. The protocol fee on proofs is zero, so no other proof fees go to Succinct.",
+    HoldersRevenue: "The staker fee of the prover that fulfilled each request (set per prover at deployment, 10% on most), paid to PROVE holders staking on that prover.",
+    SupplySideRevenue: "Proof fees less the staker fee on requests fulfilled by provers run by others, paid to their operators.",
   },
   breakdownMethodology: {
     Fees: {
-      "Proof Fees": "PROVE paid by requesters outside the network for fulfilled proof requests.",
+      "Proof Fees": "PROVE paid by requesters outside Succinct's own accounts for fulfilled proof requests.",
     },
     Revenue: {
-      "Proof Fees To Succinct Provers": "Fee less the prover's staker fee, on requests fulfilled by provers whose owner is a network account.",
+      "Proof Fees To PROVE Stakers": "Staker fee of the prover that fulfilled each request, paid to the PROVE staked on it.",
+      "Proof Fees To Succinct Provers": "Proof fees less the staker fee on requests fulfilled by provers Succinct Labs runs.",
     },
     ProtocolRevenue: {
-      "Proof Fees To Succinct Provers": "Fee less the prover's staker fee, on requests fulfilled by provers whose owner is a network account.",
+      "Proof Fees To Succinct Provers": "Proof fees less the staker fee on requests fulfilled by provers Succinct Labs runs.",
+    },
+    HoldersRevenue: {
+      "Proof Fees To PROVE Stakers": "Staker fee of the prover that fulfilled each request, paid to the PROVE staked on it.",
     },
     SupplySideRevenue: {
-      "Proof Fees To Provers And Their Stakers": "Whole fee on requests fulfilled by provers run by others, and the staker fee on requests fulfilled by network-owned provers.",
+      "Proof Fees To Prover Operators": "Proof fees less the staker fee on requests fulfilled by provers run by others, paid to their operators.",
     },
   },
 };
