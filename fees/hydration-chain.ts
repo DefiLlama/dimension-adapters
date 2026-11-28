@@ -1,5 +1,6 @@
 import { FetchOptions, ProtocolType, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
+import { getTxReceiptsWithRetry } from "../helpers/getTxReceipts";
 import { METRIC } from "../helpers/metrics";
 import { postURL } from "../utils/fetchURL";
 
@@ -17,10 +18,8 @@ import { postURL } from "../utils/fetchURL";
 // Not counted: gas of substrate-signed EVM.call extrinsics, which has no Ethereum receipt and is only visible as a treasury
 // deposit (~2 calls and ~1 HDX per hour on 2026-11-07).
 const EXPLORER = "https://explorer.hydradx.cloud/graphql";
-const EVM_RPC = "https://rpc.hydradx.cloud";
 const HDX_DECIMALS = 12;
 const PAGE_SIZE = 1000;
-const RECEIPT_BATCH_SIZE = 50;
 
 async function graphql(query: string, variables: Record<string, any>) {
   const res = await postURL(EXPLORER, { query, variables });
@@ -65,17 +64,12 @@ async function getEventArgs(name: string, fromBlock: number, toBlock: number): P
 
 // gas paid by Ethereum transactions, in WETH wei
 async function getEvmGasPaid(txHashes: string[]): Promise<bigint> {
+  const receipts = await getTxReceiptsWithRetry(CHAIN.HYDRADX, txHashes);
   let total = 0n;
-  for (let i = 0; i < txHashes.length; i += RECEIPT_BATCH_SIZE) {
-    const requests = txHashes.slice(i, i + RECEIPT_BATCH_SIZE)
-      .map((hash, id) => ({ jsonrpc: "2.0", id, method: "eth_getTransactionReceipt", params: [hash] }));
-    const responses: any[] = await postURL(EVM_RPC, requests);
-    if (!Array.isArray(responses) || responses.length !== requests.length) throw new Error(`hydration evm rpc: expected ${requests.length} receipts`);
-    for (const { id, result, error } of responses) {
-      if (!result) throw new Error(`hydration evm rpc: no receipt for ${requests[id].params[0]} ${JSON.stringify(error ?? {})}`);
-      total += BigInt(result.gasUsed) * BigInt(result.effectiveGasPrice);
-    }
-  }
+  receipts.forEach((receipt: any, i) => {
+    if (!receipt) throw new Error(`hydration evm rpc: no receipt for ${txHashes[i]}`);
+    total += BigInt(receipt.gasUsed) * BigInt(receipt.gasPrice ?? receipt.effectiveGasPrice);
+  });
   return total;
 }
 

@@ -11,7 +11,7 @@ const SWAP_EVENT = "wasm-dexter-vault::swap";
 
 const config: CosmosChainMetricConfig = {
   chain: CHAIN.PERSISTENCE,
-  rpcs: ["https://rpc.cosmos.directory/persistence", "https://persistence-rpc.polkachu.com"],
+  rpcs: ["https://rpc.core.persistence.one", "https://persistence-rpc.polkachu.com"],
   denoms: {},
 };
 

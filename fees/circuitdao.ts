@@ -1,24 +1,3 @@
-/**
- * DefiLlama fees/revenue adapter for Circuit protocol.
- *
- * Place this file at fees/circuitdao.ts in the DefiLlama/dimension-adapters repo.
- *
- * Uses accrual basis: daily fees are derived from the annualised projected fee income
- * (projected_revenue / 365), so the annualised figure on DefiLlama equals projected_revenue —
- * the expected annual stability fee income at the current borrow rate and outstanding debt.
- *
- * Fees:             projected_revenue / 365 — daily stability fee accrual
- * SupplySideRevenue: projected_cost / 365   — daily savings interest accrual
- * Revenue:          dailyFees - dailySupplySideRevenue (accounting identity)
- * ProtocolRevenue:  equal to Revenue (all revenue accrues to treasury; no token holder split)
- *
- * Data source: https://api.circuitdao.com/protocol/stats
- * All BYC amounts in the API are in mBYC (milli-BYC). 1 BYC = 1000 mBYC = 1 USD.
- *
- * The values reported here can be independently verified by running the Circuit block scanner:
- * https://github.com/circuitdao/circuit-analytics
- */
-
 import { FetchOptions } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import fetchURL from "../utils/fetchURL";
@@ -34,35 +13,29 @@ const LABELS = {
 };
 
 const fetch = async (options: FetchOptions) => {
-  // Fetch a single daily bucket at the target timestamp to get a snapshot of projected rates.
-  const end = new Date(options.endTimestamp * 1000).toISOString();
+  const startDate = new Date(options.startTimestamp * 1000).toISOString();
+  const endDate = new Date(options.endTimestamp * 1000).toISOString();
 
-  const data = await fetchURL(
-    `${STATS_API}?end_date=${end}`
+  const { stats } = await fetchURL(
+    `${STATS_API}?start_date=${startDate}&end_date=${endDate}&sample_interval=1d`
   );
+  if (!stats?.length) {
+    throw new Error(`[circuitdao] no stats bucket between ${startDate} and ${endDate}`);
+  }
+
+  const latest = stats[stats.length - 1];
+  // projected_revenue / projected_cost are annualised, in mBYC (1 BYC = 1 USD)
+  const feesUsd = (latest.projected_revenue ?? 0) / DAYS_IN_YEAR / MCAT;
+  const supplySideUsd = (latest.projected_cost ?? 0) / DAYS_IN_YEAR / MCAT;
 
   const dailyFees = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
   const dailyRevenue = options.createBalances();
   const dailyProtocolRevenue = options.createBalances();
 
-  const stats: any[] = data?.stats ?? [];
-  if (stats.length === 0) {
-    throw new Error(`[circuitdao] empty stats response for ${end}`);
-  }
-
-  const latest = stats[stats.length - 1];
-
-  // Accrual basis: annualised projected income / 365 = daily estimate
-  // projected_revenue and projected_cost are in mBYC; divide by MCAT for USD
-  const feesUsd = (latest.projected_revenue ?? 0) / DAYS_IN_YEAR / MCAT;
-  const supplySideUsd = (latest.projected_cost ?? 0) / DAYS_IN_YEAR / MCAT;
-
   dailyFees.addUSDValue(feesUsd, LABELS.ProtocolFees);
   dailySupplySideRevenue.addUSDValue(supplySideUsd, LABELS.SavingsInterestToDepositors);
-  // revenue derived from accounting identity: dailyFees - dailySupplySideRevenue
   dailyRevenue.addUSDValue(feesUsd - supplySideUsd, LABELS.ProtocolFeesToTreasury);
-  // all revenue accrues to treasury (no token holder split)
   dailyProtocolRevenue.addUSDValue(feesUsd - supplySideUsd, LABELS.ProtocolFeesToTreasury);
 
   return { dailyFees, dailyRevenue, dailySupplySideRevenue, dailyProtocolRevenue };

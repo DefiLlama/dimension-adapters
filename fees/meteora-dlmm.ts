@@ -28,6 +28,7 @@ const REFERRAL_STAKING_DISTRIBUTORS = [
   'F8V2kory4zDQ7a1eRp4PEiuXeqC94hbHqcekHDwpdYrz', // cycle 1 (2026-07-21 to 2026-08-21), funded 2026-09-10
   'ETZXpSBB22C3vTt923c31rNYweVd3LAnkjEmgQwZQAw5', // cycle 2 (2026-08-21 to 2026-09-21), funded 2026-09-23
   'BBZ2yjFEePF6fxtwX2qwLmqS7FodZHjR5WScrWgLh9p9',
+  'DY2K1s9pWNzmBk6mCyn7EZhCMFSLyP6PASpQJYatKPZd',
 ];
 // USDC paid out by an unlisted distributor above this is either a new cycle (add it) or another project's drop
 const UNLISTED_DISTRIBUTOR_ALERT_USDC = 1_000;

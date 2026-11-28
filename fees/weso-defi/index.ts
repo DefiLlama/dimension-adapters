@@ -3,8 +3,11 @@ import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 import { httpGet } from "../../utils/fetchURL";
 
-// WESO DeFi AMM factory on Terra Classic (chain key: terra, NOT terra2).
-const LCD = "https://terra-classic-lcd.publicnode.com";
+const LCDS = [
+  "https://terraclassic-lcd-server-01.stakely.io",
+  "https://lcd.terra-classic.hexxagon.io",
+  "https://terra-classic-lcd.publicnode.com",
+];
 const FACTORY =
   "terra1veqa6znu8lfdmz9kp9v047chfmn84q5k3pacme75gl8ywmplk92q6xnq2k";
 
@@ -23,10 +26,6 @@ const EXCLUDED_PAIR_TYPES = new Set(["token_bonding", "converter"]);
 
 // On-chain hourly volume buckets retain at most 168 hours (7d).
 const BUCKET_LIMIT = 168;
-
-const LCD_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (compatible; DefiLlama/1.0)",
-};
 
 type AssetInfo =
   | { native_token: { denom: string } }
@@ -81,13 +80,18 @@ function assetId(info: AssetInfo | undefined): string | null {
 }
 
 async function querySmart<T>(contract: string, query: object): Promise<T> {
-  const encoded = Buffer.from(JSON.stringify(query)).toString("base64");
-  const url = `${LCD}/cosmwasm/wasm/v1/contract/${contract}/smart/${encoded}`;
-  const res = await httpGet(url, { headers: LCD_HEADERS });
-  if (!res || res.data === undefined) {
-    throw new Error(`WESO LCD smart query returned no data for ${contract}`);
+  const encoded = encodeURIComponent(Buffer.from(JSON.stringify(query)).toString("base64"));
+  let lastError: unknown;
+  for (const lcd of LCDS) {
+    try {
+      const res = await httpGet(`${lcd}/cosmwasm/wasm/v1/contract/${contract}/smart/${encoded}`);
+      if (res?.data === undefined) throw new Error(`weso-defi: no data from ${lcd} for ${contract}`);
+      return res.data;
+    } catch (e) {
+      lastError = e;
+    }
   }
-  return res.data as T;
+  throw lastError;
 }
 
 async function getAmmPairContracts(): Promise<string[]> {
