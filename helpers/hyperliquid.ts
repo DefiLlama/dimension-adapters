@@ -113,11 +113,8 @@ export const fetchBuilderCodeRevenue = async ({
     };
   }
 
-  const date = new Date(startTimestamp * 1000);
-  const dateStr =
-    date.getFullYear().toString() +
-    (date.getMonth() + 1).toString().padStart(2, "0") +
-    date.getDate().toString().padStart(2, "0");
+  // UTC day, local getters shift it by a day on hosts west of UTC
+  const dateStr = new Date(startTimestamp * 1000).toISOString().split("T")[0].replace(/-/g, "");
 
   const url = `https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/${builder_address}/${dateStr}.csv.lz4`;
 
