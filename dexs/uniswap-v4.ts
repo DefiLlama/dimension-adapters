@@ -59,7 +59,7 @@ import * as sdk from "@defillama/sdk";
 import { BaseAdapter, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import ADDRESSES from '../helpers/coreAssets.json';
-import { queryDune } from "../helpers/dune";
+import { queryDune, queryDuneSql } from "../helpers/dune";
 import { getDexTokensBlacklisted } from "../helpers/lists";
 import { METRIC } from "../helpers/metrics";
 import { isCoreAsset } from "../helpers/prices";
@@ -358,6 +358,48 @@ const prefetch: any = async (options: FetchOptions) => {
   return { washPools };
 }
 
+/**
+ * Resolve pools missing from the position manager's poolKeys mapping (custom managers such
+ * as Sentry on Ink) from Dune's uniswap_v4_multichain.poolmanager_evt_initialize table.
+ * Lookup is by pool id, not by time window: a pool's Initialize always precedes its swaps.
+ * A Dune failure throws, so partial data is never published. Chains absent from
+ * DUNE_CHAIN are left unresolved (skipped), as before.
+ */
+async function resolveMissingPoolsViaDune(
+  options: FetchOptions,
+  missingPoolIds: string[],
+  pools: { [key: string]: IPool | null },
+) {
+  const duneChain = DUNE_CHAIN[options.chain];
+  if (!duneChain || !missingPoolIds.length) return;
+ 
+  // ids come from on-chain logs; 
+  const byLowerId = new Map(missingPoolIds.map(id => [id.toLowerCase(), id]));
+  const ids = [...byLowerId.keys()].filter(id => /^0x[0-9a-f]{64}$/.test(id));
+  if (!ids.length) return;
+ 
+  const rows: any[] = await queryDuneSql(options, `
+    SELECT
+      concat('0x', lower(to_hex(id)))         AS pool_id,
+      concat('0x', lower(to_hex(currency0)))  AS currency0,
+      concat('0x', lower(to_hex(currency1)))  AS currency1
+    FROM uniswap_v4_multichain.poolmanager_evt_initialize
+    WHERE chain = '${duneChain}'
+      AND id IN (${ids.join(', ')})
+  `);
+ 
+  for (const row of rows) {
+    const id = byLowerId.get(String(row.pool_id).toLowerCase());
+    if (!id) continue;
+    pools[id] = {
+      poolId: id,
+      poolKey: getPoolKey(id),
+      currency0: String(row.currency0).toLowerCase(),
+      currency1: String(row.currency1).toLowerCase(),
+    };
+  }
+}
+
 async function fetch(options: FetchOptions) {
   const dailyFees = options.createBalances()
   const dailyVolume = options.createBalances()
@@ -424,6 +466,12 @@ async function fetch(options: FetchOptions) {
         }
       }
 
+      // Custom position managers (e.g. Sentry on Ink) do not populate Uniswap's poolKeys
+      // mapping. Resolve those pools from Dune's PoolManager Initialize table.
+      const missingPoolIds = poolIds.filter(id => !pools[id])
+      if (missingPoolIds.length) {
+        await resolveMissingPoolsViaDune(options, missingPoolIds, pools)
+      }
       const blacklistTokens = new Set(await getDexTokensBlacklisted(options))
       const washPools = options.preFetchedResults?.washPools?.[DUNE_CHAIN[options.chain]]
       // flagged pools whose sides are all established (core or CG-listed) are
