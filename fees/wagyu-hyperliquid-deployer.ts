@@ -6,6 +6,7 @@ const WAGYU_TOKENS: Record<string, string> = {
   XMR1: "monero",
   ZEC1: "zcash",
   TRX1: "tron",
+  HXMR: "monero",
 };
 
 const XMR1_DEPEG_DATE = "2026-11-20"; // deployer wallet dumped 5.2M XMR1, price fell from ~$500 to ~$1
@@ -30,20 +31,20 @@ async function fetch(options: FetchOptions) {
 }
 
 const methodology = {
-  Fees: "Hyperliquid spot trading fees paid in Wagyu's XMR1, ZEC1 and TRX1 tokens, excluding builder-code fees. XMR1 fees are excluded from 2026-11-20, when XMR1 lost its peg to XMR. Excludes Wagyu's swap and bridge withdrawal fees, which settle off Hyperliquid and cannot be verified on-chain.",
-  Revenue: "All Hyperliquid spot trading fees paid in XMR1, ZEC1 and TRX1, which Wagyu keeps in full as the deployer of those tokens. Excludes Wagyu's swap and bridge withdrawal fees.",
-  ProtocolRevenue: "All Hyperliquid spot trading fees paid in XMR1, ZEC1 and TRX1, kept by Wagyu as the tokens' deployer. Excludes Wagyu's swap and bridge withdrawal fees.",
+  Fees: "Hyperliquid spot trading fees paid in Wagyu's XMR1, HXMR, ZEC1 and TRX1 tokens, excluding builder-code fees. XMR1 fees are excluded from 2026-11-20, when XMR1 lost its peg to XMR; Wagyu relaunched XMR as HXMR on 2026-11-22. Excludes Wagyu's swap and bridge withdrawal fees, which settle off Hyperliquid and cannot be verified on-chain.",
+  Revenue: "All Hyperliquid spot trading fees paid in XMR1, HXMR, ZEC1 and TRX1, which Wagyu keeps in full as the deployer of those tokens. Excludes Wagyu's swap and bridge withdrawal fees.",
+  ProtocolRevenue: "All Hyperliquid spot trading fees paid in XMR1, HXMR, ZEC1 and TRX1, kept by Wagyu as the tokens' deployer. Excludes Wagyu's swap and bridge withdrawal fees.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [METRICS.SpotFees]: "Trading fees paid in XMR1, ZEC1 and TRX1 on their Hyperliquid spot pairs, excluding builder-code fees.",
+    [METRICS.SpotFees]: "Trading fees paid in XMR1, HXMR, ZEC1 and TRX1 on their Hyperliquid spot pairs, excluding builder-code fees.",
   },
   Revenue: {
-    [METRICS.SpotFeesToWagyu]: "Trading fees paid in XMR1, ZEC1 and TRX1, kept in full by Wagyu as the tokens' HIP-1 deployer.",
+    [METRICS.SpotFeesToWagyu]: "Trading fees paid in XMR1, HXMR, ZEC1 and TRX1, kept in full by Wagyu as the tokens' HIP-1 deployer.",
   },
   ProtocolRevenue: {
-    [METRICS.SpotFeesToWagyu]: "Trading fees paid in XMR1, ZEC1 and TRX1, kept in full by Wagyu as the tokens' HIP-1 deployer.",
+    [METRICS.SpotFeesToWagyu]: "Trading fees paid in XMR1, HXMR, ZEC1 and TRX1, kept in full by Wagyu as the tokens' HIP-1 deployer.",
   },
 };
 
