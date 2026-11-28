@@ -36,7 +36,8 @@ const getData = async (options: any, dataType: "volume" | "fee") => {
   const factoryFromBlock = maverickV1Factories[options.chain].startBlock;
 
   let pools: string[];
-  const logs = await options.getLogs({ target: factory, fromBlock: factoryFromBlock, eventAbi: mavV2PoolCreated, cacheInCloud: true, });
+  // stored bsc entry was written short by a pruned rpc; refetch the full range each run
+  const logs = await options.getLogs({ target: factory, fromBlock: factoryFromBlock, eventAbi: mavV2PoolCreated, cacheInCloud: true, skipCacheRead: true, });
 
   pools = logs.map((log: any) => log.poolAddress.toLowerCase());
   const tokenAs = await options.api.multiCall({ abi: "address:tokenA", calls: pools!, });
