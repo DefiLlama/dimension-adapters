@@ -33,7 +33,7 @@ interface EthereumBlockBuilderExportOptions {
 export function ethereumBlockBuilderExport(exportOptions: EthereumBlockBuilderExportOptions) {
   const adapter: SimpleAdapter = {
     version: 2,
-    //pullHourly: true,
+    pullHourly: true,
     chains: [CHAIN.ETHEREUM],
     allowNegativeValue: true, // a builder can pay the proposer more than its block earned
     dependencies: [Dependencies.ALLIUM],
