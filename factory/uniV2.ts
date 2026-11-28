@@ -330,7 +330,8 @@ const configs: Record<string, Record<string, any>> = {
   },
   "helios-v2": {
     // stock uniV2 fork with feeTo enabled at deploy => 1/6 of the 0.3% swap fee to protocol
-    [CHAIN.RISE]: { factory: '0xd479E71C45aEB1E846A7B549c346D62fE77B39bA', start: '2026-05-31', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6 },
+    // allowReadPairs: the TVL adapter has not written a pair cache for this factory, so the pairs are read from the factory
+    [CHAIN.RISE]: { factory: '0xd479E71C45aEB1E846A7B549c346D62fE77B39bA', start: '2026-05-31', userFeesRatio: 1, revenueRatio: 1 / 6, protocolRevenueRatio: 1 / 6, allowReadPairs: true },
   },
   "piperx-v2": {
     // replaces the goldsky subgraph adapter, which stopped writing rows in 2026-09

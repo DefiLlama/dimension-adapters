@@ -120,6 +120,8 @@ const configs: Record<string, Config> = {
   "takara-lend": {
     chains: { [CHAIN.SEI]: { comptroller: "0x71034bf5eC0FAd7aEE81a213403c8892F3d8CAeE", start: '2025-02-13' } },
     options: { useExchangeRate: true, protocolRevenueRatio: 1 },
+    // the liquidations entry reads LiquidateBorrow logs, and getLogs is disabled for sei in adapters/utils/runAdapter.ts
+    skipLiquidations: true,
   },
   "traderjoe-lend": {
     chains: { [CHAIN.AVAX]: { comptroller: "0xdc13687554205E5b89Ac783db14bb5bba4A1eDaC", start: '2021-10-11' } },

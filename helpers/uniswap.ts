@@ -565,6 +565,10 @@ export const getUniV2LogAdapter: any = (v2Config: UniV2Config): FetchV2 => {
         throw new Error('No pairs found, is there TVL adapter for this already?')
       } else {
         const pairLength = await fetchOptions.api.call({ target: factory, abi: 'uint256:allPairsLength' })
+        // a factory that has not created a pair yet reports zero volume and fees
+        pairs = []
+        token0s = []
+        token1s = []
         if (pairLength && Number(pairLength) > 0) {
           const calls = []
           for (let i = 0; i < Number(pairLength); i++) {

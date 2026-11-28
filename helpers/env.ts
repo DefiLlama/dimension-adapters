@@ -11,6 +11,10 @@ const DEFAULTS: any = {
   // eth_getLogs: full archive, 10,000-block ranges. evm.cronos.org caps ranges at 2,000 blocks, so hourly windows fell
   // back to a random SDK RPC, and cronos-evm-rpc.publicnode.com is pruned: it answers older ranges with [] instead of an error.
   CRONOS_ARCHIVAL_RPC: 'https://cronos.rpc.sentio.xyz',
+  // the SDK batches only 10 calls per multicall request on cronos. 300 returns the same results (7,500 calls on
+  // mm-finance pairs at a 12h old block: 750 requests -> 25, same checksum) and a batch that is too heavy is split
+  // and retried by the SDK. The uni-v2 forks here (mm-finance, cronaswap, crodex, ebisus-bay) sent 500-3,500 requests per run.
+  CRONOS_MULTICALL_CHUNK_SIZE: '300',
   CRONOS_ZKEVM_ARCHIVAL_RPC: 'https://mainnet.zkevm.cronos.org', // eth_getLogs: cronos-zkevm.drpc.org answers 400 and 388.rpc.thirdweb.com 429s
   // eth_getLogs: sentry is the only endpoint with complete logs; polkachu and thirdweb answer [] for ranges that hold logs.
   INJECTIVE_ARCHIVAL_RPC: 'https://sentry.evm-rpc.injective.network',
@@ -78,6 +82,9 @@ const DEFAULTS: any = {
   // drpc therefore leads, and is also the fastest of the three at the latest block.
   ARC_RPC: 'https://rpc.drpc.mainnet.arc.io,https://rpc.mainnet.arc.io,https://rpc.blockdaemon.mainnet.arc.io',
   ARC_RPC_CHAIN_ID: '5042',
+  // same value and reasoning as DefiLlama-Adapters projects/helper/env.js: 300 calls per batch return the same results
+  // as the SDK default of 50 on drpc, rpc.mainnet.arc.io and blockdaemon, with 6x fewer requests (uniswap-v3 alone sent ~900 per run on arc)
+  ARC_MULTICALL_CHUNK_SIZE: '300',
   ARC_ARCHIVAL_RPC: 'https://rpc.arc-scan.org,https://rpc.blockdaemon.mainnet.arc.io,https://rpc.nodeflare.app/arc/public', // public archive fallbacks; use <=100k-block log ranges
   ELYSIUM_RPC: 'https://rpc.elysium.kinetiq.xyz',
   ELYSIUM_RPC_CHAIN_ID: '99901',
