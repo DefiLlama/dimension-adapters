@@ -1,4 +1,5 @@
 import { PromisePool } from "@supercharge/promise-pool";
+import asyncRetry from "async-retry";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { httpPost } from "../utils/fetchURL";
@@ -24,8 +25,9 @@ const METRIC = {
   FEES_TO_BLOCK_PRODUCERS: 'Conversion Fees To Miners And Stakers',
 }
 
+// the public node answers 503 intermittently, so transient failures are retried with backoff
 async function rpc(method: string, params: any[]) {
-  const res = await httpPost(RPC, { jsonrpc: '1.0', id: method, method, params })
+  const res = await asyncRetry(() => httpPost(RPC, { jsonrpc: '1.0', id: method, method, params }), { retries: 4, minTimeout: 3000 })
   if (res.error) throw new Error(`verus rpc ${method} failed: ${JSON.stringify(res.error)}`)
   return res.result
 }

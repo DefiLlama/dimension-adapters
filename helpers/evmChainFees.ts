@@ -247,21 +247,29 @@ async function getBlocksWithGasUsed(config: EvmChainMetricConfig, fromBlock: num
     "eth_feeHistory",
     windows.map(({ newest, count }) => [toHex(count), toHex(newest), []]),
     config.blockChunkSize ?? DEFAULT_RPC_BATCH_SIZE,
+    (history, [count, newest]) => assertFullFeeHistoryWindow(config, history, Number(count), Number(newest)),
   );
 
   const blocks: number[] = [];
   histories.forEach((history, index) => {
     const { newest, count } = windows[index];
     const oldest = newest - count + 1;
-    // a node caps the block count per call or lacks part of the range: never read a short window as empty blocks
-    if (Number(history?.oldestBlock) !== oldest || history?.gasUsedRatio?.length !== count)
-      throw new Error(`${config.chain}: eth_feeHistory returned ${history?.gasUsedRatio?.length} blocks from ${history?.oldestBlock} for blocks ${oldest}-${newest}`);
     history.gasUsedRatio.forEach((ratio: number, offset: number) => {
       if (ratio > 0) blocks.push(oldest + offset);
     });
   });
 
   return blocks.sort((left, right) => left - right);
+}
+
+/**
+ * Rejects a short eth_feeHistory window so the next RPC sender is tried: a node behind the requested block clamps
+ * the window to its head, and a node that caps the block count per call returns fewer blocks.
+ */
+function assertFullFeeHistoryWindow(config: EvmChainMetricConfig, history: any, count: number, newest: number) {
+  const oldest = newest - count + 1;
+  if (Number(history?.oldestBlock) !== oldest || history?.gasUsedRatio?.length !== count)
+    throw new Error(`${config.chain}: eth_feeHistory returned ${history?.gasUsedRatio?.length} blocks from ${history?.oldestBlock} for blocks ${oldest}-${newest}`);
 }
 
 /**
@@ -721,7 +729,7 @@ async function getTransaction(config: EvmChainMetricConfig, txHash: string): Pro
 /**
  * Sends a single RPC call through healthy senders, preferring the last successful endpoint.
  */
-async function sendFirstRpc(config: EvmChainMetricConfig, method: string, params: any[]) {
+async function sendFirstRpc(config: EvmChainMetricConfig, method: string, params: any[], validateResult?: RpcResultValidator) {
   const senders = getOrderedRpcSenders(config, method);
   let lastError: any;
   let methodUnavailableError: any;
@@ -737,6 +745,7 @@ async function sendFirstRpc(config: EvmChainMetricConfig, method: string, params
           config.rpcTimeoutMs ?? DEFAULT_RPC_TIMEOUT_MS,
           `${config.chain} ${method}`,
         );
+        validateResult?.(result, params);
         markRpcSenderSuccess(config, method, key);
         return result;
       } catch (error) {
@@ -759,7 +768,9 @@ async function sendFirstRpc(config: EvmChainMetricConfig, method: string, params
 /**
  * Sends one JSON-RPC batch through healthy URL-backed senders.
  */
-async function sendFirstRpcBatch(config: EvmChainMetricConfig, method: string, paramsList: any[][]): Promise<any[]> {
+type RpcResultValidator = (result: any, params: any[]) => void;
+
+async function sendFirstRpcBatch(config: EvmChainMetricConfig, method: string, paramsList: any[][], validateResult?: RpcResultValidator): Promise<any[]> {
   if (!paramsList.length) return [];
 
   const batchSenders = getOrderedRpcSenders(config, method, true);
@@ -770,6 +781,7 @@ async function sendFirstRpcBatch(config: EvmChainMetricConfig, method: string, p
   for (const { sender, key } of batchSenders) {
     try {
       const result = await sendHttpRpcBatch(config, sender, method, paramsList);
+      if (validateResult) result.forEach((item, index) => validateResult(item, paramsList[index]));
       markRpcSenderSuccess(config, method, key);
       return result;
     } catch (error) {
@@ -784,7 +796,7 @@ async function sendFirstRpcBatch(config: EvmChainMetricConfig, method: string, p
   }
 
   try {
-    return await sendRpcBatchViaSingleCalls(config, method, paramsList);
+    return await sendRpcBatchViaSingleCalls(config, method, paramsList, validateResult);
   } catch (error) {
     lastError = error;
   }
@@ -795,7 +807,7 @@ async function sendFirstRpcBatch(config: EvmChainMetricConfig, method: string, p
 /**
  * Splits large batch inputs into endpoint-friendly chunks.
  */
-async function sendRpcBatchInChunks(config: EvmChainMetricConfig, method: string, paramsList: any[][], chunkSize: number): Promise<any[]> {
+async function sendRpcBatchInChunks(config: EvmChainMetricConfig, method: string, paramsList: any[][], chunkSize: number, validateResult?: RpcResultValidator): Promise<any[]> {
   const chunks: any[][][] = [];
   for (let i = 0; i < paramsList.length; i += chunkSize) {
     chunks.push(paramsList.slice(i, i + chunkSize));
@@ -803,7 +815,7 @@ async function sendRpcBatchInChunks(config: EvmChainMetricConfig, method: string
 
   const results: any[] = [];
   for (const chunk of chunks) {
-    results.push(...await sendFirstRpcBatch(config, method, chunk));
+    results.push(...await sendFirstRpcBatch(config, method, chunk, validateResult));
   }
   return results;
 }
@@ -811,11 +823,11 @@ async function sendRpcBatchInChunks(config: EvmChainMetricConfig, method: string
 /**
  * Executes batch-shaped work through individual RPC calls when no batch URL is available.
  */
-async function sendRpcBatchViaSingleCalls(config: EvmChainMetricConfig, method: string, paramsList: any[][]): Promise<any[]> {
+async function sendRpcBatchViaSingleCalls(config: EvmChainMetricConfig, method: string, paramsList: any[][], validateResult?: RpcResultValidator): Promise<any[]> {
   const { results, errors } = await PromisePool
     .withConcurrency(config.blockConcurrency ?? DEFAULT_BLOCK_CONCURRENCY)
     .for(paramsList)
-    .process((params) => sendFirstRpc(config, method, params));
+    .process((params) => sendFirstRpc(config, method, params, validateResult));
 
   if (errors.length) throw getPoolError(errors);
   return results;

@@ -1,15 +1,10 @@
-import { getEventLogs, util } from "@defillama/sdk";
+import { util } from "@defillama/sdk";
 import { FetchOptions, SimpleAdapter } from "../../adapters/types";
 import { CHAIN } from "../../helpers/chains";
 import { METRIC } from "../../helpers/metrics";
 
-// LunyaLaunchFactory, placed through CreateX with CREATE3 at the same address on every chain
 const LAUNCH_FACTORY = "0xFB68A7bdc87B6754b5DD092586b8E2904BaAD46E";
-// The block the factory was deployed at
-const FROM_BLOCK = 21067677;
-// Arc produces a block every half second, so a day spans ~60k blocks while its public endpoints cap a
-// log query well below that - the one this was tested against refuses 10k. Split the window rather
-// than ask for it whole, with room to spare since the cap is the node operator's to change.
+// Arc public RPCs cap eth_getLogs below 10k blocks; an hour is ~7.2k blocks
 const MAX_BLOCK_RANGE = 5_000;
 
 // LunyaLaunchCP.BPS: every rate on a launch is in basis points
@@ -17,8 +12,6 @@ const BPS = 10_000n;
 
 const eventLaunchCreated =
   "event LaunchCreated(address indexed launch, address indexed token, address indexed creator, uint8 launchType, address quoteToken, string name, string symbol, string contractURI, bytes launchParams)";
-const eventQuoteApproved =
-  "event QuoteTokenApproved(address indexed quoteToken, bool wrapsNative, uint64 nativeDivisor, uint128 creationFee, uint128 graduationReward)";
 // fee is the whole fee the trade paid, anti-snipe surcharge included
 const eventTrade =
   "event Trade(address indexed trader, bool isBuy, uint256 quoteAmount, uint256 tokenAmount, uint256 fee, uint256 reserve, uint256 sold)";
@@ -31,56 +24,50 @@ const eventGraduated =
 const abiConfig =
   "function config() view returns (address factory, address quoteToken, address creator, address creatorFeeRecipient, address positionManager, address liquidityHelper, address locker, uint256 nativeDivisor, bool wrapsNative, uint256 totalSupply, uint128 virtualQuote, uint128 virtualToken, uint128 curveSupply, uint128 lpSupply, uint16 snipeTaxBps, uint32 snipeWindow, uint8 snipeDecay, uint128 graduationReward, uint16 curveFeeBps, uint16 curveFeeProtocolBps, uint16 graduationFeeBps, uint16 poolFeeProtocolBps, uint8 graduationPoolType)";
 const abiIsExempt = "function isExempt(address recipient) view returns (bool)";
+const abiIsLaunch = "function isLaunch(address) view returns (bool)";
+const abiQuoteConfig =
+  "function quoteConfig(address token) view returns (bool approved, bool wrapsNative, uint64 nativeDivisor, uint128 creationFee, uint128 graduationReward)";
 
 const LABEL_CREATION = "Creation Fees";
 const LABEL_SNIPE = "Anti-Snipe Surcharge";
 const LABEL_GRADUATION = "Graduation Fees";
 const LABEL_REMAINDER = "Graduation Liquidity Remainder";
 
-const addressOf = (log: any) => String(log.address ?? log.source).toLowerCase();
-const blockOf = (log: any) => Number(log.blockNumber ?? log.block_number);
+const addressOf = (log: any) => String(log.address).toLowerCase();
 
 async function fetch(options: FetchOptions) {
-  const { api, chain, createBalances, startTimestamp } = options;
-  // Queried straight through the sdk, as uniswap-v4 and zora-sofi do, so the window can be split:
-  // Arc is not on the indexer and its public endpoints cap a log query well below a day of blocks.
-  const fromBlock = Number(await options.getFromBlock());
-  const toBlock = Number(options.toApi.block);
+  const { api, chain, createBalances, getLogs, startTimestamp } = options;
   const dailyVolume = createBalances();
   const dailyFees = createBalances();
   const dailyRevenue = createBalances();
   const dailySupplySideRevenue = createBalances();
   const result = () => ({ dailyVolume, dailyFees, dailyRevenue, dailyProtocolRevenue: dailyRevenue, dailySupplySideRevenue });
+  const windowLogs = (eventAbi: string, params: object = { noTarget: true }) =>
+    getLogs({ eventAbi, entireLog: true, maxBlockRange: MAX_BLOCK_RANGE, ...params });
 
-  const parsed = { entireLog: true, parseLog: true, onlyArgs: false };
-  const created = await getEventLogs({ chain, target: LAUNCH_FACTORY, eventAbi: eventLaunchCreated, fromBlock: FROM_BLOCK, toBlock, cacheInCloud: true, ...parsed, maxBlockRange: MAX_BLOCK_RANGE });
-  if (!created.length) return result();
-  const quoteOf: Record<string, string> = {};
-  for (const log of created) quoteOf[String(log.args.launch).toLowerCase()] = log.args.quoteToken;
-  const launches = Object.keys(quoteOf);
-
-  // creationFee is factory.quoteConfig(quote).creationFee, last QuoteTokenApproved at or before toBlock.
-  // Source: https://docs.lunya.io/developers/launchpad/fees.md
-  const approvals = await getEventLogs({ chain, target: LAUNCH_FACTORY, eventAbi: eventQuoteApproved, fromBlock: FROM_BLOCK, toBlock, cacheInCloud: true, ...parsed, maxBlockRange: MAX_BLOCK_RANGE });
-  const creationFeeOf: Record<string, bigint> = {};
-  for (const log of approvals) creationFeeOf[String(log.args.quoteToken).toLowerCase()] = BigInt(log.args.creationFee);
-  for (const log of created) {
-    if (blockOf(log) < fromBlock) continue;
-    const quote = log.args.quoteToken;
-    const fee = creationFeeOf[String(quote).toLowerCase()];
-    if (fee === undefined) throw new Error(`lunya-launchpad: no QuoteTokenApproved for ${quote}`);
-    if (fee > 0n) {
-      dailyFees.add(quote, fee, LABEL_CREATION);
-      dailyRevenue.add(quote, fee, LABEL_CREATION);
-    }
+  // creationFee is factory.quoteConfig(quote).creationFee. Source: https://docs.lunya.io/developers/launchpad/fees.md
+  const created = await windowLogs(eventLaunchCreated, { target: LAUNCH_FACTORY });
+  if (created.length) {
+    const quotes = created.map((log: any) => log.args.quoteToken);
+    const quoteConfigs = await api.multiCall({ target: LAUNCH_FACTORY, abi: abiQuoteConfig, calls: quotes });
+    quotes.forEach((quote: string, i: number) => {
+      const fee = BigInt(quoteConfigs[i].creationFee);
+      if (fee > 0n) {
+        dailyFees.add(quote, fee, LABEL_CREATION);
+        dailyRevenue.add(quote, fee, LABEL_CREATION);
+      }
+    });
   }
 
-  const trades = await getEventLogs({ chain, targets: launches, eventAbi: eventTrade, fromBlock, toBlock, ...parsed, maxBlockRange: MAX_BLOCK_RANGE });
-  const graduations = await getEventLogs({ chain, targets: launches, eventAbi: eventGraduated, fromBlock, toBlock, ...parsed, maxBlockRange: MAX_BLOCK_RANGE });
-  if (!trades.length && !graduations.length) return result();
+  const trades = await windowLogs(eventTrade);
+  const graduations = await windowLogs(eventGraduated);
+  const emitters = [...new Set([...trades, ...graduations].map(addressOf))];
+  if (!emitters.length) return result();
+  const isLaunch = await api.multiCall({ target: LAUNCH_FACTORY, abi: abiIsLaunch, calls: emitters });
+  const active = emitters.filter((_, i) => isLaunch[i]);
+  if (!active.length) return result();
 
   // A launch's config and opening time are fixed once it opens, so reading them now reads them as they were
-  const active = [...new Set([...trades, ...graduations].map(addressOf))];
   const configs = await api.multiCall({ abi: abiConfig, calls: active });
   const openedAts = await api.multiCall({ abi: "function openedAt() view returns (uint40)", calls: active });
   const cfg: Record<string, any> = {};
@@ -94,7 +81,8 @@ async function fetch(options: FetchOptions) {
   for (const log of trades) {
     const launch = addressOf(log);
     const c = cfg[launch];
-    const quote = quoteOf[launch];
+    if (!c) continue;
+    const quote = c.quoteToken;
     const fee = BigInt(log.args.fee);
     const quoteAmount = BigInt(log.args.quoteAmount);
     const window = BigInt(c.snipeWindow);
@@ -104,7 +92,7 @@ async function fetch(options: FetchOptions) {
 
     let snipeFee = 0n;
     if (log.args.isBuy && window > 0n && BigInt(c.snipeTaxBps) > 0n && c.openedAt + window > BigInt(startTimestamp)) {
-      const block = blockOf(log);
+      const block = Number(log.blockNumber);
       blockTimes[block] ??= BigInt(await util.getTimestamp(block, chain));
       const elapsed = blockTimes[block] - c.openedAt;
       if (elapsed < window) {
@@ -135,16 +123,18 @@ async function fetch(options: FetchOptions) {
     }
   }
 
-  if (graduations.length) {
-    const graduated = [...new Set(graduations.map(addressOf))];
-    const completions = await getEventLogs({ chain, targets: graduated, eventAbi: eventCurveCompleted, fromBlock: FROM_BLOCK, toBlock, cacheInCloud: true, ...parsed, maxBlockRange: MAX_BLOCK_RANGE });
+  const launchGraduations = graduations.filter((log: any) => cfg[addressOf(log)]);
+  if (launchGraduations.length) {
+    // CurveCompleted and Graduated share a transaction. Source: https://docs.lunya.io/developers/launchpad/events.md
+    const graduated = [...new Set(launchGraduations.map(addressOf))];
+    const completions = await windowLogs(eventCurveCompleted, { targets: graduated });
     const raisedOf: Record<string, bigint> = {};
     for (const log of completions) raisedOf[addressOf(log)] = BigInt(log.args.reserve);
 
-    for (const log of graduations) {
+    for (const log of launchGraduations) {
       const launch = addressOf(log);
       const c = cfg[launch];
-      const quote = quoteOf[launch];
+      const quote = c.quoteToken;
       const raised = raisedOf[launch];
       if (raised === undefined) throw new Error(`lunya-launchpad: graduation of ${launch} has no CurveCompleted`);
 
