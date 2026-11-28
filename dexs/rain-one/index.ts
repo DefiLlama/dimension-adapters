@@ -9,6 +9,9 @@ const rainFactories: { address: string; fromBlock: number; toBlock?: number }[] 
   { address: "0xA8640B62D755e42C9ed6A86d0fc65CE09e31F264", fromBlock: 446257605 },
 ];
 
+// the factory emits PoolTokenSet from this block; the 1598 pools created before it all have baseToken() = USDT
+const poolTokenSetFromBlock = 416881829;
+
 const enterOptionEvent =
   "event EnterOption(uint256 option, uint256 baseAmount, uint256 optionAmount,address indexed wallet)";
 const poolCreatedEvent =
@@ -28,11 +31,12 @@ const fetch = async (options: FetchOptions) => {
       fromBlock: factory.fromBlock,
       toBlock: factory.toBlock,
       cacheInCloud: true,
+      onlyArgs: false,
     });
     poolCreationLogs.push(...logs);
   }
 
-  const pools = poolCreationLogs.map((log) => log.poolAddress);
+  const pools = poolCreationLogs.map((log) => log.args.poolAddress);
 
   const poolTokenSetLogs: any[] = [];
   for (const factory of rainFactories) {
@@ -48,18 +52,18 @@ const fetch = async (options: FetchOptions) => {
 
   const poolTokenMap: Record<string, { token: string; decimals: number }> = {};
 
+  poolCreationLogs
+    .filter((log) => log.blockNumber < poolTokenSetFromBlock)
+    .forEach((log) => {
+      poolTokenMap[log.args.poolAddress.toLowerCase()] = { token: ADDRESSES.arbitrum.USDT, decimals: 6 };
+    });
+
   poolTokenSetLogs.forEach((log) => {
     poolTokenMap[log.poolAddress.toLowerCase()] = {
       token: log.tokenAddress.toLowerCase(),
       decimals: Number(log.tokenDecimals),
     };
   });
-  
-  // bug fix missing log
-  poolTokenMap['0x1cd385293d30d2b77ba9fa777ef1470b5312dae9'] = {
-    token: ADDRESSES.arbitrum.USDT,
-    decimals: 6,
-  }
 
   await options.streamLogs({
     noTarget: true,

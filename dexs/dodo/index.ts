@@ -29,6 +29,7 @@ const MAX_SWAP_TARGETS = 200
 const EXCLUDED_POOLS = [
   { chain: CHAIN.ETHEREUM, pool: '0x04571c32a4e1c5f39bc3a238cb95b215058c432c', fromBlock: 26480871, reason: 'USDC/USDT pool drained by flash-loan swap loops' },
   { chain: CHAIN.ETHEREUM, pool: '0xc9f93163c99695c6526b799ebca2207fdf7d61ad', fromBlock: 26484558, reason: 'V1 USDT/USDC pair drained by flash-loan swap loops' },
+  { chain: CHAIN.POLYGON, pool: '0x813fddeccd0401c4fa73b092b074802440544e52', fromBlock: 97924140, reason: 'V1 USDC/USDT pair wash swap loops, ~$2.3M through ~$3k reserves' },
 ]
 
 // V1 pairs are registered by DODOZoo and emit their own events
