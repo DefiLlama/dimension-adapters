@@ -36,11 +36,8 @@ const chainConfig: Record<string, { start: string, factories: Factory[] }> = {
     // deploy 2025-12-17 00:53 UTC, tx 0x4b827d33029655df52a66acabb6c404cdf334cfb0086c9f8a2c91110647930d5; first pair after feeTo
     // Retired 2026-11-23. Keep the factory and start so history stays refillable.
     // deadFrom skips this chain going forward; stored history is left untouched.
-
-
     factories: [{ factory: '0x1b404A1e41cCe5f98DC9CBF0c1372F8b68e2588c' }],
     deadFrom: '2026-11-23',
-
   },
   [CHAIN.BSC]: {
     start: '2026-02-18',
