@@ -98,24 +98,6 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
-  "picoswap-perps": {
-    // PicoSwap (https://picoswap.xyz, app https://app.picoswap.xyz, https://x.com/picoswapxyz), a non-custodial
-    // cross-chain swap and trading app. Its Hyperliquid perps page attaches this builder code with a 0.03% fee
-    // (0.05% before 2026-11-20; 0.005% on HIP-3 growth-mode markets); its Hyperliquid spot page charges 0.1% on
-    // sells (picoswap-spot below).
-    // Verifiable: the builder field of PicoSwap orders; the address's Hyperliquid `referral` state (builderRewards);
-    // PicoSwap's signed ownership statement for this address at https://app.picoswap.xyz/treasury (also published as
-    // Basescan Verified Signature https://basescan.org/verifySig/96289).
-    addresses: ["0x943f3e725c23f28fbee838fa30629cce9156365f"],
-    // first day with a file at https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/<address>/<YYYYMMDD>.csv.lz4
-    start: "2026-11-18",
-    methodology: {
-      Volume: "Notional volume of Hyperliquid perpetual trades placed through PicoSwap with its builder code.",
-      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through PicoSwap; excludes Hyperliquid's own trading fees.",
-      Revenue: "Builder code fees on Hyperliquid perpetual trades placed through PicoSwap, all kept by PicoSwap.",
-      ProtocolRevenue: "Builder code fees on Hyperliquid perpetual trades placed through PicoSwap, all kept by PicoSwap.",
-    },
-  },
   "atlasx-perps": {
     // ATLASX (https://atlx.ai, https://x.com/atlasx_ai), a non-custodial iOS and web trading app for Hyperliquid perps.
     // Its Hyperliquid perp orders carry this builder code with a 0.05% fee on top of Hyperliquid's own fees
@@ -1842,7 +1824,6 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "aura-money-outcome": { builder: "aura-money-perps", market: "outcome", start: "2026-05-04" },
   "aura-money-spot": { builder: "aura-money-perps", market: "spot", start: "2026-03-24" },
   "based-app-spot": { builder: "based-app", market: "spot", start: "2025-07-08" },
-  "picoswap-spot": { builder: "picoswap-perps", market: "spot", start: "2026-11-18" },
   "based-app-outcome": { builder: "based-app", market: "outcome", start: "2026-05-02", deadFrom: "2026-11-04" }, // deprecated by the team, no longer maintained
   // first day with spot fills carrying the code
   "bitso-onchain-spot": { builder: "bitso-onchain-perps", market: "spot", start: "2026-07-28" },
