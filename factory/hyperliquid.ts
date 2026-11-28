@@ -98,25 +98,6 @@ const builderConfigs: Record<string, BuilderConfig> = {
     },
     breakdownFees: true,
   },
-  "picoswap-perps": {
-    // PicoSwap (https://picoswap.xyz, perps terminal https://app.picoswap.xyz, https://x.com/picoswapxyz), a
-    // non-custodial cross-chain swap and trading app. Its Hyperliquid perps orders carry this builder code with a 0.05%
-    // fee (0.02% on HIP-3 markets; 0.03% from 2026-11-20 to 2026-11-28, 0.05% before); its Hyperliquid spot page charges
-    // 0.1% on sells (picoswap-spot below). From 2026-12-01 PicoSwap pays 20% of these builder fees back to the trader
-    // and 30% to whoever invited them, in USDC on Base every week, out of the fees this address receives.
-    // Verifiable: the builder field of PicoSwap orders; the address's Hyperliquid `referral` state (builderRewards);
-    // PicoSwap's signed ownership statement for this address at https://picoswap.xyz/treasury (also published as
-    // Basescan Verified Signature https://basescan.org/verifySig/96297).
-    addresses: ["0x943f3e725c23f28fbee838fa30629cce9156365f"],
-    // first day with a file at https://stats-data.hyperliquid.xyz/Mainnet/builder_fills/<address>/<YYYYMMDD>.csv.lz4
-    start: "2026-11-18",
-    methodology: {
-      Volume: "Notional volume of Hyperliquid perpetual trades placed through PicoSwap with its builder code.",
-      Fees: "Builder code fees paid by users on Hyperliquid perpetual trades placed through PicoSwap; excludes Hyperliquid's own trading fees.",
-      Revenue: "Builder code fees received by PicoSwap's builder account on Hyperliquid perpetual trades placed through PicoSwap, before the cashback (20%) and referral earnings (30%) it pays out from 2026-12-01.",
-      ProtocolRevenue: "Builder code fees received by PicoSwap's builder account on Hyperliquid perpetual trades placed through PicoSwap, before the cashback (20%) and referral earnings (30%) it pays out from 2026-12-01.",
-    },
-  },
   "atlasx-perps": {
     // ATLASX (https://atlx.ai, https://x.com/atlasx_ai), a non-custodial iOS and web trading app for Hyperliquid perps.
     // Its Hyperliquid perp orders carry this builder code with a 0.05% fee on top of Hyperliquid's own fees
@@ -1843,7 +1824,6 @@ const builderMarketListings: Record<string, { builder: string; market: Hyperliqu
   "aura-money-outcome": { builder: "aura-money-perps", market: "outcome", start: "2026-05-04" },
   "aura-money-spot": { builder: "aura-money-perps", market: "spot", start: "2026-03-24" },
   "based-app-spot": { builder: "based-app", market: "spot", start: "2025-07-08" },
-  "picoswap-spot": { builder: "picoswap-perps", market: "spot", start: "2026-11-18" },
   "based-app-outcome": { builder: "based-app", market: "outcome", start: "2026-05-02", deadFrom: "2026-11-04" }, // deprecated by the team, no longer maintained
   // first day with spot fills carrying the code
   "bitso-onchain-spot": { builder: "bitso-onchain-perps", market: "spot", start: "2026-07-28" },

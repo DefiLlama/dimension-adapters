@@ -4,9 +4,9 @@ import { httpGet } from "../../utils/fetchURL";
 
 // PicoSwap (https://picoswap.xyz, app https://app.picoswap.xyz, https://x.com/picoswapxyz): a non-custodial swap and
 // bridge app. Swaps are routed through Relay (same-chain and cross-chain), with a "better price" route through 0x on
-// EVM chains or Jupiter on Solana when that pays out more. PicoSwap's fee is a Relay app fee (0.2%, 0.1% on major
-// pairs, 0% between stablecoins; 0.5% during the first beta day, 2026-11-15), half of which funds the USDC Rewards
-// pool paid back to traders.
+// EVM chains or Jupiter on Solana when that pays out more. PicoSwap's fee is a Relay app fee (0.2%, 0.05% on major
+// pairs, 0% between stablecoins; 0.5% during the first beta day, 2026-11-15), partly paid back to traders and inviters
+// (fees/picoswap.ts).
 //
 // Relay's requests API cannot list PicoSwap's swaps for a third party (v3 filters by app only for the key that owns
 // the app, and by referrer only among keyless requests), so PicoSwap publishes its own daily rollup of the Relay
