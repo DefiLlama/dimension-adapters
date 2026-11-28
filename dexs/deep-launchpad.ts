@@ -1,6 +1,6 @@
 // DEEP (https://deepliquidity.fun): a Solana launchpad. Tokens launch on a bonding curve (the Deep
-// Curve program) and trade there against SOL until the curve is sold out; the liquidity then moves
-// to a DeepSwap pool (the `deepswap` adapter).
+// Curve program) and trade there against their quote asset (SOL, or an approved token such as DEEP)
+// until the curve is sold out; the liquidity then moves to a DeepSwap pool (the `deepswap` adapter).
 // Docs: https://docs.deepliquidity.fun/docs
 //
 // Both programs report every trade in an Anchor event (a `Program data:` log line) with the fee of
@@ -12,6 +12,7 @@ import ADDRESSES from "../helpers/coreAssets.json";
 import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { queryAllium } from "../helpers/allium";
+import { base58Encode } from "../helpers/solana";
 import { assertComplete, programEventsSql, timeFilter, u64, u8 } from "../helpers/alliumSolanaEvents";
 
 const DEEP_CURVE_PROGRAM = "7czURwVLkQpcF1HVhhZU5GGzvPA8YniogZY1BhZHCDtA";
@@ -24,15 +25,32 @@ const EVENT = {
   Trade: "BDDB7FD34EE661EE",
   LaunchFeeCharged: "E2E3321153D20E95",
   Graduated: "33F142328CF59CC0",
+  ReferralFee: "6F81BC899F4DA332",
+  GraduationFunded: "832D0758A887B91C",
 };
 
 const LABEL = {
   CurveProtocolFees: "Bonding Curve Trading Fees",
   CurveCreatorRewards: "Bonding Curve Creator Rewards",
   CurveHolderRewards: "Bonding Curve Holder Rewards",
+  CurveReferralFees: "Bonding Curve Partner Referral Fees",
   LaunchFees: "Token Launch Fees",
   MigrationFees: "Migration Fees",
 };
+
+// The events carry the curve's quote asset as their last field (`quote_mint`, appended by the
+// token-pairs upgrade); the default key (32 zero bytes), and every event written before the field
+// existed, is native SOL.
+const SOL_QUOTE_HEX = "0".repeat(64);
+export const quoteMintSql = (column: string, offset: number) =>
+  `IFF(LENGTH(${column}) >= ${2 * (offset + 32)}, SUBSTR(${column}, ${2 * offset + 1}, 64), '${SOL_QUOTE_HEX}')`;
+export const quoteToken = (quoteMintHex: string) =>
+  quoteMintHex === SOL_QUOTE_HEX ? ADDRESSES.solana.SOL : base58Encode(Buffer.from(quoteMintHex, "hex"));
+
+// A token-paired curve buys the network rent of its graduation pool with part of its migration fee
+// (fund_graduation, GraduationFunded) in a transaction before the graduation itself. Its funding
+// events are looked up this far back from the window.
+const GRADUATION_FUNDING_LOOKBACK = 3 * 24 * 3600;
 
 // System Program transfers of SOL to DEEP's fee vault or its wrapped SOL account (account-creation rent is a
 // different type and is left out); a CTE to append after programEventsSql()
@@ -43,33 +61,68 @@ export const vaultTransfersSql = (options: FetchOptions) => `vault_transfers AS 
       AND to_address IN ('${FEE_VAULT}', '${FEE_VAULT_WSOL}')
   )`;
 
+const parseList = (value: unknown): any[] => (typeof value === "string" ? JSON.parse(value) : (value as any[]) ?? []);
+
 const fetch = async (options: FetchOptions) => {
-  const [row] = await queryAllium(`${programEventsSql(DEEP_CURVE_PROGRAM, options)},
+  const rows = await queryAllium(`${programEventsSql(DEEP_CURVE_PROGRAM, options)},
   ${vaultTransfersSql(options)},
   trades AS (
-    -- TradeEvent: is_buy u8 @72 | sol_amount u64 @73 | protocol_fee u64 @89 | creator_fee u64 @97 | holder_fee u64 @146
-    SELECT ${u8("data", 72)} = '01' AS is_buy, ${u64("data", 73)} AS sol_amount, ${u64("data", 89)} AS protocol_fee,
+    -- TradeEvent: is_buy u8 @72 | sol_amount u64 @73 | protocol_fee u64 @89 | creator_fee u64 @97 | holder_fee u64 @146 |
+    -- quote_mint @154 (the amounts are in the quote asset's base units)
+    SELECT ${quoteMintSql("data", 154)} AS quote_mint,
+      ${u8("data", 72)} = '01' AS is_buy, ${u64("data", 73)} AS sol_amount, ${u64("data", 89)} AS protocol_fee,
       ${u64("data", 97)} AS creator_fee, ${u64("data", 146)} AS holder_fee
     FROM program_events
     WHERE STARTSWITH(data, '${EVENT.Trade}')
-  )
-  SELECT
+  ),
+  referrals AS (
+    -- ReferralFee: protocol_fee u64 @105 | amount u64 @113 (the approved partner's part of DEEP's fee) | quote_mint @121
+    SELECT ${quoteMintSql("data", 121)} AS quote_mint, ${u64("data", 113)} AS amount
+    FROM program_events
+    WHERE STARTSWITH(data, '${EVENT.ReferralFee}')
+  ),
+  per_quote AS (
     -- sol_amount is what the buyer paid, fees included, or what the seller received, fees already
     -- taken: the fees are added back so both sides are gross
-    (SELECT SUM(IFF(is_buy, sol_amount, sol_amount + protocol_fee + creator_fee + holder_fee)) FROM trades)::VARCHAR AS volume,
-    (SELECT SUM(protocol_fee) FROM trades)::VARCHAR AS protocol_fees,
-    (SELECT SUM(creator_fee) FROM trades)::VARCHAR AS creator_rewards,
-    (SELECT SUM(holder_fee) FROM trades)::VARCHAR AS holder_rewards,
-    -- LaunchFeeCharged: lamports u64 @74
-    (SELECT SUM(${u64("data", 74)}) FROM program_events WHERE STARTSWITH(data, '${EVENT.LaunchFeeCharged}'))::VARCHAR AS launch_fees,
-    -- The migration fee (a share of the SOL the curve raised) first pays the network rent of the new
-    -- pool's accounts; DEEP keeps what the graduation then sends to the fee vault, including the pool
-    -- creation fee DeepSwap charges it.
-    (SELECT SUM(raw_amount) FROM vault_transfers
-      WHERE from_address = '${GRADUATION_PAYER}'
-        AND txn_id IN (SELECT txn_id FROM program_events WHERE STARTSWITH(data, '${EVENT.Graduated}')))::VARCHAR AS migration_fees,
-    checks.*
-  FROM checks`);
+    SELECT quote_mint,
+      SUM(volume)::VARCHAR AS volume,
+      SUM(protocol_fee)::VARCHAR AS protocol_fees,
+      SUM(creator_fee)::VARCHAR AS creator_rewards,
+      SUM(holder_fee)::VARCHAR AS holder_rewards,
+      SUM(referral_fee)::VARCHAR AS referral_fees
+    FROM (
+      SELECT quote_mint, IFF(is_buy, sol_amount, sol_amount + protocol_fee + creator_fee + holder_fee) AS volume,
+        protocol_fee, creator_fee, holder_fee, 0 AS referral_fee
+      FROM trades
+      UNION ALL
+      SELECT quote_mint, 0, 0, 0, 0, amount FROM referrals
+    )
+    GROUP BY quote_mint
+  ),
+  token_graduations AS (
+    -- Graduated: mint @8 | migration_fee u64 @64 | quote_mint @80; a token-paired curve only
+    SELECT SUBSTR(data, 17, 64) AS mint, ${quoteMintSql("data", 80)} AS quote_mint, ${u64("data", 64)} AS migration_fee
+    FROM program_events
+    WHERE STARTSWITH(data, '${EVENT.Graduated}') AND ${quoteMintSql("data", 80)} != '${SOL_QUOTE_HEX}'
+  ),
+  totals AS (
+    SELECT checks.*,
+      -- LaunchFeeCharged: lamports u64 @74 (always SOL)
+      (SELECT SUM(${u64("data", 74)}) FROM program_events WHERE STARTSWITH(data, '${EVENT.LaunchFeeCharged}'))::VARCHAR AS launch_fees,
+      -- The migration fee (a share of what the curve raised) first pays the network rent of the new pool's
+      -- accounts; DEEP keeps what the graduation then sends to the fee vault, including the pool creation fee
+      -- DeepSwap charges it. For a token-paired curve this is the SOL rent left over; its quote part is below.
+      (SELECT SUM(raw_amount) FROM vault_transfers
+        WHERE from_address = '${GRADUATION_PAYER}'
+          AND txn_id IN (SELECT txn_id FROM program_events WHERE STARTSWITH(data, '${EVENT.Graduated}')))::VARCHAR AS migration_fees,
+      (SELECT ARRAY_AGG(OBJECT_CONSTRUCT('mint', mint, 'quote_mint', quote_mint, 'migration_fee', migration_fee::VARCHAR))
+        FROM token_graduations) AS token_graduations
+    FROM checks
+  )
+  SELECT totals.*, per_quote.*
+  FROM totals
+  LEFT JOIN per_quote ON TRUE`);
+  const [row] = rows;
   assertComplete(row, "deep-launchpad", options);
 
   const dailyVolume = options.createBalances();
@@ -79,17 +132,54 @@ const fetch = async (options: FetchOptions) => {
   const SOL = ADDRESSES.solana.SOL;
 
   // a sum over no rows is absent from the response: nothing of that kind happened in an indexed window
-  dailyVolume.add(SOL, row.volume ?? 0);
-  dailyFees.add(SOL, row.protocol_fees ?? 0, LABEL.CurveProtocolFees);
-  dailyRevenue.add(SOL, row.protocol_fees ?? 0, LABEL.CurveProtocolFees);
-  dailyFees.add(SOL, row.creator_rewards ?? 0, LABEL.CurveCreatorRewards);
-  dailySupplySideRevenue.add(SOL, row.creator_rewards ?? 0, LABEL.CurveCreatorRewards);
-  dailyFees.add(SOL, row.holder_rewards ?? 0, LABEL.CurveHolderRewards);
-  dailySupplySideRevenue.add(SOL, row.holder_rewards ?? 0, LABEL.CurveHolderRewards);
+  for (const { quote_mint, volume, protocol_fees, creator_rewards, holder_rewards, referral_fees } of rows) {
+    if (!quote_mint) continue;
+    const token = quoteToken(quote_mint);
+    // An approved partner named on a trade receives part of DEEP's fee; the trader pays nothing extra.
+    const referral = BigInt(referral_fees ?? 0);
+    const deepShare = BigInt(protocol_fees ?? 0) - referral;
+    if (deepShare < 0n) throw new Error(`deep-launchpad: referral fees above the protocol fees in ${token}`);
+    dailyVolume.add(token, volume ?? 0);
+    dailyFees.add(token, deepShare, LABEL.CurveProtocolFees);
+    dailyRevenue.add(token, deepShare, LABEL.CurveProtocolFees);
+    dailyFees.add(token, referral, LABEL.CurveReferralFees);
+    dailySupplySideRevenue.add(token, referral, LABEL.CurveReferralFees);
+    dailyFees.add(token, creator_rewards ?? 0, LABEL.CurveCreatorRewards);
+    dailySupplySideRevenue.add(token, creator_rewards ?? 0, LABEL.CurveCreatorRewards);
+    dailyFees.add(token, holder_rewards ?? 0, LABEL.CurveHolderRewards);
+    dailySupplySideRevenue.add(token, holder_rewards ?? 0, LABEL.CurveHolderRewards);
+  }
   dailyFees.add(SOL, row.launch_fees ?? 0, LABEL.LaunchFees);
   dailyRevenue.add(SOL, row.launch_fees ?? 0, LABEL.LaunchFees);
   dailyFees.add(SOL, row.migration_fees ?? 0, LABEL.MigrationFees);
   dailyRevenue.add(SOL, row.migration_fees ?? 0, LABEL.MigrationFees);
+
+  // A token-paired graduation: DEEP keeps the migration fee less the quote that bought the pool's rent.
+  const tokenGraduations = parseList(row.token_graduations);
+  if (tokenGraduations.length) {
+    const mints = tokenGraduations.map((g) => String(g.mint));
+    if (!mints.every((mint) => /^[0-9A-F]{64}$/i.test(mint))) throw new Error("deep-launchpad: unexpected mint in a Graduated event");
+    const lookback = { ...options, startTimestamp: options.startTimestamp - GRADUATION_FUNDING_LOOKBACK } as FetchOptions;
+    const funded = await queryAllium(`${programEventsSql(DEEP_CURVE_PROGRAM, lookback)}
+    -- GraduationFunded: mint @8 | quote_mint @40 | quote_spent u64 @72 | lamports u64 @80
+    SELECT SUBSTR(data, 17, 64) AS mint, SUM(${u64("data", 72)})::VARCHAR AS quote_spent
+    FROM program_events
+    WHERE STARTSWITH(data, '${EVENT.GraduationFunded}') AND SUBSTR(data, 17, 64) IN (${mints.map((mint) => `'${mint}'`).join(", ")})
+    GROUP BY 1`);
+    const spentByMint: Record<string, bigint> = {};
+    for (const f of funded) spentByMint[String(f.mint).toUpperCase()] = BigInt(f.quote_spent);
+    for (const g of tokenGraduations) {
+      const spent = spentByMint[String(g.mint).toUpperCase()];
+      // graduate_v2 refuses a curve whose rent was not bought first, so the funding must be there
+      if (spent === undefined)
+        throw new Error(`deep-launchpad: no GraduationFunded event for ${base58Encode(Buffer.from(g.mint, "hex"))} in the lookback`);
+      const kept = BigInt(g.migration_fee) - spent;
+      if (kept < 0n) throw new Error("deep-launchpad: graduation rent above the migration fee");
+      const token = quoteToken(String(g.quote_mint));
+      dailyFees.add(token, kept, LABEL.MigrationFees);
+      dailyRevenue.add(token, kept, LABEL.MigrationFees);
+    }
+  }
 
   return {
     dailyVolume,
@@ -101,34 +191,36 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "SOL paid by buyers and SOL paid out to sellers on the bonding curves, before fees.",
-  Fees: "Everything charged on the launchpad: DEEP's fee on each bonding-curve buy and sell (1.25%), the reward fee a token's creator chose at launch (0% to 5% of each trade), the fee to launch a token ($2, paid in SOL) and the migration fee taken from the SOL a curve raised when its token graduates (1%, less the network rent of the new pool's accounts).",
-  Revenue: "DEEP's share: its 1.25% fee on bonding-curve trades, the token launch fees and the migration fees. Reward fees are not included.",
-  ProtocolRevenue: "DEEP's 1.25% fee on bonding-curve trades, the token launch fees and the migration fees, all paid into DEEP's on-chain fee vault, which pays 10% to the team that builds DEEP and 90% to the DEEP treasury.",
-  SupplySideRevenue: "The reward fee of each token, paid in full to the token's creator or, for a Holder Rewards token, to the holders of that token.",
+  Volume: "What buyers paid and sellers were paid out on the bonding curves, before fees, in each curve's quote asset (SOL, or an approved token such as DEEP).",
+  Fees: "Everything charged on the launchpad: the trading fee on each bonding-curve buy and sell (1.25%), the reward fee a token's creator chose at launch (0% to 5% of each trade), the fee to launch a token ($2, paid in SOL) and the migration fee taken from what a curve raised when its token graduates (1%, less the network rent of the new pool's accounts). Trading fees are in the curve's quote asset.",
+  Revenue: "DEEP's share: its 1.25% fee on bonding-curve trades less the part paid to approved referral partners, the token launch fees and the migration fees. Reward fees are not included.",
+  ProtocolRevenue: "DEEP's 1.25% fee on bonding-curve trades less the part paid to approved referral partners, the token launch fees and the migration fees, all paid into DEEP's on-chain fee vault.",
+  SupplySideRevenue: "The reward fee of each token, paid in full to the token's creator or, for a Holder Rewards token, to the holders of that token, and the part of DEEP's fee paid to an approved referral partner named on a trade.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [LABEL.CurveProtocolFees]: "DEEP's fee on each bonding-curve buy and sell (1.25%).",
+    [LABEL.CurveProtocolFees]: "DEEP's fee on each bonding-curve buy and sell (1.25%), less the part paid to referral partners.",
+    [LABEL.CurveReferralFees]: "The part of DEEP's 1.25% fee paid to an approved referral partner named on the trade (no extra cost to the trader).",
     [LABEL.CurveCreatorRewards]: "The reward fee of Creator Rewards tokens (a rate the creator chose at launch, up to 5% of each trade).",
     [LABEL.CurveHolderRewards]: "The reward fee of Holder Rewards tokens (a rate the creator chose at launch, up to 5% of each trade).",
     [LABEL.LaunchFees]: "The fee to launch a token ($2, paid in SOL at the Pyth SOL/USD price).",
-    [LABEL.MigrationFees]: "The part of the SOL a curve raised that DEEP keeps when the token graduates to DeepSwap (1%, less the network rent of the new pool's accounts).",
+    [LABEL.MigrationFees]: "The part of what a curve raised that DEEP keeps when the token graduates to DeepSwap (1%, less the network rent of the new pool's accounts).",
   },
   Revenue: {
-    [LABEL.CurveProtocolFees]: "DEEP's fee on each bonding-curve buy and sell (1.25%).",
+    [LABEL.CurveProtocolFees]: "DEEP's fee on each bonding-curve buy and sell (1.25%), less the part paid to referral partners.",
     [LABEL.LaunchFees]: "The fee to launch a token.",
     [LABEL.MigrationFees]: "The migration fee DEEP keeps when a token graduates.",
   },
   ProtocolRevenue: {
-    [LABEL.CurveProtocolFees]: "DEEP's fee on each bonding-curve buy and sell (1.25%), paid into DEEP's fee vault.",
+    [LABEL.CurveProtocolFees]: "DEEP's fee on each bonding-curve buy and sell (1.25%), less the part paid to referral partners, paid into DEEP's fee vault.",
     [LABEL.LaunchFees]: "The fee to launch a token, paid into DEEP's fee vault.",
     [LABEL.MigrationFees]: "The migration fee DEEP keeps when a token graduates, paid into DEEP's fee vault.",
   },
   SupplySideRevenue: {
     [LABEL.CurveCreatorRewards]: "Reward fees paid to the creators of Creator Rewards tokens.",
     [LABEL.CurveHolderRewards]: "Reward fees paid to the holders of Holder Rewards tokens.",
+    [LABEL.CurveReferralFees]: "The part of DEEP's fee paid to approved referral partners.",
   },
 };
 

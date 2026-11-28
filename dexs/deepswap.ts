@@ -20,6 +20,7 @@ const DEEP_AMM_PROGRAM = "HCrCy6bzHhZ1b6bXwQAucEFkKXyzYMh3hgAR8UPrYSEP";
 const EVENT = {
   Swap: "40C6CDE8260871E2",
   SwapFeesV1: "C7030BBC2479CFC0",
+  ReferralFee: "6F81BC899F4DA332",
 };
 
 const REWARD_MODEL_HOLDER = "02";
@@ -29,6 +30,7 @@ const LABEL = {
   SwapLpFees: METRIC.LP_FEES,
   SwapCreatorRewards: "Creator Rewards",
   SwapHolderRewards: "Holder Rewards",
+  SwapReferralFees: "Partner Referral Fees",
   PoolCreationFees: "Pool Creation Fees",
 };
 
@@ -52,17 +54,32 @@ const fetch = async (options: FetchOptions) => {
     FROM swaps
     WHERE SUBSTR(swap, 17, 64) = SUBSTR(fees, 17, 64)
   ),
+  referrals AS (
+    -- ReferralFee: pool_id @8 | referrer @40 | trader @72 | quote_mint @104 | is_buy u8 @136 | protocol_fee u64 @137 |
+    -- amount u64 @145 (the approved partner's part of protocol_fee)
+    SELECT SUBSTR(data, 209, 64) AS quote_mint, ${u64("data", 145)} AS amount
+    FROM program_events
+    WHERE STARTSWITH(data, '${EVENT.ReferralFee}')
+  ),
   swap_totals AS (
-    -- A pool charges all its fees in its quote token (SOL on a TOKEN/SOL pool): on the input of a buy,
-    -- on the output of a sell. Volume is the quote side before fees: a buy's input is what the trader
-    -- sent, a sell's output is what the trader received after the fees were taken from it.
+    -- A pool charges all its fees in its quote token (SOL on a TOKEN/SOL pool, DEEP on a TOKEN/DEEP pool):
+    -- on the input of a buy, on the output of a sell. Volume is the quote side before fees: a buy's input
+    -- is what the trader sent, a sell's output is what the trader received after the fees were taken from it.
     SELECT quote_mint,
-      SUM(IFF(is_buy, input_amount, output_amount + lp_fee + protocol_fee + reward_fee))::VARCHAR AS volume,
+      SUM(volume)::VARCHAR AS volume,
       SUM(protocol_fee)::VARCHAR AS protocol_fees,
       SUM(lp_fee)::VARCHAR AS lp_fees,
-      SUM(IFF(to_holders, 0, reward_fee))::VARCHAR AS creator_rewards,
-      SUM(IFF(to_holders, reward_fee, 0))::VARCHAR AS holder_rewards
-    FROM swap_fees
+      SUM(creator_reward)::VARCHAR AS creator_rewards,
+      SUM(holder_reward)::VARCHAR AS holder_rewards,
+      SUM(referral_fee)::VARCHAR AS referral_fees
+    FROM (
+      SELECT quote_mint, IFF(is_buy, input_amount, output_amount + lp_fee + protocol_fee + reward_fee) AS volume,
+        protocol_fee, lp_fee, IFF(to_holders, 0, reward_fee) AS creator_reward, IFF(to_holders, reward_fee, 0) AS holder_reward,
+        0 AS referral_fee
+      FROM swap_fees
+      UNION ALL
+      SELECT quote_mint, 0, 0, 0, 0, 0, amount FROM referrals
+    )
     GROUP BY quote_mint
   ),
   totals AS (
@@ -90,18 +107,24 @@ const fetch = async (options: FetchOptions) => {
   const dailyRevenue = options.createBalances();
   const dailySupplySideRevenue = options.createBalances();
 
-  for (const { quote_mint, volume, protocol_fees, lp_fees, creator_rewards, holder_rewards } of rows) {
+  for (const { quote_mint, volume, protocol_fees, lp_fees, creator_rewards, holder_rewards, referral_fees } of rows) {
     if (!quote_mint) continue;
     const token = base58Encode(Buffer.from(quote_mint, "hex"));
-    dailyVolume.add(token, volume);
-    dailyFees.add(token, protocol_fees, LABEL.SwapProtocolFees);
-    dailyRevenue.add(token, protocol_fees, LABEL.SwapProtocolFees);
-    dailyFees.add(token, lp_fees, LABEL.SwapLpFees);
-    dailySupplySideRevenue.add(token, lp_fees, LABEL.SwapLpFees);
-    dailyFees.add(token, creator_rewards, LABEL.SwapCreatorRewards);
-    dailySupplySideRevenue.add(token, creator_rewards, LABEL.SwapCreatorRewards);
-    dailyFees.add(token, holder_rewards, LABEL.SwapHolderRewards);
-    dailySupplySideRevenue.add(token, holder_rewards, LABEL.SwapHolderRewards);
+    // An approved partner named on a swap receives part of DEEP's fee; the trader pays nothing extra.
+    const referral = BigInt(referral_fees ?? 0);
+    const deepShare = BigInt(protocol_fees ?? 0) - referral;
+    if (deepShare < 0n) throw new Error(`deepswap: referral fees above the protocol fees in ${token}`);
+    dailyVolume.add(token, volume ?? 0);
+    dailyFees.add(token, deepShare, LABEL.SwapProtocolFees);
+    dailyRevenue.add(token, deepShare, LABEL.SwapProtocolFees);
+    dailyFees.add(token, referral, LABEL.SwapReferralFees);
+    dailySupplySideRevenue.add(token, referral, LABEL.SwapReferralFees);
+    dailyFees.add(token, lp_fees ?? 0, LABEL.SwapLpFees);
+    dailySupplySideRevenue.add(token, lp_fees ?? 0, LABEL.SwapLpFees);
+    dailyFees.add(token, creator_rewards ?? 0, LABEL.SwapCreatorRewards);
+    dailySupplySideRevenue.add(token, creator_rewards ?? 0, LABEL.SwapCreatorRewards);
+    dailyFees.add(token, holder_rewards ?? 0, LABEL.SwapHolderRewards);
+    dailySupplySideRevenue.add(token, holder_rewards ?? 0, LABEL.SwapHolderRewards);
   }
   dailyFees.add(ADDRESSES.solana.SOL, row.pool_creation_fees ?? 0, LABEL.PoolCreationFees);
   dailyRevenue.add(ADDRESSES.solana.SOL, row.pool_creation_fees ?? 0, LABEL.PoolCreationFees);
@@ -116,16 +139,17 @@ const fetch = async (options: FetchOptions) => {
 };
 
 const methodology = {
-  Volume: "The quote-token side (SOL on a TOKEN/SOL pool) of every swap, before fees.",
+  Volume: "The quote-token side (SOL on a TOKEN/SOL pool, DEEP on a TOKEN/DEEP pool) of every swap, before fees.",
   Fees: "Everything charged on DeepSwap: the swap fee (0.35% of a buy and 0.75% of a sell), the reward fee the pool charges on top of it (0% to 5%, fixed when the pool was created) and the flat fee in SOL to open a pool. Pools of graduated launchpad tokens are opened by the launchpad, which pays that fee out of the token's migration fee; it is reported with the launchpad, not here.",
-  Revenue: "DEEP's share of the swap fee (0.25% of a buy, 0.65% of a sell) and the pool creation fees.",
-  ProtocolRevenue: "DEEP's share of the swap fee (0.25% of a buy, 0.65% of a sell) and the pool creation fees, all paid into DEEP's on-chain fee vault, which pays 10% to the team that builds DEEP and 90% to the DEEP treasury.",
-  SupplySideRevenue: "The liquidity providers' share of the swap fee (0.10% of each swap, left in the pool) and each pool's reward fee, paid in full to the pool's creator or, on a Holder Rewards pool, to the holders of the pool's token.",
+  Revenue: "DEEP's share of the swap fee (0.25% of a buy, 0.65% of a sell), less the part paid to approved referral partners, and the pool creation fees.",
+  ProtocolRevenue: "DEEP's share of the swap fee (0.25% of a buy, 0.65% of a sell) and the pool creation fees, less the part paid to approved referral partners, all paid into DEEP's on-chain fee vault.",
+  SupplySideRevenue: "The liquidity providers' share of the swap fee (0.10% of each swap, left in the pool) and each pool's reward fee, paid in full to the pool's creator or, on a Holder Rewards pool, to the holders of the pool's token, and the part of DEEP's fee paid to an approved referral partner named on a swap.",
 };
 
 const breakdownMethodology = {
   Fees: {
-    [LABEL.SwapProtocolFees]: "DEEP's share of the swap fee (0.25% of a buy, 0.65% of a sell).",
+    [LABEL.SwapProtocolFees]: "DEEP's share of the swap fee (0.25% of a buy, 0.65% of a sell), less the part paid to referral partners.",
+    [LABEL.SwapReferralFees]: "The part of DEEP's swap fee paid to an approved referral partner named on the swap (no extra cost to the trader).",
     [LABEL.SwapLpFees]: "The liquidity providers' share of the swap fee (0.10% of each swap).",
     [LABEL.SwapCreatorRewards]: "The reward fee of Creator Rewards pools (a rate fixed when the pool was created, up to 5% of each swap).",
     [LABEL.SwapHolderRewards]: "The reward fee of Holder Rewards pools (a rate fixed when the pool was created, up to 5% of each swap).",
@@ -143,6 +167,7 @@ const breakdownMethodology = {
     [LABEL.SwapLpFees]: "The liquidity providers' share of the swap fee, left in the pool.",
     [LABEL.SwapCreatorRewards]: "Reward fees paid to the creators of Creator Rewards pools.",
     [LABEL.SwapHolderRewards]: "Reward fees paid to the holders of the token of Holder Rewards pools.",
+    [LABEL.SwapReferralFees]: "The part of DEEP's swap fee paid to approved referral partners.",
   },
 };
 
