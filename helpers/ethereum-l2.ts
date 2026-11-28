@@ -51,7 +51,7 @@ export async function getFeesFromVaultCounters(options: FetchOptions, { feeVault
   return balances
 }
 
-async function getVaultCountersAccruedWei(options: FetchOptions, feeVaults: string[]): Promise<bigint> {
+export async function getVaultCountersAccruedWei(options: FetchOptions, feeVaults: string[]): Promise<bigint> {
   const { chain } = options
   const accruedAt = async (block: number) => {
     const { output: vaultBalances } = await sdk.api2.eth.getBalances({ targets: feeVaults, chain, block })
