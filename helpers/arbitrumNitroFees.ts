@@ -57,7 +57,7 @@ const rewardDistributorEventByTopic: Record<string, string> = Object.fromEntries
 const toHex = (value: number) => `0x${value.toString(16)}`;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function rpcCall(chain: string, method: string, params: any[]): Promise<any> {
+export async function rpcCall(chain: string, method: string, params: any[]): Promise<any> {
   const urls: string[] = ((sdk.getProvider(chain) as any)?.rpcs ?? []).map((rpc: { url: string }) => rpc.url);
   if (!urls.length) throw new Error(`${chain}: no RPC configured for ${method}`);
   let lastError: any;

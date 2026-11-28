@@ -5,6 +5,13 @@ import { createFactoryExports } from "./registry";
 
 const BASE_URL = "https://bigquery-api-636134865280.europe-west1.run.app";
 const INJECTIVE_CACHE_API = "https://api.ui.injective.network/api/v1/cache";
+const INJECTIVE_DERIVATIVE_API = "https://sentry.exchange.grpc-web.injective.network/api/exchange/derivative";
+const INJECTIVE_SPOT_API = "https://sentry.exchange.grpc-web.injective.network/api/exchange/spot";
+// default feeRecipient in the helixapp.com bundle; matches BigQuery helix_derivative_volume exactly on 2026-10-25
+const HELIX_FEE_RECIPIENT = "inj1zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3t5qxqh";
+const USD_QUOTE_DECIMALS = 6;
+const MARKETS_PER_REQUEST = 50;
+const TRADES_PAGE_SIZE = 100;
 
 interface VolumeConfig {
   endpoint: string;
@@ -103,6 +110,172 @@ function createFeesAdapter(config: FeesConfig): SimpleAdapter {
   };
 }
 
+const MARKET_STATUSES = "marketStatuses=active&marketStatuses=paused&marketStatuses=expired&marketStatuses=demolished";
+
+/**
+ * Every fill of a Helix order (Helix's fee recipient) in the fetch window, per tradeId. The indexer's skip paging loses
+ * and repeats rows on busy markets (INJ/USDC on 2026-10-25: 29 of 6,760 fills lost and 29 repeated), so page backwards
+ * on executedAt instead and dedupe by tradeId.
+ */
+async function fetchHelixTrades(api: string, options: FetchOptions) {
+  const { markets }: any = await httpGet(`${api}/v1/markets?${MARKET_STATUSES}`);
+  const startTime = options.startTimestamp * 1000;
+  const trades = new Map<string, any>();
+  const getPage = async (marketIds: string, from: number, to: number, skip = 0): Promise<any[]> => {
+    const { trades: page = [] }: any = await httpGet(`${api}/v2/trades?${marketIds}&feeRecipient=${HELIX_FEE_RECIPIENT}&startTime=${from}&endTime=${to}&limit=${TRADES_PAGE_SIZE}&skip=${skip}`);
+    for (const trade of page) trades.set(trade.tradeId, trade);
+    return page;
+  };
+  for (let i = 0; i < markets.length; i += MARKETS_PER_REQUEST) {
+    const marketIds = markets.slice(i, i + MARKETS_PER_REQUEST).map((market: any) => `marketIds=${market.marketId}`).join("&");
+    let endTime = options.endTimestamp * 1000 - 1;
+    while (true) {
+      const page = await getPage(marketIds, startTime, endTime);
+      if (page.length < TRADES_PAGE_SIZE) break;
+      const oldest = Math.min(...page.map((trade) => Number(trade.executedAt)));
+      if (oldest < endTime) {
+        endTime = oldest;
+        continue;
+      }
+      // a full page inside one millisecond: skip-page that millisecond, then move past it
+      for (let skip = 0; ; skip += TRADES_PAGE_SIZE) {
+        if ((await getPage(marketIds, oldest, oldest, skip)).length < TRADES_PAGE_SIZE) break;
+      }
+      if (oldest <= startTime) break;
+      endTime = oldest - 1;
+    }
+  }
+  return { markets, trades: [...trades.values()] };
+}
+
+async function fetchHelixDerivativeTrades(options: FetchOptions) {
+  const { trades } = await fetchHelixTrades(INJECTIVE_DERIVATIVE_API, options);
+  let volume = 0;
+  let fees = 0;
+  for (const trade of trades) {
+    volume += Number(trade.positionDelta.executionPrice) * Number(trade.positionDelta.executionQuantity) / 10 ** USD_QUOTE_DECIMALS;
+    // negative fees are maker rebates paid out of taker fees, not fees collected
+    fees += Math.max(Number(trade.fee), 0) / 10 ** USD_QUOTE_DECIMALS;
+  }
+  return { volume, fees };
+}
+
+// USD stablecoin quote denoms coins.llama.fi has no injective price for, with their decimals. Fills in any other quote
+// (INJ, USDT, wETH, ATOM, ...) are priced from the quote denom.
+const HELIX_SPOT_USD_QUOTES: Record<string, number> = {
+  "erc20:0xa00C59fF5a080D2b954d0c75e46E22a0c371235a": 6, // USDC
+  "ibc/2CBC2EA121AE42563B08028466F37B600F2D7D4282342DE938283CC3FB2BC00E": 6, // USDCnb
+  "peggy0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": 6, // USDC (legacy peggy)
+  "factory/inj14ejqjyq8um4p3xfqj74yld5waqljf88f9eneuk/inj1q6zlut7gtkzknkk773jecujwsdkgq882akqksk": 6, // USDCet
+  "factory/inj1n636d9gzrqggdk66n2f97th0x8yuhfrtx520e7/ausd": 6, // AUSD
+};
+
+async function fetchHelixSpot(options: FetchOptions) {
+  const { markets, trades } = await fetchHelixTrades(INJECTIVE_SPOT_API, options);
+  const quoteDenoms: Record<string, string> = Object.fromEntries(markets.map((market: any) => [market.marketId, market.quoteDenom]));
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
+  for (const trade of trades) {
+    const quoteDenom = quoteDenoms[trade.marketId];
+    if (!quoteDenom) throw new Error(`Helix spot: trade ${trade.tradeId} is on unknown market ${trade.marketId}`);
+    // price is quote base units per base base unit, quantity and fee are base units
+    const notional = Number(trade.price.price) * Number(trade.price.quantity);
+    // negative fees are maker rebates paid out of taker fees, not fees collected
+    const fee = Math.max(Number(trade.fee), 0);
+    const usdDecimals = HELIX_SPOT_USD_QUOTES[quoteDenom];
+    if (usdDecimals !== undefined) {
+      dailyVolume.addUSDValue(notional / 10 ** usdDecimals);
+      dailyFees.addUSDValue(fee / 10 ** usdDecimals, "Spot Trading Fees");
+    } else {
+      dailyVolume.add(quoteDenom, notional);
+      dailyFees.add(quoteDenom, fee, "Spot Trading Fees");
+    }
+  }
+  return { dailyVolume, dailyFees };
+}
+
+const helixSpotVolume: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  fetch: async (options: FetchOptions) => ({ dailyVolume: (await fetchHelixSpot(options)).dailyVolume }),
+  start: "2022-09-06",
+  chains: [CHAIN.INJECTIVE],
+  doublecounted: true,
+  methodology: {
+    Volume: "Notional of every fill of a Helix spot order (orders carrying Helix's fee recipient), maker and taker, from the Injective indexer.",
+  },
+};
+
+const helixSpotFees: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  fetch: async (options: FetchOptions) => {
+    const { dailyFees } = await fetchHelixSpot(options);
+    return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees };
+  },
+  start: "2022-09-06",
+  chains: [CHAIN.INJECTIVE],
+  doublecounted: true,
+  methodology: {
+    Fees: "Trading fees on Injective spot orders placed through Helix (orders carrying Helix's fee recipient), from the Injective indexer.",
+    Revenue: "100% of Helix spot exchange fees enter the Injective auction and are burned for INJ.",
+    HoldersRevenue: "100% of Helix spot exchange fees burned for INJ via the Injective auction (benefits INJ holders).",
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Spot Trading Fees": "Fees charged on maker and taker fills of Helix spot orders; maker rebates (negative fees) are not counted.",
+    },
+    Revenue: {
+      "Spot Trading Fees": "All Helix spot exchange fees flow to the Injective burn auction.",
+    },
+    HoldersRevenue: {
+      "Spot Trading Fees": "All Helix spot exchange fees flow to the Injective burn auction (INJ burn benefits holders).",
+    },
+  },
+};
+
+const helixPerpVolume: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  fetch: async (options: FetchOptions) => {
+    const { volume } = await fetchHelixDerivativeTrades(options);
+    return { dailyVolume: volume };
+  },
+  start: "2022-09-06",
+  chains: [CHAIN.INJECTIVE],
+  doublecounted: true,
+};
+
+const helixPerpFees: SimpleAdapter = {
+  version: 2,
+  pullHourly: true,
+  fetch: async (options: FetchOptions) => {
+    const { fees } = await fetchHelixDerivativeTrades(options);
+    const dailyFees = options.createBalances();
+    dailyFees.addUSDValue(fees, "Derivative Trading Fees");
+    return { dailyFees, dailyRevenue: dailyFees, dailyHoldersRevenue: dailyFees };
+  },
+  start: "2022-09-06",
+  chains: [CHAIN.INJECTIVE],
+  doublecounted: true,
+  methodology: {
+    Fees: "Trading fees on Injective derivative orders placed through Helix (orders carrying Helix's fee recipient), from the Injective indexer.",
+    Revenue: "100% of Helix derivative exchange fees enter the Injective auction and are burned for INJ.",
+    HoldersRevenue: "100% of Helix derivative exchange fees burned for INJ via the Injective auction (benefits INJ holders).",
+  },
+  breakdownMethodology: {
+    Fees: {
+      "Derivative Trading Fees": "Fees charged on maker and taker fills of Helix derivative orders; maker rebates (negative fees) are not counted.",
+    },
+    Revenue: {
+      "Derivative Trading Fees": "All Helix derivative exchange fees flow to the Injective burn auction.",
+    },
+    HoldersRevenue: {
+      "Derivative Trading Fees": "All Helix derivative exchange fees flow to the Injective burn auction (INJ burn benefits holders).",
+    },
+  },
+};
+
 const volumeConfigs: Record<string, VolumeConfig> = {
   "injective-spot": {
     endpoint: "injective_spot_volume",
@@ -113,16 +286,6 @@ const volumeConfigs: Record<string, VolumeConfig> = {
     endpoint: "injective_derivative_volume",
     fallbackEndpoint: "derivatives",
     start: "2021-07-17",
-  },
-  "helix-helix": {
-    endpoint: "helix_spot_volume",
-    start: "2022-09-06",
-    doublecounted: true,
-  },
-  "helix-helix-perp": {
-    endpoint: "helix_derivative_volume",
-    start: "2022-09-06",
-    doublecounted: true,
   },
   "truecurrent": {
     endpoint: "truecurrent_derivative_volume",
@@ -135,50 +298,6 @@ const volumeConfigs: Record<string, VolumeConfig> = {
 };
 
 const feesConfigs: Record<string, FeesConfig> = {
-  "helix-helix": {
-    endpoint: "helix_spot_fees",
-    feesLabel: "Spot Trading Fees",
-    start: "2022-09-06",
-    doublecounted: true,
-    methodology: {
-      Fees: "Trading fees on Helix spot markets, sourced from BigQuery (helix_webapp.helix_spot_volume_and_fee).",
-      Revenue: "100% of Helix spot exchange fees enter the Injective auction and are burned for INJ.",
-      HoldersRevenue: "100% of Helix spot exchange fees burned for INJ via the Injective auction (benefits INJ holders).",
-    },
-    breakdownMethodology: {
-      Fees: {
-        "Spot Trading Fees": "Sum of |fee_notional_usd| from helix_spot_volume_and_fee, execution_side = maker_taker.",
-      },
-      Revenue: {
-        "Spot Trading Fees": "All Helix spot exchange fees flow to the Injective burn auction.",
-      },
-      HoldersRevenue: {
-        "Spot Trading Fees": "All Helix spot exchange fees flow to the Injective burn auction (INJ burn benefits holders).",
-      },
-    },
-  },
-  "helix-helix-perp": {
-    endpoint: "helix_derivative_fees",
-    feesLabel: "Derivative Trading Fees",
-    start: "2022-09-06",
-    doublecounted: true,
-    methodology: {
-      Fees: "Trading fees on Helix derivative markets, sourced from BigQuery (helix_webapp.helix_derivative_volume_and_fee).",
-      Revenue: "100% of Helix derivative exchange fees enter the Injective auction and are burned for INJ.",
-      HoldersRevenue: "100% of Helix derivative exchange fees burned for INJ via the Injective auction (benefits INJ holders).",
-    },
-    breakdownMethodology: {
-      Fees: {
-        "Derivative Trading Fees": "Sum of |fee_notional_usd| from helix_derivative_volume_and_fee, execution_side = maker_taker.",
-      },
-      Revenue: {
-        "Derivative Trading Fees": "All Helix derivative exchange fees flow to the Injective burn auction.",
-      },
-      HoldersRevenue: {
-        "Derivative Trading Fees": "All Helix derivative exchange fees flow to the Injective burn auction (INJ burn benefits holders).",
-      },
-    },
-  },
   "truecurrent": {
     endpoint: "truecurrent_fees",
     feesLabel: "Derivative Trading Fees",
@@ -203,12 +322,12 @@ const feesConfigs: Record<string, FeesConfig> = {
   },
 };
 
-const volumeProtocols: Record<string, SimpleAdapter> = {};
+const volumeProtocols: Record<string, SimpleAdapter> = { "helix-helix": helixSpotVolume, "helix-helix-perp": helixPerpVolume };
 for (const [name, config] of Object.entries(volumeConfigs)) {
   volumeProtocols[name] = createVolumeAdapter(config);
 }
 
-const feesProtocols: Record<string, SimpleAdapter> = {};
+const feesProtocols: Record<string, SimpleAdapter> = { "helix-helix": helixSpotFees, "helix-helix-perp": helixPerpFees };
 for (const [name, config] of Object.entries(feesConfigs)) {
   feesProtocols[name] = createFeesAdapter(config);
 }

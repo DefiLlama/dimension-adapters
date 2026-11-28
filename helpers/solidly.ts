@@ -64,8 +64,9 @@ export function getFeesExport({ VOTER_ADDRESS, FACTORY_ADDRESS,  }: { VOTER_ADDR
           dailyRevenue.add(l.reward, l.amount, "Bribes from other protocols")
         }
         else {
-          dailyFees.add(l.reward, l.amount, "Gauge emissions")
-          dailyRevenue.add(l.reward, l.amount, "Gauge emissions")
+          // the gauge forwards the pair's swap fees (claimFees) to voters: already in dailyFees via the
+          // pair Fees events below, so only book it as revenue
+          dailyRevenue.add(l.reward, l.amount, METRIC.SWAP_FEES)
         }
       })
     })

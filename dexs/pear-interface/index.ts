@@ -4,9 +4,12 @@ import { fetchBuilderCodeRevenue } from "../../helpers/hyperliquid";
 import { METRIC } from "../../helpers/metrics";
 import fetchURL from "../../utils/fetchURL";
 
-const HL_BUILDER_ADDRESS = "0xa47d4d99191db54a4829cdf3de2417e527c3b042";
+const HL_BUILDERS = [
+  { address: "0xa47d4d99191db54a4829cdf3de2417e527c3b042", start: "2025-07-08" },
+  { address: "0x3dca96c1facc33d41c71488662817c70a626ac9d", start: "2026-10-22" },
+];
 const LIGHTER_API_BASE_URL = "https://mainnet.zklighter.elliot.ai/api/v1/partnerStats";
-const LIGHTER_ACCOUNT_INDEX = 728059;
+const LIGHTER_ACCOUNT_INDEXES = [728059, 763088];
 
 const TRADING_FEES_TO_TREASURY = "Trading Fees To Treasury";
 const TRADING_FEES_TO_STAKERS = "Trading Fees To Stakers";
@@ -50,33 +53,36 @@ const splitRevenue = (options: FetchOptions, dailyFees: ReturnType<FetchOptions[
 };
 
 const fetchHyperliquid = async (options: FetchOptions) => {
-  const { dailyVolume, dailyFees } = await fetchBuilderCodeRevenue({
-    options,
-    builder_address: HL_BUILDER_ADDRESS,
-  });
+  const dailyVolume = options.createBalances();
+  const dailyFees = options.createBalances();
 
-  const fees = options.createBalances();
-  fees.addBalances(dailyFees, "Hyperliquid Builder Code Fees");
+  for (const { address, start } of HL_BUILDERS) {
+    if (options.dateString < start) continue;
+    const result = await fetchBuilderCodeRevenue({ options, builder_address: address });
+    dailyVolume.addBalances(result.dailyVolume);
+    dailyFees.addBalances(result.dailyFees, "Hyperliquid Builder Code Fees");
+  }
 
-  return { dailyVolume, dailyFees: fees, ...splitRevenue(options, fees) };
+  return { dailyVolume, dailyFees, ...splitRevenue(options, dailyFees) };
 };
 
 const fetchLighter = async (options: FetchOptions) => {
   const dailyVolume = options.createBalances();
   const dailyFees = options.createBalances();
 
-  const response = await fetchURL(
-    `${LIGHTER_API_BASE_URL}?account_index=${LIGHTER_ACCOUNT_INDEX}&start_timestamp=${options.startTimestamp * 1000}&end_timestamp=${options.endTimestamp * 1000}`
-  );
-
-  dailyVolume.addUSDValue(Number(response.total_volume));
-  dailyFees.addUSDValue(Number(response.total_fees_earned), "Lighter Partner Fees");
+  for (const accountIndex of LIGHTER_ACCOUNT_INDEXES) {
+    const response = await fetchURL(
+      `${LIGHTER_API_BASE_URL}?account_index=${accountIndex}&start_timestamp=${options.startTimestamp * 1000}&end_timestamp=${options.endTimestamp * 1000}`
+    );
+    dailyVolume.addUSDValue(Number(response.total_volume));
+    dailyFees.addUSDValue(Number(response.total_fees_earned), "Lighter Partner Fees");
+  }
 
   return { dailyVolume, dailyFees, ...splitRevenue(options, dailyFees) };
 };
 
 const methodology = {
-  Volume: "Notional volume of perpetual trades routed through Pear Interface on Hyperliquid (builder code) and Lighter (partner account 728059).",
+  Volume: "Notional volume of perpetual trades routed through Pear Interface on Hyperliquid (builder codes) and Lighter (partner accounts).",
   Fees: "Builder code fees from Hyperliquid perps trades and partner fees from Pear Interface's Lighter perps integration.",
   Revenue: "All fees are retained by Pear, split between the protocol treasury and token holders, so revenue equals fees.",
   ProtocolRevenue: "Share of fees paid directly to the Pear Protocol treasury: 20% before 2026-01-27, 30% from that date onward.",

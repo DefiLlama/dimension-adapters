@@ -1,8 +1,10 @@
 import { Interface } from "ethers";
-import { FetchOptions, SimpleAdapter } from "../adapters/types";
+import { Dependencies, FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
 import { getTransactionsWithRetry } from "../helpers/getTxReceipts";
 import ADDRESSES from "../helpers/coreAssets.json";
+import { queryAllium } from "../helpers/allium";
+import { timeFilter, u64, u8 } from "../helpers/alliumSolanaEvents";
 
 // Daejin runs two kinds of prediction market on each chain:
 //  - AMM markets (PredictionMarket): every bet emits BetPlaced with the cash paid and the token.
@@ -68,7 +70,7 @@ const legCash = (outcome: bigint, execPrice: bigint, size: bigint): bigint => {
   return (px * size) / PRICE_TICKS;
 };
 
-const fetch = async (options: FetchOptions) => {
+const fetchEvm = async (options: FetchOptions) => {
   const { predictionMarket, clobExchange, collateral } = CONTRACTS[options.chain];
   const dailyVolume = options.createBalances();
 
@@ -142,15 +144,69 @@ const fetch = async (options: FetchOptions) => {
   return { dailyVolume };
 };
 
+// Solana: two Anchor programs that emit no events, so volume is decoded from the arguments of
+// the instructions that move value, called directly or by another program.
+//  prediction_market (AMM)      https://solscan.io/account/GgMXNkJR4Vmfd8ievZRBp8Uf8NJX5bdBX96u9FfYComC
+//  clob_settlement (order book) https://solscan.io/account/EJMhw3BibsxMj8az8DsE1D8qUpUDyPSssX2tKpWQ3jeM
+// Data = 8-byte discriminator + Borsh args. An order is 74 bytes with its outcome at byte 41.
+// Sizes are in collateral units (no share unit). The collateral is USDC, the payment_mint of
+// all 54 order-book markets created so far.
+const SOLANA_AMM = "GgMXNkJR4Vmfd8ievZRBp8Uf8NJX5bdBX96u9FfYComC";
+const SOLANA_CLOB = "EJMhw3BibsxMj8az8DsE1D8qUpUDyPSssX2tKpWQ3jeM";
+const PLACE_BET = "de3e43dc3fa67e21"; // (is_yes, amount) u64: amount @9
+const SETTLE_FILL = "c5518732bf03ab4b"; // (order_a, order_b, hash_a, hash_b, exec_price, size) u8: outcomes @49 @123; u64: exec_price @220, size @228
+const AMM_FILL = "0576f116c5d5d16e"; // (order, hash, exec_price, size) u8: outcome @49; u64: exec_price @114, size @122
+const PROGRAM_FILL = "f93fc68acd1d9076"; // leveraged trades (outcome, action, exec_price, size) u8: outcome @8; u64: exec_price @10, size @18
+
+const legCashSql = (outcomeAt: number, priceAt: number, sizeAt: number) => {
+  const price = u64("data_hex", priceAt);
+  return `FLOOR(IFF(${u8("data_hex", outcomeAt)} = '00', ${price}, ${PRICE_TICKS} - ${price}) * ${u64("data_hex", sizeAt)} / ${PRICE_TICKS})`;
+};
+
+const fetchSolana = async (options: FetchOptions) => {
+  const programs = `'${SOLANA_AMM}', '${SOLANA_CLOB}'`;
+  const [row] = await queryAllium(`
+    WITH calls AS (
+      SELECT program_id, LEFT(data_hex, 16) AS ix, data_hex FROM solana.raw.instructions
+      WHERE ${timeFilter(options)} AND program_id IN (${programs}) AND parent_tx_success
+      UNION ALL
+      SELECT program_id, LEFT(data_hex, 16), data_hex FROM solana.raw.inner_instructions
+      WHERE ${timeFilter(options)} AND program_id IN (${programs}) AND parent_tx_success
+    ),
+    legs AS (
+      SELECT ${u64("data_hex", 9)} AS cash FROM calls WHERE program_id = '${SOLANA_AMM}' AND ix = '${PLACE_BET}'
+      UNION ALL
+      SELECT FLOOR((${legCashSql(49, 220, 228)} + ${legCashSql(123, 220, 228)}) / 2) FROM calls WHERE program_id = '${SOLANA_CLOB}' AND ix = '${SETTLE_FILL}'
+      UNION ALL
+      SELECT ${legCashSql(49, 114, 122)} FROM calls WHERE program_id = '${SOLANA_CLOB}' AND ix = '${AMM_FILL}'
+      UNION ALL
+      SELECT ${legCashSql(8, 10, 18)} FROM calls WHERE program_id = '${SOLANA_CLOB}' AND ix = '${PROGRAM_FILL}'
+    ),
+    checks AS (
+      SELECT EXISTS (SELECT 1 FROM solana.assets.transfers
+        WHERE block_timestamp >= TO_TIMESTAMP_NTZ(${options.endTimestamp})
+          AND block_timestamp < TO_TIMESTAMP_NTZ(${options.endTimestamp + 15 * 60})) AS indexed
+    )
+    SELECT k.indexed, v.cash FROM checks k, (SELECT COALESCE(SUM(cash), 0) AS cash FROM legs) v
+  `);
+  if (!row?.indexed) throw new Error(`daejin: Allium has not indexed Solana past ${new Date(options.endTimestamp * 1e3).toISOString()} yet`);
+  const dailyVolume = options.createBalances();
+  dailyVolume.add(ADDRESSES.solana.USDC, row.cash);
+  return { dailyVolume };
+};
+
 const adapter: SimpleAdapter = {
   version: 2,
   pullHourly: true,
-  fetch,
-  chains: [CHAIN.ETHEREUM, CHAIN.BSC],
-  start: "2026-08-01",
+  adapter: {
+    [CHAIN.ETHEREUM]: { fetch: fetchEvm, start: "2026-08-01" },
+    [CHAIN.BSC]: { fetch: fetchEvm, start: "2026-08-01" },
+    [CHAIN.SOLANA]: { fetch: fetchSolana, start: "2026-10-17" },
+  },
+  dependencies: [Dependencies.ALLIUM],
   methodology: {
     Volume:
-      "AMM markets: collateral paid per bet (BetPlaced cashAmount), gross of fees, in the bet token. Order-book markets: collateral exchanged per settled fill, one side counted (average of both legs at the execution price), gross of fees, in USDC. LP deposits, claims and refunds are not counted.",
+      "AMM markets: collateral paid per bet (BetPlaced cashAmount on EVM, place_bet amount on Solana), gross of fees, in the bet token. Order-book markets: collateral exchanged per settled fill (settleFill/ammFill on EVM; settle_fill, amm_fill and leveraged program_fill on Solana), one side counted (average of both legs at the execution price), gross of fees, in USDC. LP deposits, claims and refunds are not counted.",
   },
 };
 

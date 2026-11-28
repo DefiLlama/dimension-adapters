@@ -1,11 +1,9 @@
-import request, { gql } from "graphql-request";
 import { FetchOptions, SimpleAdapter } from "../adapters/types";
 import { CHAIN } from "../helpers/chains";
-import BigNumber from "bignumber.js";
+import { addOneToken } from "../helpers/prices";
 
 const SOVRYN_DEX_BOB = "0xe5bc234A484A912A61Aa74501960cFc202e773dA";
-const RSK_SUBGRAPH =
-  "https://subgraph.sovryn.app/subgraphs/name/DistributedCollective/sovryn-subgraph";
+const SOVRYN_SWAP_NETWORK_RSK = "0x98aCE08D2b759a265ae326F010496bcD63C15afc";
 
 async function fetchBob({ getLogs, createBalances }: FetchOptions) {
   const dailyVolume = createBalances();
@@ -25,39 +23,23 @@ async function fetchBob({ getLogs, createBalances }: FetchOptions) {
   return { dailyVolume };
 }
 
-async function fetchRsk({
-  startTimestamp,
-  endTimestamp,
-  createBalances,
-}: FetchOptions) {
+async function fetchRsk({ getLogs, createBalances }: FetchOptions) {
   const dailyVolume = createBalances();
-  let skip = 0;
-  let hasMore = true;
-  while (hasMore) {
-    const query = gql`{
-      conversions(
-        where: { timestamp_gte: ${startTimestamp}, timestamp_lt: ${endTimestamp} }
-        first: 1000
-        skip: ${skip}
-        orderBy: timestamp
-      ) {
-        _toToken {
-          id
-          decimals
-        }
-        _return
-      }
-    }`;
-    const { conversions } = await request(RSK_SUBGRAPH, query);
-    for (const conversion of conversions) {
-      const decimals = conversion._toToken.decimals;
-      const rawAmount = new BigNumber(conversion._return)
-        .times(new BigNumber(10).pow(decimals))
-        .toFixed(0);
-      dailyVolume.add(conversion._toToken.id, BigInt(rawAmount));
-    }
-    hasMore = conversions.length === 1000;
-    skip += 1000;
+
+  const logs = await getLogs({
+    target: SOVRYN_SWAP_NETWORK_RSK,
+    eventAbi:
+      "event Conversion(address indexed _smartToken, address indexed _fromToken, address indexed _toToken, uint256 _fromAmount, uint256 _toAmount, address _trader)",
+  });
+
+  for (const log of logs) {
+    addOneToken({
+      balances: dailyVolume,
+      token0: log._fromToken,
+      amount0: log._fromAmount,
+      token1: log._toToken,
+      amount1: log._toAmount,
+    });
   }
 
   return { dailyVolume };

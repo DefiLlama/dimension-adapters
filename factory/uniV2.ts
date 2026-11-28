@@ -50,6 +50,10 @@ const gt3CustomLogic = async ({ dailyVolume, filteredPairs, fetchOptions }: any)
 }
 
 const configs: Record<string, Record<string, any>> = {
+  "quainance": {
+    // Factory from the quainance TVL adapter (DefiLlama-Adapters registries/uniswapV2Logs.js); feeTo is zero, so the 0.3% fee stays with LPs
+    [CHAIN.QUAI]: { factory: '0x0018A110b6cA369DCf5Ab062C72F049E93B9eDe2', start: '2026-07-06', fees: 0.003, userFeesRatio: 1, revenueRatio: 0, protocolRevenueRatio: 0, holdersRevenueRatio: 0, allowReadPairs: true },
+  },
   "plunderswap": {
     // PlunderSwap V2. Factory from the plunderswap TVL adapter (DefiLlama-Adapters registries/uniswapV2.js); verified PlunderFactory/PlunderPair
     // source charges 35/10000 per swap: https://zilliqa.blockscout.com/address/0xf42d1058f233329185A36B04B7f96105afa1adD2?tab=contract
@@ -998,7 +1002,7 @@ const configs: Record<string, Record<string, any>> = {
     [CHAIN.AVAX]: { factory: '0xcDE3F9e6D452be6d955B1C7AaAEE3cA397EAc469', start: '2023-02-08', fees: 0.0025, userFeesRatio: 1, revenueRatio: 0 },
   },
   "carbonswap": {
-    [CHAIN.ENERGYWEB]: { factory: '0x17854c8d5a41d5A89B275386E24B2F38FD0AfbDd', start: '2021-04-15' },
+    [CHAIN.ENERGYWEB]: { factory: '0x17854c8d5a41d5A89B275386E24B2F38FD0AfbDd', start: '2021-04-15', noStablePairs: true },
   },
   "cone": {
     [CHAIN.BSC]: { factory: '0x0EFc2D2D054383462F2cD72eA2526Ef7687E1016', start: '2021-07-19' },
@@ -1257,7 +1261,7 @@ const configs: Record<string, Record<string, any>> = {
   },
   "lfgswap": {
     // The first factory pair (0xC51a4ADa61DaF084A5d6E894f6fcA791C07a375D) uses a 3/1000 invariant at EthereumPoW block 25537656.
-    [CHAIN.ETHPOW]: { factory: '0xf66cef53c518659bFA0A9a4Aa07445AF08bf9B3a', useSyncReserves: true, fees: 0.003, customLogic: grossSwapFeesOnly },
+    [CHAIN.ETHPOW]: { factory: '0xf66cef53c518659bFA0A9a4Aa07445AF08bf9B3a', useSyncReserves: true, scanLogsByTopic: true, fees: 0.003, customLogic: grossSwapFeesOnly },
   },
   "newswap": {
     // volume only: pair source is not verified, so the swap fee and its split are unknown
@@ -1301,6 +1305,15 @@ const optionsMap: Record<string, any> = {
 }
 
 const methodologyMap: Record<string, any> = {
+  "quainance": {
+    Volume: "Swap volume on Quainance pairs on Quai.",
+    Fees: "Traders pay a 0.3% fee on every swap.",
+    UserFees: "Traders pay a 0.3% fee on every swap.",
+    Revenue: "The protocol takes no share of the swap fee.",
+    ProtocolRevenue: "The protocol takes no share of the swap fee.",
+    HoldersRevenue: "Token holders receive no share of the swap fee.",
+    SupplySideRevenue: "The full 0.3% swap fee stays with liquidity providers.",
+  },
   "lfgswap-arbitrum": {
     Volume: "Swap volume on LFGSwap pairs on Arbitrum.",
     Fees: "Traders pay a 0.3% fee on every swap.",
