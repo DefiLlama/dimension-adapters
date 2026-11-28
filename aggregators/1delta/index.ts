@@ -28,7 +28,7 @@ const fetchFuelVolume = async (options: FetchOptions) => {
 }
 
 const chainConfig: Record<string, { chainId: number, start: string, invalidSpikes?: string[] }> = {
-  [CHAIN.MANTLE]: { chainId: 5000, start: '2025-03-01' , invalidSpikes: ["2026-04-19"] },
+  [CHAIN.MANTLE]: { chainId: 5000, start: '2025-03-01' , invalidSpikes: ["2026-04-19", "2026-11-27"] },
   [CHAIN.OPTIMISM]: { chainId: 10, start: '2025-03-01' },
   [CHAIN.POLYGON]: { chainId: 137, start: '2025-03-01' },
   [CHAIN.LINEA]: { chainId: 59144, start: '2025-03-01' },
