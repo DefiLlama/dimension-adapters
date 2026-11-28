@@ -110,10 +110,8 @@ const fetch = async (options: FetchOptions) => {
   for (const { quote_mint, volume, protocol_fees, lp_fees, creator_rewards, holder_rewards, referral_fees } of rows) {
     if (!quote_mint) continue;
     const token = base58Encode(Buffer.from(quote_mint, "hex"));
-    // An approved partner named on a swap receives part of DEEP's fee; the trader pays nothing extra.
     const referral = BigInt(referral_fees ?? 0);
     const deepShare = BigInt(protocol_fees ?? 0) - referral;
-    if (deepShare < 0n) throw new Error(`deepswap: referral fees above the protocol fees in ${token}`);
     dailyVolume.add(token, volume ?? 0);
     dailyFees.add(token, deepShare, LABEL.SwapProtocolFees);
     dailyRevenue.add(token, deepShare, LABEL.SwapProtocolFees);
@@ -142,7 +140,7 @@ const methodology = {
   Volume: "The quote-token side (SOL on a TOKEN/SOL pool, DEEP on a TOKEN/DEEP pool) of every swap, before fees.",
   Fees: "Everything charged on DeepSwap: the swap fee (0.35% of a buy and 0.75% of a sell), the reward fee the pool charges on top of it (0% to 5%, fixed when the pool was created) and the flat fee in SOL to open a pool. Pools of graduated launchpad tokens are opened by the launchpad, which pays that fee out of the token's migration fee; it is reported with the launchpad, not here.",
   Revenue: "DEEP's share of the swap fee (0.25% of a buy, 0.65% of a sell), less the part paid to approved referral partners, and the pool creation fees.",
-  ProtocolRevenue: "DEEP's share of the swap fee (0.25% of a buy, 0.65% of a sell) and the pool creation fees, less the part paid to approved referral partners, all paid into DEEP's on-chain fee vault.",
+  ProtocolRevenue: "DEEP's share of the swap fee (0.25% of a buy, 0.65% of a sell), less the part paid to approved referral partners, and the pool creation fees, all paid into DEEP's on-chain fee vault.",
   SupplySideRevenue: "The liquidity providers' share of the swap fee (0.10% of each swap, left in the pool) and each pool's reward fee, paid in full to the pool's creator or, on a Holder Rewards pool, to the holders of the pool's token, and the part of DEEP's fee paid to an approved referral partner named on a swap.",
 };
 
@@ -156,11 +154,11 @@ const breakdownMethodology = {
     [LABEL.PoolCreationFees]: "The flat fee in SOL to open a pool, except pools opened by the DEEP launchpad for graduated tokens.",
   },
   Revenue: {
-    [LABEL.SwapProtocolFees]: "DEEP's share of the swap fee (0.25% of a buy, 0.65% of a sell).",
+    [LABEL.SwapProtocolFees]: "DEEP's share of the swap fee (0.25% of a buy, 0.65% of a sell), less the part paid to referral partners.",
     [LABEL.PoolCreationFees]: "The flat fee in SOL to open a pool.",
   },
   ProtocolRevenue: {
-    [LABEL.SwapProtocolFees]: "DEEP's share of the swap fee, paid into DEEP's fee vault.",
+    [LABEL.SwapProtocolFees]: "DEEP's share of the swap fee, less the part paid to referral partners, paid into DEEP's fee vault.",
     [LABEL.PoolCreationFees]: "The flat fee in SOL to open a pool, paid into DEEP's fee vault.",
   },
   SupplySideRevenue: {
