@@ -17,7 +17,7 @@ const feeConfig = {
 type Factory = { factory: string, firstPairBlock?: number, startBlock?: number, startTimestamp?: number }
 
 // start is the deployment UTC date of the chain's first factory.
-const chainConfig: Record<string, { start: string, factories: Factory[] }> = {
+const chainConfig: Record<string, { start: string, factories: Factory[], deadFrom?: string }> = {
   [CHAIN.SONEIUM]: {
     start: '2025-12-15',
     factories: [
